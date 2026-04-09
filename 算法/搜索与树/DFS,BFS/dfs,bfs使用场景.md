@@ -8,6 +8,8 @@
 | **是否保证最短路径** | 否（除非全遍历） | 是（边权相等时） |
 | **适用场景** | 连通性、路径存在性、拓扑排序 | 最短路径、层序遍历 |
 
+---
+
 ## 具体使用场景
 
 ### DFS 适用场景
@@ -26,7 +28,7 @@ bool dfs_connected(int u, int target) {
 }
 ```
 
-2. **回溯/排列组合**
+1. **回溯/排列组合**
 ```cpp
 // 全排列
 void dfs_permutation(vector<int>& nums, vector<bool>& used, vector<int>& path) {
@@ -46,7 +48,7 @@ void dfs_permutation(vector<int>& nums, vector<bool>& used, vector<int>& path) {
 }
 ```
 
-3. **拓扑排序**
+2. **拓扑排序**
 ```cpp
 void dfs_topological(int u) {
     visited[u] = true;
@@ -57,7 +59,7 @@ void dfs_topological(int u) {
 }
 ```
 
-4. **迷宫/棋盘问题**（找到一条路径即可）
+3. **迷宫/棋盘问题**（找到一条路径即可）
 ```cpp
 bool dfs_maze(int x, int y, int target_x, int target_y) {
     if (x == target_x && y == target_y) return true;
@@ -72,6 +74,8 @@ bool dfs_maze(int x, int y, int target_x, int target_y) {
     return false;
 }
 ```
+
+---
 
 ### BFS 适用场景
 
@@ -191,6 +195,8 @@ vector<int> topological_sort(int n, vector<vector<int>>& graph) {
     return result.size() == n ? result : vector<int>();  // 检查是否有环
 }
 ```
+
+---
 
 ## 选择指南
 
