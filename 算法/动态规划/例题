@@ -1,0 +1,10 @@
+1.https://atcoder.jp/contests/dp/tasks/dp_e
+2.https://oj.neu.edu.cn/training/14/part/101/problem/823（校园网）
+3.https://www.luogu.com.cn/problem/P1757
+4.https://www.luogu.com.cn/problem/P2679
+5.https://www.luogu.com.cn/problem/P1020（最长不上升子序列，Dilworth 定理）**Dilworth 定理：在偏序集中，最少链划分 = 最大反链长度**
+6.https://www.luogu.com.cn/problem/P1216(逆向求解)
+7.https://www.luogu.com.cn/problem/P2904（前缀和）
+8.https://www.luogu.com.cn/problem/P1433(状压DP)
+9.https://www.luogu.com.cn/problem/P1833(混合背包,用二进制拆分优化多重背包部分，完全背包部分直接正序遍历，01 背包部分直接倒序遍历。)
+10.https://www.luogu.com.cn/problem/P1880(区间DP)

@@ -1,0 +1,110 @@
+1.https://www.luogu.com.cn/problem/P2196
+2.https://www.luogu.com.cn/problem/P1219
+3.https://www.luogu.com.cn/problem/P1434
+4.https://www.luogu.com.cn/problem/P1036
+5.https://www.luogu.com.cn/problem/P1101
+6.https://www.luogu.com.cn/problem/P2404
+7.https://www.luogu.com.cn/problem/P1036
+8.https://www.luogu.com.cn/problem/P1217
+9.https://www.luogu.com.cn/problem/P1596
++ 9的代码示例
++ dfs
+```
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+int n,m,ans;
+char mp[105][105],vis[105][105]={0};
+int dx[9]={0,0,1,-1,1,1,-1,-1},dy[9]={1,-1,0,0,1,-1,1,-1};
+void dfs(int x,int y)
+{
+    vis[x][y]=1;
+    for(int i=0;i<8;i++)
+    {
+        int nx=x+dx[i],ny=y+dy[i];
+        if(nx>=1&&nx<=n&&ny>=1&&ny<=m)
+        {
+            if(mp[nx][ny]=='W'&&!vis[nx][ny])
+            dfs(nx,ny);
+        }
+    }
+}
+int main()
+{
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr); 
+    cin>>n>>m;
+    ans=0;
+    for(int i=1;i<=n;i++)
+    {
+        for(int j=1;j<=m;j++)
+        cin>>mp[i][j];
+    }
+    for(int i=1;i<=n;i++)
+    {
+        for(int j=1;j<=m;j++)
+        {
+            if(mp[i][j]=='W'&&!vis[i][j])
+            {
+                ans++;
+                dfs(i,j);
+            }
+        }
+    }
+    cout<<ans<<'\n';
+    return 0;
+}
+```
++ bfs
+```
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+int N,M;
+char mp[105][105],vis[105][105];
+int dx[9]={1,0,0,-1,1,1,-1,-1},dy[9]={0,1,-1,0,1,-1,1,-1};
+int main()
+{
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr); 
+    cin>>N>>M;
+    for(int i=1;i<=N;i++)
+    {
+        for(int j=1;j<=M;j++)
+        {
+            cin>>mp[i][j];
+            vis[i][j]=false;
+        }
+    }
+    int pond=0;
+    for(int i=1;i<=N;i++)
+    {
+        for(int j=1;j<=M;j++)
+        {
+            if(mp[i][j]=='W'&&!vis[i][j])
+            {
+                pond++;
+                queue<pair<int,int>>q;
+                q.push({i,j});
+                vis[i][j]=true;
+                while(!q.empty())
+                {
+                    pair<int,int> it=q.front();
+                    q.pop();
+                    for(int k=0;k<8;k++)
+                    {
+                        int nx=it.first+dx[k],ny=it.second+dy[k];
+                        if(nx>=1&&nx<=N&&ny>=1&&ny<=M&&mp[nx][ny]=='W'&&!vis[nx][ny])
+                        {
+                            vis[nx][ny]=true;
+                            q.push({nx,ny});
+                        }
+                    }
+                }
+            }
+        }
+    }
+    cout<<pond<<endl;
+    return 0;
+}
+```

@@ -1,0 +1,135 @@
+1.https://www.luogu.com.cn/problem/P1601
+2.https://www.luogu.com.cn/problem/P1303
+3.**平方差**
+输入格式:
+第一行一个整数 A
+第二行一个整数 B
+输出格式:
+一行，输出$A^2-B^2$;
+代码：
+```
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+string s1, s2;
+// 数组大小根据最大位数(10^100 的平方有约200位)设定
+int a[250] = {0}, b[250] = {0};  // 存储 A 和 B 的各位数字（逆序）
+int c[500] = {0}, d[500] = {0};  // 存储 A^2 和 B^2 的未进位结果
+int e[500] = {0}, f[500] = {0};  // 存储 A^2 和 B^2 的进位后结果
+int r[500] = {0};                // 存储最终结果 (A^2 - B^2)
+
+int main() {
+    // 输入两个数字字符串（可能带负号）
+    cin >> s1 >> s2;
+
+    int m = 0, n = 0;
+
+    // 处理负号：如果第一个字符是负号，则去掉（本题只要求输出 A^2 - B^2，
+    // 平方后负号消失，所以去掉符号不影响结果）
+    if(s1[0] == '-') s1.erase(0, 1);
+    if(s2[0] == '-') s2.erase(0, 1);
+
+    // 将字符串 s1 逆序存入数组 a（个位在 a[0]）
+    for(int i = s1.size() - 1; i >= 0; i--)
+        a[m++] = s1[i] - '0';
+
+    // 将字符串 s2 逆序存入数组 b
+    for(int i = s2.size() - 1; i >= 0; i--)
+        b[n++] = s2[i] - '0';
+
+    // ---- 计算 A^2 ----
+    // 模拟乘法：每一位 a[i] 与所有 a[j] 相乘，累加到 c[i+j]
+    for(int i = 0; i < s1.size(); i++) {
+        for(int j = 0; j < s1.size(); j++) {
+            c[i + j] += a[i] * a[j];
+        }
+    }
+
+    // ---- 计算 B^2 ----
+    for(int i = 0; i < s2.size(); i++) {
+        for(int j = 0; j < s2.size(); j++) {
+            d[i + j] += b[i] * b[j];
+        }
+    }
+
+    // 最大可能的位数（未进位时）
+    int ma1 = s1.size() * 2 - 1;
+    int ma2 = s2.size() * 2 - 1;
+
+    // ---- 对 A^2 进行进位处理，结果存入 e ----
+    int ans1 = 0;
+    for(int i = 0; i <= ma1; i++) {
+        ans1 = ans1 + c[i];
+        e[i] = ans1 % 10;
+        ans1 /= 10;
+    }
+    if(ans1) e[++ma1] = ans1;       // 处理最高位进位
+    while(e[ma1] == 0 && ma1 > 1)   // 去除前导零
+        ma1--;
+
+    // ---- 对 B^2 进行进位处理，结果存入 f ----
+    int ans2 = 0;
+    for(int i = 0; i <= ma2; i++) {
+        ans2 = ans2 + d[i];
+        f[i] = ans2 % 10;
+        ans2 /= 10;
+    }
+    if(ans2) f[++ma2] = ans2;
+    while(f[ma2] == 0 && ma2 > 1)
+        ma2--;
+
+    // ---- 比较 e 和 f 的大小，确定结果的符号 ----
+    int ma = max(ma1, ma2);
+    bool isNegative = false;   // true 表示结果为负
+
+    if(ma1 > ma2) {
+        isNegative = false;       // |A^2| > |B^2|，结果非负
+    } else if(ma1 < ma2) {
+        isNegative = true;        // |A^2| < |B^2|，结果为负
+    } else {
+        // 位数相同，从高位到低位比较
+        for(int i = ma1; i >= 0; i--) {
+            if(e[i] > f[i]) {
+                isNegative = false;
+                break;
+            } else if(e[i] < f[i]) {
+                isNegative = true;
+                break;
+            }
+        }
+    }
+
+    // ---- 做减法 e - f 或 f - e，结果存入 r ----
+    if(isNegative) {
+        cout << "-";   // 输出负号
+        // 计算 r = f - e
+        for(int i = 0; i <= ma; i++) {
+            if(f[i] < e[i]) {
+                f[i] += 10;
+                f[i + 1] -= 1;
+            }
+            r[i] = f[i] - e[i];
+        }
+    } else {
+        // 计算 r = e - f
+        for(int i = 0; i <= ma; i++) {
+            if(e[i] < f[i]) {
+                e[i] += 10;
+                e[i + 1] -= 1;
+            }
+            r[i] = e[i] - f[i];
+        }
+    }
+
+    // 去掉结果中的前导零（保留至少一位）
+    while(r[ma] == 0 && ma > 1)
+        ma--;
+
+    // 逆序输出结果（从高位到低位）
+    for(int i = ma; i >= 0; i--)
+        cout << r[i];
+    return 0;
+}
+```
+4.
