@@ -1,0 +1,162 @@
+# 🎯 优化版：数学建模编程手 4 周冲刺计划（Python 为主）
+
+## 第一阶段：工具链·数据处理·快速出图（第1周）
+
+### **目标**
+
+0 环境障碍，拿到数据能马上清洗、分析、画出一张精美图表。
+
+### **每日节奏建议**
+
+- Day 1-2：环境与 Jupyter 工作流
+- Day 3-4：NumPy, Pandas 数据处理实战
+- Day 5-6：Matplotlib + Seaborn + Plotly 进阶可视化和美化
+- Day 7：阶段性实战：给一份脏数据，清洗→描述统计→多图呈现
+
+### **具体强化内容**
+
+1. **环境搭建**
+
+- 安装 Anaconda，创建专用环境 `mcm`，Jupyter Lab 作为主力交互工具。
+- 学会 `%run`、`%timeit`、`!pip` 等魔术命令，熟悉代码单元格快送运行。
+- 配备模板文件夹，提前写好 **数据读取模版.py**（支持 csv、xlsx、txt、mat 等）。
+
+2. **数据处理**
+
+- **缺失值**：`df.isnull().sum()`、`df.fillna()`、`df.interpolate()`、KNNImputer。
+- **异常值**：IQR法（箱线图）、Z-score、DBSCAN 粗筛。
+- **数据透视**：`groupby`、`pivot_table` 必须滚瓜烂熟。
+- **练习**：用 UCI 真实数据集（如Air Quality、Iris）完成清洗报告。
+
+3. **可视化（重点升级）**
+
+- 不仅画图，要学**论文标配**：
+`import matplotlib.pyplot as plt
+plt.style.use('seaborn-v0_8-paper')  # 或者 'science' + 'ieee' 需安装 SciencePlots
+plt.rcParams['font.family'] = 'Times New Roman'`
+- 掌握 `subplots` 布局、双 y 轴、颜色映射 `cmap`、图例精细调整。
+- **Plotly**：搞懂 `plotly.express` 画交互式线图/热力图/3D曲面，导出 HTML 可直接插论文附录。
+- **Day 7 实战**：读取一段空气质量监测数据，处理缺失值，画六城市的日变化折线图、相关性热力图，标注 ‘论文级’ 坐标轴。
+
+---
+
+## 第二阶段：经典模型算法实现（第2周）
+
+### **目标**
+
+构建可复用评价、优化、预测类代码模块，熟悉常用求解器语法。
+
+### **每日节奏**
+
+- Day 1-2：评价类（AHP、熵权-TOPSIS、模糊评价）
+- Day 3-4：优化模型（线性、整数、非线性），分别用 SciPy 与 PuLP/Gurobi
+- Day 5：统计与回归（OLS、Logistic、残差诊断）
+- Day 6：灰色预测 GM(1,1)、ARIMA（使用 `statsmodels`）
+- Day 7：整合实战——例如对供应商进行评价排序，同时尝试优化运输成本
+
+### **强化细节**
+
+1. **评价与决策模版**
+
+- AHP 不要手撕，封装函数：输入判断矩阵，输出权重、一致性比率。
+- 熵权法：写一个 `entropy_weight(df)` 返回权重。
+- TOPSIS：写 `topsis(matrix, weights, benefit_indicators)`。
+- **代码模板要求**：传入 NumPy 数组，返回结果 DataFrame，可直接输出表格。
+
+2. **优化求解器**
+
+- **SciPy**：`linprog`（线性）、`minimize`（非线性），学会设置边界和约束。
+- **PuLP / CVXOPT**：描述式建模，处理整数规划很方便（推荐PuLP，纯Python，语法直观）。
+- **若用 MATLAB**：只需记 `linprog`、`intlinprog`、`fmincon` 即可。
+- 实际练习：投资组合优化、运输问题、指派问题。
+
+3. **统计与预测**
+
+- 掌握 `statsmodels` 的 `ols` 输出表，**残差图**、Q-Q图、Durbin-Watson。
+- GM(1,1)：写一个 `gray_forecast(series, steps)`，返回预测值及相对误差。
+- ARIMA：使用 `pmdarima.auto_arima` 自动定阶，但一定要做平稳性检验和残差白噪声检验。
+
+---
+
+## 第三阶段：智能算法·图论·机器学习（第3周）
+
+### **目标**
+
+遇到非线性复杂问题有工具箱，不用从头造轮子。
+
+### **重点调度**
+
+- Day 1-2：K-Means、Random Forest、SVM 的应用与调参
+- Day 3-4：遗传算法(GA)、粒子群(PSO)、模拟退火(SA)——用框架
+- Day 5：图论算法与 NetworkX 实战（最短路径、最大流、社区发现）
+- Day 6-7：组合实战：例如用机器学习做分类/回归，再用启发式算法优化超参数
+
+### **具体强化**
+
+1. **机器学习**
+
+- **Scikit-learn 流水线**：`Pipeline([('scale',StandardScaler()), ('clf',RandomForestClassifier())])`。
+- 重点攻：特征重要性、混淆矩阵、ROC曲线绘图。
+- 聚类后一定要画 **散点图+聚类中心标记**。
+
+2. **启发式算法**
+
+- **GA**：强烈推荐 `DEAP` 或 `PyGAD`，5分钟内解决连续函数最值、TSP问题。
+- **PSO**：`pyswarm`；**模拟退火**：`dual_annealing`（SciPy 1.8+ 已内含）。
+- 要求：能对同一个问题用两种算法，比较收敛曲线并画图。
+
+3. **图论**
+
+- **NetworkX**：图的创建、`dijkstra_path`、`minimum_spanning_tree`、最大流。
+- 画图结合 `nx.draw`，用位置字典固定布局。
+- 应用：灾后物资配送路线规划。
+
+> [!NOTE]
+> 💡 此阶段结束，你应该拥有一套包含“调用第三方库解决标准问题”的代码库，而不是自己慢慢写底层。
+
+---
+
+## 第四阶段：实战演练·终极武器库·协作输出（第4周）
+
+### **目标**
+
+将前三周积累转化为生产力，三天完整模拟，产出可直接粘贴复用的代码模板。
+
+### **第4周安排**
+
+- Day 1-2：代码武器库整理与模板化
+- Day 3-5：全真模拟赛（72h，按真题节奏）
+- Day 6：写论文用代码输出统计表格和 LaTeX 代码
+- Day 7：复盘、查漏补缺，精简模板
+
+### **武器库必须包含：**
+
+1. **通用模板**
+
+- `load_data(path)` 自动识别扩展名，返回 DataFrame。
+- `plot_template(figsize=(8,5), dpi=300, grid=True)` 返回 `fig, ax`，一键调用。
+- `save_fig(fig, name, formats=['png','pdf'])` 保存高清图。
+
+2. **算法封装调用器**
+
+- `evaluate_model(model_name, X_train, y_train, X_test, y_test)`，直接返回准确率、F1、分类报告图表。
+
+3. **表格自动化**
+
+- 用 `df.to_latex()` 将回归结果转化成 LaTeX 表格，直接复制给写手。
+- 用 `pandas` 结合 `python-docx` 生成 Word 表格。
+
+**模拟赛要点**
+
+- 选一套往年美赛/国赛题目，严格按照：
+- 第一天：读题、文献、数据查找，编程手搭建数据读取管道。
+- 第二天：模型实现、求解、出图，编程手需把建模推导的所有公式转成代码。
+- 第三天：结果分析、可视化升级、论文整合，编程手生成所有图表和表格。
+- 刻意练习 **公式到代码**：拿到 LaTeX 公式，立刻转成向量化代码。
+
+**协作强化**
+
+- 用 **Git + GitHub** 管理项目，保证版本一致，即使不会复杂命令，至少会 `commit`、`push`。
+- 注释标准：每个函数上方用英文或中文写“功能、输入、输出、调用例子”，方便写手直接引用算法逻辑。
+
+---
