@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Java 云原生 AI & AIOps 12周进阶计划.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="-java-云原生-ai--aiops-12周进阶计划">🚀 Java 云原生 AI &amp; AIOps 12周进阶计划</h1>
+<p>在企业级架构中，<strong>Java 是承载复杂业务逻辑和高并发调度的“重型装甲”，而 Python 是执行 AI 算法和快速原型验证的“轻型骑兵”</strong>。在 AIOps 和云原生 AI 领域，这种“强管控 + 弱执行”的组合是目前大厂最稳健的架构。</p>
+<p>纯干货、<strong>以 Java 为主线、云原生 AI 为目标</strong>的 12 周执行计划表</p>
+<h2 id="第一阶段地基期-w1-w4--java-核心与-linux-基础">第一阶段：地基期 (W1-W4) —— Java 核心与 Linux 基础</h2>
+<p><strong>目标：</strong> 掌握 Java 开发底座，熟悉 Linux 进程与文件系统，建立代码管控能力。</p>
+<table>
+<thead>
+<tr>
+<th>周次</th>
+<th>主任务 (Java &amp; AI)</th>
+<th>副任务 (Linux / Git / Python)</th>
+<th>检查点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>W1</strong></td>
+<td>Java 环境搭建、基础语法（变量、控制流、方法）</td>
+<td>Linux 文件操作 (ls, cd, mkdir, rm)</td>
+<td>环境配好，能写 Java 排序算法</td>
+</tr>
+<tr>
+<td><strong>W2</strong></td>
+<td><strong>Java 面向对象 (OOP)</strong>：类、对象、封装、继承、多态</td>
+<td>Linux 进程管理 (<strong>ps, top, kill</strong>) —— AIOps 监控的基础</td>
+<td>理解对象模型，能分析系统进程占用</td>
+</tr>
+<tr>
+<td><strong>W3</strong></td>
+<td>Java 集合框架 (List, Map) + <strong>IO 流与文件处理</strong></td>
+<td>Vim 编辑器 + <strong>curl</strong> 命令测试 API</td>
+<td>能用 Java 读写日志文件，用 curl 调通 DeepSeek API</td>
+</tr>
+<tr>
+<td><strong>W4</strong></td>
+<td><strong>Git 深度实践</strong>：分支管理、Commit 规范、推送到 GitHub</td>
+<td>Python 极简入门：写一个 20 行的 test_api.py</td>
+<td>代码全部上云，Python 能调通模型 API</td>
+</tr>
+</tbody>
+</table>
+<h2 id="第二阶段核心期-w5-w8--springboot-与-ai-工程化">第二阶段：核心期 (W5-W8) —— SpringBoot 与 AI 工程化</h2>
+<p><strong>目标：</strong> 掌握企业级 Java 框架，对接大模型，实现容器化部署。</p>
+<table>
+<thead>
+<tr>
+<th>周次</th>
+<th>主任务 (Java &amp; AI)</th>
+<th>副任务 (Docker / 基础设施)</th>
+<th>检查点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>W5</strong></td>
+<td><strong>SpringBoot 3.x 快速上手</strong>：构建第一个 RESTful API</td>
+<td>安装 Docker，掌握 run, ps, images</td>
+<td>Java 后端能返回 JSON 数据</td>
+</tr>
+<tr>
+<td><strong>W6</strong></td>
+<td><strong>SpringAI / LangChain4j 接入</strong>：实现 Java 调用大模型 API</td>
+<td>Dockerfile 编写：将 SpringBoot 打包成镜像</td>
+<td>Java 程序能自动根据输入生成 AI 回复</td>
+</tr>
+<tr>
+<td><strong>W7</strong></td>
+<td><strong>AI 提示词工程 (Prompt)</strong>：上下文管理、多轮对话逻辑封装</td>
+<td>Docker 网络与数据卷：容器间通信</td>
+<td>实现一个带历史记忆的 Java AI 聊天服务</td>
+</tr>
+<tr>
+<td><strong>W8</strong></td>
+<td><strong>SpringAI 进阶</strong>：RAG 基础（读取本地 PDF/文档给 AI 学习）</td>
+<td>Docker Compose：一键启动 Java + Redis/DB</td>
+<td>程序能根据你上传的文档回答问题</td>
+</tr>
+</tbody>
+</table>
+<h2 id="第三阶段项目期-w9-w12--aiops-智能调度推理平台实战">第三阶段：项目期 (W9-W12) —— AIOps 智能调度/推理平台实战</h2>
+<p><strong>目标：</strong> 模拟真实大厂场景，开发一个具备 AI 推理管控能力的简易平台。</p>
+<table>
+<thead>
+<tr>
+<th>周次</th>
+<th>项目模块</th>
+<th>核心技术点</th>
+<th>成果展示</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>W9</strong></td>
+<td><strong>后端管控面开发</strong></td>
+<td>SpringBoot + 线程池（模拟并发推理请求调度）</td>
+<td>实现一个能同时处理多个 AI 任务的后端</td>
+</tr>
+<tr>
+<td><strong>W10</strong></td>
+<td><strong>AI 脚本与 Java 联动</strong></td>
+<td>Java 通过进程调 Python 推理脚本 / 调用 Serverless API</td>
+<td>Java 成功指挥 Python 或 API 完成计算任务</td>
+</tr>
+<tr>
+<td><strong>W11</strong></td>
+<td><strong>AIOps 智能监控模块</strong></td>
+<td>获取系统 CPU/内存数据 -&gt; 发给 AI -&gt; AI 给出优化建议</td>
+<td>AI 能告诉你：内存快满了，建议杀掉 XX 进程</td>
+</tr>
+<tr>
+<td><strong>W12</strong></td>
+<td><strong>定稿与工程化收尾</strong></td>
+<td>编写 README、录制部署视频、整理简历中的 AI 项目描述</td>
+<td>GitHub 仓库达到“准入职”级别，简历亮点鲜明</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-关键执行点拨">💡 关键执行点拨</h2>
+<ol>
+<li><strong>Python 怎么学？</strong>
+不要买书，不要看网课。等到第 4 周和第 10 周，需要用到 Python 脚本调模型时，直接问 AI：“我想用 Python 调用这个 API，请给我代码”，你负责<strong>看懂</strong>和<strong>修改</strong>即可。</li>
+<li><strong>Java 学到什么程度？</strong>
+不要深钻 Swing 或复杂的 Swing 界面，重点在 <strong>集合、多线程（为了调度）、网络请求（为了调 API）和 SpringBoot（为了做平台）</strong>。</li>
+<li><strong>云原生硬核技能：</strong>
+在 W2 和 W6，务必理解“进程”和“容器”的区别。AIOps 处理的就是进程，Serverless 依赖的就是容器。</li>
+</ol>
+<h2 id="核心心法">核心心法</h2>
+<ul>
+<li><strong>Java 是你的“大脑”</strong>：负责逻辑、调度、管控。</li>
+<li><strong>Linux/Docker 是你的“躯干”</strong>：负责承载运行。</li>
+<li><strong>Python/AI 是你的“工具”</strong>：负责特定的计算任务。</li>
+</ul>
+
+</body>
+</html>
