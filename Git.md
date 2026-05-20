@@ -40,6 +40,8 @@ git push -u origin main
 
 ## **二、日常更新操作**
 
+### 1.代码实现
+
 当项目内容有变化时，依次执行：
 
 ```bash
@@ -51,6 +53,33 @@ git push
 + `git add .`：将所有变更添加到暂存区
 + `git commit -m "xxx"`：提交到本地仓库，建议填写有意义的提交信息
 + `git push`：推送至已关联的远程仓库（已建立追踪关系后可省略远程名和分支名）
+
+### 2.Git Commit 消息规范（Conventional Commits）笔记
+
+使用统一的提交标签可以使项目历史更清晰，便于自动化生成更新日志。
+
+#### (1)常用标签说明
+
+| 标签 | 全称 | 适用场景 | 举个例子 |
+|------|------|----------|----------|
+| `feat` | feature | 开发**新功能**。只要是系统里以前没有、现在刚写完的功能，都用它。 | `feat: 编写GourmetCoffee的购物车商品添加功能` |
+| `fix` | fix | **修复 Bug**。代码报错、逻辑漏洞、死循环，只要是改错都用它。 | `fix: 修复咖啡数量输入负数时导致金额计算错误的Bug` |
+| `docs` | documentation | 仅仅**修改了文档**。比如改了 README.md、写了注释、改了脑图。 | `docs: 更新W4阶段Python测试接口脑图说明` |
+| `style` | style | 不影响代码逻辑的**格式调整**。比如对齐空格、删掉多余空行、格式化代码。 | `style: 格式化GourmetCoffee主类的缩进和空格` |
+| `refactor` | refactor | **重构代码**。既不是新功能，也不是修 Bug，而是把烂代码写得更优雅、更健壮。 | `refactor: 提取公共咖啡属性到基类以优化代码结构` |
+| `test` | test | **增加或修改测试用例**。比如你在写 Java 时用的 JUnit 测试代码。 | `test: 增加购物车结算逻辑的单元测试` |
+| `chore` | chore | **杂务/日常构建维护**。比如修改了 pom.xml 引入了新依赖、改了 .gitignore、配置了 IntelliJ IDEA 的环境。 | `chore: 导入老师提供的GourmetCoffee第三方类库` |
+
+#### (2)补充标签（可选）
+
+| 标签 | 全称 | 适用场景 | 举个例子 |
+| ------ | ------ | ---------- | ---------- |
+| `perf` | performance | **性能优化**相关的改动。 | `perf: 优化图片加载策略减少首页白屏时间` |
+| `build` | build | 影响构建系统或外部依赖的改动（如 Maven/Gradle 配置）。 | `build: 升级Spring Boot版本至2.7.0` |
+| `ci` | continuous integration | 修改 CI 配置或脚本（如 GitHub Actions、Jenkins）。 | `ci: 添加自动化测试流水线` |
+| `revert` | revert | **撤销**之前的某次提交。 | `revert: 回退feat(购物车)因为发现性能瓶颈` |
+
+## 使用格式
 
 ---
 
