@@ -149,7 +149,6 @@ public DataSource devDataSource() {
 
 ## 7. 自动配置原理（简要）
 
-
 - `@EnableAutoConfiguration` 通过 `spring-boot-autoconfigure` jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（Spring Boot 3.x）加载大量自动配置类。
 - 每个自动配置类都用 `@ConditionalOnClass`、`@ConditionalOnMissingBean` 等条件注解，**按需生效**。
 - 想查看当前生效的配置：启动时加 `--debug`，日志会打印自动配置报告。
