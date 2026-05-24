@@ -144,6 +144,8 @@ public DataSource devDataSource() {
 | `@ConfigurationProperties` | 批量绑定配置到 Bean |
 | `@Component / @Service / @Repository` | 声明 Spring 管理的 Bean |
 | `@Transactional` | 声明事务 |
+| `@PostMapping` | 处理 POST 请求 |
+| `@RequestBody` | 接收 JSON 自动转成 Java 对象 |
 
 ---
 
