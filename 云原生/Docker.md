@@ -2,9 +2,11 @@
 
 ## 1. 核心概念
 
-- **镜像（Image）**：一个只读的模板，包含运行环境（如 JDK + 应用 jar）。
-- **容器（Container）**：镜像的运行实例，可启动、停止、删除，相互隔离。
-- **仓库（Repository）**：存放镜像的地方，如 Docker Hub。
+- **镜像（Image）**：一个只读的模板，包含运行环境（如 JDK + 应用 jar）
+- **容器（Container）**：镜像的运行实例，可启动、停止、删除，相互隔离
+- **仓库（Repository）**：存放镜像的地方，如 Docker Hub
+
+---
 
 ## 2. ==常用命令==
 
@@ -48,6 +50,8 @@
 - `-t`: 在新容器内指定一个伪终端或终端
 - `-i`: 允许你对容器内的标准输入 (STDIN) 进行交互
 
+---
+
 ## 3. Dockerfile 模板（Spring Boot 项目）
 
 ```dockerfile
@@ -79,6 +83,8 @@ docker build -t clash-royale-server .
 docker run -d -p 8080:8080 --name game-server clash-royale-server
 ```
 
+---
+
 ## 4. docker-compose 模板（多服务编排，可选）
 
 ```yaml
@@ -95,11 +101,13 @@ services:
 启动：`docker-compose up -d`  
 停止：`docker-compose down`
 
+---
+
 ## 5.注意事项
 
-- 每次修改代码后，需要重新打包（`mvn clean package`）并重新构建镜像。
-- 容器内的 `localhost` 指向容器自身，要访问宿主机服务时需用 `host.docker.internal`（Windows/Mac）或宿主机 IP。
-- 如果端口映射冲突，换一个宿主机端口即可。
-- 查看容器详细信息：`docker inspect <容器名>`。
+- 每次修改代码后，需要重新打包（`mvn clean package`）并重新构建镜像
+- 容器内的 `localhost` 指向容器自身，要访问宿主机服务时需用 `host.docker.internal`（Windows/Mac）或宿主机 IP
+- 如果端口映射冲突，换一个宿主机端口即可
+- 查看容器详细信息：`docker inspect <容器名>`
 
 ---
