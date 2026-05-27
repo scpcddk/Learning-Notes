@@ -12,20 +12,20 @@
 
 | 命令 | 功能 | 示例 |
 | --------------------- | -------------------------------- | ------------------------------------------ |
-| `docker run` | 启动一个新的容器并运行命令 | `docker run -d ubuntu` |
-| `docker ps` | 列出当前正在运行的容器 | `docker ps` |
+| `docker run` | **启动**一个新的容器**并运行**命令 | `docker run -d ubuntu` |
+| `docker ps` | **列出**当前正在运行的容器 | `docker ps` |
 | `docker ps -a` | 列出所有容器（包括已停止的容器） | `docker ps -a` |
 | `docker build` | 使用 Dockerfile 构建镜像 | `docker build -t my-image .` |
-| `docker images` | 列出本地存储的所有镜像 | `docker images` |
-| `docker pull` | 从 Docker 仓库拉取镜像 | `docker pull ubuntu` |
-| `docker push` | 将镜像推送到 Docker 仓库 | `docker push my-image` |
-| `docker exec` | 在运行的容器中执行命令 | `docker exec -it container_name bash` |
-| `docker stop` | 停止一个或多个容器 | `docker stop container_name` |
-| `docker start` | 启动已停止的容器 | `docker start container_name` |
+| `docker images` | **列出**本地存储的所有**镜像** | `docker images` |
+| `docker pull` | 从 Docker 仓库**拉取镜像** | `docker pull ubuntu` |
+| `docker push` | 将**镜像推送**到 Docker 仓库 | `docker push my-image` |
+| `docker exec` | 在运行的容器中**执行命令** | `docker exec -it container_name bash` |
+| `docker stop` | **停止**一个或多个容器 | `docker stop container_name` |
+| `docker start` | **启动**已停止的容器 | `docker start container_name` |
 | `docker restart` | 重启一个容器 | `docker restart container_name` |
-| `docker rm` | 删除一个或多个容器 | `docker rm container_name` |
-| `docker rmi` | 删除一个或多个镜像 | `docker rmi my-image` |
-| `docker logs` | 查看容器的日志 | `docker logs container_name` |
+| `docker rm` | **删除**一个或多个**容器** | `docker rm container_name` |
+| `docker rmi` | **删除**一个或多个**镜像** | `docker rmi my-image` |
+| `docker logs` | **查看容器的日志** | `docker logs container_name` |
 | `docker inspect` | 获取容器或镜像的详细信息 | `docker inspect container_name` |
 | `docker exec -it` | 进入容器的交互式终端 | `docker exec -it container_name /bin/bash` |
 | `docker network ls` | 列出所有 Docker 网络 | `docker network ls` |
@@ -40,6 +40,9 @@
 | `docker export` | 导出容器 | `docker export` |
 | `docker import` | 导入容器快照 | `$ cat docker/ubuntu.tar \| docker import - test/ubuntu:v1` 将快照文件 ubuntu.tar 导入到镜像 test/ubuntu:v1 |
 
+- `-t`: 在新容器内指定一个伪终端或终端
+- `-i`: 允许你对容器内的标准输入 (STDIN) 进行交互
+
 **常用 `docker run` 选项**：
 
 - `-d`：后台运行
@@ -47,8 +50,6 @@
 - `--name`：指定容器名称
 - `-v 宿主机目录:容器目录`：挂载数据卷（持久化）
 - `--restart=always`：自动重启
-- `-t`: 在新容器内指定一个伪终端或终端
-- `-i`: 允许你对容器内的标准输入 (STDIN) 进行交互
 
 ---
 
