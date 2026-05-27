@@ -4,7 +4,14 @@
 
 ---
 
-## 1. 为什么后端要学 Shell？
+## 1.认识shell
+
+### 1.1什么是shell
+
+- Shell 是一个用 C 语言编写的程序，是用户使用 Linux 的桥梁。Shell 既是一种命令语言，又是一种程序设计语言
+- Shell 是指一种应用程序，这个应用程序提供了一个界面，用户通过这个界面访问操作系统内核的服务
+
+### 1.2 为什么后端要学 Shell？
 
 - **自动化部署**：写脚本一键打包、上传、重启服务。
 - **日志分析**：用 `grep`、`awk` 快速排查线上问题。
@@ -61,6 +68,28 @@ echo ${#str}          # 输出长度：5
 echo ${str:1:2}       # 从下标1截取2个：el
 ```
 
+- **单引号**:字符会原样输出，里面的变量是无效的,不能出现单独一个的单引号（对单引号使用转义符后也不行）
+- **双引号**:里面可以有变量,可以出现转义字符
+
+- **拼接字符串**:
+
+```bash
+your_name="runoob"
+# 使用双引号拼接
+greeting="hello, "$your_name" !"
+greeting_1="hello, ${your_name} !"
+echo $greeting  $greeting_1
+
+# 使用单引号拼接
+greeting_2='hello, '$your_name' !'
+greeting_3='hello, ${your_name} !'
+echo $greeting_2  $greeting_3
+
+输出结果为：
+hello, runoob ! hello, runoob !
+hello, runoob ! hello, ${your_name} !
+```
+
 ### 2.5 数组
 
 ```bash
@@ -89,7 +118,7 @@ fi
 **常用条件测试**（`test` 命令或 `[ ]`）：
 
 | 表达式 | 含义 |
-|--------|------|
+| -------- | ------ |
 | `[ -f file ]` | 文件存在且为普通文件 |
 | `[ -d dir ]` | 目录存在 |
 | `[ -z str ]` | 字符串长度为0 |
@@ -156,6 +185,17 @@ case $1 in
 esac
 ```
 
+### 3.5until 循环
+
+until 循环执行一系列命令直至条件为 true 时停止
+
+```bash
+until condition
+do
+    command
+done
+```
+
 ---
 
 ## 4. 函数
@@ -176,7 +216,7 @@ greet "World"
 ## 5. 输入/输出重定向
 
 | 符号 | 含义 |
-|------|------|
+| ------ | ------ |
 | `>` | 覆盖输出到文件 |
 | `>>` | 追加输出到文件 |
 | `2>` | 重定向错误输出 |
@@ -259,7 +299,4 @@ sed -i 's/old/new/g' *.java
 
 ---
 
-**笔记版本**：v1.0  
-**更新日期**：2026-05-27  
-**适用场景**：日常开发、服务器维护、CI/CD 脚本编写
 **参考链接**：[https://www.runoob.com/linux/linux-shell.html]
