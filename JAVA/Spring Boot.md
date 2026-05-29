@@ -147,6 +147,15 @@ public DataSource devDataSource() {
 | `@PostMapping` | 处理 POST 请求 |
 | `@RequestBody` | 接收 JSON 自动转成 Java 对象 |
 
+### Controller 层的方法，增删查改对应的 HTTP 注解
+
+| 操作 | JAX-RS 注解 | Spring 注解 | Swagger 注解 |
+| ----- | ----------------- | ------------------------------- | ------------------------ |
+| **增** | `@POST` | `@PostMapping` | `@ApiOperation` + POST |
+| **删** | `@DELETE` | `@DeleteMapping` | `@ApiOperation` + DELETE |
+| **查** | `@GET` | `@GetMapping` | `@ApiOperation` + GET |
+| **改** | `@PUT` / `@PATCH` | `@PutMapping` / `@PatchMapping` | `@ApiOperation` + PUT |
+
 ---
 
 ## 7. 自动配置原理（简要）
