@@ -1,18 +1,22 @@
 # Spring Boot 学习笔记
 
-> 一份快速上手的核心知识总结，适合日常开发查阅。
+> **定位**：初学者快速上手，进阶者速查。基础部分够用，进阶部分深挖
 
 ---
 
-## 1. 什么是 Spring Boot
+## 1. 一句话理解 Spring Boot
 
-- 基于 Spring 的快速开发框架，**简化 Spring 应用的搭建和配置**。
-- 核心思想：**约定大于配置**，开箱即用。
-- 内置 Tomcat / Jetty / Undertow，无需部署 war 包。
+Spring Boot 是 **"约定大于配置"** 的快速开发框架
 
----
+| 传统 Spring | Spring Boot |
+| ------------- | ------------- |
+| 写大量 XML 配置 | 几乎零配置，开箱即用 |
+| 手动部署 Tomcat | 内置 Tomcat，`java -jar` 直接跑 |
+| 依赖版本冲突 | Starter 一键引入兼容版本 |
 
-## 2. 核心特性
+**核心思想**：你只管写业务代码，配置交给框架猜
+
+**核心特性**：
 
 | 特性 | 说明 |
 | ------ | ------ |
@@ -24,13 +28,13 @@
 
 ---
 
-## 3. 快速开始
+## 2. 5分钟跑起来
 
-### 3.1 创建项目
+### 2.1 创建项目
 
-使用 [Spring Initializr](https://start.spring.io) 或在 IDE 中新建 Spring Boot 项目。
+去 [https://start.spring.io](https://start.spring.io)，勾选 **Web**，下载导入 IDE
 
-### 3.2 主启动类
+### 2.2 主启动类
 
 ```java
 @SpringBootApplication
@@ -41,16 +45,17 @@ public class DemoApplication {
 }
 ```
 
-- `@SpringBootApplication` 包含：
-  - `@SpringBootConfiguration`：配置类
-  - `@EnableAutoConfiguration`：开启自动配置
-  - `@ComponentScan`：扫描当前包及子包的组件
+📌 **`@SpringBootApplication` = 配置类 + 自动配置 + 组件扫描**。把它放在根包（如 `com.example.demo`），Spring 会自动扫描它的子包
 
-### 3.3 第一个 REST 接口
+---
+
+## 3. 写第一个接口
+
+### 3.1 基础版
 
 ```java
-@RestController
-@RequestMapping("/api")
+@RestController              // 📌 声明：这是 REST 接口，返回数据不是页面
+@RequestMapping("/api")      // 类前缀：所有方法路径前加 /api
 public class HelloController {
 
     @GetMapping("/hello")
@@ -60,20 +65,113 @@ public class HelloController {
 }
 ```
 
+**测试**：
+
+```bash
+curl http://localhost:8080/api/hello
+curl http://localhost:8080/api/hello?name=Spring
+```
+
+### 3.2 **返回 JSON**（实际开发方式）
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    // 📌 查：GET /api/users/123
+    @GetMapping("/{id}")
+    public User getUser(@PathVariable Long id) {
+        return new User(id, "Tom");
+    }
+
+    // 📌 增：POST /api/users（接收 JSON 自动转对象）
+    @PostMapping
+    public User createUser(@RequestBody User user) {
+        return userService.save(user);
+    }
+
+    // 📌 改（全量更新）：PUT /api/users/123
+    @PutMapping("/{id}")  //传完整对象，覆盖原有数据
+    public User updateUser(@PathVariable Long id, @RequestBody User user) {
+        user.setId(id);
+        return userService.save(user);
+    }
+
+    // 📌 改（局部更新）：PATCH /api/users/123
+    @PatchMapping("/{id}")  //只传要改的字段，其余保留
+    public User patchUser(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
+        return userService.patch(id, updates);
+    }
+
+    // 📌 删：DELETE /api/users/123
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUser(@PathVariable Long id) {
+        userService.delete(id);
+    }
+}
+```
+
+### 3.3 `@Controller` vs `@RestController`
+
+| 注解 | 返回 `String` 时 | 适用场景 |
+| ------ | ------------------ | ---------- |
+| `@Controller` | 解析为**页面名**（如 `index.html`） | 服务端渲染（Thymeleaf） |
+| `@RestController` | 直接作为**文本**返回 | REST API / 前后端分离 |
+
+> 💡 **初学者记住**：写 API 用 `@RestController`，写页面用 `@Controller`
+
 ---
 
-## 4. 配置文件
+## 4. ==常用注解速查==
 
-### 4.1 优先级
+### **4.1 请求映射**
 
-`application.yml`（或 `.properties`）可放在以下位置，优先级从高到低：
+| 注解 | 作用 | 示例 |
+| ------ | ------ | ------ |
+| `@GetMapping` | 处理 GET | `@GetMapping("/users")` |
+| `@PostMapping` | 处理 POST | `@PostMapping("/users")` |
+| `@PutMapping` | 全量更新 | `@PutMapping("/users/{id}")` |
+| `@PatchMapping` | 局部更新 | `@PatchMapping("/users/{id}")` |
+| `@DeleteMapping` | 删除 | `@DeleteMapping("/users/{id}")` |
+| `@RequestMapping` | 通用（可指定 method） | `@RequestMapping(value = "/api", method = GET)` |
 
-1. jar 包外部的 `config` 子目录
-2. jar 包外部的当前目录
-3. 类路径 `config` 包
-4. 类路径根目录
+### **4.2 参数获取**
 
-### 4.2 基本写法（YAML）
+| 注解 | 来源 | 示例 |
+| ------ | ------ | ------ |
+| `@RequestParam` | URL `?` 参数 | `@RequestParam String name` |
+| `@PathVariable` | 路径 `/` 参数 | `@PathVariable Long id` |
+| `@RequestBody` | 请求体 JSON | `@RequestBody User user` |
+| `@RequestHeader` | 请求头 | `@RequestHeader("Authorization") String token` |
+
+### **4.3 Bean 注入**
+
+| 注解 | 说明 |
+| ------ | ------ |
+| `@Autowired` | 按类型注入（Spring 专属） |
+| `@Resource` | 按名称注入（JDK 标准，推荐） |
+| `@Qualifier` | 配合 `@Autowired` 指定名称 |
+
+### **4.4 其他核心**
+
+| 注解 | 作用 |
+| ------ | ------ |
+| `@Service` | 业务层 |
+| `@Repository` | 数据层（自动转异常） |
+| `@Component` | 通用组件 |
+| `@Configuration` | 配置类 |
+| `@Bean` | 在配置类中手动注册 Bean |
+| `@Value` | 读取配置文件值 |
+| `@Transactional` | 事务 |
+| `@Valid` | 开启参数校验 |
+
+---
+
+## 5. 配置文件
+
+### 5.1 基础写法（YAML）
 
 ```yaml
 server:
@@ -85,225 +183,507 @@ spring:
     username: root
     password: 123456
 
+# 自定义配置
 my:
-  custom:
-    name: myApp
-    version: 1.0
+  app:
+    name: demo
 ```
 
-读取自定义配置：
+### 5.2 读取配置
+
+**方式一：简单属性**（适合单个值）
 
 ```java
-@Value("${my.custom.name}")
+@Value("${my.app.name}")
 private String appName;
+
+@Value("${server.port:8080}")  // 📌 冒号后面是默认值
+private int port;
 ```
 
-或者用 `@ConfigurationProperties` 绑定到 Bean。
-
----
-
-## 5. 多环境配置（Profile）
-
-### 5.1 配置文件命名
-
-- `application-dev.yml`   → 开发环境
-- `application-prod.yml`  → 生产环境
-- 公共配置仍在 `application.yml` 中
-
-### 5.2 激活指定环境
-
-- 配置文件：`spring.profiles.active=dev`
-- 启动参数：`--spring.profiles.active=prod`
-- 环境变量：`SPRING_PROFILES_ACTIVE=prod`
-
-### 5.3 条件 Bean
+**方式二：批量绑定**（适合对象）
 
 ```java
-@Bean
-@Profile("dev")
-public DataSource devDataSource() {
-    // 仅 dev 环境生效
+@Data
+@Component
+@ConfigurationProperties(prefix = "my.app")
+public class MyAppProperties {
+    private String name;
+    private String version;
 }
 ```
 
----
+### 5.3 多环境配置
 
-## 6. 常用注解速查
-
-| 注解 | 作用 |
-| ------ | ------ |
-| `@SpringBootApplication` | 启动类复合注解 |
-| `@RestController` | = `@Controller` + `@ResponseBody` |
-| `@RequestMapping` | 映射请求路径，可放在类或方法上 |
-| `@GetMapping / @PostMapping` | REST 风格请求映射 |
-| `@RequestParam` | 获取请求参数 |
-| `@PathVariable` | 获取路径变量（如 `/user/{id}`） |
-| `@Autowired` | 按类型自动注入 |
-| `@Qualifier` | 配合 `@Autowired` 按名称注入 |
-| `@Value` | 读取配置文件值 |
-| `@ConfigurationProperties` | 批量绑定配置到 Bean |
-| `@Component / @Service / @Repository` | 声明 Spring 管理的 Bean |
-| `@Transactional` | 声明事务 |
-| `@PostMapping` | 处理 POST 请求 |
-| `@RequestBody` | 接收 JSON 自动转成 Java 对象 |
-
-### Controller 层的方法，增删查改对应的 HTTP 注解
-
-| 操作 | JAX-RS 注解 | Spring 注解 | Swagger 注解 |
-| ----- | ----------------- | ------------------------------- | ------------------------ |
-| **增** | `@POST` | `@PostMapping` | `@ApiOperation` + POST |
-| **删** | `@DELETE` | `@DeleteMapping` | `@ApiOperation` + DELETE |
-| **查** | `@GET` | `@GetMapping` | `@ApiOperation` + GET |
-| **改** | `@PUT` / `@PATCH` | `@PutMapping` / `@PatchMapping` | `@ApiOperation` + PUT |
-
----
-
-## 7. 自动配置原理（简要）
-
-- `@EnableAutoConfiguration` 通过 `spring-boot-autoconfigure` jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（Spring Boot 3.x）加载大量自动配置类。
-- 每个自动配置类都用 `@ConditionalOnClass`、`@ConditionalOnMissingBean` 等条件注解，**按需生效**。
-- 想查看当前生效的配置：启动时加 `--debug`，日志会打印自动配置报告。
-
----
-
-## 8. 起步依赖（Starter）
-
-常见 Starter：
-
-- `spring-boot-starter-web`：Web 支持（Spring MVC + Tomcat）
-- `spring-boot-starter-data-jpa`：JPA + Hibernate
-- `spring-boot-starter-data-redis`：Redis
-- `spring-boot-starter-test`：测试（JUnit5, Mockito）
-- `spring-boot-starter-actuator`：监控端点
-
----
-
-## 9. 启动后执行初始化代码
-
-### 9.1 CommandLineRunner
-
-应用启动完毕、所有 Bean 初始化后执行，接受原始命令行参数 `String... args`。
+创建文件：
 
 ```java
-@Component
-@Order(1)  // 数值越小越先执行
-public class MyStartupRunner implements CommandLineRunner {
-    @Override
-    public void run(String... args) throws Exception {
-        System.out.println("=== CommandLineRunner 启动后执行 ===");
+application.yml        # 公共配置
+application-dev.yml    # 开发环境
+application-prod.yml   # 生产环境
+```
+
+激活方式（三选一）：
+
+```yaml
+# application.yml 中
+spring:
+  profiles:
+    active: dev
+```
+
+```bash
+# 启动时
+java -jar app.jar --spring.profiles.active=prod
+```
+
+🔧 **进阶**：Spring Boot 2.4+ 支持 `spring.profiles.group` 分组配置
+
+---
+
+## 6. 数据访问（极简）
+
+### 6.1 Spring Data JPA（一句话：定义接口，自动生成 SQL）
+
+```java
+// 1. 实体
+@Entity
+public class User {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String username;
+}
+
+// 2. 仓库（只需接口，零实现）
+public interface UserRepository extends JpaRepository<User, Long> {
+    // 方法名即查询：findBy + 字段名
+    Optional<User> findByUsername(String username);
+}
+
+// 3. 使用
+@Service
+@RequiredArgsConstructor  // 📌 Lombok 生成带 final 字段的构造器
+public class UserService {
+    private final UserRepository userRepository;
+
+    @Transactional
+    public User create(User user) {
+        return userRepository.save(user);
     }
 }
 ```
 
-### 9.2 ApplicationRunner
-
-与 `CommandLineRunner` 类似，但参数是 `ApplicationArguments`，可以方便解析 `--key=value` 格式。
+### 6.2 MyBatis-Plus（国内常用）
 
 ```java
-@Component
-@Order(2)
-public class MyAppRunner implements ApplicationRunner {
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        System.out.println("非选项参数: " + args.getNonOptionArgs());
-        System.out.println("选项参数名: " + args.getOptionNames());
+@Mapper
+public interface UserMapper extends BaseMapper<User> {
+    // 内置 CRUD，无需写 SQL
+}
+```
+
+🔧 **进阶**：复杂查询用 `@Select` 注解或 XML 文件
+
+---
+
+## 7. 统一响应与异常处理
+
+### 7.1 统一响应体（前端友好）
+
+```java
+@Data
+public class Result<T> {
+    private Integer code;
+    private String msg;
+    private T data;
+    private Long time = System.currentTimeMillis();
+
+    public static <T> Result<T> ok(T data) {
+        return new Result<>(200, "success", data);
+    }
+    public static <T> Result<T> error(String msg) {
+        return new Result<>(500, msg, null);
     }
 }
 ```
 
-- 若启动时传入 `java -jar app.jar --debug --name=Spring`，`ApplicationRunner` 能直接拿到 `name` 的值。
+**Controller 返回**：
 
-> **注意**：`run` 方法内抛异常会导致启动失败；长时间阻塞会拖慢启动，建议异步处理。
+```java
+@GetMapping("/{id}")
+public Result<User> getUser(@PathVariable Long id) {
+    return Result.ok(userService.findById(id));
+}
+```
 
-### 9.3 与 `@PostConstruct` 区别
+### 7.2 全局异常处理（一处定义，全局生效）
 
-- `@PostConstruct`：**当前 Bean 初始化完成后立即执行**，此时其他依赖可能尚未就绪。
-- `CommandLineRunner / ApplicationRunner`：**整个 Spring 容器完全启动后执行**，所有依赖就绪，适合需要数据库连接的初始化。
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
 
-### 9.4 关于 `@Override`
+    // 参数校验失败（如 @NotBlank 触发）
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<Void> handleValid(MethodArgumentNotValidException e) {
+        String msg = e.getFieldErrors().stream()
+            .map(error -> error.getField() + ":" + error.getDefaultMessage())
+            .collect(Collectors.joining(", "));
+        return Result.error(msg);
+    }
 
-- 实现接口方法时，建议**始终加上** `@Override` 注解。
-- 它让编译器检查你是否真的正确重写了父类/接口方法，避免因拼写错误导致逻辑失效。
+    // 业务异常
+    @ExceptionHandler(BusinessException.class)
+    public Result<Void> handleBusiness(BusinessException e) {
+        return Result.error(e.getMessage());
+    }
+
+    // 兜底
+    @ExceptionHandler(Exception.class)
+    public Result<Void> handleException(Exception e) {
+        return Result.error("系统繁忙");
+    }
+}
+```
+
+### 7.3 参数校验
+
+添加依赖：`spring-boot-starter-validation`
+
+```java
+@Data
+public class UserDTO {
+    @NotBlank(message = "用户名不能为空")
+    @Size(min = 2, max = 20, message = "长度 2-20")
+    private String username;
+
+    @Email(message = "邮箱格式错误")
+    private String email;
+}
+
+// 使用
+@PostMapping
+public Result<User> create(@RequestBody @Valid UserDTO dto) {
+    // 如果校验失败，自动抛异常，被上面的 GlobalExceptionHandler 捕获
+}
+```
 
 ---
 
-## 10. Actuator 监控
+## 8. 启动时执行代码
 
-添加依赖：
+### 8.1 简单方式
 
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
+```java
+@Component
+public class StartupRunner implements CommandLineRunner {
+    @Override
+    public void run(String... args) {
+        System.out.println("应用启动完成，执行初始化...");
+    }
+}
 ```
 
-默认暴露端点（Spring Boot 3.x）：
+### 8.2 与 `@PostConstruct` 的区别
 
-- `GET /actuator/health`      健康检查
-- `GET /actuator/info`        应用信息（需配置）
-- 其他端点如 `metrics`、`env`、`beans` 需手动开启：
+| 方式 | 执行时机 | 适用场景 |
+| ------ | ---------- | ---------- |
+| `@PostConstruct` | 当前 Bean 创建完 | Bean 内部初始化 |
+| `CommandLineRunner` | **整个应用启动完** | 需要数据库连接等全局初始化 |
+
+> 💡 **初学者**：需要预热缓存、加载字典数据 → 用 `CommandLineRunner`
+
+---
+
+## 9. 测试
+
+### 9.1 接口测试（不用启动整个应用）
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class UserControllerTest {
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void shouldGetUser() throws Exception {
+        mockMvc.perform(get("/api/users/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.username").value("Tom"));
+    }
+
+    @Test
+    void shouldCreateUser() throws Exception {
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{"username":"Tom"}"))
+            .andExpect(status().isOk());
+    }
+}
+```
+
+### 9.2 单元测试（只测 Service 层）
+
+```java
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+    @Mock private UserRepository repo;
+    @InjectMocks private UserService service;
+
+    @Test
+    void shouldFindUser() {
+        when(repo.findById(1L)).thenReturn(Optional.of(new User("Tom")));
+        assertEquals("Tom", service.findById(1L).getUsername());
+    }
+}
+```
+
+---
+
+## 10. 打包与部署
+
+```bash
+# 打包
+mvn clean package -DskipTests
+
+# 运行
+java -jar target/demo.jar
+
+# 指定配置运行
+java -jar demo.jar --spring.profiles.active=prod --server.port=8080
+```
+
+**Docker 极简版**：
+\
+```dockerfile
+FROM eclipse-temurin:17-jre-alpine
+COPY target/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+---
+
+# 🔧 进阶专题
+
+> 以下内容为高阶用法，初学者可先跳过，遇到实际问题再回来查
+
+---
+
+## A. 自动配置原理
+
+Spring Boot 启动时，会读取 jar 包中的：
+
+```
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```
+
+里面列了所有自动配置类（如 `DataSourceAutoConfiguration`）。每个类用**条件注解**判断是否生效：
+
+| 条件注解 | 含义 |
+|----------|------|
+| `@ConditionalOnClass` | classpath 有某类才生效 |
+| `@ConditionalOnMissingBean` | 容器里没有该 Bean 才生效 |
+| `@ConditionalOnProperty` | 配置项满足条件才生效 |
+
+**查看生效的配置**：
+```bash
+java -jar app.jar --debug
+# 看日志里的 Positive matches / Negative matches
+```
+
+**排除不需要的自动配置**：
+```java
+@SpringBootApplication(exclude = {
+    DataSourceAutoConfiguration.class
+})
+```
+
+---
+
+## B. Actuator 监控
+
+添加依赖后，默认暴露 `/actuator/health`（健康检查）和 `/actuator/info`。
 
 ```yaml
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env
+        include: health,info,metrics,env,loggers  # 或 "*" 暴露所有
+  endpoint:
+    health:
+      show-details: always
 ```
+
+**常用端点**：
+
+| 端点 | 功能 |
+|------|------|
+| `/actuator/health` | 健康状态 |
+| `/actuator/metrics` | JVM、CPU、HTTP 指标 |
+| `/actuator/env` | 环境变量与配置 |
+| `/actuator/loggers` | 查看/修改日志级别 |
+| `/actuator/beans` | 所有 Spring Bean |
+
+🔧 **进阶**：自定义健康检查，实现 `HealthIndicator` 接口。
 
 ---
 
-## 11. 异常处理
+## C. 跨域与拦截器
 
-### 11.1 全局异常处理
+### C.1 全局跨域
 
 ```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
+@Configuration
+public class CorsConfig {
+    @Bean
+    public CorsFilter corsFilter() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.addAllowedOriginPattern("*");  // 生产环境写具体域名
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        config.setAllowCredentials(true);
 
-    @ExceptionHandler(RuntimeException.class)
-    public Result handleRuntimeException(RuntimeException e) {
-        return Result.error(e.getMessage());
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
     }
 }
 ```
 
-- `@RestControllerAdvice` = `@ControllerAdvice` + `@ResponseBody`
+### C.2 拦截器
 
-### 11.2 自定义错误页面
+```java
+@Component
+public class AuthInterceptor implements HandlerInterceptor {
+    @Override
+    public boolean preHandle(HttpServletRequest req, HttpServletResponse res, Object handler) {
+        String token = req.getHeader("Authorization");
+        if (token == null || !token.startsWith("Bearer ")) {
+            res.setStatus(401);
+            return false;  // 拦截
+        }
+        return true;  // 放行
+    }
+}
 
-在 `src/main/resources/static/error/` 下放置 `404.html`、`500.html` 等，Spring Boot 会自动渲染。
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    @Autowired private AuthInterceptor interceptor;
 
----
-
-## 12. 数据访问（简略）
-
-- 加入 Starter，配置数据源，Spring Boot 会自动配置 `JdbcTemplate` 或 `DataSource`。
-- 使用 JPA：只需定义接口 `JpaRepository<User, Long>`，无需实现类。
-- MyBatis：引入 `mybatis-spring-boot-starter`，配置 mapper 位置即可。
-
----
-
-## 13. 打包与部署
-
-```bash
-mvn clean package        # 或 gradle build
-java -jar target/demo.jar
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(interceptor)
+            .addPathPatterns("/api/**")
+            .excludePathPatterns("/api/auth/**");
+    }
+}
 ```
 
-- 可将外部配置文件与 jar 同目录放置，以覆盖 jar 内配置。
-- 支持注册为 Linux 服务（Systemd）或容器化部署。
+---
+
+## D. 日志与调优
+
+### D.1 日志使用
+
+```java
+@Slf4j
+@Service
+public class UserService {
+    public void doSomething() {
+        log.debug("调试: {}", variable);   // 占位符，比拼接高效
+        log.info("业务: userId={}", id);
+        log.error("错误: {}", e.getMessage(), e);
+    }
+}
+```
+
+### D.2 配置
+
+```yaml
+logging:
+  level:
+    root: info
+    com.example.demo: debug
+  file:
+    name: logs/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+```
+
+🔧 **进阶**：通过 Actuator 实时改日志级别（无需重启）。
+
+### D.3 性能优化速查
+
+| 优化项 | 配置 |
+|--------|------|
+| HTTP 压缩 | `server.compression.enabled=true` |
+| JSON 忽略 null | `spring.jackson.default-property-inclusion=non_null` |
+| 连接池 | HikariCP `maximum-pool-size` = CPU × 2 |
+| 懒初始化 | `spring.main.lazy-initialization=true`（开发用） |
+| 优雅停机 | `server.shutdown=graceful` |
 
 ---
 
-## 14. 开发技巧与常见问题
+## E. Spring Boot 3.x 新特性
 
-- **热部署**：添加 `spring-boot-devtools` 依赖，修改代码后自动重启。
-- **查看自动配置报告**：启动参数加 `--debug`。
-- **日志级别**：`logging.level.root=info`，包级别：`logging.level.com.example=debug`。
-- **排除自动配置类**：`@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})`
-- **多个 Runner 顺序**：用 `@Order` 控制，数字小先执行。
-- **不要忘记**：`ApplicationRunner` 和 `CommandLineRunner` 都会执行，但最好不要在同一个项目中混用太多，保持风格统一。
+### E.1 包名变更（重要！）
+
+Spring Boot 3.x 基于 Jakarta EE 9，所有 `javax.*` 改为 `jakarta.*`：
+
+| 旧（2.x） | 新（3.x） |
+|-----------|-----------|
+| `javax.persistence.*` | `jakarta.persistence.*` |
+| `javax.validation.*` | `jakarta.validation.*` |
+| `javax.servlet.*` | `jakarta.servlet.*` |
+
+### E.2 原生镜像（GraalVM）
+
+```bash
+./gradlew bootBuildImage
+# 编译为原生可执行文件，启动毫秒级，内存占用极低
+```
+
+### E.3 ProblemDetail（标准化错误）
+
+Spring Boot 3.0+ 支持 RFC 7807 错误格式：
+
+```java
+@ExceptionHandler(BusinessException.class)
+public ProblemDetail handle(BusinessException e) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(400, e.getMessage());
+    pd.setProperty("code", e.getCode());
+    return pd;
+}
+```
+
+响应：
+```json
+{
+  "type": "about:blank",
+  "status": 400,
+  "detail": "用户不存在",
+  "code": 10001
+}
+```
 
 ---
+
+## F. 避坑指南
+
+| 坑 | 现象 | 解决 |
+|----|------|------|
+| **循环依赖** | Bean A 注入 B，B 注入 A，启动报错 | 重构；或用 `@Lazy` |
+| **事务不生效** | 同类方法内调用 `@Transactional` 方法 | 拆分到另一个 Service，或注入自身代理 |
+| **404 但路径对** | 启动类包层级不对，没扫描到 Controller | 启动类放根包，如 `com.example.demo` |
+| **时区差 8 小时** | 数据库时间不对 | JDBC URL 加 `serverTimezone=Asia/Shanghai` |
+| **JSON 字段为 null** | 响应里全是 null 字段 | `spring.jackson.default-property-inclusion=non_null` |
+| **文件上传失败** | 默认限制 1MB | `spring.servlet.multipart.max-file-size=10MB` |
+| **端口占用** | 8080 被占用 | `server.port=8081` |
+| **@Value 取不到** | 配置项拼写错误或没加载 | 检查 YAML 缩进；或用 `@ConfigurationProperties` |
+
+---
+
+> **版本**：Spring Boot 3.2.x + JDK 17+ | 基础部分初学者必看，🔧 进阶部分按需查阅
