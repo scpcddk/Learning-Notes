@@ -1,0 +1,129 @@
+# JavaWeb 极简前置笔记（为 SpringMVC 铺路）
+
+> [!IMPORTANT]
+> 浏览器/App发HTTP请求，先到Tomcat（Web容器），Tomcat把请求交给Servlet处理，而SpringMVC本质上就是一个封装好的“超级Servlet”，帮你自动做路由和数据绑定，让你不用手写繁琐的Servlet代码
+
+---
+
+## 1. HTTP 协议（接口开发只看这些）
+
+### 1.1 请求 / 响应结构
+
+- **请求**：由**请求行**（方法 + URL）、**请求头**（额外信息，如数据格式）、**请求体**（传的数据）组成
+- **响应**：由**状态行**（状态码）、**响应头**、**响应体**（返回的数据）组成
+
+> 接口开发中，我们主要关心请求方式、路径、携带的 JSON 数据，以及返回的状态码和 JSON
+
+---
+
+### 1.2 常用方法
+
+- **GET**：从服务器**拿**数据，参数拼在 URL 后面
+- **POST**：**提交**新数据，参数放在请求体里（通常用 JSON）
+
+> 后续 SpringMVC 里用 `@GetMapping` / `@PostMapping` 就是基于它们
+
+---
+
+### 1.3 最常用状态码
+
+- **200**：成功，数据正常返回
+- **400**：请求参数有误，客户端问题  
+- **404**：接口路径不存在
+- **500**：服务器内部出错
+
+> 接口返回时一定要设置正确的状态码，前端靠这个判断成败
+
+---
+
+### 1.4 JSON 数据格式
+
+前后端分离约定用 `application/json` 传数据，形式如：
+
+```json
+{
+  "name": "张三",
+  "age": 20
+}
+```
+
+> Java 对象转 JSON，后来 SpringMVC 会自动帮我们完成（`@RestController` 功劳）
+
+---
+
+## 2. Servlet（SpringMVC 的底层核心）
+
+### 2.1 核心概念
+
+- **Servlet**：跑在`Tomcat`里的`Java`程序，专门用来接收和处理`Web`请求
+- **HttpServlet**：专门处理`HTTP`请求的`Servlet`
+  - `service()`方法：**请求入口**，`Tomcat`调用它来分发请求。它会根据`HTTP`方法（GET/POST 等）自动调用对应的 doXxx() 方法
+  - `doGet()`：处理`GET`请求，从服务器**获取数据**时用
+  - `doPost()`：处理`POST`请求，**提交新增数据**时用
+  - `doPut() / doDelete()`：对应`RESTful`的**修改/删除**，原理一样，自己按需覆盖
+- **HttpServletRequest**：代表**请求**，可以获取前端传来的参数、请求头等
+- **HttpServletResponse**：代表**响应**，向浏览器写回数据（比如 JSON）
+
+---
+
+### 2.2 最简原生 Servlet（GET，返回 JSON）
+
+以下使用 **jakarta.servlet**（SpringBoot3 配套），可直接运行：
+
+```java
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+@WebServlet("/hello")
+public class HelloServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        // 告诉浏览器返回的数据是 JSON，编码用 UTF-8
+        resp.setContentType("application/json;charset=UTF-8");
+
+        // 手动拼一个 JSON 字符串
+        String json = "{\"message\": \"你好，SpringMVC 的底层就是我\"}";
+
+        PrintWriter out = resp.getWriter();
+        out.write(json);
+        out.flush();
+    }
+}
+```
+
+> 你会发现：每开发一个新接口都得新建一个类，还要手动拼 JSON、设置响应头，很麻烦
+
+---
+
+## 3. Tomcat 容器
+
+**一句话**：Tomcat 是一个**独立运行的 Web 容器**，负责接受网络请求、找到对应的 Servlet、返回响应，帮你屏蔽底层网络通信细节
+> SpringBoot 内置了 Tomcat，所以启动时直接就能对外提供 HTTP 服务
+
+---
+
+## 4. Servlet vs SpringMVC（关键对比）
+
+| 维度 | 原生 Servlet | SpringMVC |
+| ------ | ------------ | ----------- |
+| **一个接口一个类** | 必须新建类，继承 `HttpServlet` | 只需在方法上加注解（`@GetMapping`），多个接口可写在同一类中 |
+| **获取参数** | 手动调用 `req.getParameter()`，类型转换自己写 | 直接写在方法参数里，自动接收并转换（支持 JSON 转对象） |
+| **返回 JSON** | 手动拼接字符串，设置响应头 | 直接 return 对象，`@RestController` 自动转 JSON |
+| **URL 映射** | 用注解 `@WebServlet`，路径写死 | 用 `@RequestMapping` 系列注解，支持动态路径（`/user/{id}`） |
+| **代码量** | 大量模板式、重复代码 | 极简声明式，关注核心业务 |
+
+---
+
+**为什么学了 Servlet 再学 SpringMVC 更容易理解？**  
+
+- 因为 SpringMVC 的核心 `DispatcherServlet` 本身就是继承自 `HttpServlet`，它只不过在 Servlet 基础上封装了**路由分发、参数绑定、JSON 转换**等常见操作。
+- 了解 Servlet 的请求/响应对象后，你会瞬间明白 SpringMVC 帮我们省掉了多少脏活累活
+
+---
