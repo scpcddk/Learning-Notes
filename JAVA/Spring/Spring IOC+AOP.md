@@ -29,8 +29,8 @@
 
 **步骤**：
 
-1. 在配置类或启动类上添加 `@ComponentScan`（SpringBoot 中 `@SpringBootApplication` 已隐含）
-2. 在类上使用 `@Component` / `@Service` / `@Repository` / `@Controller` 标记
+1. 在**配置类**或**启动类**上添加 `@ComponentScan`（SpringBoot 中 `@SpringBootApplication` 已隐含）
+2. 在**类**上使用 `@Component` / `@Service` / `@Repository` / `@Controller` 标记
 
 **示例**：
 
@@ -58,8 +58,8 @@ public class UserService { ... }
 
 **步骤**：
 
-1. 创建 `@Configuration` 类
-2. 在方法上使用 `@Bean`，方法返回需要注册的对象
+1. **创建 `@Configuration` 类**
+2. 在**方法**上使用 `@Bean`，方法返回需要注册的对象
 3. 容器启动时会自动调用该方法注册 Bean
 
 **示例**：
