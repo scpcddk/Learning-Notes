@@ -51,6 +51,41 @@
 
 ---
 
+### 1.5 代码示例
+
+#### (1)HTTP 请求报文（POST 方法，提交 JSON）
+
+```http
+POST /api/user HTTP/1.1                              ← 请求行：方法 + URL
+Host: example.com                                    ← 请求头：目标主机
+Content-Type: application/json                       ← 请求头：数据格式（JSON）
+Content-Length: 35                                   ← 请求头：请求体长度（字节）
+User-Agent: Mozilla/5.0 (compatible; MyClient/1.0)   ← 请求头：客户端信息
+
+{                                                    ← 空行（必须），下面是请求体
+  "name": "张三",                                    ← JSON 数据，符合笔记 1.4
+  "age": 20
+}
+```
+
+#### (2)HTTP 响应报文（创建成功，状态码 200）
+
+```http
+HTTP/1.1 200 OK                                     ← 状态行：版本 + 状态码 + 短语
+Date: Mon, 08 Jun 2026 07:30:00 GMT                 ← 响应头：日期
+Content-Type: application/json                      ← 响应头：返回的数据格式
+Content-Length: 52                                  ← 响应头：响应体长度
+Server: Apache-Coyote/1.1                           ← 响应头：服务器信息
+
+{                                                    ← 空行，下面是响应体
+  "code": 200,
+  "message": "用户创建成功",
+  "userId": 12345
+}
+```
+
+---
+
 ## 2. Servlet（SpringMVC 的底层核心）
 
 ### 2.1 核心概念
@@ -99,6 +134,26 @@ public class HelloServlet extends HttpServlet {
 ```
 
 > 你会发现：每开发一个新接口都得新建一个类，还要手动拼 JSON、设置响应头，很麻烦
+
+---
+
+### 2.3 Maven 依赖（pom.xml）
+
+```xml
+<dependencies>
+    <!-- Jakarta Servlet API，SpringBoot3 底层用的就是这个 -->
+    <dependency>
+        <groupId>jakarta.servlet</groupId>
+        <artifactId>jakarta.servlet-api</artifactId>
+        <version>6.0.0</version>
+        <!-- provided：运行环境（Tomcat）已自带这个包，我们打包时不用带 -->
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+```
+
+- `scope`是`provided`:最终程序要放到 Tomcat 容器里运行，Tomcat 自己已经包含了 Servlet 的 jar 包，你写的代码只需要在编译期能用就行，运行时用容器自带的，避免冲突
+- 如果直接使用 SpringBoot 的 `spring-boot-starter-web`，这个依赖会被**自动传递引入**，无需手动加
 
 ---
 
