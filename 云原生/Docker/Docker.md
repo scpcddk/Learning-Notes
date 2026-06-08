@@ -1,10 +1,12 @@
 # 🐳 Docker 学习笔记（面向 Spring Boot 项目）
 
+---
+
 ## 1. 核心概念
 
-- **镜像（Image）**：一个只读的模板，包含运行环境（如 JDK + 应用 jar）
-- **容器（Container）**：镜像的运行实例，可启动、停止、删除，相互隔离
-- **仓库（Repository）**：存放镜像的地方，如 Docker Hub
+- **镜像（Image）**：一个只读的**模板**，包含运行环境（如 JDK + 应用 jar）
+- **容器（Container）**：镜像的**运行实例**，可启动、停止、删除，相互隔离
+- **仓库（Repository）**：**存放**镜像的地方，如`Docker Hub`
 
 ---
 
@@ -15,7 +17,7 @@
 | `docker run` | **启动**一个新的容器**并运行**命令 | `docker run -d ubuntu` |
 | `docker ps` | **列出**当前正在运行的容器 | `docker ps` |
 | `docker ps -a` | 列出所有容器（包括已停止的容器） | `docker ps -a` |
-| `docker build` | 使用 Dockerfile 构建镜像 | `docker build -t my-image .` |
+| `docker build` | 使用`Dockerfile`**构建镜像** | `docker build -t my-image .` |
 | `docker images` | **列出**本地存储的所有**镜像** | `docker images` |
 | `docker pull` | 从 Docker 仓库**拉取镜像** | `docker pull ubuntu` |
 | `docker push` | 将**镜像推送**到 Docker 仓库 | `docker push my-image` |
@@ -28,18 +30,18 @@
 | `docker logs` | **查看容器的日志** | `docker logs container_name` |
 | `docker inspect` | 获取容器或镜像的详细信息 | `docker inspect container_name` |
 | `docker exec -it` | 进入容器的交互式终端 | `docker exec -it container_name /bin/bash` |
-| `docker network ls` | 列出所有 Docker 网络 | `docker network ls` |
-| `docker volume ls` | 列出所有 Docker 卷 | `docker volume ls` |
+| `docker network ls` | 列出所有`Docker`**网络** | `docker network ls` |
+| `docker volume ls` | 列出所有`Docker`**卷** | `docker volume ls` |
 | `docker-compose up -d` | 后台启动多容器应用（从 docker-compose.yml 文件） | `docker-compose up -d` |
-| `docker-compose down` | 停止并删除由 docker-compose 启动的容器、网络等 | `docker-compose down` |
-| `docker-compose logs -f` | 实时查看 compose 服务日志 | `docker-compose logs -f backend` |
-| `docker-compose restart` | 重启 compose 中的某个服务 | `docker-compose restart backend` |
-| `docker-compose ps` | 列出 compose 管理的容器状态 | `docker-compose ps` |
-| `docker info` | 显示 Docker 系统的详细信息 | `docker info` |
-| `docker version` | 显示 Docker 客户端和守护进程的版本信息 | `docker version` |
+| `docker-compose down` | 停止并删除由`docker-compose`启动的容器、网络等 | `docker-compose down` |
+| `docker-compose logs -f` | 实时查看`compose`服务日志 | `docker-compose logs -f backend` |
+| `docker-compose restart` | 重启`compose`中的某个服务 | `docker-compose restart backend` |
+| `docker-compose ps` | 列出`compose`管理的容器状态 | `docker-compose ps` |
+| `docker info` | 显示`Docker`系统的详细信息 | `docker info` |
+| `docker version` | 显示`Docker`客户端和守护进程的**版本信息** | `docker version` |
 | `docker stats` | 显示容器的实时资源使用情况 | `docker stats` |
-| `docker login` | 登录 Docker 仓库 | `docker login` |
-| `docker logout` | 登出 Docker 仓库 | `docker logout` |
+| `docker login` | 登录`Docker`仓库 | `docker login` |
+| `docker logout` | 登出`Docker`仓库 | `docker logout` |
 | `docker system prune -a` | 清理未使用的镜像、容器、网络（慎用） | `docker system prune -a` |
 
 - `-t`：在新容器内指定一个伪终端或终端
@@ -72,11 +74,11 @@
 
 #### CMD vs ENTRYPOINT
 
-- **CMD**：适合可有可无的默认参数，运行 `docker run image command` 会直接替换 CMD
-- **ENTRYPOINT**：固定启动命令，后面传参会追加到 ENTRYPOINT 之后。
-- **组合**：`ENTRYPOINT ["java", "-jar", "app.jar"]` + `CMD ["--server.port=8080"]`，运行 `docker run my-image --server.port=9090` 可覆盖 CMD
+- **CMD**：适合可有可无的默认参数，运行`docker run image command`会直接替换`CMD`
+- **ENTRYPOINT**：固定启动命令，后面传参会追加到`ENTRYPOINT`之后
+- **组合**：`ENTRYPOINT ["java", "-jar", "app.jar"]` + `CMD ["--server.port=8080"]`，运行`docker run my-image --server.port=9090`可覆盖`CMD`
 
-> Spring Boot 容器推荐：**只用 ENTRYPOINT**，避免误覆盖启动命令
+- Spring Boot 容器推荐：**只用 ENTRYPOINT**，避免误覆盖启动命令
 
 ### 3.2 多阶段构建（Java 项目瘦身必用）
 
@@ -99,7 +101,7 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
-效果：镜像体积可从 600MB+ 降至 200MB 以内
+- 效果：镜像体积可从 600MB+ 降至 200MB 以内
 
 ### 3.3 实战模板 1：Spring Boot 生产级 Dockerfile
 
@@ -151,7 +153,7 @@ docker build -t my-spring-app .
 docker run -d -p 8080:8080 --name spring-app my-spring-app
 ```
 
-> 若未使用多阶段构建，可直接 `mvn clean package -DskipTests` 后在 Dockerfile 中用 `COPY target/*.jar app.jar`（需确保目录下只有一个 jar）。
+- 若未使用多阶段构建，可直接 `mvn clean package -DskipTests` 后在`Dockerfile`中用 `COPY target/*.jar app.jar`（需确保目录下只有一个`jar`）
 
 ### 3.4 实战模板 2：Python AI 推理服务 Dockerfile
 
@@ -190,7 +192,7 @@ ENTRYPOINT ["python", "app.py"]
 ### 3.5 镜像优化技巧速查
 
 - **选对基础镜像**：优先用 `alpine` 或 `slim` 版本，避免 `latest` 完整版
-- **多阶段构建**：Java/Go 项目必备，编译与运行分离
+- **多阶段构建**：`Java/Go`项目必备，编译与运行分离
 - **合并 RUN 命令**：减少层数，及时清理缓存和临时文件
   
 ```dockerfile
