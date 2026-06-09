@@ -121,6 +121,8 @@ mvn -v
 </project>
 ```
 
+- `<properties>` → `<dependencies>` → `<build>` 符合 POM 规范
+
 ---
 
 ## 5. 依赖管理要点（避免踩坑）
