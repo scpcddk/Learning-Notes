@@ -2,7 +2,7 @@
 
 > **定位**：面向后端接口开发，贯穿原生 SpringMVC 底层原理，无缝衔接 SpringBoot
 > **环境**：Spring 5.3.x / Spring 6+，Servlet 3.1+，纯 Java Config，外置 Tomcat（或 Jetty）
-> **摒弃**：web.xml、JSP、XML 配置方式。视图解析器仅概念提及，不实操
+> **摒弃**：web.xml、JSP、XML 配置方式，视图解析器仅概念提及，不实操
 
 ---
 
@@ -33,6 +33,10 @@ SpringMVC 是 Spring 框架的 Web 模块，基于 **MVC 设计模式**，核心
 | **HandlerAdapter** | `HandlerAdapter` | **适配并执行** Handler，屏蔽不同类型的处理器差异 |
 | **Handler（处理器）** | `Object`（通常是我们写的 `@Controller` 方法封装） | 真正**执行业务逻辑**的地方 |
 | **HandlerExceptionResolver** | `HandlerExceptionResolver` | **处理**执行过程中抛出的**异常**（视图与 REST 响应的异常统一处理） |
+
+---
+
+![alt text](706F14D83E0F2E8CDFF4553D891DE3D5-1.png)
 
 > 关于视图解析器 `ViewResolver`：前后端分离中我们直接返回 JSON 数据，完全不需要它。只有在返回 JSP/模板页面时才用到，本文仅做概念提及
 
@@ -108,7 +112,7 @@ SpringMVC 是 Spring 框架的 Web 模块，基于 **MVC 设计模式**，核心
 ```
 
 - **Spring 6+ / Jakarta EE 注意**：  
-Servlet API 改为 `jakarta.servlet:jakarta.servlet-api:6.0.0`，Spring MVC 6 已迁移至 Jakarta 命名空间，代码中 `javax.servlet.*` 变为 `jakarta.servlet.*`
+Servlet API 改为 `jakarta.servlet:jakarta.servlet-api:6.0.0`，Spring MVC 6 已迁移至 **Jakarta** 命名空间，代码中 `javax.servlet.*` 变为 `jakarta.servlet.*`
 
 ---
 
@@ -256,13 +260,13 @@ public class UserController {
 
 #### (2)**组合注解（等价写法）**
 
-| 组合注解 | 等价于 |
-| ---------- | -------- |
-| `@GetMapping` | `@RequestMapping(method = RequestMethod.GET)` |
-| `@PostMapping` | `@RequestMapping(method = RequestMethod.POST)` |
-| `@PutMapping` | `@RequestMapping(method = RequestMethod.PUT)` |
-| `@DeleteMapping` | `@RequestMapping(method = RequestMethod.DELETE)` |
-| `@PatchMapping` | `@RequestMapping(method = RequestMethod.PATCH)` |
+| 组合注解 | 等价于 | 作用 |
+| ---------- | -------- | --- |
+| `@GetMapping` | `@RequestMapping(method = RequestMethod.GET)` | 处理 HTTP GET 请求，通常用于**查询或获取**资源 |
+| `@PostMapping` | `@RequestMapping(method = RequestMethod.POST)` | 处理 HTTP POST 请求，通常用于**创建**资源 |
+| `@PutMapping` | `@RequestMapping(method = RequestMethod.PUT)` | 处理 HTTP PUT 请求，通常用于**更新或替换**整个资源 |
+| `@DeleteMapping` | `@RequestMapping(method = RequestMethod.DELETE)` | 处理 HTTP DELETE 请求，用于**删除**资源 |
+| `@PatchMapping` | `@RequestMapping(method = RequestMethod.PATCH)` | 处理 HTTP PATCH 请求，通常用于部分***修改***资源 |
 
 ---
 
@@ -331,7 +335,7 @@ public String search(UserQuery query) {
 
 ### 5.4 `@PathVariable`（路径变量）
 
-`@PathVariable` 用于将 URL 模板中的占位符参数绑定到控制器方法的形参上
+`@PathVariable` 用于将 URL 模板中的**占位符参数绑定**到控制器方法的形参上
 
 ```java
 @GetMapping("/{id}/detail")
@@ -339,6 +343,22 @@ public String detail(@PathVariable("id") Long userId) {
     return "detail of " + userId;
 }
 ```
+
+- **省略参数名**：路径变量名与方法参数名一致时，可省略 value
+- **正则匹配**：`"/{id:\\d+}"` 限定数字
+- **类型不匹配** → 400 错误
+- **忘写注解** → 会被当成请求参数（?id=xxx）而非路径变量
+
+- **多变量**:
+
+```java
+@GetMapping("/{userId}/orders/{orderId}") //占位符
+public String getOrder(@PathVariable Long userId, @PathVariable Long orderId) {
+    return userId + " - " + orderId;
+}
+```
+
+- **占位符**：URL 中以 `{ }` 包裹的变量名，用于表示该位置的值是动态的，会被映射到方法参数,占位符名称需与 `@PathVariable` 参数名一致（或通过 value 指定）
 
 ---
 
@@ -406,8 +426,10 @@ public String getUser(@SessionAttribute("userId") Long userId) {
 
 ### 6.1 `@ResponseBody` 与 `@RestController`
 
-- `@ResponseBody`：方法返回值直接作为 HTTP 响应体，通过 `HttpMessageConverter` 序列化（对象→JSON）。
-- `@RestController`：类上同时标注 `@Controller` 和 `@ResponseBody`，该类所有方法均自动具备 `@ResponseBody`。
+- `@ResponseBody`：方法返回值直接作为 HTTP 响应体，通过 `HttpMessageConverter` 序列化（**对象→JSON**）
+- `@RestController`：类上同时标注 `@Controller` 和 `@ResponseBody`，该类所有方法均自动具备 `@ResponseBody`
+
+---
 
 ### 6.2 `ResponseEntity`
 
@@ -422,6 +444,8 @@ public ResponseEntity<String> custom() {
 }
 ```
 
+---
+
 ### 6.3 转发与重定向（非 JSON 场景）
 
 虽然前后端分离极少使用，但在某些混合场景仍可出现。必须用在标注 `@Controller`（无 `@ResponseBody`）的方法上：
@@ -433,18 +457,20 @@ public class LegacyController {
     @GetMapping("/forward-demo")
     public String forwardDemo() {
         // 转发到另一个处理器 /target
+        // 服务器内部跳转，一次请求。浏览器 地址栏不变 ，请求数据（如参数、属性）可以传递给下一个资源
         return "forward:/target";
     }
 
     @GetMapping("/redirect-demo")
     public String redirectDemo() {
         // 重定向
+        // 服务器返回 302 状态码 + 新地址，浏览器自动发起第二次请求。地址栏变成新 URL，原请求数据不会自动保留
         return "redirect:/other-page";
     }
 }
 ```
 
-如果在 `@RestController` 或带有 `@ResponseBody` 的方法中返回 `"forward:..."`，它会被直接当成字符串写入响应体，不会转发。
+如果在 `@RestController` 或带有 `@ResponseBody` 的方法中返回 `"forward:..."`，它会被直接当成字符串写入响应体，不会转发
 
 ---
 
@@ -502,6 +528,7 @@ public void addInterceptors(InterceptorRegistry registry) {
 ## 8. 全局异常处理
 
 ### 8.1 `@ControllerAdvice` + `@ExceptionHandler`
+
 ```java
 package com.example.advice;
 
@@ -531,10 +558,14 @@ public class GlobalExceptionHandler {
     }
 }
 ```
+
 - `@RestControllerAdvice` 使得所有异常处理方法都默认带 `@ResponseBody`。
 - 建议定义统一返回体 `Result`，而非散装 Map。
 
+---
+
 ### 8.2 异常处理原理简述
+
 `@ControllerAdvice` 注解的类会被 `ExceptionHandlerExceptionResolver` 扫描并内置，发生异常时按类型匹配最近的 `@ExceptionHandler` 方法，通过参数解析器注入异常对象，通过返回值处理器将结果输出。
 
 ---
@@ -542,7 +573,9 @@ public class GlobalExceptionHandler {
 ## 9. SpringMVC 与 SpringBoot 的关联与区别
 
 ### 9.1 SpringBoot 自动配置了什么
+
 当我们引入 `spring-boot-starter-web`：
+
 - **内嵌 Tomcat**：不再需要外置 Servlet 容器。
 - **`DispatcherServlet` 自动注册**：映射路径默认为 `/`，相当于 `AbstractAnnotationConfigDispatcherServletInitializer` 的自动化。
 - **自动配置** `WebMvcConfigurer` 各项 Bean：如 `RequestMappingHandlerMapping`、`RequestMappingHandlerAdapter`、`HttpMessageConverters`（Jackson 自动配置）。
@@ -550,9 +583,12 @@ public class GlobalExceptionHandler {
 - **全局异常处理**：`ErrorMvcAutoConfiguration` 提供基础错误页面/JSON。
 - **自动扫描**：`@SpringBootApplication` 已包含 `@ComponentScan`，开发者只需写 `@RestController`。
 
+---
+
 ### 9.2 本质区别
+
 | 维度 | 原生 SpringMVC | SpringBoot |
-|------|---------------|------------|
+| ------ | --------------- | ------------ |
 | 容器 | 需外置 Tomcat 等，打包 war | 内嵌容器，jar 直接运行 |
 | 配置 | 需手写 Initializer + Config 类 | 自动配置，约定大于配置 |
 | 依赖 | 手动管理 Spring、Jackson 版本 | 通过 starter 一站式管理 |
@@ -565,60 +601,71 @@ public class GlobalExceptionHandler {
 ## 10. 开发高频问题 & 解决方案速查
 
 ### 1. 参数接收失败（常见 400 Bad Request）
+
 - **现象**：`Required request parameter 'xxx' is not present`
 - **原因**：`@RequestParam` 标注但未传参，且未设 `required=false` 或 `defaultValue`。
 - **解决**：合理设置必填属性或改用 `@RequestParam(defaultValue = "...")`。
 
+---
+
 ### 2. JSON 解析异常（415 / 400）
+
 - **现象**：`Content type 'application/x-www-form-urlencoded' not supported` 或 JSON 反序列化失败。
 - **原因**：
   - 客户端未设置 `Content-Type: application/json`。
   - 缺少 Jackson 依赖，`HttpMessageConverter` 未注册。
   - JSON 字段与 Java 属性不匹配（驼峰/下划线）。可加 `@JsonProperty` 或配置 `ObjectMapper` 下划线转驼峰。
 - **解决**：确保请求头正确、依赖存在，配置如下：
-  ```java
-  @Override
-  public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-      MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
-      converter.setObjectMapper(mapper);
-      converters.add(converter);
-  }
-  ```
+  
+```java
+@Override
+public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+    MappingJackson2HttpMessageConverter converter = newMappingJackson2HttpMessageConverter();
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+    converter.setObjectMapper(mapper);
+    converters.add(converter);
+}
+```
 
 ### 3. 跨域问题（CORS）
 
 - **现象**：浏览器提示 `No 'Access-Control-Allow-Origin' header`。
 - **方案1（局部）**：`@CrossOrigin(origins = "http://localhost:3000")` 加在 Controller 或方法。
 - **方案2（全局）**：在 `WebConfig` 中覆盖：
-  ```java
-  @Override
-  public void addCorsMappings(CorsRegistry registry) {
-      registry.addMapping("/**")
-              .allowedOrigins("http://localhost:3000")
-              .allowedMethods("*")
-              .allowCredentials(true);
-  }
-  ```
+  
+```java
+@Override
+public void addCorsMappings(CorsRegistry registry) {
+    registry.addMapping("/**")
+            .allowedOrigins("http://localhost:3000")
+            .allowedMethods("*")
+            .allowCredentials(true);
+}
+```
 
 ### 4. 中文乱码
+
 - **请求乱码**：Tomcat 默认 URI 编码为 ISO-8859-1，需配置 `server.xml` 中 `URIEncoding="UTF-8"`。SpringBoot 中 `server.tomcat.uri-encoding=UTF-8` 已默认。
 - **响应乱码**：确保 `@RequestMapping` 的 `produces = "application/json;charset=UTF-8"` 或全局配置 `StringHttpMessageConverter` 默认 UTF-8。
 - **全局过滤器方案**：注册 `CharacterEncodingFilter`：
-  ```java
-  @Override
-  protected Filter[] getServletFilters() {
-      CharacterEncodingFilter encodingFilter = new CharacterEncodingFilter();
-      encodingFilter.setEncoding("UTF-8");
-      encodingFilter.setForceEncoding(true);
-      return new Filter[] { encodingFilter };
-  }
-  ```
+  
+```java
+@Override
+protected Filter[] getServletFilters() {
+    CharacterEncodingFilter encodingFilter = new CharacterEncodingFilter();
+    encodingFilter.setEncoding("UTF-8");
+    encodingFilter.setForceEncoding(true);
+    return new Filter[] { encodingFilter };
+}
+```
 
 ### 5. 静态资源 404
-在纯注解配置中，`@EnableWebMvc` 会完全接管资源映射，默认不暴露 `*.html` 等。
+
+在纯注解配置中，`@EnableWebMvc` 会完全接管资源映射，默认不暴露 `*.html` 等
+
 - **解决**：覆盖 `addResourceHandlers`：
+
   ```java
   @Override
   public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -626,17 +673,97 @@ public class GlobalExceptionHandler {
               .addResourceLocations("/static/");
   }
   ```
+
 - 在 SpringBoot 中，静态资源默认位于 `src/main/resources/static`，无需手动配置。
 
 ### 6. 请求 404，明明写了 Controller
+
 - **检查**：`@Controller` 或 `@RestController` 是否被扫描到。确认 `@ComponentScan` 包含所在包。
 - **检查**：`getServletMappings()` 是否匹配（例如映射为 `/*` 和 `/` 的区别）。
 - **检查**：方法上是否标注了 `@RequestMapping` 且路径正确。
 
 ---
 
-## 附录：完整项目结构示例
+明白，你需要一个**精简版**的作用域补充，直接嵌入笔记中，不啰嗦。以下是一页纸的“作用域”速查，可直接插入第10章之后。
+
+---
+
+## 11. 作用域（Scope）快速参考
+
+> SpringMVC 中 `@Controller` / `@RestController` 默认 **单例**，所有请求共享同一个实例 → **警惕成员变量并发修改**
+
+### 11.1 **Spring 支持的作用域**
+
+| 作用域 | 说明 | 典型场景 | 线程安全 |
+| :---: | :--- | :--- | :---: |
+| `singleton` | 容器内**唯一**实例，默认作用域。所有请求**共享**同一个对象，**禁止定义可变成员变量** | Service、Controller | ❌ |
+| `prototype` | 每次获取都**新建**实例，Spring 不管理销毁。注入到单例时需注意不会更新 | 有状态的临时对象 | ✅ |
+| `request` | 每个 **HTTP 请求**内唯一，请求结束实例销毁。注入单例时必须加 `proxyMode` | 请求级上下文 | ✅ |
+| `session` | 每个 **用户会话**内唯一，会话超时后销毁。适合存放登录用户信息 | 登录信息、购物车 | ✅ |
+| `application` | **ServletContext** 内唯一，应用启动到关闭。需要自行处理并发读写 | 全局计数器、配置 | ❌ |
+
+---
+
+### 11.2 声明方式
+
+```java
+@Controller
+@Scope("request")          // 每个请求一个实例
+public class MyController { ... }
+
+@Component
+@Scope(value = "session", proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class UserContext { ... }   // 注入到单例时需加代理
 ```
+
+---
+
+### 11.3 访问请求/会话数据（常用写法）
+
+| 需求 | 推荐方式 |
+| ------ | ---------- |
+| 读请求参数/体 | `@RequestParam`、`@RequestBody`、`@PathVariable` |
+| 读写请求属性 | `HttpServletRequest` 直接注入 |
+| 读写 Session | 注入 `HttpSession` 或 `@SessionAttribute`（只读） |
+| 读写 Cookie | `@CookieValue` |
+| **请求作用域 Bean** | 声明 `@RequestScope` Bean 后 `@Autowired` |
+
+```java
+@GetMapping("/demo")
+public String demo(HttpSession session, HttpServletRequest req) {
+    session.setAttribute("uid", 123);          // 存session
+    String uid = (String) session.getAttribute("uid"); // 取（强转）
+    req.setAttribute("temp", "abc");            // 请求域
+    return "ok";
+}
+```
+
+---
+
+### 11.4 单例 Controller 安全原则
+
+- **不要**定义可变的成员变量（count、List等）
+- **不要**在 Controller 中手动创建线程
+- 需要状态 → 放入 `request`/`session` 作用域 Bean 或方法局部变量
+- 若必须注入 `prototype`/`request` Bean 到单例 Controller，**必须开启 `proxyMode`**，否则注入的是固定实例
+
+```java
+// 正确：代理模式
+@Scope(value = "request", proxyMode = ScopedProxyMode.TARGET_CLASS)
+@Component
+public class RequestData { ... }
+
+@RestController
+public class SafeController {
+    @Autowired private RequestData data;   // 每次请求都是新代理实例
+}
+```
+
+---
+
+## 附录：完整项目结构示例
+
+```java
 src/main/java
  └ com.example
     ├ config
@@ -651,6 +778,6 @@ src/main/java
         └ GlobalExceptionHandler.java
 ```
 
-编译后部署至 Tomcat 即可运行，所有请求从 `/` 进入 `DispatcherServlet`，按照本文讲解的流程执行。
+编译后部署至 Tomcat 即可运行，所有请求从 `/` 进入 `DispatcherServlet`，按照本文讲解的流程执行
 
 ---
