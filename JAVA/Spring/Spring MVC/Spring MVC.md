@@ -1,3 +1,8 @@
+---
+markmap:
+  initialExpandLevel: 2
+---
+
 # SpringMVC 底层学习笔记（现代 Java 技术栈）
 
 > **定位**：面向后端接口开发，贯穿原生 SpringMVC 底层原理，无缝衔接 SpringBoot
