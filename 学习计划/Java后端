@@ -1,0 +1,87 @@
+# Java 后端
+
+---
+
+## 第1周｜主题：Java核心底层夯实（Spring地基）
+
+| 天数 | 当日学习内容 |
+| ------ | -------------- |
+| Day1 | 面向对象全套：类与对象、封装、继承、多态、构造方法、四大权限修饰符 |
+| Day2 | 方法重载与重写、四种内部类（成员/静态/局部/匿名）场景实战 |
+| Day3 | List集合底层：ArrayList扩容机制、LinkedList链表结构、性能对比 |
+| Day4 | Set&Map底层：HashSet原理、HashMap哈希冲突、JDK1.8红黑树优化 |
+| Day5 | 完整反射机制：Class对象获取、反射构造器/字段/方法、动态创建对象 |
+| Day6 | 代理模式：静态代理、JDK动态代理、方法增强（AOP底层原理） |
+| Day7 | 周复盘实战：手写简易Bean工厂（迷你IOC容器）、本周代码汇总复盘 |
+
+---
+
+## 第2周｜主题：Spring Core 核心（IOC+AOP）
+
+| 天数 | 当日学习内容 |
+| ------ | -------------- |
+| Day1 | Spring入门、XML方式配置IOC、Bean基础管理 |
+| Day2 | Bean生命周期、单例/多例作用域、三种依赖注入方式 |
+| Day3 | 注解IOC：@Component、@Autowired、@Value、包扫描、自动装配 |
+| Day4 | 配置文件读取、Bean懒加载、条件装配、自动装配常见坑点 |
+| Day5 | AOP核心理论：切面、切点、连接点、五种通知类型 |
+| Day6 | AOP实战：切点表达式、环绕通知、接口日志、方法耗时统计 |
+| Day7 | Spring声明式事务@Transactional、事务失效场景、本周整体复盘 |
+
+---
+
+## 第3周｜主题：SpringMVC 原生Web层
+
+| 天数 | 当日学习内容 |
+| ------ | -------------- |
+| Day1 | MVC架构思想、DispatcherServlet前端控制器、完整执行流程 |
+| Day2 | 请求接收：普通参数、路径变量、@RequestParam、@PathVariable |
+| Day3 | JSON数据交互、@ResponseBody、统一返回结果封装 |
+| Day4 | 拦截器原理与实战、拦截器执行链路、登录拦截模拟 |
+| Day5 | 全局异常处理器、异常统一捕获、状态码规范返回 |
+| Day6 | 原生MVC项目对接AI接口、HttpClient远程调用 |
+| Day7 | 本周综合实战：搭建完整原生SSM接口项目（AI问答接口） |
+
+---
+
+## 第4周｜主题：持久层框架（MyBatis+MyBatis-Plus）
+
+| 天数 | 当日学习内容 |
+| ------ | -------------- |
+| Day1 | MyBatis原生入门、核心配置、Mapper映射、基础CRUD |
+| Day2 | MyBatis关联查询、动态SQL、if/where/foreach标签 |
+| Day3 | MyBatis-Plus入门、环境整合、BaseMapper基础CRUD |
+| Day4 | MP条件构造器QueryWrapper、分页查询、排序、条件筛选 |
+| Day5 | 主键策略、自动填充、乐观锁、MP常用高级功能 |
+| Day6 | Spring整合MyBatis、事务控制、数据库异常回滚实战 |
+| Day7 | 项目整合：为上周AI接口项目添加数据库持久化、问答记录入库 |
+
+---
+
+## 第5周｜主题：SpringBoot + Docker项目落地
+
+| 天数 | 当日学习内容 |
+| ------ | -------------- |
+| Day1 | SpringBoot自动配置原理、starter机制、项目结构解析 |
+| Day2 | yml/properties配置、配置绑定、多环境配置、参数读取 |
+| Day3 | Boot整合MyBatis-Plus、快速搭建标准化CRUD接口 |
+| Day4 | 分层开发规范：Controller/Service/Dao/工具类分层封装 |
+| Day5 | RestClient/WebClient封装AI接口、密钥配置、异常重试处理 |
+| Day6 | Maven打包Jar、Dockerfile编写、镜像构建、容器部署 |
+| Day7 | 终极落地：可线上运行的完整版项目（Boot+MySQL+AI+Docker） |
+
+---
+
+## 第6周｜主题：SpringCloud微服务入门（就业进阶）
+
+| 天数 | 当日学习内容 |
+| ------ | -------------- |
+| Day1 | 微服务架构思想、Nacos注册中心搭建与服务注册发现 |
+| Day2 | Nacos配置中心、动态读取配置、热更新、密钥托管 |
+| Day3 | OpenFeign远程调用、微服务之间接口通信实战 |
+| Day4 | Gateway网关核心、路由规则、统一拦截、跨域处理 |
+| Day5 | Sentinel限流、熔断、降级、AI接口调用容错处理 |
+| Day6 | 项目微服务拆分：用户服务、AI问答服务、数据存储服务 |
+| Day7 | 全栈复盘：Java→SSM→Boot→Cloud技术栈梳理、项目终版整合 |
+
+---
