@@ -474,9 +474,15 @@ public class LegacyController {
 
 ---
 
-## 7. 拦截器
+## 7. ==拦截器==
 
-### 7.1 实现 `HandlerInterceptor`
+---
+
+![alt text](<屏幕截图 2026-06-10 155619-1.png>)
+
+---
+
+### 7.1 **实现 `HandlerInterceptor`**
 
 ```java
 package com.example.interceptor;
@@ -485,43 +491,104 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * 登录拦截器
+ * 在请求到达 Controller 之前校验用户身份（通过 Header 中的 Authorization 令牌）
+ */
 public class LoginInterceptor implements HandlerInterceptor {
+
+    /**
+     * 前置处理：在 Controller 方法执行前拦截
+     * @param request  当前 HTTP 请求
+     * @param response 当前 HTTP 响应
+     * @param handler  处理请求的目标对象（通常是 HandlerMethod）
+     * @return true 放行，继续执行；false 拦截，不再执行后续流程
+     * @throws Exception 异常
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                              Object handler) throws Exception {
+        // 1. 从请求头中获取 Authorization 令牌
         String token = request.getHeader("Authorization");
+
+        // 2. 令牌为空或不符合 Bearer 规范，视为未登录
         if (token == null || !token.startsWith("Bearer ")) {
+            // 设置响应内容类型为 JSON，编码 UTF-8
             response.setContentType("application/json;charset=UTF-8");
+            // 直接返回 401 错误信息，提示未登录
             response.getWriter().write("{\"code\":401,\"msg\":\"未登录\"}");
-            return false;
+            return false;   // 拦截，不再继续执行后续拦截器及 Controller
         }
-        // 校验 token，可将用户信息放入 request attribute
-        return true;
+
+        // ✅ 重点：校验 token 成功可将用户信息放入 request attribute，方便后续获取
+        // 例如解析 token 得到用户对象后：
+        // request.setAttribute("currentUser", user);
+        // 在 Controller 中可通过 @RequestAttribute("currentUser") 或 request.getAttribute 获取
+
+        return true;       // 放行，继续执行后续流程
     }
 }
 ```
 
-### 7.2 配置拦截器（Java Config）
+- `preHandle` 返回 **`true`** → 放行，继续执行后续拦截器及目标方法
+- 返回 **`false`** → 拦截请求，**不会执行**目标方法和后续拦截器的 `preHandle`，但 **已执行过的拦截器的 `afterCompletion` 仍会触发**（用于资源清理）
+- 可在 `preHandle` 中向 `request` 存入用户信息，在控制器中通过 `@RequestAttribute` 或直接 `request.getAttribute` 获取
 
-在 `WebConfig`（实现 `WebMvcConfigurer`）中覆盖方法：
+---
+
+### 7.2 **配置拦截器（Java Config）**
 
 ```java
-@Override
-public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(new LoginInterceptor())
-            .addPathPatterns("/api/**")          // 拦截路径
-            .excludePathPatterns("/api/login", "/api/register"); // 排除
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new LoginInterceptor())
+                .addPathPatterns("/api/**")          // 拦截路径
+                .excludePathPatterns("/api/login", "/api/register") // 排除路径
+                .order(1);                           // ✅ 重点：控制多个拦截器的执行顺序
+    }
 }
 ```
 
-### 7.3 执行顺序
+- **`addPathPatterns`**：指定需要拦截的路径（支持通配符 `**`）
+- **`excludePathPatterns`**：排除不需要拦截的路径，通常放行登录、注册等公开接口
+- **`.order(n)`**：**数值越小越先执行**，决定多个拦截器的执行顺序。不指定时按注册顺序，但建议显式指定以明确控制
+- 多个拦截器的 `preHandle` 按 order 从小到大正序执行，`postHandle` 和 `afterCompletion` 按**逆序**执行
 
-- **单个拦截器**：`preHandle` → 目标方法 → `postHandle` → `afterCompletion`
-- **多个拦截器**：  
-  `preHandle-1` → `preHandle-2` → 目标方法 → `postHandle-2` → `postHandle-1` → `afterCompletion-2` → `afterCompletion-1`  
-  呈**栈式正序进、逆序出**。
+---
 
-> 注意：只要任意一个 `preHandle` 返回 `false`，后续的处理器和拦截器将不会执行，但之前已成功的拦截器的 `afterCompletion` 仍会执行（清理）。
+### 7.3 **执行顺序**
+
+#### (1) 单个拦截器
+
+```Java
+preHandle → 目标方法 → postHandle → afterCompletion
+```
+
+- 如果 `preHandle` 返回 `false`，则直接跳到 `afterCompletion`（仅限已执行过 `preHandle` 的拦截器）
+
+#### (2) 多个拦截器（假设顺序为 Interceptor1、Interceptor2）
+
+```Java
+preHandle-1 → preHandle-2 → 目标方法 → postHandle-2 → postHandle-1 → afterCompletion-2 → afterCompletion-1
+```
+
+- **呈栈式正序进、逆序出**
+- **重点**：只要任意一个 `preHandle` 返回 `false`，后续的处理器和拦截器将不会执行，但**之前已成功执行 `preHandle` 的拦截器的 `afterCompletion` 仍然会执行**（确保资源释放，如清除 ThreadLocal）
+
+---
+
+### 7.4 💎 核心要点总结
+
+1. **与过滤器的区别**  
+   拦截器属于 Spring MVC，可拿到 `Handler`（目标方法），能细粒度控制；过滤器属于 Servlet 容器，更底层
+2. **`afterCompletion` 的可靠性**  
+   无论是否发生异常，只要对应拦截器的 `preHandle` 执行过，`afterCompletion` 就**一定会被调用**，因此非常适合释放资源（如清空 `ThreadLocal` 防止内存泄漏）
+3. **在 `postHandle` 中修改响应**  
+   若需对返回结果做统一包装，可在 `postHandle` 中处理，注意此时视图尚未渲染
+4. **Token 校验后的身份传递**  
+   常用做法：拦截器解析 token 后将用户信息存入 `request.setAttribute`，或存入 `ThreadLocal`（需在 `afterCompletion` 中清除）
 
 ---
 
@@ -537,36 +604,55 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice   // = @ControllerAdvice + @ResponseBody
+/**
+ * 全局异常处理器
+ * @RestControllerAdvice = @ControllerAdvice + @ResponseBody
+ * 拦截所有 Controller 抛出的异常，并以 JSON 格式统一返回
+ */
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * 处理 IllegalArgumentException（参数校验等业务异常）
+     * @param e 异常对象
+     * @return 统一错误响应
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public Map<String, Object> handleIllegalArgument(IllegalArgumentException e) {
         Map<String, Object> result = new HashMap<>();
-        result.put("code", 400);
-        result.put("msg", e.getMessage());
+        result.put("code", 400);          // 客户端错误状态码
+        result.put("msg", e.getMessage()); // 返回异常信息
         return result;
     }
 
+    /**
+     * 兜底处理所有未被具体匹配的异常
+     * @param e 异常对象
+     * @return 统一错误响应
+     */
     @ExceptionHandler(Exception.class)
     public Map<String, Object> handleException(Exception e) {
         Map<String, Object> result = new HashMap<>();
-        result.put("code", 500);
+        result.put("code", 500);          // 服务器内部错误状态码
         result.put("msg", "系统异常：" + e.getMessage());
-        // 实际项目应记录日志
+        // 实际项目中应使用日志框架记录异常堆栈，避免信息丢失
+        // 例如：log.error("系统异常", e);
         return result;
     }
+
+    // 建议：定义统一的响应体类（如 Result<T>），包含 code、msg、data 等字段，
+    // 避免直接返回散装的 Map，提升可维护性和规范性。
 }
 ```
 
-- `@RestControllerAdvice` 使得所有异常处理方法都默认带 `@ResponseBody`。
-- 建议定义统一返回体 `Result`，而非散装 Map。
+- `@RestControllerAdvice` 使得所有异常处理方法都默认带 `@ResponseBody`
+- 建议定义统一返回体 `Result`，而非散装 Map
 
 ---
 
-### 8.2 异常处理原理简述
+### 8.2 **异常处理原理简述**
 
-`@ControllerAdvice` 注解的类会被 `ExceptionHandlerExceptionResolver` 扫描并内置，发生异常时按类型匹配最近的 `@ExceptionHandler` 方法，通过参数解析器注入异常对象，通过返回值处理器将结果输出。
+`@ControllerAdvice` 注解的类会被 `ExceptionHandlerExceptionResolver` 扫描并内置，发生异常时按类型匹配最近的 `@ExceptionHandler` 方法，通过参数解析器注入异常对象，通过返回值处理器将结果输出
 
 ---
 
@@ -681,10 +767,6 @@ protected Filter[] getServletFilters() {
 - **检查**：`@Controller` 或 `@RestController` 是否被扫描到。确认 `@ComponentScan` 包含所在包。
 - **检查**：`getServletMappings()` 是否匹配（例如映射为 `/*` 和 `/` 的区别）。
 - **检查**：方法上是否标注了 `@RequestMapping` 且路径正确。
-
----
-
-明白，你需要一个**精简版**的作用域补充，直接嵌入笔记中，不啰嗦。以下是一页纸的“作用域”速查，可直接插入第10章之后。
 
 ---
 
