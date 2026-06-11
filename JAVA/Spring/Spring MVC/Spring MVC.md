@@ -52,7 +52,7 @@ SpringMVC 是 Spring 框架的 Web 模块，基于 **MVC 设计模式**，核心
 
 ---
 
-### 2.2 **请求执行流程**（重点，走读每一步）
+### 2.2 ==**请求执行流程**==（重点，走读每一步）
 
 以一次 `POST /api/users` 且携带 JSON 请求体为例：
 
@@ -265,13 +265,13 @@ public class UserController {
 
 #### (2)**组合注解（等价写法）**
 
-| 组合注解 | 等价于 | 作用 |
+| **组合注解** | **等价于** | **作用** |
 | ---------- | -------- | --- |
 | `@GetMapping` | `@RequestMapping(method = RequestMethod.GET)` | 处理 HTTP GET 请求，通常用于**查询或获取**资源 |
 | `@PostMapping` | `@RequestMapping(method = RequestMethod.POST)` | 处理 HTTP POST 请求，通常用于**创建**资源 |
 | `@PutMapping` | `@RequestMapping(method = RequestMethod.PUT)` | 处理 HTTP PUT 请求，通常用于**更新或替换**整个资源 |
 | `@DeleteMapping` | `@RequestMapping(method = RequestMethod.DELETE)` | 处理 HTTP DELETE 请求，用于**删除**资源 |
-| `@PatchMapping` | `@RequestMapping(method = RequestMethod.PATCH)` | 处理 HTTP PATCH 请求，通常用于部分***修改***资源 |
+| `@PatchMapping` | `@RequestMapping(method = RequestMethod.PATCH)` | 处理 HTTP PATCH 请求，通常用于部分**修改**资源 |
 
 ---
 
@@ -338,7 +338,7 @@ public String search(UserQuery query) {
 
 ---
 
-### 5.4 `@PathVariable`（路径变量）
+### 5.4 **`@PathVariable`（路径变量）**
 
 `@PathVariable` 用于将 URL 模板中的**占位符参数绑定**到控制器方法的形参上
 
@@ -363,7 +363,7 @@ public String getOrder(@PathVariable Long userId, @PathVariable Long orderId) {
 }
 ```
 
-- **占位符**：URL 中以 `{ }` 包裹的变量名，用于表示该位置的值是动态的，会被映射到方法参数,占位符名称需与 `@PathVariable` 参数名一致（或通过 value 指定）
+- **占位符**：URL 中以 `{ }` 包裹的变量名，用于表示该位置的值是**动态**的，会被映射到方法参数,占位符名称需与 `@PathVariable` 参数名一致（或通过 value 指定）
 
 ---
 
@@ -479,9 +479,7 @@ public class LegacyController {
 
 ---
 
-## 7. ==拦截器==
-
----
+## 7. ==**拦截器**==
 
 ![alt text](<屏幕截图 2026-06-10 155619-1.png>)
 
@@ -667,12 +665,12 @@ public class GlobalExceptionHandler {
 
 当我们引入 `spring-boot-starter-web`：
 
-- **内嵌 Tomcat**：不再需要外置 Servlet 容器。
-- **`DispatcherServlet` 自动注册**：映射路径默认为 `/`，相当于 `AbstractAnnotationConfigDispatcherServletInitializer` 的自动化。
-- **自动配置** `WebMvcConfigurer` 各项 Bean：如 `RequestMappingHandlerMapping`、`RequestMappingHandlerAdapter`、`HttpMessageConverters`（Jackson 自动配置）。
-- **静态资源**：默认 `/static`、`/public` 等路径映射，无需手动 `addResourceHandlers`。
-- **全局异常处理**：`ErrorMvcAutoConfiguration` 提供基础错误页面/JSON。
-- **自动扫描**：`@SpringBootApplication` 已包含 `@ComponentScan`，开发者只需写 `@RestController`。
+- **内嵌 Tomcat**：不再需要外置 Servlet 容器
+- **`DispatcherServlet` 自动注册**：映射路径默认为 `/`，相当于 `AbstractAnnotationConfigDispatcherServletInitializer` 的自动化
+- **自动配置** `WebMvcConfigurer` 各项 Bean：如 `RequestMappingHandlerMapping`、`RequestMappingHandlerAdapter`、`HttpMessageConverters`（Jackson 自动配置）
+- **静态资源**：默认 `/static`、`/public` 等路径映射，无需手动 `addResourceHandlers`
+- **全局异常处理**：`ErrorMvcAutoConfiguration` 提供基础错误页面/JSON
+- **自动扫描**：`@SpringBootApplication` 已包含 `@ComponentScan`，开发者只需写 `@RestController`
 
 ---
 
@@ -685,7 +683,7 @@ public class GlobalExceptionHandler {
 | 依赖 | 手动管理 Spring、Jackson 版本 | 通过 starter 一站式管理 |
 | 视图 | 可集成的模板引擎丰富 | 更偏向前后端分离，也支持模板 |
 
-**学透原生 SpringMVC 的价值**：排查问题时能看透 SpringBoot 的自动配置层面，知道内部到底注册了什么 HandlerMapping、消息转换器何时生效，从而精准解决“为什么参数没绑上”“为什么返回 406”等疑难杂症。
+**学透原生 SpringMVC 的价值**：排查问题时能看透 SpringBoot 的自动配置层面，知道内部到底注册了什么`HandlerMapping`、消息转换器何时生效，从而精准解决“为什么参数没绑上”“为什么返回 406”等疑难杂症
 
 ---
 
@@ -694,18 +692,18 @@ public class GlobalExceptionHandler {
 ### 1. 参数接收失败（常见 400 Bad Request）
 
 - **现象**：`Required request parameter 'xxx' is not present`
-- **原因**：`@RequestParam` 标注但未传参，且未设 `required=false` 或 `defaultValue`。
-- **解决**：合理设置必填属性或改用 `@RequestParam(defaultValue = "...")`。
+- **原因**：`@RequestParam` 标注但未传参，且未设 `required=false` 或 `defaultValue`
+- **解决**：合理设置必填属性或改用 `@RequestParam(defaultValue = "...")`
 
 ---
 
 ### 2. JSON 解析异常（415 / 400）
 
-- **现象**：`Content type 'application/x-www-form-urlencoded' not supported` 或 JSON 反序列化失败。
+- **现象**：`Content type 'application/x-www-form-urlencoded' not supported` 或 JSON 反序列化失败
 - **原因**：
-  - 客户端未设置 `Content-Type: application/json`。
-  - 缺少 Jackson 依赖，`HttpMessageConverter` 未注册。
-  - JSON 字段与 Java 属性不匹配（驼峰/下划线）。可加 `@JsonProperty` 或配置 `ObjectMapper` 下划线转驼峰。
+  - 客户端未设置 `Content-Type: application/json`
+  - 缺少 Jackson 依赖，`HttpMessageConverter` 未注册
+  - JSON 字段与 Java 属性不匹配（驼峰/下划线）。可加 `@JsonProperty` 或配置 `ObjectMapper` 下划线转驼峰
 - **解决**：确保请求头正确、依赖存在，配置如下：
   
 ```java
@@ -719,10 +717,12 @@ public void configureMessageConverters(List<HttpMessageConverter<?>> converters)
 }
 ```
 
+---
+
 ### 3. 跨域问题（CORS）
 
-- **现象**：浏览器提示 `No 'Access-Control-Allow-Origin' header`。
-- **方案1（局部）**：`@CrossOrigin(origins = "http://localhost:3000")` 加在 Controller 或方法。
+- **现象**：浏览器提示 `No 'Access-Control-Allow-Origin' header`
+- **方案1（局部）**：`@CrossOrigin(origins = "http://localhost:3000")` 加在 Controller 或方法
 - **方案2（全局）**：在 `WebConfig` 中覆盖：
   
 ```java
@@ -735,10 +735,12 @@ public void addCorsMappings(CorsRegistry registry) {
 }
 ```
 
+---
+
 ### 4. 中文乱码
 
-- **请求乱码**：Tomcat 默认 URI 编码为 ISO-8859-1，需配置 `server.xml` 中 `URIEncoding="UTF-8"`。SpringBoot 中 `server.tomcat.uri-encoding=UTF-8` 已默认。
-- **响应乱码**：确保 `@RequestMapping` 的 `produces = "application/json;charset=UTF-8"` 或全局配置 `StringHttpMessageConverter` 默认 UTF-8。
+- **请求乱码**：Tomcat 默认 URI 编码为 ISO-8859-1，需配置 `server.xml` 中 `URIEncoding="UTF-8"`。SpringBoot 中 `server.tomcat.uri-encoding=UTF-8` 已默认
+- **响应乱码**：确保 `@RequestMapping` 的 `produces = "application/json;charset=UTF-8"` 或全局配置 `StringHttpMessageConverter` 默认 UTF-8
 - **全局过滤器方案**：注册 `CharacterEncodingFilter`：
   
 ```java
@@ -750,6 +752,8 @@ protected Filter[] getServletFilters() {
     return new Filter[] { encodingFilter };
 }
 ```
+
+---
 
 ### 5. 静态资源 404
 
@@ -765,13 +769,15 @@ protected Filter[] getServletFilters() {
   }
   ```
 
-- 在 SpringBoot 中，静态资源默认位于 `src/main/resources/static`，无需手动配置。
+- 在 SpringBoot 中，静态资源默认位于 `src/main/resources/static`，无需手动配置
+
+---
 
 ### 6. 请求 404，明明写了 Controller
 
-- **检查**：`@Controller` 或 `@RestController` 是否被扫描到。确认 `@ComponentScan` 包含所在包。
-- **检查**：`getServletMappings()` 是否匹配（例如映射为 `/*` 和 `/` 的区别）。
-- **检查**：方法上是否标注了 `@RequestMapping` 且路径正确。
+- **检查**：`@Controller` 或 `@RestController` 是否被扫描到。确认 `@ComponentScan` 包含所在包
+- **检查**：`getServletMappings()` 是否匹配（例如映射为 `/*` 和 `/` 的区别）
+- **检查**：方法上是否标注了 `@RequestMapping` 且路径正确
 
 ---
 
@@ -785,9 +791,9 @@ protected Filter[] getServletFilters() {
 | :---: | :--- | :--- | :---: |
 | `singleton` | 容器内**唯一**实例，默认作用域。所有请求**共享**同一个对象，**禁止定义可变成员变量** | Service、Controller | ❌ |
 | `prototype` | 每次获取都**新建**实例，Spring 不管理销毁。注入到单例时需注意不会更新 | 有状态的临时对象 | ✅ |
-| `request` | 每个 **HTTP 请求**内唯一，请求结束实例销毁。注入单例时必须加 `proxyMode` | 请求级上下文 | ✅ |
-| `session` | 每个 **用户会话**内唯一，会话超时后销毁。适合存放登录用户信息 | 登录信息、购物车 | ✅ |
-| `application` | **ServletContext** 内唯一，应用启动到关闭。需要自行处理并发读写 | 全局计数器、配置 | ❌ |
+| `request` | 每个**HTTP 请求**内唯一，请求结束实例销毁(Bean刷新就改变)。注入单例时必须加 `proxyMode` | 请求级上下文 | ✅ |
+| `session` | 每个**用户会话**内唯一，会话超时后销毁。适合存放登录用户信息 | 登录信息、购物车 | ✅ |
+| `application` | **ServletContext**内唯一，应用启动到关闭。需要自行处理并发读写 | 全局计数器、配置 | ❌ |
 
 ---
 
@@ -845,6 +851,130 @@ public class SafeController {
     @Autowired private RequestData data;   // 每次请求都是新代理实例
 }
 ```
+
+---
+
+## 12. 文件上传与下载
+
+### 12.1 文件上传
+
+#### (1) 配置 `MultipartResolver`
+
+SpringMVC 通过 `MultipartResolver` 解析 `multipart/form-data` 请求
+在 **Servlet 3.1+** 环境下，推荐使用 **`StandardServletMultipartResolver`**（无需额外依赖）
+
+```java
+@Configuration
+@EnableWebMvc
+public class WebConfig implements WebMvcConfigurer {
+
+    // 1. 注册 MultipartResolver（Bean 名称固定为 multipartResolver）
+    @Bean
+    public MultipartResolver multipartResolver() {
+        return new StandardServletMultipartResolver();
+    }
+
+    // 2. 在 AbstractAnnotationConfigDispatcherServletInitializer 中配置上传参数
+    //    见下面的自定义初始化器部分
+}
+```
+
+在 `MyWebAppInitializer` 中重写 `customizeRegistration` 设置上传限制：
+
+```java
+public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+    // ... 其他重写方法
+
+    @Override
+    protected void customizeRegistration(ServletRegistration.Dynamic registration) {
+        // 设置上传临时目录、最大文件大小等
+        registration.setMultipartConfig(new MultipartConfigElement(
+            "/tmp",                // 临时目录
+            10 * 1024 * 1024,      // 最大单个文件 10MB
+            50 * 1024 * 1024,      // 整个请求最大 50MB
+            1024 * 1024            // 文件写入磁盘的阈值 1MB
+        ));
+    }
+}
+```
+
+#### (2) 控制器接收文件
+
+```java
+@RestController
+@RequestMapping("/api/files")
+public class FileController {
+
+    /**
+     * 单文件上传
+     * @param file 上传的文件，参数名需与表单字段一致
+     * @return 文件基本信息
+     */
+    @PostMapping("/upload")
+    public Map<String, Object> upload(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        if (!file.isEmpty()) {
+            String originalName = file.getOriginalFilename();
+            long size = file.getSize();
+            // 业务处理：转存至服务器目录 / 对象存储等
+            // file.transferTo(new File("/upload/" + originalName));
+            result.put("name", originalName);
+            result.put("size", size);
+            result.put("status", "success");
+        } else {
+            result.put("status", "fail");
+        }
+        return result;
+    }
+
+    /**
+     * 多文件上传
+     * @param files 可接收多个同名字段文件
+     */
+    @PostMapping("/multi-upload")
+    public String multiUpload(@RequestParam("files") MultipartFile[] files) {
+        for (MultipartFile f : files) {
+            // 处理每个文件...
+        }
+        return "uploaded " + files.length + " files";
+    }
+}
+```
+
+- **注意**：`@RequestBody` 不能用于文件上传，只能接收 JSON。文件必须用 `@RequestParam` 绑定 `MultipartFile`
+
+---
+
+### 12.2 文件下载
+
+使用 `ResponseEntity<Resource>` 返回文件流，支持各类文件类型与下载文件名
+
+```java
+@GetMapping("/download/{fileName}")
+public ResponseEntity<org.springframework.core.io.Resource> download(
+        @PathVariable String fileName) throws IOException {
+
+    // 1. 从服务器文件系统加载（生产环境可改为对象存储的 InputStreamResource）
+    Path path = Paths.get("/upload/" + fileName);
+    org.springframework.core.io.Resource resource = new UrlResource(path.toUri());
+
+    if (!resource.exists()) {
+        return ResponseEntity.notFound().build();
+    }
+
+    // 2. 设置 Content-Disposition 触发浏览器下载
+    String encodedName = URLEncoder.encode(fileName, "UTF-8")
+            .replaceAll("\\+", "%20");
+    return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename*=UTF-8''" + encodedName)
+            .body(resource);
+}
+```
+
+- **原理**：`Resource` 接口配合 `HttpMessageConverter`（通常 `ResourceHttpMessageConverter`）可直接将文件写入响应输出流
+- **文件名编码**：使用 `filename*=UTF-8''` 方式兼容中文名，避免乱码
 
 ---
 

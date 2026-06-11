@@ -1,3 +1,8 @@
+---
+markmap:
+  initialExpandLevel: 3
+---
+
 # Spring Boot 学习笔记
 
 > **定位**：初学者快速上手，进阶者速查。基础部分够用，进阶部分深挖

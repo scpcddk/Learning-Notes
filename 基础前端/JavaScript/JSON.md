@@ -95,7 +95,7 @@ JSON 支持以下 6 种数据类型：
 
 ---
 
-## 6. JSON 常用方法（JavaScript 环境）
+## 6. **JSON 常用方法**（JavaScript 环境）
 
 ### (1)`JSON.parse()`
 
@@ -172,12 +172,73 @@ JSON.stringify(data, null, 2);
 
 ---
 
-## 9. JSON Schema（扩展了解）
+## 9. Java/Spring 中的 JSON
 
-- 用于描述和验证 JSON 数据结构的规范（用 JSON 书写）。
-- 定义属性类型、必填字段、数值范围等。
-- 常用关键字：`$schema`, `type`, `properties`, `required`, `additionalProperties` 等。
-- 广泛应用于 API 参数校验、自动生成文档、IDE 智能提示。
+- Spring Boot 默认集成 **Jackson**，自动配置 `ObjectMapper`
+- 无需额外依赖，直接使用
+
+### (1) 全局配置（application.yml）
+
+```yaml
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+```
+
+---
+
+### (2) 常用注解
+
+| 注解 | 作用 |
+| ------ | ------ |
+| `@JsonProperty("name")` | 字段映射 |
+| `@JsonIgnore` | 忽略字段 |
+| `@JsonFormat(pattern="yyyy-MM-dd")` | 格式化日期 |
+| `@JsonInclude(Include.NON_NULL)` | 非null才序列化 |
+| `@JsonIgnoreProperties(ignoreUnknown = true)` | 忽略未知字段 |
+| `@JsonSerialize(using = ToStringSerializer.class)` | 解决Long精度丢失 |
+
+---
+
+### (3) 使用方式
+
+- **Controller 自动转换**
+
+```java
+@PostMapping("/user")
+public User create(@RequestBody User user) {  // JSON → 对象
+    return userService.save(user);            // 对象 → JSON
+}
+```
+
+- **手动转换**
+
+```java
+String json = objectMapper.writeValueAsString(obj);
+User user = objectMapper.readValue(jsonStr, User.class);
+```
+
+---
+
+### (4) 注意事项
+
+- `@RequestBody` 自动反序列化，`@RestController` 自动序列化
+- 日期全局配置，局部特殊用 `@JsonFormat`
+- 开启 `non_null` 减少传输量
+- Long 大数加 `@JsonSerialize(using = ToStringSerializer.class)` 防精度丢失
+- 实体加 `@JsonIgnoreProperties(ignoreUnknown = true)` 防未知字段报错
+- 禁止用 `eval` 解析，禁止 Jackson 的 `enableDefaultTyping`
+
+---
+
+## 10. JSON Schema（扩展了解）
+
+- 用于描述和验证 JSON 数据结构的规范（用 JSON 书写）
+- 定义属性类型、必填字段、数值范围等
+- 常用关键字：`$schema`, `type`, `properties`, `required`, `additionalProperties` 等
+- 广泛应用于 API 参数校验、自动生成文档、IDE 智能提示
 
 示例 Schema：
 

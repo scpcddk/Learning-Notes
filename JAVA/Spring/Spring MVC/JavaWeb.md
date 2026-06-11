@@ -9,8 +9,40 @@
 
 ### 1.1 请求 / 响应结构
 
+#### (1)HTTP 请求报文（POST 方法，提交 JSON）
+
 - **请求**：由**请求行**（方法 + URL）、**请求头**（额外信息，如数据格式）、**请求体**（传的数据）组成
+
+```http
+POST /api/user HTTP/1.1                              ← 请求行：方法 + URL
+Host: example.com                                    ← 请求头：目标主机
+Content-Type: application/json                       ← 请求头：数据格式（JSON）
+Content-Length: 35                                   ← 请求头：请求体长度（字节）
+User-Agent: Mozilla/5.0 (compatible; MyClient/1.0)   ← 请求头：客户端信息
+
+{                                                    ← 空行（必须），下面是请求体
+  "name": "张三",                                    ← JSON 数据，符合笔记 1.4
+  "age": 20
+}
+```
+
+#### (2)HTTP 响应报文（创建成功，状态码 200）
+
 - **响应**：由**状态行**（状态码）、**响应头**、**响应体**（返回的数据）组成
+
+```http
+HTTP/1.1 200 OK                                     ← 状态行：版本 + 状态码 + 短语
+Date: Mon, 08 Jun 2026 07:30:00 GMT                 ← 响应头：日期
+Content-Type: application/json                      ← 响应头：返回的数据格式
+Content-Length: 52                                  ← 响应头：响应体长度
+Server: Apache-Coyote/1.1                           ← 响应头：服务器信息
+
+{                                                    ← 空行，下面是响应体
+  "code": 200,
+  "message": "用户创建成功",
+  "userId": 12345
+}
+```
 
 > 接口开发中，我们主要关心请求方式、路径、携带的 JSON 数据，以及返回的状态码和 JSON
 
@@ -48,41 +80,6 @@
 ```
 
 > Java 对象转 JSON，后来 SpringMVC 会自动帮我们完成（`@RestController` 功劳）
-
----
-
-### 1.5 代码示例
-
-#### (1)HTTP 请求报文（POST 方法，提交 JSON）
-
-```http
-POST /api/user HTTP/1.1                              ← 请求行：方法 + URL
-Host: example.com                                    ← 请求头：目标主机
-Content-Type: application/json                       ← 请求头：数据格式（JSON）
-Content-Length: 35                                   ← 请求头：请求体长度（字节）
-User-Agent: Mozilla/5.0 (compatible; MyClient/1.0)   ← 请求头：客户端信息
-
-{                                                    ← 空行（必须），下面是请求体
-  "name": "张三",                                    ← JSON 数据，符合笔记 1.4
-  "age": 20
-}
-```
-
-#### (2)HTTP 响应报文（创建成功，状态码 200）
-
-```http
-HTTP/1.1 200 OK                                     ← 状态行：版本 + 状态码 + 短语
-Date: Mon, 08 Jun 2026 07:30:00 GMT                 ← 响应头：日期
-Content-Type: application/json                      ← 响应头：返回的数据格式
-Content-Length: 52                                  ← 响应头：响应体长度
-Server: Apache-Coyote/1.1                           ← 响应头：服务器信息
-
-{                                                    ← 空行，下面是响应体
-  "code": 200,
-  "message": "用户创建成功",
-  "userId": 12345
-}
-```
 
 ---
 
