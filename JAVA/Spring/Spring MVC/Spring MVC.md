@@ -15,7 +15,7 @@ markmap:
 
 ### 1.1 SpringMVC 是什么
 
-SpringMVC 是 Spring 框架的 Web 模块，基于 **MVC 设计模式**，核心是一套围绕 **前端控制器（Front Controller）** 设计的组件体系。它深度整合 Servlet API，但通过抽象让开发者几乎不用直接操作 `HttpServletRequest/Response`（除非你需要）
+- SpringMVC 是 Spring 框架的 Web 模块，基于 **MVC 设计模式**，核心是一套围绕 **前端控制器（Front Controller）** 设计的组件体系。它深度整合 Servlet API，但通过抽象让开发者几乎不用直接操作 `HttpServletRequest/Response`（除非你需要）
 
 ---
 
@@ -287,7 +287,7 @@ public class UserController {
 
 ---
 
-## 5. 全套参数绑定
+## 5. **全套参数绑定**
 
 ### 5.1 **`@RequestParam`（查询参数 / 表单参数）**
 
@@ -326,7 +326,7 @@ public ModelAndView index(HttpServletRequest request){
 
 ---
 
-### 5.3 实体类绑定（无需注解）
+### 5.3 实体类绑定（**无需注解**）
 
 ```java
 @GetMapping("/search")
@@ -340,7 +340,7 @@ public String search(UserQuery query) {
 
 ### 5.4 **`@PathVariable`（路径变量）**
 
-`@PathVariable` 用于将 URL 模板中的**占位符参数绑定**到控制器方法的形参上
+`@PathVariable` 用于将 **URL 模板**中的**占位符参数绑定**到控制器方法的形参上
 
 ```java
 @GetMapping("/{id}/detail")
@@ -349,7 +349,7 @@ public String detail(@PathVariable("id") Long userId) {
 }
 ```
 
-- **省略参数名**：路径变量名与方法参数名一致时，可省略 value
+- **省略参数名**：路径变量名与方法参数名一致时，可省略 value(通常会报错,不推荐)
 - **正则匹配**：`"/{id:\\d+}"` 限定数字
 - **类型不匹配** → 400 错误
 - **忘写注解** → 会被当成请求参数（?id=xxx）而非路径变量
@@ -367,7 +367,9 @@ public String getOrder(@PathVariable Long userId, @PathVariable Long orderId) {
 
 ---
 
-### 5.5 `@RequestBody`（JSON/XML 请求体）
+### 5.5 **`@RequestBody`（JSON/XML 请求体）**
+
+- `@RequestBody` 将 **HTTP 请求体**自动绑定为方法参数对象，常用于**接收 JSON 并转为 Java 对象**
 
 ```java
 @PostMapping
@@ -380,6 +382,7 @@ public Result save(@RequestBody @Valid User user) {
 
 - 必须设置 `Content-Type: application/json`
 - 搭配 `@Valid` 或 `@Validated` 可触发 Bean Validation
+- `POST` **允许**请求体，Spring 会读取它；`GET` 规范上**不应带**请求体，Tomcat 会忽略，所以 Spring 也无法绑定 `@RequestBody`
 
 ---
 
@@ -975,6 +978,130 @@ public ResponseEntity<org.springframework.core.io.Resource> download(
 
 - **原理**：`Resource` 接口配合 `HttpMessageConverter`（通常 `ResourceHttpMessageConverter`）可直接将文件写入响应输出流
 - **文件名编码**：使用 `filename*=UTF-8''` 方式兼容中文名，避免乱码
+
+---
+
+## 13. XML 配置篇（看懂够用）
+
+> 当前主流是纯注解 + Spring Boot，但维护老项目、阅读文档、排查底层问题时仍需看懂 XML。本章只讲 **必须掌握的片段**，不深究
+
+---
+
+### 13.1 `web.xml`（核心 3 块）
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE web-app PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd">
+<web-app>
+
+  <display-name>Archetype Created Web Application</display-name>
+
+  <!-- ===== 1. 编码过滤器（解决 POST 中文乱码） ===== -->
+  <filter>
+    <filter-name>encodingFilter</filter-name>
+    <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+    
+    <!-- 指定编码格式 -->
+    <init-param>
+      <param-name>encoding</param-name>      <!-- 作用：设置请求和响应的字符集名称 -->
+      <param-value>UTF-8</param-value>       <!-- 值：UTF-8（最常用，支持中文） -->
+    </init-param>
+    
+    <!-- 是否强制使用该编码 -->
+    <init-param>
+      <param-name>forceEncoding</param-name> <!-- 作用：是否强制将请求/响应编码设为上面指定的值 -->
+      <param-value>true</param-value>        <!-- true：强制使用UTF-8，解决乱码（推荐）；false：仅在请求未指定编码时使用UTF-8 -->
+    </init-param>
+  </filter>
+  
+  <filter-mapping>
+    <filter-name>encodingFilter</filter-name>
+    <url-pattern>/*</url-pattern>            <!-- 拦截所有请求（含JSP） -->
+  </filter-mapping>
+
+  <!-- ===== 2. DispatcherServlet（SpringMVC 总控） ===== -->
+  <servlet>
+    <servlet-name>springmvc</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    
+    <init-param>
+      <param-name>contextConfigLocation</param-name>
+      <param-value>/WEB-INF/spring-servlet.xml</param-value> <!-- Spring MVC 配置文件位置 -->
+    </init-param>
+    
+    <load-on-startup>1</load-on-startup>     <!-- 容器启动时初始化，避免首次请求慢 -->
+  </servlet>
+
+  <!-- ===== 3. Servlet 映射 ===== -->
+  <servlet-mapping>
+    <servlet-name>springmvc</servlet-name>
+    <url-pattern>/</url-pattern>             <!-- 拦截除 JSP 外的所有请求 -->
+  </servlet-mapping>
+
+</web-app>
+```
+
+**要点**：
+
+- `encodingFilter` + `forceEncoding=true` 是乱码解决标准配置
+- `filter-mapping` 用 `/*`，`servlet-mapping` 用 `/`
+- `contextConfigLocation` 可指向 `classpath:spring-servlet.xml`（文件放 `resources` 下）或 `/WEB-INF/xxx.xml`（放 `WEB-INF` 下）
+
+---
+
+### 13.2 `spring-servlet.xml`（Spring MVC 配置文件）
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/mvc
+           http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <!-- 组件扫描（让 Spring 找到 @Controller） -->
+    <context:component-scan base-package="com.example.controller"/>
+
+    <!-- 注解驱动（支持 @RequestMapping、@ResponseBody、JSON 转换等） -->
+    <mvc:annotation-driven/>
+
+</beans>
+```
+
+**要点**：
+
+- `base-package` 写错 → 404
+- 删除 `<mvc:annotation-driven/>` → `@ResponseBody` 返回对象会 406 或不能转 JSON
+- `xmlns` 那些命名空间直接复制，不要手改
+
+---
+
+### 13.3 **与注解版的映射关系**
+
+| XML 配置 | 注解 / Java Config 替代 |
+| ---------- | ------------------------ |
+| `web.xml` | `AbstractAnnotationConfigDispatcherServletInitializer` |
+| `<filter>` + `CharacterEncodingFilter` | `getServletFilters()` 方法返回 `CharacterEncodingFilter` |
+| `<context:component-scan>` | `@ComponentScan` |
+| `<mvc:annotation-driven/>` | `@EnableWebMvc` |
+| `<bean>` 定义视图解析器、拦截器等 | `WebMvcConfigurer` 接口方法（`addInterceptors`、`configureViewResolvers`） |
+
+---
+
+### 13.4 你需要会什么？（达标标准）
+
+- **能看懂**：知道 `web.xml` 中三块配置的作用，能定位乱码、404 问题
+- **能修改**：改包名、改文件路径、加一个 filter
+- **不要求**：手写复杂的 `<bean>` 配置、记命名空间细节、写 DTD
+
+> 一句话：XML 是过去式，但它是理解 Spring Boot 自动配置的“底片”。能读懂，排错时不慌即可
 
 ---
 
