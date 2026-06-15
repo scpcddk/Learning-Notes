@@ -82,7 +82,7 @@ markmap:
 
 ---
 
-## 3. 纯注解方式搭建原生 SpringMVC 环境（外置 Tomcat）
+## 3. ==**纯注解方式搭建原生 SpringMVC 环境（外置 Tomcat）**==
 
 ### 3.1 依赖（Maven，Spring 5.3.x）
 
@@ -121,43 +121,77 @@ Servlet API 改为 `jakarta.servlet:jakarta.servlet-api:6.0.0`，Spring MVC 6 �
 
 ---
 
-### 3.2 消除 web.xml：使用 `ServletContainerInitializer` 的实现
+### 3.2 **消除 web.xml：使用 `ServletContainerInitializer` 的实现**
 
 Spring 提供了 `AbstractAnnotationConfigDispatcherServletInitializer`，它会自动被 Servlet 3.0+ 容器（如 Tomcat 8+）发现并初始化
 
 ```java
 package com.example.config;
 
+import org.springframework.web.filter.CharacterEncodingFilter;
 import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
+import javax.servlet.Filter;
 
 /**
- * 替代 web.xml，由 Servlet 容器自动加载
+ * Web应用启动初始化器（替代web.xml）
+ * 在Servlet 3.0+容器（如Tomcat 7+）启动时自动被SPI机制发现并执行
+ * 负责配置DispatcherServlet、Spring容器以及编码过滤器
  */
 public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
 
-    // 根容器配置类（通常配置 Service、DAO 等）
+    /**
+     * 指定Spring根容器（Root ApplicationContext）的配置类
+     * 根容器通常包含：数据源、事务管理器、Service层、DAO层等非Web组件
+     * 该容器是所有DispatcherServlet子容器的父容器，其Bean对子容器可见
+     * @return 配置类的Class对象数组（可指定多个）
+     */
     @Override
     protected Class<?>[] getRootConfigClasses() {
-        return new Class[] { RootConfig.class };
+        return new Class[]{RootConfig.class};
     }
 
-    // DispatcherServlet 容器配置类（仅 MVC 相关）
+    /**
+     * 指定当前DispatcherServlet的Web容器（Servlet ApplicationContext）的配置类
+     * Web容器通常包含：@Controller、视图解析器、拦截器、消息转换器等Web相关组件
+     * @return 配置类的Class对象数组（可指定多个）
+     */
     @Override
     protected Class<?>[] getServletConfigClasses() {
-        return new Class[] { WebConfig.class };
+        return new Class[]{WebConfig.class};
     }
 
-    // DispatcherServlet 映射路径
+    /**
+     * 指定DispatcherServlet要拦截的URL映射模式
+     * "/" 表示该Servlet成为应用的默认Servlet，处理所有未被其他精确映射匹配的请求
+     * 这意味着所有请求（如 /user/list, /home）都会进入Spring MVC的处理流程
+     * @return URL模式数组
+     */
     @Override
     protected String[] getServletMappings() {
-        return new String[] { "/" };
+        return new String[]{"/"};
+    }
+
+    /**
+     * 为DispatcherServlet注册额外的过滤器（相当于web.xml中的<filter>配置）
+     * 这里配置了字符编码过滤器，用于解决请求/响应中文乱码问题
+     * @return Filter数组，会按照声明顺序添加到过滤器链
+     */
+    @Override
+    protected Filter[] getServletFilters() {
+        // 创建Spring内置的编码过滤器
+        CharacterEncodingFilter filter = new CharacterEncodingFilter();
+        // 设置请求和响应的字符集为UTF-8
+        filter.setEncoding("UTF-8");
+        // 强制使用指定的编码（覆盖请求头中可能的错误编码声明，同时也会设置响应编码）
+        filter.setForceEncoding(true);
+        return new Filter[]{filter};
     }
 }
 ```
 
 ---
 
-### 3.3 根容器配置（RootConfig）
+### 3.3 **根容器配置（RootConfig）**
 
 ```java
 package com.example.config;
@@ -167,44 +201,90 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.stereotype.Controller;
 
-@Configuration
-@ComponentScan(basePackages = "com.example",
-               excludeFilters = @ComponentScan.Filter(
-                   type = FilterType.ANNOTATION,
-                   value = Controller.class))
+/**
+ * Spring 根容器（Root ApplicationContext）配置类
+ * 该类用于配置与 Web 层无关的组件，如 Service、Repository、数据源、事务管理等
+ * 它会被 MyWebAppInitializer.getRootConfigClasses() 加载，作为 DispatcherServlet 的父容器
+ */
+@Configuration  // 标明这是一个 Spring 配置类，等价于 XML 配置文件
+@ComponentScan(
+        basePackages = "com.example", // 指定扫描的基础包路径（包含子包）
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ANNOTATION,   // 按注解类型进行过滤
+                value = Controller.class        // 排除所有标记了 @Controller 的类（避免 Web 组件进入根容器）
+        )
+)
 public class RootConfig {
-    // 这里配置 Service、Repository 等非 Web 组件
+    // 此处可以配置：
+    // - 数据源（DataSource）
+    // - JdbcTemplate、MyBatis SqlSessionFactory
+    // - 事务管理器（PlatformTransactionManager）
+    // - 以及任何非 Web 的 Service、Repository Bean
+    // 也可以使用 @Bean 显式声明，或依赖 @ComponentScan 自动发现（只要不是 @Controller）
 }
 ```
+  
+- 排除 `@Controller` 是为了**职责分离**——根容器管后端服务（Service/Repository），Web容器管前端控制（Controller）。这样避免重复扫描、防止父容器反向依赖子容器，确保架构清晰、事务代理正常
 
 ---
 
-### 3.4 Web 层配置（WebConfig，替代 springmvc-servlet.xml）
+### 3.4 **Web 层配置（WebConfig，替代 springmvc-servlet.xml）**
 
 ```java
 package com.example.config;
 
+import com.example.interceptor.LoginInterceptor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.multipart.MultipartResolver;
+import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.util.List;
-
-@Configuration
-@EnableWebMvc   // 激活默认 SpringMVC 配置（等于 <mvc:annotation-driven/>）
-@ComponentScan("com.example.controller")
+/**
+ * Spring MVC Web 层配置类（子容器配置）
+ * 该类由 MyWebAppInitializer.getServletConfigClasses() 加载
+ * 负责配置 DispatcherServlet 相关的组件：Controller 扫描、拦截器、文件上传解析器等
+ * 根容器（RootConfig）作为其父容器，因此 WebConfig 中可以 @Autowired 父容器的 Service/Repository
+ */
+@Configuration          // 标明这是一个 Spring 配置类
+@EnableWebMvc           // 激活 Spring MVC 默认配置，等效于 XML 中的 <mvc:annotation-driven/>
+@ComponentScan("com.example.controller")  // 仅扫描 Controller 包（排除 Service/Repository，它们应由根容器管理）
 public class WebConfig implements WebMvcConfigurer {
 
-    // 显式添加 JSON 转换器（其实 @EnableWebMvc 已经自动注册，此处为演示）
+    /**
+     * 配置拦截器（Spring MVC 拦截器，作用于 DispatcherServlet 映射的请求路径）
+     * 不同于 Filter（Servlet 层面），拦截器可以访问 Handler 及 Spring 上下文中的 Bean
+     * @param registry 拦截器注册器，用于添加自定义拦截器及路径规则
+     */
     @Override
-    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-        converters.add(new MappingJackson2HttpMessageConverter());
+    public void addInterceptors(InterceptorRegistry registry) {
+        // 创建 LoginInterceptor 实例（注意：此处直接 new，若拦截器需要依赖其他 Bean，应通过 @Bean 注入）
+        registry.addInterceptor(new LoginInterceptor())
+                // 设置需要拦截的路径模式（Ant 风格）
+                .addPathPatterns("/api/**")
+                // 设置不需要拦截的路径（优先级高于 addPathPatterns）
+                .excludePathPatterns("/api/login", "/api/ai/**")
+                // 设置拦截器执行顺序（数值越小越优先）
+                .order(1);
     }
 
-    // 后续拦截器、静态资源等都在这里配置……
+    /**
+     * 配置文件上传解析器（MultipartResolver）
+     * 方法名必须为 "multipartResolver"，Spring 会按名称查找
+     * StandardServletMultipartResolver 基于 Servlet 3.0+ 标准，需要配合 DispatcherServlet 的 multipart-config 使用
+     * @return 文件上传解析器实例
+     */
+    @Bean
+    public MultipartResolver multipartResolver() {
+        // StandardServletMultipartResolver 不解析文件内容，而是延迟到 Servlet 容器处理
+        // 需在 MyWebAppInitializer.customizeRegistration() 中配置临时目录、大小限制等
+        return new StandardServletMultipartResolver();
+    }
+
+    // 其他 WebMvcConfigurer 方法（如消息转换器、静态资源处理、视图解析器等）可在此按需重写
 }
 ```
 
@@ -426,7 +506,7 @@ public String getUser(@SessionAttribute("userId") Long userId) {
 }
 ```
 
-- @SessionAttribute 支持 `required` 和 `defaultValue` 属性，用法与 `@RequestParam` 类似
+- @SessionAttribute 支持`required`和`defaultValue`属性，用法与`@RequestParam` 类似
 
 ---
 
@@ -536,9 +616,9 @@ public class LoginInterceptor implements HandlerInterceptor {
 }
 ```
 
-- `preHandle` 返回 **`true`** → 放行，继续执行后续拦截器及目标方法
-- 返回 **`false`** → 拦截请求，**不会执行**目标方法和后续拦截器的 `preHandle`，但 **已执行过的拦截器的 `afterCompletion` 仍会触发**（用于资源清理）
-- 可在 `preHandle` 中向 `request` 存入用户信息，在控制器中通过 `@RequestAttribute` 或直接 `request.getAttribute` 获取
+- `preHandle`返回 **`true`** → 放行，继续执行后续拦截器及目标方法
+- 返回 **`false`** → 拦截请求，**不会执行**目标方法和后续拦截器的`preHandle`，但 **已执行过的拦截器的`afterCompletion`仍会触发**（用于资源清理）
+- 可在`preHandle`中向`request`存入用户信息，在控制器中通过`@RequestAttribute`或直接`request.getAttribute`获取
 
 ---
 
@@ -572,7 +652,7 @@ public class WebConfig implements WebMvcConfigurer {
 preHandle → 目标方法 → postHandle → afterCompletion
 ```
 
-- 如果 `preHandle` 返回 `false`，则直接跳到 `afterCompletion`（仅限已执行过 `preHandle` 的拦截器）
+- 如果`preHandle`返回`false`，则直接跳到`afterCompletion`（仅限已执行过`preHandle`的拦截器）
 
 #### (2) 多个拦截器（假设顺序为 Interceptor1、Interceptor2）
 
@@ -581,20 +661,20 @@ preHandle-1 → preHandle-2 → 目标方法 → postHandle-2 → postHandle-1 �
 ```
 
 - **呈栈式正序进、逆序出**
-- **重点**：只要任意一个 `preHandle` 返回 `false`，后续的处理器和拦截器将不会执行，但**之前已成功执行 `preHandle` 的拦截器的 `afterCompletion` 仍然会执行**（确保资源释放，如清除 ThreadLocal）
+- **重点**：只要任意一个`preHandle`返回`false`，后续的处理器和拦截器将不会执行，但**之前已成功执行`preHandle`的拦截器的`afterCompletion`仍然会执行**（确保资源释放，如清除 ThreadLocal）
 
 ---
 
 ### 7.4 💎 核心要点总结
 
 1. **与过滤器的区别**  
-   拦截器属于 Spring MVC，可拿到 `Handler`（目标方法），能细粒度控制；过滤器属于 Servlet 容器，更底层
-2. **`afterCompletion` 的可靠性**  
-   无论是否发生异常，只要对应拦截器的 `preHandle` 执行过，`afterCompletion` 就**一定会被调用**，因此非常适合释放资源（如清空 `ThreadLocal` 防止内存泄漏）
-3. **在 `postHandle` 中修改响应**  
-   若需对返回结果做统一包装，可在 `postHandle` 中处理，注意此时视图尚未渲染
+   拦截器属于 Spring MVC，可拿到`Handler`（目标方法），能细粒度控制；过滤器属于 Servlet 容器，更底层
+2. **`afterCompletion`的可靠性**  
+   无论是否发生异常，只要对应拦截器的`preHandle`执行过，`afterCompletion`就**一定会被调用**，因此非常适合释放资源（如清空`ThreadLocal`防止内存泄漏）
+3. **在`postHandle`中修改响应**  
+   若需对返回结果做统一包装，可在`postHandle`中处理，注意此时视图尚未渲染
 4. **Token 校验后的身份传递**  
-   常用做法：拦截器解析 token 后将用户信息存入 `request.setAttribute`，或存入 `ThreadLocal`（需在 `afterCompletion` 中清除）
+   常用做法：拦截器解析 token 后将用户信息存入`request.setAttribute`，或存入`ThreadLocal`（需在`afterCompletion`中清除）
 
 ---
 
