@@ -16,6 +16,8 @@ markmap:
   - 集合提供了更丰富的数据结构和算法（如查找、排序、去重等）
 - **主要用途**：**存储、管理、操作**一组数据对象
 
+---
+
 ### 1.2 **Java中集合框架层次结构**
 
 - **根接口**：`Collection` 和 `Map`
@@ -43,9 +45,9 @@ Map (接口)
 
 ## 2 Collection接口
 
-### 2.1 Collection接口通用方法
+### 2.1 **Collection接口通用方法**
 
-`Collection` 是所有**单列集合**的父接口，定义了基本操作方法：
+- `Collection`是所有**单列集合**的父接口，定义了基本操作方法：
 
 | 方法 | 说明 |
 | ------ | ------ |
@@ -62,11 +64,11 @@ Map (接口)
 
 ### 2.2 List接口及其实现类
 
-`List` 特点：**有序**（存储顺序与取出顺序一致）、**可重复**、**支持索引**
+- `List`特点：**有序**（存储顺序与取出顺序一致）、**可重复**、**支持索引**
 
 #### 2.2.1 ArrayList类
 
-- **底层**：动态数组（Object[]）
+- **底层**：**动态数组**（`Object[]`）
 - **特点**：查询快（根据索引直接访问）、增删慢（需移动元素）
 - **初始容量**：默认10，每次扩容为原来的1.5倍
 - **线程安全**：不安全，适合单线程
@@ -74,7 +76,7 @@ Map (接口)
 
 #### 2.2.2 LinkedList实现类
 
-- **底层**：双向链表
+- **底层**：**双向链表**
 - **特点**：增删快（只需修改前后节点指针）、查询慢（需遍历）
 - **特有方法**：`addFirst()`、`addLast()`、`removeFirst()`、`removeLast()`、`getFirst()`、`getLast()`，可作为**栈**或**队列**使用
 - **线程安全**：不安全
@@ -85,12 +87,12 @@ Map (接口)
 
 #### 2.3.1 Iterator接口
 
-- 所有 `Collection` 集合的通用**遍历方式**
+- 所有`Collection`集合的通用**遍历方式**
 - **常用方法**：
   - `hasNext()`：是否还有下一个元素
   - `next()`：返回下一个元素并移动指针
   - `remove()`：删除当前元素（避免并发修改异常）
-- 示例：
+- **示例**：
 
 ```java
 List<String> list = new ArrayList<>();
@@ -112,13 +114,13 @@ while (it.hasNext()) {
 
 ---
 
-### 2.4 增强型for循环（for-each）
+### 2.4 **增强型for循环**（for-each）
 
 - **语法**：`for (元素类型 变量名 : 集合或数组) { ... }`
-- 本质：编译器自动转换为 `Iterator` 遍历
-- 优点：代码简洁，不易出错
-- 限制：遍历过程中**不能直接修改集合结构**（增删），否则可能抛出 `ConcurrentModificationException`（除非使用迭代器自身的 `remove`）
-- 示例：
+- **本质**：编译器自动转换为`Iterator`遍历
+- **优点**：代码简洁，不易出错
+- **限制**：遍历过程中**不能直接修改集合结构**（增删），否则可能抛出 `ConcurrentModificationException`（除非使用迭代器自身的 `remove`）
+- **示例**：
 
 ```java
 for (String s : list) {
@@ -130,24 +132,24 @@ for (String s : list) {
 
 ### 2.5 Set接口及其实现类
 
-`Set` 特点：**无序**（部分实现有序，如 `TreeSet`）、**不可重复**，**无索引**
+- `Set`特点：**无序**(部分实现有序，如`TreeSet`)、**不可重复**，**无索引**
 
 #### 2.5.1 HashSet类
 
-- **底层**：哈希表（数组+链表/红黑树，实际是 `HashMap` 的键）
-- **特点**：元素无序（依赖哈希值存储），不可重复，允许一个 `null` 元素
-- **去重原理**：先比较 `hashCode()`，若相同再比较 `equals()`，均相同则视为重复元素
-- **性能**：增删查 O(1) 平均时间复杂度
-- **要求**：存储的对象**必须正确重写** `hashCode()` 和 `equals()` 方法
+- **底层**：**哈希表**(数组 + 链表/红黑树，实际是`HashMap`的键)
+- **特点**：元素无序（依赖哈希值存储），不可重复，允许一个`null`元素
+- **去重原理**：先比较`hashCode()`，若相同再比较`equals()`，均相同则视为重复元素
+- **性能**：增删查`O(1)`平均时间复杂度
+- **要求**：存储的对象**必须正确重写**`hashCode()`和`equals()`方法
 
 #### 2.5.2 TreeSet类
 
-- **底层**：红黑树（自平衡二叉查找树）
-- **特点**：元素有序（自然排序或定制排序），不可重复，不允许 `null`（JDK 1.7后）
+- **底层**：**红黑树**（自平衡二叉查找树）
+- **特点**：元素有序（自然排序或定制排序），不可重复，不允许`null`（JDK 1.7后）
 - **排序方式**：
-  - 自然排序：元素实现 `Comparable` 接口，重写 `compareTo()`
-  - 定制排序：构造时传入 `Comparator` 比较器
-- **常用方法**：`first()`、`last()`、`lower(e)`、`higher(e)`、`subSet(from, to)` 等
+  - 自然排序：元素实现`Comparable`接口，重写`compareTo()`
+  - 定制排序：构造时传入`Comparator`比较器
+- **常用方法**：`first()`、`last()`、`lower(e)`、`higher(e)`、`subSet(from, to)`等
 
 ---
 
@@ -177,8 +179,8 @@ for (String s : list) {
 - **底层**：JDK 1.8 之前为数组+链表，1.8 开始为数组+链表/红黑树（当链表长度 ≥8 且数组长度 ≥64 时转为红黑树）
 - **特点**：
   - 键无序（依赖键的哈希值）
-  - 键不可重复（通过 `hashCode` + `equals` 判断）
-  - 允许一个 `null` 键和多个 `null` 值
+  - 键不可重复（通过`hashCode` + `equals`判断）
+  - 允许一个`null`键和多个`null`值
   - 线程不安全，效率高
 - **初始容量**：默认16，加载因子0.75
 - **扩容机制**：当元素个数 > 容量 × 加载因子，容量翻倍（重新哈希）
@@ -226,22 +228,22 @@ for (String s : list) {
 
 ## 4 集合工具类与辅助接口
 
-### 4.1 `Collections` 工具类（注意结尾有 `s`）
+### 4.1 **`Collections` 工具类**（注意结尾有 `s`）
 
 - **常用静态方法**：
-  - 排序：`sort(List<T> list)`（需元素实现 `Comparable`）、`sort(List<T> list, Comparator<? super T> c)`
-  - 反转：`reverse(List<?> list)`
-  - 打乱：`shuffle(List<?> list)`
-  - 二分查找：`binarySearch(List<? extends Comparable<? super T>> list, T key)`
-  - 线程安全包装：`synchronizedCollection(Collection<T> c)`、`synchronizedMap(Map<K,V> m)` 等
-  - 不可变集合：`unmodifiableList(List<? extends T> list)` 等
-  - 空集合：`emptyList()`、`emptySet()`、`emptyMap()`
+  - **排序**：`sort(List<T> list)`（需元素实现 `Comparable`）、`sort(List<T> list, Comparator<? super T> c)`
+  - **反转**：`reverse(List<?> list)`
+  - **打乱**：`shuffle(List<?> list)`
+  - **二分查找**：`binarySearch(List<? extends Comparable<? super T>> list, T key)`
+  - **线程安全包装**：`synchronizedCollection(Collection<T> c)`、`synchronizedMap(Map<K,V> m)` 等
+  - **不可变集合**：`unmodifiableList(List<? extends T> list)` 等
+  - **空集合**：`emptyList()`、`emptySet()`、`emptyMap()`
 
 ---
 
 ### 4.2 `Arrays` 工具类
 
-- 数组与集合互转：`asList(T... a)` → 返回固定大小的 `List`（不支持增删操作，需包装为 `ArrayList` 才能增删）
+- 数组与集合互转：`asList(T... a)` → 返回固定大小的`List`（不支持增删操作，需包装为`ArrayList`才能增删）
 - 数组排序、二分查找、填充等
 
 ---
@@ -250,7 +252,7 @@ for (String s : list) {
 
 | 接口 | 使用方式 | 侵入性 | 灵活性 |
 | ------ | ---------- | -------- | -------- |
-| `Comparable` | 类实现 `compareTo()` | 侵入，修改类本身 | 单一排序规则 |
+| `Comparable` | 类实现`compareTo()` | 侵入，修改类本身 | 单一排序规则 |
 | `Comparator` | 单独创建比较器，传入集合 | 无侵入 | 可定义多种排序规则 |
 
 ---
@@ -277,26 +279,26 @@ for (String s : list) {
 
 - **底层**：数组 vs 双向链表
 - **访问**：`ArrayList` 支持 O(1) 随机访问；`LinkedList` 需 O(n) 遍历
-- **增删**：`ArrayList` 在中间增删需移动元素（O(n)）`LinkedList` 只需修改指针（O(1)，但需先定位到位置）
+- **增删**：`ArrayList` 在中间增删需移动元素（O(n)）;`LinkedList` 只需修改指针（O(1)，但需先定位到位置）
 - **内存**：`ArrayList` 可能有闲置容量；`LinkedList` 每个节点额外存储前后指针
-- **使用场景**：查询多用 `ArrayList`；增删多（尤其在头尾）用 `LinkedList`
+- **使用场景**：查询多用`ArrayList`;增删多（尤其在头尾）用`LinkedList`
 
 ---
 
 ### 6.2 `HashSet` 如何保证元素不重复？
 
-- 内部依赖 `HashMap`，将元素作为 `Map` 的键
-- 调用 `hashCode()` 定位存储位置，若该位置无元素则直接存储；若已有元素，再调用 `equals()` 比较，若返回 `true` 则认为重复，不添加
-- **要求**：存储在 `HashSet` 中的对象必须正确重写 `hashCode()` 和 `equals()`
+- 内部依赖`HashMap`，将元素作为`Map`的键
+- 调用`hashCode()`定位存储位置，若该位置无元素则直接存储；若已有元素，再调用`equals()`比较，若返回`true`则认为重复，不添加
+- **要求**：存储在`HashSet`中的对象**必须正确重写**`hashCode()`和`equals()`
 
 ---
 
 ### 6.3 `HashMap` 的底层实现原理（JDK 1.8）？
 
 - 数组 + 链表/红黑树
-- 计算键的 `hashCode()` 然后通过 `(n - 1) & hash` 确定桶下标
-- 当链表长度 ≥ 8 且数组长度 ≥ 64 时，链表转为红黑树（提高查询效率）
-- 当红黑树节点数 ≤ 6 时，退化为链表
+- 计算键的`hashCode()`然后通过`(n - 1) & hash`确定桶下标
+- 当链表长度 ≥8 且数组长度 ≥64 时，链表转为红黑树（提高查询效率）
+- 当红黑树节点数 ≤6 时，退化为链表
 - 扩容因子 0.75，扩容时重新计算 hash 分配位置
 
 ---
