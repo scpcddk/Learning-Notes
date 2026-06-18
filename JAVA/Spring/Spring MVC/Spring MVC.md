@@ -123,7 +123,7 @@ Servlet API 改为 `jakarta.servlet:jakarta.servlet-api:6.0.0`，Spring MVC 6 �
 
 ### 3.2 **消除 web.xml：使用 `ServletContainerInitializer` 的实现**
 
-Spring 提供了 `AbstractAnnotationConfigDispatcherServletInitializer`，它会自动被 Servlet 3.0+ 容器（如 Tomcat 8+）发现并初始化
+- Spring 提供了 `AbstractAnnotationConfigDispatcherServletInitializer`，它会自动被 Servlet 3.0+ 容器（如 Tomcat 8+）发现并初始化
 
 ```java
 package com.example.config;
@@ -288,7 +288,7 @@ public class WebConfig implements WebMvcConfigurer {
 }
 ```
 
-> **原理解释**：`@EnableWebMvc` 会导入 `DelegatingWebMvcConfiguration`，它将所有 `WebMvcConfigurer` 的实现汇总，完成默认的 HandlerMapping、HandlerAdapter、参数解析器等注册。这就是纯注解背后的魔法
+- **原理解释**：`@EnableWebMvc`会导入`DelegatingWebMvcConfiguration`，它将所有`WebMvcConfigurer`的实现汇总，完成默认的 HandlerMapping、HandlerAdapter、参数解析器等注册。这就是纯注解背后的魔法
 
 ---
 
@@ -320,7 +320,7 @@ public class UserController {
 }
 ```
 
-- **`@RestController` 本质**：类级别和方法级别都隐含 `@ResponseBody`，所有返回值直接序列化写入响应体，不走视图解析
+- **`@RestController`本质**：类级别和方法级别都隐含`@ResponseBody`，所有返回值直接序列化写入响应体，不走视图解析
 
 ---
 
@@ -394,12 +394,12 @@ public String hello(@RequestParam("name") String name,
 
 ### 5.2 Servlet中的类
 
-- 如果需要使用 Servlet 原本的一些类，**直接添加** `HttpServletRequest` 为形式参数即可，SpringMVC 会自动传递该请求原本的 `HttpServletRequest` 对象，同理，我们也可以添加 `HttpServletResponse` 作为形式参数，甚至可以直接将HttpSession也作为参数传递
+- 如果需要使用`Servlet`原本的一些类，**直接添加**`HttpServletRequest`为形式参数即可，SpringMVC 会自动传递该请求原本的`HttpServletRequest`对象，同理，我们也可以添加`HttpServletResponse`作为形式参数，甚至可以直接将`HttpSession`也作为参数传递
 
 ```java
 @RequestMapping(value = "/index")
 public ModelAndView index(HttpServletRequest request){
-    System.out.println("接受到请求参数: "+request.getParameterMap().keySet());
+    System.out.println("接受到请求参数: " + request.getParameterMap().keySet());
     return new ModelAndView("index");
 }
 ```
@@ -461,8 +461,8 @@ public Result save(@RequestBody @Valid User user) {
 ```
 
 - 必须设置 `Content-Type: application/json`
-- 搭配 `@Valid` 或 `@Validated` 可触发 Bean Validation
-- `POST` **允许**请求体，Spring 会读取它；`GET` 规范上**不应带**请求体，Tomcat 会忽略，所以 Spring 也无法绑定 `@RequestBody`
+- 搭配 `@Valid` 或 `@Validated` 可触发`Bean Validation`
+- `POST`**允许**请求体，Spring 会读取它；`GET`规范上**不应带**请求体，Tomcat 会忽略，所以 Spring 也无法绑定`@RequestBody`
 
 ---
 
@@ -478,7 +478,7 @@ public String readHeader(@RequestHeader("User-Agent") String ua,
 }
 ```
 
-- `@RequestHeader` 和 `@CookieValue` 的用法与 `@RequestParam` 类似，支持 `required`、`defaultValue` 等属性
+- `@RequestHeader`和`@CookieValue`的用法与`@RequestParam`类似，支持`required`、`defaultValue`等属性
 
 ---
 
@@ -486,7 +486,7 @@ public String readHeader(@RequestHeader("User-Agent") String ua,
 
 > Session（会话） 是服务器端用来保存同一个用户多次请求之间的状态数据的一种机制
 
-- HttpSession（可读可写,手动转换）
+- **HttpSession**（可读可写,手动转换）
 
 ```java
 @GetMapping("/profile")
@@ -497,7 +497,7 @@ public String profile(HttpSession session) {
 }
 ```
 
-- @SessionAttribute（只读，自动转换）
+- **@SessionAttribute**（只读，自动转换）
 
 ```java
 @GetMapping("/getUser")
@@ -512,10 +512,10 @@ public String getUser(@SessionAttribute("userId") Long userId) {
 
 ## 6. 响应处理
 
-### 6.1 `@ResponseBody` 与 `@RestController`
+### 6.1 `@ResponseBody`与`@RestController`
 
-- `@ResponseBody`：方法返回值直接作为 HTTP 响应体，通过 `HttpMessageConverter` 序列化（**对象→JSON**）
-- `@RestController`：类上同时标注 `@Controller` 和 `@ResponseBody`，该类所有方法均自动具备 `@ResponseBody`
+- `@ResponseBody`：方法返回值直接作为 HTTP 响应体，通过`HttpMessageConverter`序列化（**对象 → JSON**）
+- `@RestController`：类上同时标注`@Controller`和 `@ResponseBody`，该类所有方法均自动具备`@ResponseBody`
 
 ---
 
@@ -640,7 +640,7 @@ public class WebConfig implements WebMvcConfigurer {
 - **`addPathPatterns`**：指定需要拦截的路径（支持通配符 `**`）
 - **`excludePathPatterns`**：排除不需要拦截的路径，通常放行登录、注册等公开接口
 - **`.order(n)`**：**数值越小越先执行**，决定多个拦截器的执行顺序。不指定时按注册顺序，但建议显式指定以明确控制
-- 多个拦截器的 `preHandle` 按 order 从小到大正序执行，`postHandle` 和 `afterCompletion` 按**逆序**执行
+- 多个拦截器的`preHandle`按order从小到大正序执行，`postHandle`和`afterCompletion`按**逆序**执行
 
 ---
 
@@ -661,7 +661,7 @@ preHandle-1 → preHandle-2 → 目标方法 → postHandle-2 → postHandle-1 �
 ```
 
 - **呈栈式正序进、逆序出**
-- **重点**：只要任意一个`preHandle`返回`false`，后续的处理器和拦截器将不会执行，但**之前已成功执行`preHandle`的拦截器的`afterCompletion`仍然会执行**（确保资源释放，如清除 ThreadLocal）
+- **重点**：只要任意一个`preHandle`返回`false`，后续的处理器和拦截器将不会执行，但**之前已成功执行`preHandle`的拦截器的`afterCompletion`仍然会执行**（确保资源释放，如清除`ThreadLocal`）
 
 ---
 
