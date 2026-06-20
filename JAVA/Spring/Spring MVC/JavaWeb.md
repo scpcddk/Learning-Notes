@@ -62,11 +62,11 @@ Server: Apache-Coyote/1.1                           ← 响应头：服务器信
 > 接口返回时一定要设置正确的状态码，前端靠这个判断成败
 
 - **200**：一切正常，没有问题
-- **400**（请求参数有误）：**客户端**传的参数格式不对、缺少必要字段、或数据校验不通过
-- **404**（接口路径不存在）：**客户端**请求的 URL 写错了，或者接口已下线/未发布
-- **500**（服务器内部出错）：**服务端**代码异常、数据库连接失败、依赖服务不可用等，是后端需要排查的
-- **405**（方法不被允许）：**客户端**用了错误的 HTTP 方法（比如用 POST 去请求只支持 GET 的接口）
-- **406**（不接受的响应类型）：**客户端**在 `Accept` 请求头里指定了服务器无法返回的格式（例如要求 `application/xml`，但服务器只支持 `application/json`），这属于客户端与服务器之间的内容协商失败，通常是客户端配置问题
+- **400**（**请求参数有误**）：客户端传的参数格式不对、缺少必要字段、或数据校验不通过
+- **404**（**接口路径不存在**）：客户端请求的 URL 写错了，或者接口已下线/未发布
+- **500**（**服务器内部出错**）：服务端代码异常、数据库连接失败、依赖服务不可用等，是后端需要排查的
+- **405**（**方法不被允许**）：客户端用了错误的 HTTP 方法（比如用 POST 去请求只支持 GET 的接口）
+- **406**（**不接受的响应类型**）：客户端在 `Accept` 请求头里指定了服务器无法返回的格式（例如要求 `application/xml`，但服务器只支持 `application/json`），这属于客户端与服务器之间的内容协商失败，通常是客户端配置问题
 
 > [!TIP]
 > 看到 5xx 找后端，看到 4xx 先检查自己的请求
@@ -92,9 +92,9 @@ Server: Apache-Coyote/1.1                           ← 响应头：服务器信
 
 ### 2.1 核心概念
 
-- **Servlet**：跑在`Tomcat`里的`Java`程序，专门用来接收和处理`Web`请求
+- **Servlet**：跑在`Tomcat`里的`Java`程序，专门用来**接收和处理**`Web`请求
 - **HttpServlet**：专门处理`HTTP`请求的`Servlet`
-  - `service()`方法：**请求入口**，`Tomcat`调用它来分发请求。它会根据`HTTP`方法（GET/POST 等）自动调用对应的 doXxx() 方法
+  - `service()`方法：**请求入口**，`Tomcat`调用它来分发请求。它会根据`HTTP`方法（GET/POST 等）自动调用对应的`doXxx()`方法
   - `doGet()`：处理`GET`请求，从服务器**获取数据**时用
   - `doPost()`：处理`POST`请求，**提交新增数据**时用
   - `doPut() / doDelete()`：对应`RESTful`的**修改/删除**，原理一样，自己按需覆盖
@@ -155,13 +155,13 @@ public class HelloServlet extends HttpServlet {
 ```
 
 - `scope`是`provided`:最终程序要放到 Tomcat 容器里运行，Tomcat 自己已经包含了 Servlet 的 jar 包，你写的代码只需要在编译期能用就行，运行时用容器自带的，避免冲突
-- 如果直接使用 SpringBoot 的 `spring-boot-starter-web`，这个依赖会被**自动传递引入**，无需手动加
+- 如果直接使用 SpringBoot 的`spring-boot-starter-web`，这个依赖会被**自动传递引入**，无需手动加
 
 ---
 
 ## 3. Tomcat 容器
 
-**一句话**：Tomcat 是一个**独立运行的 Web 容器**，负责接受网络请求、找到对应的 Servlet、返回响应，帮你屏蔽底层网络通信细节
+**一句话**：Tomcat 是一个**独立运行的Web容器**，负责接受网络请求、找到对应的 Servlet、返回响应，帮你屏蔽底层网络通信细节
 > SpringBoot 内置了 Tomcat，所以启动时直接就能对外提供 HTTP 服务
 
 ---
@@ -170,17 +170,17 @@ public class HelloServlet extends HttpServlet {
 
 | 维度 | 原生 Servlet | SpringMVC |
 | ------ | ------------ | ----------- |
-| **一个接口一个类** | 必须新建类，继承 `HttpServlet` | 只需在方法上加注解（`@GetMapping`），多个接口可写在同一类中 |
-| **获取参数** | 手动调用 `req.getParameter()`，类型转换自己写 | 直接写在方法参数里，自动接收并转换（支持 JSON 转对象） |
-| **返回 JSON** | 手动拼接字符串，设置响应头 | 直接 return 对象，`@RestController` 自动转 JSON |
-| **URL 映射** | 用注解 `@WebServlet`，路径写死 | 用 `@RequestMapping` 系列注解，支持动态路径（`/user/{id}`） |
+| **一个接口一个类** | 必须新建类，继承`HttpServlet` | 只需在方法上加注解（`@GetMapping`），多个接口可写在同一类中 |
+| **获取参数** | 手动调用`req.getParameter()`，类型转换自己写 | 直接写在方法参数里，自动接收并转换（支持 JSON 转对象） |
+| **返回 JSON** | 手动拼接字符串，设置响应头 | 直接 return 对象，`@RestController`自动转 JSON |
+| **URL 映射** | 用注解`@WebServlet`，路径写死 | 用`@RequestMapping`系列注解，支持动态路径（`/user/{id}`） |
 | **代码量** | 大量模板式、重复代码 | 极简声明式，关注核心业务 |
 
 ---
 
 **为什么学了 Servlet 再学 SpringMVC 更容易理解？**  
 
-- 因为 SpringMVC 的核心 `DispatcherServlet` 本身就是继承自 `HttpServlet`，它只不过在 Servlet 基础上封装了**路由分发、参数绑定、JSON 转换**等常见操作。
+- 因为 SpringMVC 的核心`DispatcherServlet`本身就是继承自`HttpServlet`，它只不过在 Servlet 基础上封装了**路由分发、参数绑定、JSON 转换**等常见操作。
 - 了解 Servlet 的请求/响应对象后，你会瞬间明白 SpringMVC 帮我们省掉了多少脏活累活
 
 ---
