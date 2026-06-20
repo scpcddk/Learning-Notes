@@ -538,7 +538,7 @@ public class LogAspect {
 除了 `execution`，还有：
 
 | 指示符 | 含义 | 示例 |
-|--------|------|------|
+| -------- | ------ | ------ |
 | `within` | 限定包/类 | `within(com.example.service.*)` |
 | `this` | 代理对象为指定类型 | `this(com.example.service.UserService)` |
 | `target` | 目标对象为指定类型 | `target(com.example.dao.UserDao)` |
@@ -553,19 +553,22 @@ public class LogAspect {
 
 ### 6. AOP 自调用失效与解决
 
-**问题**：同类内方法调用不会走代理，切面不生效。  
+**问题**：同类内方法调用不会走代理，切面不生效
+
 ```java
 public void methodA() {
     this.methodB(); // 直接调用，AOP 失效
 }
 ```
 
-**解决方案一**：通过 `AopContext.currentProxy()` 获取当前代理对象（需开启 `exposeProxy`）  
+**解决方案一**：通过 `AopContext.currentProxy()` 获取当前代理对象（需开启 `exposeProxy`）
+
 ```java
 ((UserService) AopContext.currentProxy()).methodB();
 ```
 
-**解决方案二**：注入自身代理对象  
+**解决方案二**：注入自身代理对象
+
 ```java
 @Autowired
 private UserService self;
@@ -654,7 +657,7 @@ public class OrderService {
 #### 🔥 事务传播行为详解（7种）
 
 | 传播行为 | 含义 | 使用场景 |
-|----------|------|----------|
+| ---------- | ------ | ---------- |
 | `REQUIRED`（默认） | 有事务则加入，无则新建 | **最常用**，普通业务方法 |
 | `REQUIRES_NEW` | 挂起当前事务，新建独立事务 | 日志记录、审计，**必须成功** |
 | `SUPPORTS` | 有事务则加入，无则以非事务执行 | 查询方法 |
@@ -674,7 +677,7 @@ public class OrderService {
 ```
 
 | 隔离级别 | 解决问题 | 说明 |
-|----------|----------|------|
+| ---------- | ---------- | ------ |
 | `DEFAULT` | - | 使用数据库默认级别（MySQL 默认 RC，Oracle 默认 RC） |
 | `READ_UNCOMMITTED` | - | 最低级别，允许脏读 |
 | `READ_COMMITTED` | 脏读 | 只能读到已提交数据（**Oracle/SQL Server 默认**） |
@@ -688,7 +691,7 @@ public class OrderService {
 ### 2. 事务失效清单（面试必问）
 
 | 失效场景 | 原因 | 解决方案 |
-|----------|------|----------|
+| ---------- | ------ | ---------- |
 | 方法非 `public` | Spring 代理只能拦截 public 方法 | 改为 public，或开启 AspectJ 模式 |
 | 同类自调用 | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()` |
 | 异常被 catch 未抛出 | 事务需感知到异常才会回滚 | 在 catch 中重新抛出，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
