@@ -2,6 +2,8 @@
 
 > **目标**：应试 + 开发实用，剔除 XML，纯注解，适配 Spring6 / SpringBoot3
 
+[IOC + AOP网课](https://www.bilibili.com/video/BV1w3411s7ur/?spm_id_from=333.1387.favlist.content.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
+
 ---
 
 ## 一、**IOC 核心思想与容器基础**
@@ -9,10 +11,10 @@
 ### 1. 核心思想
 
 - **IOC**：对象创建、依赖管理的控制权从**应用程序**转移到 **Spring 容器**
-- **容器**：`ApplicationContext`（如 `AnnotationConfigApplicationContext`）
+- **容器**：`ApplicationContext`（如`AnnotationConfigApplicationContext`）
 - **Bean**：由 Spring 管理的对象
 
-> ⚠️ **理解**：你不再 `new` 对象，而是向容器"要"对象
+> ⚠️ **理解**：你不再`new`对象，而是向容器"要"对象
 
 ---
 
@@ -32,7 +34,7 @@
 
 ### 3. **IOC 管理 Bean 的两种实现方式**
 
-- 核心对比:
+- **核心对比**:
 
 | 实现方式 | 技术核心 | 适用场景 |
 | --------- | ---------- | ---------- |
@@ -131,7 +133,7 @@ public class AppConfig {
 
 | 优先级 | 注解 | 作用 | 示例 |
 | :------: | ------ | ------ | ------ |
-| 🔥🔥🔥 | `@Component` | 通用 Bean 标记 | `@Component` |
+| 🔥🔥🔥 | `@Component` | **通用 Bean 标记** | `@Component` |
 | 🔥🔥🔥 | `@Autowired` | **按类型注入**依赖 | `@Autowired`<br>`private UserService userService;` |
 | 🔥🔥🔥 | `@Service` | **Service 层**（语义化）:实现业务逻辑，事务控制，调用 Repository | `@Service` |
 | 🔥🔥 | `@Repository` | **DAO/Repository层**:封装数据库增删改查，转换异常 | `@Repository` |
@@ -345,7 +347,7 @@ public class ProdConfig {
 
 **激活方式**：
 
-- `spring.profiles.active=dev`（配置文件）(在 application.properties 或 application.yml 中设置)
+- `spring.profiles.active=dev`（**配置文件**）(在`application.properties`或`application.yml`中设置)
 - `-Dspring.profiles.active=prod`（JVM 参数）
 
 > **使用场景**：不同环境（开发/测试/生产）使用不同的数据源、缓存、中间件配置
@@ -384,7 +386,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 | `@ConditionalOnExpression` | **SpEL 表达式为 true** 时生效 |
 | `@ConditionalOnWebApplication` | **是 Web 应用**时生效 |
 
-示例：只有存在`DataSource`类时才加载数据源配置
+> 示例：只有存在`DataSource`类时才加载数据源配置
 
 ---
 
@@ -419,10 +421,10 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 
 - **动态代理**：
   - **有接口** → **JDK 动态代理**
-    - **基于接口**，运行时生成实现相同接口的代理类（$Proxy），通过反射调用
+    - **基于接口**，运行时生成实现相同接口的代理类($Proxy)，通过反射调用
     - **必须有接口**，代理对象和目标对象实现同一接口，不是继承关系
       - 目标类如果没有接口，JDK代理无法生成代理类
-      - 代理对象**只能调用**接口中声明的方法，不能调用目标类的非接口方法
+      - 代理对象**只能调用**接口中声明的方法，**不能调用**目标类的非接口方法
   - **无接口** → **CGLIB 字节码代理**
     - **基于继承**，运行时生成目标类的**子类**（EnhancerByCGLIB），通过字节码重写父类方法来加入增强逻辑
       - 非`final`类 + 非`final`方法 → ✅ 可以代理，可以增强
@@ -450,7 +452,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 **示例**：
 
 ```java
-@Aspect
+@Aspect     // 👈 告诉Spring这是一个切面类
 @Component
 public class LogAspect {
 
@@ -496,7 +498,7 @@ execution(void com.example..*.*(..))
 execution(* com.example..*.*(..))
 ```
 
-> 💡 **开发口诀**：`*` 表示任意类型/方法名；`..` 表示任意参数或子包
+- 💡 **开发口诀**：`*` 表示任意类型/方法名；`..` 表示任意参数或子包
 
 ---
 
@@ -563,8 +565,11 @@ public void methodA() {
 
 **解决方案一**：通过 `AopContext.currentProxy()` 获取当前代理对象（需开启 `exposeProxy`）
 
+- 步骤1:在启动类上加一行注解：`@EnableAspectJAutoProxy(exposeProxy = true)`
+- 步骤2：用代理对象调用：
+
 ```java
-((UserService) AopContext.currentProxy()).methodB();
+((UserService) AopContext.currentProxy()).methodB();   // 拿到当前代理对象，再调方法
 ```
 
 **解决方案二**：注入自身代理对象
@@ -581,14 +586,16 @@ public void methodA() {
 
 ### 7. 强制使用 CGLIB 代理
 
-Spring Boot 默认对**有接口的类**使用 JDK 代理，无接口才用 CGLIB。  
-但可以在 `application.properties` 中统一强制 CGLIB（常用在需要代理非接口方法或内部调用时）：
+Spring Boot 默认对**有接口的类**使用 JDK 代理，无接口才用 CGLIB
+但可以在`application.properties`中统一强制 CGLIB（常用在需要代理非接口方法或内部调用时）：
 
 ```properties
-spring.aop.proxy-target-class=true
+spring:
+  aop:
+    proxy-target-class:true
 ```
 
-> ⚠️ 注意：CGLIB 无法代理 `final` 方法，不能被 `final` 修饰。
+> ⚠️ 注意：CGLIB 无法代理 `final` 方法，不能被 `final` 修饰
 
 ---
 
@@ -628,11 +635,23 @@ public class OrderEventListener {
 }
 ```
 
-> **使用场景**：解耦业务逻辑（如订单创建后发送通知、更新统计），配合 `@Async` 实现异步处理。
+> **使用场景**：解耦业务逻辑（如订单创建后发送通知、更新统计），配合`@Async`实现异步处理
+
+#### (1)**AOP与事件核心区别**
+
+| 对比维度 | 🧩 AOP（切面） | 📢 Spring 事件（Event） | 👨‍🏫 记忆口诀（场景联想） |
+| :--- | :--- | :--- | :--- |
+| **关系方向** | **垂直（纵切）**：一刀下去，给**N个类**的同一位置（如方法前）统一增强 | **水平（广播）**：一个点发声，**N个模块**在水平方向各自响应 | **AOP是"一刀切"**（像切西瓜）；**Event是"大喇叭"**（像广播通知） |
+| **耦合程度** | **侵入性较强**：切点表达式写死包路径/注解名，改包名或方法名会导致切面失效，且容易误切到不该切的方法 | **侵入性极弱**：发布者（Publisher）只负责`publishEvent`，完全不关心谁会处理；监听器用`@EventListener`解耦，双方通过事件对象（POJO）松耦合 | **AOP怕改名字**（改包名就废了）；**Event随便加人**（加监听器不改发布者） |
+| **调用关系** | **编译/运行时代理**：Spring在运行期生成代理对象（Proxy），必须通过代理对象调用才生效（这就是你之前问的"自调用失效"的根源） | **同步/异步解耦**：默认同步（发布者阻塞等监听器执行完），但可加`@Async`变异步，互不阻塞主流程 | **AOP靠"替身"**（代理对象）；**Event靠"邮差"**（ApplicationEventMulticaster） |
+| **适用场景** | **固定规则的基础设施**：记录方法耗时（性能监控）、权限校验（@PreAuthorize）、全局事务管理（@Transactional）、打印入参出参日志 | **多变的业务联动**：订单创建后发短信/邮件、战斗结束后更新排行榜+成就系统+推送WebSocket、数据变更后刷新本地缓存 | **AOP管"公事"**（系统级）；**Event管"私事"**（业务连锁反应） |
+| **异常处理** | **容易全局失控**：切面逻辑抛异常，会影响所有被切方法的执行（比如日志打印报错，业务可能回滚） | **互相隔离**：某个监听器抛异常，默认会影响主流程（同步时），但通过`@Async`异步后，异常只影响该监听器，不干扰发布者和其他监听器 | **AOP"一人感冒全家吃药"**；**Event"各扫门前雪"** |
 
 ---
 
-## 六、声明式事务
+## 六、**声明式事务**
+
+[声明式事务网课](https://www.bilibili.com/video/BV1FnR9YhEwH/?spm_id_from=333.337.search-card.all.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
 
 ### 1. 基础使用
 
@@ -646,31 +665,171 @@ public class OrderService {
 }
 ```
 
-核心规则：
-
-- 只需要运行时异常（`RuntimeException`）才自动回滚
-- 可指定 `rollbackFor = Exception.class` 让所有异常回滚
-- 默认传播行为是 `REQUIRED`（加入已有事务或新建）
-
----
-
-#### 🔥 事务传播行为详解（7种）
-
-| 传播行为 | 含义 | 使用场景 |
-| ---------- | ------ | ---------- |
-| `REQUIRED`（默认） | 有事务则加入，无则新建 | **最常用**，普通业务方法 |
-| `REQUIRES_NEW` | 挂起当前事务，新建独立事务 | 日志记录、审计，**必须成功** |
-| `SUPPORTS` | 有事务则加入，无则以非事务执行 | 查询方法 |
-| `NOT_SUPPORTED` | 挂起当前事务，以非事务执行 | 发送通知、邮件 |
-| `MANDATORY` | 必须有事务，否则抛异常 | 强制事务上下文 |
-| `NEVER` | 必须无事务，否则抛异常 | 纯查询，禁止事务 |
-| `NESTED` | 在当前事务中创建**嵌套事务**（savepoint） | 部分回滚场景 |
-
-> **面试重点**：`REQUIRED` vs `REQUIRES_NEW` 的区别？前者共用事务（同回同滚），后者独立事务（互不影响）。
+- **核心规则**：
+  - 默认只有运行时异常（`RuntimeException`）及 `Error` 才自动回滚
+  - 可指定 `rollbackFor = Exception.class` 让所有异常回滚
+  - 可指定 `noRollbackFor = BusinessException.class` 控制特定异常不回滚
+  - 默认传播行为是 `REQUIRED`（加入已有事务或新建）
+  - 默认隔离级别是 `DEFAULT`（跟随数据库默认）
 
 ---
 
-#### 🔥 事务隔离级别
+#### 🔥(1) **事务传播行为详解**（7种）
+
+| 传播行为 | 当前有事务 | 当前无事务 | 含义 | 使用场景 |
+| :--------: | :----------: | :----------: | ------ | ---------- |
+| `REQUIRED`（默认） | 加入当前事务 | 新建事务 | 有则加入，无则新建 | **最常用**，普通业务方法 |
+| `REQUIRES_NEW` | **挂起当前事务**，新建独立事务 | 新建事务 | 独立王国，互不影响 | 日志记录、审计，**必须成功** |
+| `SUPPORTS` | 加入当前事务 | **以非事务执行** | 有就蹭，没有拉倒 | 查询方法 |
+| `NOT_SUPPORTED` | **挂起当前事务**，以非事务执行 | 以非事务执行 | 拒绝事务 | 发送通知、邮件 |
+| `MANDATORY` | 加入当前事务 | **抛出异常** | 强制要求有事务 | 强制事务上下文 |
+| `NEVER` | **抛出异常** | 以非事务执行 | 绝对禁止事务 | 纯查询，禁止事务 |
+| `NESTED` | 创建**嵌套事务**（savepoint） | 新建事务 | 部分回滚 | 部分回滚场景 |
+
+---
+
+##### A **`REQUIRED` vs `REQUIRES_NEW` 核心对比**
+
+> [!TIP]
+> **面试重点**：`REQUIRED` vs `REQUIRES_NEW` 的区别:前者共用事务（同回同滚），后者独立事务（互不影响）
+
+**`REQUIRED` vs `REQUIRES_NEW` 深度对比**
+
+```java
+@Service
+public class OrderService {
+    
+    @Autowired
+    private LogService logService;
+    
+    @Transactional
+    public void createOrder() {
+        orderMapper.insert(order);        // ① 加入外层事务
+        logService.recordLog(order);      // ② REQUIRES_NEW：挂起外层，新建独立事务
+        throw new RuntimeException();     // ③ 外层回滚，但日志已独立提交
+    }
+}
+
+@Service
+public class LogService {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordLog(Order order) {
+        logMapper.insert(order);
+    }
+}
+```
+
+| 特性 | `REQUIRED` | `REQUIRES_NEW` |
+| ------ | ----------- | ---------------- |
+| 事务关系 | 共用同一个事务 | 完全独立的事务 |
+| 提交时机 | 外层事务统一提交 | 方法结束立即提交 |
+| 回滚影响 | 同生共死，一起回滚 | 外层回滚不影响内层；内层异常上抛会影响外层 |
+| 适用场景 | 普通业务操作 | 审计、日志、必须成功的操作 |
+
+```java
+┌─────────────────────────────────────────────────────────────┐
+│  场景：外层方法 @Transactional，内层方法不同传播行为           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  REQUIRED（默认）              REQUIRES_NEW                  │
+│  ┌─────────────┐              ┌─────────────┐               │
+│  │  外层事务    │              │  外层事务    │  ◄── 挂起     │
+│  │    begin    │              │    begin    │               │
+│  │      ↓      │              │      ↓      │               │
+│  │  内层加入    │              │  内层新建    │  ◄── 独立     │
+│  │    join     │              │   new tx    │               │
+│  │      ↓      │              │      ↓      │               │
+│  │  统一提交    │              │  内层提交    │  ◄── 立即     │
+│  │   commit    │              │   commit    │               │
+│  │             │              │      ↓      │               │
+│  │             │              │  外层恢复    │  ◄── 继续     │
+│  │             │              │   resume    │               │
+│  │             │              │      ↓      │               │
+│  │             │              │  外层提交    │               │
+│  │             │              │   commit    │               │
+│  └─────────────┘              └─────────────┘               │
+│                                                             │
+│  特点：同生共死                特点：各自独立                 │
+│  外层回滚 → 内层也回滚          外层回滚 → 内层不受影响        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+##### B **7种传播行为速查图**
+
+```java
+当前有事务时：
+┌─────────────────────────────────────────────────────────────┐
+│  REQUIRED      →  加入当前事务（同生共死）                    │
+│  REQUIRES_NEW  →  挂起当前，新建独立事务                      │
+│  SUPPORTS      →  加入当前事务                               │
+│  NOT_SUPPORTED →  挂起当前，非事务执行                        │
+│  MANDATORY     →  加入当前事务                               │
+│  NEVER         →  ❌ 抛异常（禁止有事务）                    │
+│  NESTED        →  创建嵌套事务（savepoint）                  │
+└─────────────────────────────────────────────────────────────┘
+
+当前无事务时：
+┌─────────────────────────────────────────────────────────────┐
+│  REQUIRED      →  新建事务                                   │
+│  REQUIRES_NEW  →  新建事务                                   │
+│  SUPPORTS      →  非事务执行（不报错）                        │
+│  NOT_SUPPORTED →  非事务执行（不报错）                        │
+│  MANDATORY     →  ❌ 抛异常（强制要求有事务）                 │
+│  NEVER         →  非事务执行（不报错）                        │
+│  NESTED        →  新建事务                                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+##### C **`NESTED` 嵌套事务详解**
+
+```java
+@Transactional
+public void outerMethod() {
+    orderMapper.insert(order);           // ① 外层事务
+    
+    try {
+        stockService.deductWithRisk();    // ② NESTED：创建 savepoint
+    } catch (Exception e) {
+        // ③ 库存扣减回滚到 savepoint，订单记录保留
+    }
+    
+    paymentMapper.insert(payment);        // ④ 继续执行
+    // ⑤ 最终外层统一提交
+}
+
+@Service
+public class StockService {
+    @Transactional(propagation = Propagation.NESTED)
+    public void deductWithRisk() {
+        stockMapper.deduct();
+        throw new RuntimeException();  // 模拟失败，只回滚到 savepoint
+    }
+}
+```
+
+```
+执行流程：
+┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
+│  begin  │───►│ insert  │───►│savepoint│───►│  deduct │───►│ 异常回滚 │
+│  外层事务 │    │  order  │    │  创建   │    │  stock  │    │到savepoint│
+└─────────┘    └─────────┘    └─────────┘    └─────────┘    └────┬────┘
+                                                                 │
+┌─────────┐    ┌─────────┐    ┌─────────┐                     │
+│  insert │───►│  commit │◄───┤  继续执行 │◄────────────────────┘
+│ payment │    │  外层提交 │    │         │
+└─────────┘    └─────────┘    └─────────┘
+
+结果：order 和 payment 提交成功，stock 回滚
+```
+
+---
+
+#### 🔥(2) 事务隔离级别
 
 ```java
 @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -678,9 +837,9 @@ public class OrderService {
 
 | 隔离级别 | 解决问题 | 说明 |
 | ---------- | ---------- | ------ |
-| `DEFAULT` | - | 使用数据库默认级别（MySQL 默认 RC，Oracle 默认 RC） |
+| `DEFAULT` | - | 使用数据库默认级别（MySQL InnoDB 默认 **RR**，Oracle/SQL Server 默认 **RC**） |
 | `READ_UNCOMMITTED` | - | 最低级别，允许脏读 |
-| `READ_COMMITTED` | 脏读 | 只能读到已提交数据（**Oracle/SQL Server 默认**） |
+| `READ_COMMITTED` | 脏读 | 只能读到已提交数据（Oracle/SQL Server 默认） |
 | `REPEATABLE_READ` | 脏读、不可重复读 | 同一事务内多次读取结果一致（**MySQL InnoDB 默认**） |
 | `SERIALIZABLE` | 脏读、不可重复读、幻读 | 最高级别，串行执行，性能最差 |
 
@@ -688,18 +847,259 @@ public class OrderService {
 
 ---
 
+#### 🔥(3) 事务五大属性
+
+Spring 事务属性对应数据库 ACID 的实现：
+
+| 属性 | 说明 | 配置方式 |
+|------|------|----------|
+| **隔离性** | 控制并发事务间的可见性 | `isolation = Isolation.READ_COMMITTED` |
+| **传播性** | 方法间事务的传递规则 | `propagation = Propagation.REQUIRED` |
+| **回滚规则** | 定义哪些异常触发回滚 | `rollbackFor = Exception.class` / `noRollbackFor = BusinessException.class` |
+| **是否只读** | 优化查询性能，禁止 flush | `readOnly = true` |
+| **超时时间** | 事务最大执行时间（秒） | `timeout = 30` |
+
+```java
+@Transactional(
+    isolation = Isolation.READ_COMMITTED,
+    propagation = Propagation.REQUIRED,
+    rollbackFor = Exception.class,
+    noRollbackFor = BusinessException.class,
+    readOnly = false,
+    timeout = 30
+)
+public void createOrder() {
+    // 数据库操作
+}
+```
+
+---
+
 ### 2. 事务失效清单（面试必问）
 
 | 失效场景 | 原因 | 解决方案 |
-| ---------- | ------ | ---------- |
+|----------|------|----------|
 | 方法非 `public` | Spring 代理只能拦截 public 方法 | 改为 public，或开启 AspectJ 模式 |
-| 同类自调用 | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()` |
+| 同类自调用 | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()`（需 `exposeProxy = true`） |
 | 异常被 catch 未抛出 | 事务需感知到异常才会回滚 | 在 catch 中重新抛出，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
 | 异常类型非回滚异常 | 默认为 `RuntimeException` 及 `Error` | 配置 `@Transactional(rollbackFor = Exception.class)` |
 | 数据库引擎不支持 | 如 MyISAM | 使用 InnoDB |
 | 多线程调用 | 事务绑定线程，子线程不在事务内 | 重新设计事务边界，确保在事务线程内操作 |
 | 方法被 `final` 修饰 | CGLIB 无法代理 final 方法 | 去掉 final |
 | 未启用事务管理 | 缺少 `@EnableTransactionManagement`（SpringBoot 自动配置已包含，但纯 Spring 需手动） | 确认存在注解或 XML 配置 |
+| 类未被 Spring 管理 | 缺少 `@Service`/`@Component` | 确保类被组件扫描 |
+| 方法被 `static` 修饰 | 静态方法无法被代理 | 改为实例方法 |
+| 事务方法被 `@Async` 调用 | 异步线程脱离原事务上下文 | 将事务逻辑放在 `@Async` 方法内部 |
+| `@Configuration` 错误 | `@Bean` 在 `@Component` 中互调，无 CGLIB 代理 | 确保配置类使用 `@Configuration` |
+
+---
+
+### 3. 高级场景
+
+#### (1) 事务事件监听（解耦）
+
+```java
+@Service
+public class OrderService {
+    
+    @Autowired
+    private ApplicationEventPublisher publisher;
+    
+    @Transactional
+    public void createOrder(Order order) {
+        orderMapper.insert(order);
+        // 发布事件（事务提交后执行）
+        publisher.publishEvent(new OrderCreatedEvent(order));
+    }
+}
+
+@Component
+public class OrderEventListener {
+    
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onOrderCreated(OrderCreatedEvent event) {
+        // 事务成功提交后：发送短信、同步缓存
+        smsService.send(event.getOrder());
+    }
+}
+```
+
+| 事件阶段 | 触发时机 | 典型用途 |
+|----------|----------|----------|
+| `BEFORE_COMMIT` | 事务提交前 | 最后校验 |
+| `AFTER_COMMIT` | 事务成功提交后 | 发送通知、同步缓存、MQ |
+| `AFTER_ROLLBACK` | 事务回滚后 | 记录失败、发送告警 |
+| `AFTER_COMPLETION` | 事务完成（提交或回滚） | 清理资源 |
+
+---
+
+#### (2) 编程式事务（灵活控制）
+
+```java
+@Service
+public class ComplexService {
+    
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    
+    public void complexOperation() {
+        // 非事务操作
+        validateParams();
+        
+        // 事务操作
+        transactionTemplate.execute(status -> {
+            try {
+                orderMapper.insert(order);
+                stockMapper.deduct(order);
+                return order;
+            } catch (BusinessException e) {
+                status.setRollbackOnly();  // 手动回滚
+                return null;
+            }
+        });
+        
+        // 非事务操作
+        sendNotification(order);
+    }
+}
+```
+
+---
+
+#### (3) 事务设计原则
+
+| 原则 | 说明 |
+|------|------|
+| 事务边界要小 | 只包含必要的数据库操作 |
+| 事务内不做 IO | HTTP/RPC/MQ 移到事务外 |
+| 事务内不计算 | 复杂计算提前完成，事务只负责持久化 |
+| 同类不调用 | 避免 `this.method()` 绕过代理 |
+| 异常要抛出 | catch 后必须重新抛或手动回滚 |
+| 只读要标注 | 查询方法加 `readOnly = true`，优化性能 |
+| 传播要选对 | `REQUIRED` 默认，`REQUIRES_NEW` 独立，`NESTED` 嵌套 |
+
+---
+
+> **速查口诀**：非 public 不代理，同类调用绕代理，异常吞掉不回滚，类型不对也白搭，引擎不对没事务，多线程里事务丢，final 方法难代理，不在容器全白费，静态异步无代理，配置类用 `@Configuration`
+
+---
+
+### 4. 编程式事务
+
+当声明式事务无法满足复杂场景时，使用 `TransactionTemplate` 进行灵活控制。
+
+```java
+@Service
+public class ComplexService {
+    
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    
+    public void complexOperation() {
+        // ① 非事务操作
+        validateParams();
+        
+        // ② 事务操作
+        Order order = transactionTemplate.execute(status -> {
+            try {
+                orderMapper.insert(order);
+                stockMapper.deduct(order);
+                return order;
+            } catch (BusinessException e) {
+                status.setRollbackOnly();  // 手动回滚
+                return null;
+            }
+        });
+        
+        // ③ 非事务操作
+        sendNotification(order);
+    }
+}
+```
+
+---
+
+#### 🔥(1) 声明式 vs 编程式 对比
+
+| 特性 | 声明式事务（`@Transactional`） | 编程式事务（`TransactionTemplate`） |
+|------|-------------------------------|-----------------------------------|
+| 使用方式 | 注解驱动，自动代理 | 代码显式控制 |
+| 灵活性 | 低，全局配置 | 高，可精细控制事务边界 |
+| 代码侵入性 | 无 | 有 |
+| 适用场景 | 简单、标准的事务需求 | 复杂、动态的事务需求 |
+| 异常处理 | 自动回滚 | 手动 `setRollbackOnly()` |
+
+---
+
+#### 🔥(2) TransactionTemplate 核心 API
+
+| 方法 | 说明 |
+|------|------|
+| `execute(TransactionCallback<T>)` | 执行事务，返回结果 |
+| `executeWithoutResult(Consumer<TransactionStatus>)` | 执行事务，无返回值（Java 8+） |
+| `setIsolationLevel(int)` | 设置隔离级别 |
+| `setTimeout(int)` | 设置超时时间（秒） |
+| `setReadOnly(boolean)` | 设置只读 |
+
+---
+
+#### 🔥(3) 完整配置示例
+
+```java
+@Configuration
+public class TransactionConfig {
+    
+    @Bean
+    public TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        template.setTimeout(30);
+        template.setReadOnly(false);
+        return template;
+    }
+}
+```
+
+---
+
+#### 🔥(4) 高级用法：无返回值 + 超时隔离
+
+```java
+@Service
+public class StrictService {
+    
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    
+    public void strictOperation() {
+        // 临时修改模板属性
+        transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
+        transactionTemplate.setTimeout(10);
+        
+        transactionTemplate.executeWithoutResult(status -> {
+            // 串行化隔离级别，10秒超时
+            orderMapper.insert(order);
+            stockMapper.deduct(order);
+        });
+    }
+}
+```
+
+---
+
+#### 🔥(5) 使用场景对比
+
+| 场景 | 推荐方式 | 原因 |
+|------|---------|------|
+| 简单 CRUD，标准事务 | 声明式 `@Transactional` | 简洁、无侵入 |
+| 事务内嵌套非事务操作 | 编程式 `TransactionTemplate` | 精确控制事务边界 |
+| 动态决定是否开启事务 | 编程式 `TransactionTemplate` | 运行时判断 |
+| 部分回滚 + 后续补偿 | 编程式 `TransactionTemplate` | 手动控制回滚点 |
+| 批量操作，分批提交 | 编程式 `TransactionTemplate` | 循环中手动提交 |
+
+---
+
+> **速查口诀**：简单场景用声明，复杂控制用编程，边界精确要手动，动态判断选模板
 
 ---
 
@@ -741,7 +1141,7 @@ public class OrderService {
 </build>
 ```
 
-> 📌 **说明**：`parent` 锁定 SpringBoot 版本；`spring-boot-starter-web` 已传递包含 `spring-context`、`spring-aop` 等；打包插件用于生成可执行 jar。
+> 📌 **说明**：`parent` 锁定 SpringBoot 版本；`spring-boot-starter-web` 已传递包含 `spring-context`、`spring-aop` 等；打包插件用于生成可执行 jar
 
 ---
 
@@ -768,7 +1168,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 ```
 
-> ⚠️ **升级迁移**：所有 `javax.*` 必须替换为 `jakarta.*`，否则启动报错
+> [!IMPORTANT]
+> 所有 `javax.*` 必须替换为 `jakarta.*`，否则启动报错
 
 ---
 
@@ -780,23 +1181,35 @@ import jakarta.servlet.http.HttpServletRequest;
 
 ---
 
-## 九、日常开发易错点（避坑指南）
+## 九、**日常开发易错点**（避坑指南）
 
-| ❌ 错误场景 | ✅ 正确做法 |
-| ------------ | ------------ |
-| `@Autowired` 字段为 `null` | 检查该类是否被容器管理（是否加 `@Component` 系列注解或 `@Bean`） |
-| 循环依赖（A 依赖 B，B 依赖 A） | 推荐使用**构造器注入**，或使用 `@Lazy` 打破循环 |
-| AOP 切面不生效（内部方法调用） | 同类内 `this.method()` 不会触发代理 → 通过代理对象调用或 `AopContext.currentProxy()` |
-| `@Around` 忘记调用 `proceed()` | 必须 `pjp.proceed()`，否则目标方法不执行 |
-| `@Transactional` 失效 | 检查：`@EnableTransactionManagement`、方法是否为 `public`、异常默认回滚 `RuntimeException` |
-| 多实现类注入报错 | 使用 `@Primary` 或 `@Qualifier` 指定唯一依赖 |
-| `@Value` 读取配置文件为 `null` | 确认类被 Spring 管理，且配置源已加载（`@PropertySource` 或 `application.yml`） |
-| 切点表达式写错导致无通知 | 用 `@Pointcut` 定义切点，日志或 debug 检查切入点是否匹配 |
-| 🆕 `@Configuration` 内 `@Bean` 互相调用 | 必须用 `@Configuration`，不能是 `@Component`，否则 CGLIB 代理失效 |
-| 🆕 单例中注入 prototype 失效 | 在 `@Scope` 上添加 `proxyMode = ScopedProxyMode.TARGET_CLASS` |
-| 🆕 `@Autowired` 注入 Map/List 时顺序异常 | 用 `@Order` 控制顺序，或使用 `@Priority` |
-| 🆕 配置文件属性不生效 | 引入 `spring-boot-configuration-processor` 可选依赖，IDE 自动提示；使用 `@ConfigurationProperties` 代替 `@Value` |
-| 🆕 事务方法内部调用另一事务方法，传播行为不生效 | 通过代理对象调用，或理解 `REQUIRED` vs `REQUIRES_NEW` 的区别 |
+| 序号 | ❌ **错误场景** | ✅ **正确做法** | 💡 补充说明 |
+| :---: | ------------ | ------------ | ------------ |
+| 1 | `@Autowired` 字段为 `null` | 检查该类是否被 Spring 容器管理（是否加 `@Component`/`@Service`/`@Repository`/`@Controller` 或 `@Bean`） | 通过 `new` 手动创建的对象不会被 Spring 注入，必须通过容器获取或注入 |
+| 2 | 循环依赖（A 依赖 B，B 依赖 A） | 使用 **Setter/字段注入** + `@Lazy` 打破循环 | Spring Boot 2.6+ 默认禁止循环依赖，需设置 `spring.main.allow-circular-references=true`；最佳实践是重构消除循环依赖 |
+| 3 | AOP 切面不生效（内部方法调用） | 同类内 `this.method()` 不会触发代理 → 通过 **代理对象** 调用或 `AopContext.currentProxy()` | 使用 `AopContext.currentProxy()` 前，需在 `@EnableAspectJAutoProxy(exposeProxy = true)` 中开启暴露代理；更优雅的方案是将方法抽取到另一个 Service Bean 中 |
+| 4 | `@Around` 忘记调用 `proceed()` | 必须 `pjp.proceed()`，否则目标方法不会执行 | 环绕通知中`proceed()`是调用目标方法的关键，忘记调用会导致方法"消失" |
+| 5 | `@Transactional` 失效 | ① 方法必须为 `public`<br>② 异常默认只回滚`RuntimeException`，不回滚`Exception`<br>③ 同类内部调用（`this.method()`）会绕过代理，导致事务注解完全失效 | Spring Boot 自动开启事务管理，通常**无需**手动加`@EnableTransactionManagement`；如需回滚受检异常，设置`rollbackFor = Exception.class` |
+| 6 | 多实现类注入报错（`NoUniqueBeanDefinitionException`） | 使用`@Primary`指定默认实现，或使用`@Qualifier("beanName")` 指定具体 Bean | 也可以用字段名匹配 Bean 名称（如 `@Autowired private PayService alipayService`） |
+| 7 | `@Value`读取配置文件为`null` | 确认类被 Spring 管理，且配置源已加载 | Spring Boot 中`application.yml`/`application.properties`自动加载，无需`@PropertySource`；自定义配置文件才需要显式指定 |
+| 8 | 切点表达式写错导致无通知 | 用`@Pointcut`定义切点，通过日志或 Debug 检查切入点是否匹配 | 常见错误：包路径写错、方法签名不匹配、访问修饰符限制过严 |
+| 9 | `@Configuration`内`@Bean`互相调用，单例被重复创建 | **`@Bean`方法互相调用的类必须用 `@Configuration`**（不能用纯 `@Component`），否则 CGLIB 代理失效 | `@Configuration`会通过 CGLIB 代理拦截`@Bean`方法调用，确保返回容器中的单例；`@Component`中的`@Bean`方法互相调用会直接执行方法体，每次都会创建新实例 |
+| 10 | 单例 Bean 中注入 Prototype Bean，结果仍是单例 | 方案一：在 Prototype 的`@Scope`上加`proxyMode = ScopedProxyMode.TARGET_CLASS`<br>方案二：注入`ObjectFactory<T>`或`Provider<T>`延迟获取<br>方案三：使用`@Lookup`注解 | 单例只初始化一次，因此注入的 Prototype 也只会创建一次。`proxyMode`方式每次调用走代理获取新实例；`ObjectFactory`/`@Lookup`是更推荐的方案 |
+| 11 | `@Autowired`注入`Map<String, T>` / `List<T>`时顺序异常 | 用`@Order(值)`控制顺序（值越小越靠前），或使用 `@Priority` | `@Order`作用于类级别；注入`Map`时 key 为 Bean 名称，与 `@Order`无关 |
+| 12 | 配置文件属性不生效 / IDE 无提示 | 引入 `spring-boot-configuration-processor`可选依赖（仅用于 IDE 自动提示）；复杂配置优先使用 `@ConfigurationProperties`代替`@Value` | `@ConfigurationProperties`支持批量绑定、松散绑定（如`server.port` ↔ `SERVER_PORT`）、JSR-303 校验，比`@Value`更适合多属性配置 |
+| 13 | 事务方法内部调用另一事务方法，传播行为不生效 | **必须通过代理对象调用**（`AopContext.currentProxy()`或抽取到另一个 Bean 注入调用），否则`this.methodB()`会绕过代理，导致`@Transactional`和传播行为完全失效 | `REQUIRED`（默认）：加入当前事务，同生共死；`REQUIRES_NEW`：挂起当前事务，新建独立事务，独立提交/回滚 |
+
+---
+
+### 核心原理速记
+
+| 问题根源 | 本质原因 |
+| --------- | --------- |
+| `@Autowired` 为 `null` | 对象不在 Spring 容器中 |
+| AOP/事务/配置代理失效 | `this`内部调用绕过了 Spring 代理对象 |
+| 单例注入 Prototype 失效 | 单例初始化时只注入一次，后续不再重新获取 |
+| `@Bean` 互相调用重复创建 | 缺少 CGLIB 代理拦截，方法被直接执行 |
+| 循环依赖 | 构造器注入在实例化阶段就要求依赖就绪 |
 
 ---
 

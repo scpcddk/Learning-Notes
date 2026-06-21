@@ -9,6 +9,8 @@ markmap:
 > **环境**：Spring 5.3.x / Spring 6+，Servlet 3.1+，纯 Java Config，外置 Tomcat（或 Jetty）
 > **摒弃**：web.xml、JSP、XML 配置方式，视图解析器仅概念提及，不实操
 
+[SpringMVC网课](https://www.bilibili.com/video/BV1Lh4y1M7kx/?spm_id_from=333.1387.favlist.content.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
+
 ---
 
 ## 1. 核心概念与 Servlet 关系
