@@ -12,7 +12,8 @@
 | **包** | 通过 `conda` 安装的软件（不仅限于 Python 包） |
 | **频道** | 包的来源仓库（如 `defaults`、`conda-forge`） |
 
-> ⚠️ **永远不要把项目依赖装进 `base` 环境！**  
+> [!IMPORTANT]
+> ⚠️ **永远不要把项目依赖装进`base`环境！**  
 > `base` 只用来放 `conda` 自身和基础工具
 
 ---
@@ -67,7 +68,7 @@ conda env create -f environment.yml
 ```
 
 > [!TIP]
-> 🔥 **最佳实践**：每个项目一个环境，并保留 `environment.yml` 用于协作与部署
+> **最佳实践**：每个项目一个环境，并保留`environment.yml`用于协作与部署
 
 ---
 
@@ -139,17 +140,17 @@ conda config --show channels
 
 ---
 
-## 五、pip 与 conda 混用黄金法则
+## 五、**pip 与 conda 混用黄金法则**
 
-1. **先用 conda 安装，再补 pip**
+- **先用 conda 安装，再补 pip**
 
 ```bash
 conda install numpy pandas scipy
 pip install some-special-package
 ```
 
-2. **conda 安装的包绝对不要用 pip 升级**  否则可能导致环境崩溃
-3. **把 pip 的包也写进 environment.yml**  
+- **conda 安装的包绝对不要用 pip 升级**,否则可能导致环境崩溃
+- **把 pip 的包也写进 `environment.yml`**  
    导出时 `--from-history` 与 `--explicit` 灵活使用
 
 ---
@@ -185,7 +186,7 @@ mamba install numpy   # 用法几乎与conda相同
 ---
 
 > [!TIP]
-> ✨ **记住四步走**：  
+> ✨ **记住四步走**：
 >
 > 1. 创建环境  
 > 2. 激活环境  

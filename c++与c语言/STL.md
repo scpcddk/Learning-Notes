@@ -3,28 +3,29 @@ markmap:
   initialExpandLevel: 2
 ---
 
-# ==用法==
+# C++笔记
 
-| 容器                | 随机访问 | 头尾增删       | 中间增删 | 查找       | 适用场景                     |
-|---------------------|----------|----------------|----------|------------|------------------------------|
-| vector              | ✅ O(1)   | 尾快           | O(n)     | O(n)       | 通用、随机访问               |
-| deque               | ✅ O(1)   | ✅ O(1)        | O(n)     | O(n)       | 双端操作                     |
-| list                | ❌        | ✅ O(1)        | ✅ O(1)   | O(n)       | 频繁插入删除                 |
-| set/map             | ❌        | ❌             | ❌        | O(log n)   | 有序、去重、区间查询         |
-| unordered_set/map    | ❌        | ❌             | ❌        | O(1)       | 高频查找、去重               |
-| stack/queue         | ❌        | 仅一端         | ❌        | ❌          | 栈/队列逻辑                  |
-| priority_queue      | ❌        | 仅堆顶         | ❌        | ❌          | 贪心、Dijkstra               |
-<br>
+## ==用法==
+
+| 容器 | 随机访问 | 头尾增删 | 中间增删 | 查找 | 适用场景 |
+| --------------------- | ---------- | ---------------- | ---------- | ------------ | ------------------------------ |
+| vector | ✅ O(1) | 尾快 | O(n) | O(n) | 通用、随机访问 |
+| deque | ✅ O(1) | ✅ O(1) | O(n) | O(n) | 双端操作 |
+| list | ❌ | ✅ O(1) | ✅ O(1) | O(n) | 频繁插入删除 |
+| set/map | ❌ | ❌ | ❌ | O(log n) | 有序、去重、区间查询 |
+| unordered_set/map | ❌ | ❌ | ❌ | O(1) | 高频查找、去重 |
+| stack/queue | ❌ | 仅一端 | ❌ | ❌ | 栈/队列逻辑 |
+| priority_queue | ❌ | 仅堆顶 | ❌ | ❌ | 贪心、Dijkstra |
 
 ---
 
-# 一、 序列式容器（按插入顺序存储，支持随机/顺序访问）
+## 一、 序列式容器（按插入顺序存储，支持随机/顺序访问）
 
 这类容器的元素顺序由插入顺序决定，==可直接按位置访问==。
 
-## 1.vector(动态数组)
+### 1.vector(动态数组)
 
-```
+```cpp
 #include <vector>
 using namespace std;
 int main() 
@@ -50,9 +51,9 @@ int main()
 
 ---
 
-## 2.deque(双端队列)
+### 2.deque(双端队列)
 
-```
+```cpp
 #include <deque>
 using namespace std;
 int main() 
@@ -69,9 +70,9 @@ int main()
 
 ---
 
-## 3.list(双向链表)
+### 3.list(双向链表)
 
-```
+```cpp
 #include <list>
 using namespace std;
 int main() 
@@ -91,14 +92,15 @@ int main()
 
 ---
 
-# 二、 关联式容器（自动排序，基于红黑树实现）
+## 二、 关联式容器（自动排序，基于红黑树实现）
 
 这类容器的元素会按键自动排序，键唯一或可重复，查找效率 O(log n)。
 
-## 1.set(有序集合，键唯一)
-+ **核心：自动排序+去重，按 key 查找。**<br>
+### 1.set(有序集合，键唯一)
 
-```
++ **核心：自动排序+去重，按 key 查找**
+
+```cpp
 #include <set>
 using namespace std;
 int main() 
@@ -117,9 +119,9 @@ int main()
 
 ---
 
-## 2.multiset(有序多重集合，允许重复)
+### 2.multiset(有序多重集合，允许重复)
 
-```
+```cpp
 #include <set>
 using namespace std;
 int main() 
@@ -142,7 +144,7 @@ int main()
 
 ---
 
-## ==set vs multiset 对比==
+### ==set vs multiset 对比==
 
 | 特性 | set | multiset |
 | :--- | :--- | :--- |
@@ -155,10 +157,11 @@ int main()
 
 ---
 
-## 3.map(有序键值对，键唯一)
-+ **核心： key-value，按键排序，key 唯一。**<br>
+### 3.map(有序键值对，键唯一)
 
-```
++ **核心： key-value，按键排序，key 唯一**
+
+```cpp
 #include <map>
 using namespace std;
 
@@ -178,12 +181,15 @@ int main()
 ```
 
 ---
-## 4.multimap(有序键值对，键可重复)
-+ **核心：key-value 存储，按键自动排序，允许重复键。**<br>
+
+### 4.multimap(有序键值对，键可重复)
+
++ **核心：key-value 存储，按键自动排序，允许重复键**
+
+```cpp
 #include <map>
 using namespace std;
 
-```
 int main() 
 {
     multimap<string, int> mmp;
@@ -219,7 +225,8 @@ int main()
 ```
 
 ---
-## ==map vs multimap 对比==
+
+### ==map vs multimap 对比==
 
 | 特性 | map | multimap |
 | :--- | :--- | :--- |
@@ -235,9 +242,9 @@ int main()
 
 ---
 
-### + 内部元素：**pair**
+#### + 内部元素：**pair**
 
-```
+```cpp
 #include<utility>
 #include<string>
 using namespace std;
@@ -257,14 +264,17 @@ int main()
 
 ---
 
-# 三、无序关联式容器（哈希表，平均 O(1)）
+## 三、无序关联式容器（哈希表，平均 O(1)）
 
-## ==优势==
+### ==优势==
+
 1.时间效率高
 2.无排序开销
 3.内存相对友好
 4.接口友好，易迁移
-## ==短板==
+
+### ==短板==
+
 1.最坏O(n)
 2.不支持有序操作
 3.迭代器不稳定：扩容时迭代器失效，不能边遍历边修改
@@ -273,11 +283,13 @@ int main()
 
 ## 2.unordered_map(无序键值对，键唯一)
 
-# 四、容器适配器(封装底层容器，接口受限)
+---
 
-## 1.stack(栈，LIFO)
+## 四、容器适配器(封装底层容器，接口受限)
 
-```
+### 1.stack(栈，LIFO)
+
+```cpp
 #include <stack>
 using namespace std;
 int main() 
@@ -294,9 +306,9 @@ int main()
 
 ---
 
-## 2.queue(队列，FIFO)
+### 2.queue(队列，FIFO)
 
-```
+```cpp
 #include <queue>
 using namespace std;
 int main() 
@@ -312,9 +324,9 @@ int main()
 
 ---
 
-## 3.priority_queue(优先队列，堆)
+### 3.priority_queue(优先队列，堆)
 
-```
+```cpp
 #include <queue>
 #include <vector>
 #include <functional> // greater
@@ -337,4 +349,3 @@ int main()
 ```
 
 ---
-

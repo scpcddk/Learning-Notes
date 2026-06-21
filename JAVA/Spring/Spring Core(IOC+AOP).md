@@ -1,3 +1,8 @@
+---
+markmap:
+  initialExpandLevel: 2
+---
+
 # Spring6 Core(AOP + IOC) 精简学习笔记
 
 > **目标**：应试 + 开发实用，剔除 XML，纯注解，适配 Spring6 / SpringBoot3
@@ -812,7 +817,7 @@ public class StockService {
 }
 ```
 
-```
+```Java
 执行流程：
 ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
 │  begin  │───►│ insert  │───►│savepoint│───►│  deduct │───►│ 异常回滚 │
@@ -843,7 +848,7 @@ public class StockService {
 | `REPEATABLE_READ` | 脏读、不可重复读 | 同一事务内多次读取结果一致（**MySQL InnoDB 默认**） |
 | `SERIALIZABLE` | 脏读、不可重复读、幻读 | 最高级别，串行执行，性能最差 |
 
-> **面试关联**：Spring 的隔离级别只是"建议"，最终由数据库实现。
+> **面试关联**：Spring 的隔离级别只是"建议"，最终由数据库实现
 
 ---
 
@@ -852,7 +857,7 @@ public class StockService {
 Spring 事务属性对应数据库 ACID 的实现：
 
 | 属性 | 说明 | 配置方式 |
-|------|------|----------|
+| ------ | ------ | ---------- |
 | **隔离性** | 控制并发事务间的可见性 | `isolation = Isolation.READ_COMMITTED` |
 | **传播性** | 方法间事务的传递规则 | `propagation = Propagation.REQUIRED` |
 | **回滚规则** | 定义哪些异常触发回滚 | `rollbackFor = Exception.class` / `noRollbackFor = BusinessException.class` |
@@ -878,7 +883,7 @@ public void createOrder() {
 ### 2. 事务失效清单（面试必问）
 
 | 失效场景 | 原因 | 解决方案 |
-|----------|------|----------|
+| ---------- | ------ | ---------- |
 | 方法非 `public` | Spring 代理只能拦截 public 方法 | 改为 public，或开启 AspectJ 模式 |
 | 同类自调用 | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()`（需 `exposeProxy = true`） |
 | 异常被 catch 未抛出 | 事务需感知到异常才会回滚 | 在 catch 中重新抛出，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
@@ -925,7 +930,7 @@ public class OrderEventListener {
 ```
 
 | 事件阶段 | 触发时机 | 典型用途 |
-|----------|----------|----------|
+| ---------- | ---------- | ---------- |
 | `BEFORE_COMMIT` | 事务提交前 | 最后校验 |
 | `AFTER_COMMIT` | 事务成功提交后 | 发送通知、同步缓存、MQ |
 | `AFTER_ROLLBACK` | 事务回滚后 | 记录失败、发送告警 |
@@ -933,43 +938,10 @@ public class OrderEventListener {
 
 ---
 
-#### (2) 编程式事务（灵活控制）
-
-```java
-@Service
-public class ComplexService {
-    
-    @Autowired
-    private TransactionTemplate transactionTemplate;
-    
-    public void complexOperation() {
-        // 非事务操作
-        validateParams();
-        
-        // 事务操作
-        transactionTemplate.execute(status -> {
-            try {
-                orderMapper.insert(order);
-                stockMapper.deduct(order);
-                return order;
-            } catch (BusinessException e) {
-                status.setRollbackOnly();  // 手动回滚
-                return null;
-            }
-        });
-        
-        // 非事务操作
-        sendNotification(order);
-    }
-}
-```
-
----
-
-#### (3) 事务设计原则
+#### (2) 事务设计原则
 
 | 原则 | 说明 |
-|------|------|
+| ------ | ------ |
 | 事务边界要小 | 只包含必要的数据库操作 |
 | 事务内不做 IO | HTTP/RPC/MQ 移到事务外 |
 | 事务内不计算 | 复杂计算提前完成，事务只负责持久化 |
@@ -1022,7 +994,7 @@ public class ComplexService {
 #### 🔥(1) 声明式 vs 编程式 对比
 
 | 特性 | 声明式事务（`@Transactional`） | 编程式事务（`TransactionTemplate`） |
-|------|-------------------------------|-----------------------------------|
+| ------ | ------------------------------- | ----------------------------------- |
 | 使用方式 | 注解驱动，自动代理 | 代码显式控制 |
 | 灵活性 | 低，全局配置 | 高，可精细控制事务边界 |
 | 代码侵入性 | 无 | 有 |
@@ -1034,7 +1006,7 @@ public class ComplexService {
 #### 🔥(2) TransactionTemplate 核心 API
 
 | 方法 | 说明 |
-|------|------|
+| ------ | ------ |
 | `execute(TransactionCallback<T>)` | 执行事务，返回结果 |
 | `executeWithoutResult(Consumer<TransactionStatus>)` | 执行事务，无返回值（Java 8+） |
 | `setIsolationLevel(int)` | 设置隔离级别 |
@@ -1090,7 +1062,7 @@ public class StrictService {
 #### 🔥(5) 使用场景对比
 
 | 场景 | 推荐方式 | 原因 |
-|------|---------|------|
+| ------ | --------- | ------ |
 | 简单 CRUD，标准事务 | 声明式 `@Transactional` | 简洁、无侵入 |
 | 事务内嵌套非事务操作 | 编程式 `TransactionTemplate` | 精确控制事务边界 |
 | 动态决定是否开启事务 | 编程式 `TransactionTemplate` | 运行时判断 |

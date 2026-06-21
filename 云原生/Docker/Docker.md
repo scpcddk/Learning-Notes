@@ -2,17 +2,17 @@
 
 ---
 
-## 1. 核心概念
+## 1. **核心概念**
 
 - **镜像（Image）**：一个只读的**模板**，包含运行环境（如 JDK + 应用 jar）
 - **容器（Container）**：镜像的**运行实例**，可启动、停止、删除，相互隔离
-- **仓库（Repository）**：**存放**镜像的地方，如`Docker Hub`
+- **仓库（Repository）**：**存放镜像**的地方，如`Docker Hub`
 
 ---
 
-## 2. ==常用命令==
+## 2. ==**常用命令**==
 
-| 命令 | 功能 | 示例 |
+| **命令** | **功能** | **示例** |
 | --------------------- | -------------------------------- | ------------------------------------------ |
 | `docker run` | **启动**一个新的容器**并运行**命令 | `docker run -d ubuntu` |
 | `docker ps` | **列出**当前正在运行的容器 | `docker ps` |
@@ -24,7 +24,7 @@
 | `docker exec` | 在运行的容器中**执行命令** | `docker exec -it container_name bash` |
 | `docker stop` | **停止**一个或多个容器 | `docker stop container_name` |
 | `docker start` | **启动**已停止的容器 | `docker start container_name` |
-| `docker restart` | 重启一个容器 | `docker restart container_name` |
+| `docker restart` | **重启**一个容器 | `docker restart container_name` |
 | `docker rm` | **删除**一个或多个**容器** | `docker rm container_name` |
 | `docker rmi` | **删除**一个或多个**镜像** | `docker rmi my-image` |
 | `docker logs` | **查看容器的日志** | `docker logs container_name` |
@@ -37,7 +37,7 @@
 | `docker-compose logs -f` | 实时查看`compose`服务日志 | `docker-compose logs -f backend` |
 | `docker-compose restart` | 重启`compose`中的某个服务 | `docker-compose restart backend` |
 | `docker-compose ps` | 列出`compose`管理的容器状态 | `docker-compose ps` |
-| `docker info` | 显示`Docker`系统的详细信息 | `docker info` |
+| `docker info` | 显示`Docker`系统的**详细信息** | `docker info` |
 | `docker version` | 显示`Docker`客户端和守护进程的**版本信息** | `docker version` |
 | `docker stats` | 显示容器的实时资源使用情况 | `docker stats` |
 | `docker login` | 登录`Docker`仓库 | `docker login` |
@@ -80,6 +80,8 @@
 
 - Spring Boot 容器推荐：**只用 ENTRYPOINT**，避免误覆盖启动命令
 
+---
+
 ### 3.2 多阶段构建（Java 项目瘦身必用）
 
 构建阶段用 Maven + JDK 编译，运行阶段只保留 JRE，最终镜像不包含源码和构建工具
@@ -102,6 +104,8 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
 - 效果：镜像体积可从 600MB+ 降至 200MB 以内
+
+---
 
 ### 3.3 实战模板 1：Spring Boot 生产级 Dockerfile
 
@@ -155,6 +159,8 @@ docker run -d -p 8080:8080 --name spring-app my-spring-app
 
 - 若未使用多阶段构建，可直接 `mvn clean package -DskipTests` 后在`Dockerfile`中用 `COPY target/*.jar app.jar`（需确保目录下只有一个`jar`）
 
+---
+
 ### 3.4 实战模板 2：Python AI 推理服务 Dockerfile
 
 ```dockerfile
@@ -187,7 +193,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
 ENTRYPOINT ["python", "app.py"]
 ```
 
-> 生产环境建议用 Gunicorn 替换 `python app.py`，稳定性更好。
+> 生产环境建议用 Gunicorn 替换 `python app.py`，稳定性更好
+
+---
 
 ### 3.5 镜像优化技巧速查
 
@@ -219,6 +227,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends 包名 \
 | **restart** | **重启**策略，推荐 `unless-stopped` | `restart: unless-stopped` |
 | **environment** | 注入**环境变量** | `SPRING_PROFILES_ACTIVE=docker` |
 
+---
+
 ### 4.2 数据挂载三种方式
 
 #### ① 匿名卷（Docker 自动管理）
@@ -246,6 +256,8 @@ volumes:
   - ./models:/app/model        # 模型热更新，无需重建镜像
 ```
 
+---
+
 ### 4.3 自定义网络
 
 Compose 默认创建 `bridge` 网络，同一网络内的容器可直接用**服务名**作为域名通信。
@@ -265,6 +277,8 @@ services:
 ```
 
 此时 `backend` 内可用 `http://inference:5000/predict` 访问 AI 服务。
+
+---
 
 ### 4.4 完整编排模板：Spring Boot + AI 推理服务
 
@@ -304,6 +318,8 @@ networks:
     driver: bridge
 ```
 
+---
+
 ### 4.5 Compose 常用运维命令
 
 | 命令 | 作用 |
@@ -318,23 +334,27 @@ networks:
 
 ---
 
-## 5. 注意事项（落地必看）
+## 5. **注意事项**（落地必看）
 
 | 注意事项 | 说明 |
 | ---------- | ------ |
-| **jar 名称固定** | 在 `pom.xml` 中设置 `<finalName>app</finalName>`，避免 `COPY target/*.jar` 多文件报错。 |
-| **多阶段构建优先** | 编译与运行分离，最终镜像不含 Maven 和源码，更小更安全。 |
-| **非 root 用户运行** | 务必创建普通用户并 `USER` 切换，降低安全风险。 |
-| **健康检查** | 配合 Actuator 接口，让编排工具感知服务状态，实现自愈。 |
-| **时区设置** | Alpine 默认 UTC，需手动设置为 `Asia/Shanghai` 或其他时区。 |
-| **日志与模型持久化** | 使用 volumes 挂载到宿主机，容器删除数据不丢。 |
-| **网络互联** | 自定义网络下用**服务名**互访，如 `inference:5000`，不要硬编码 IP。 |
-| **资源限制** | 生产环境通过 `-m` 或 Compose 的 `deploy.resources` 限制 CPU/内存。 |
-| **访问宿主机** | 容器内 `localhost` 指向自身；Windows/Mac 可用 `host.docker.internal`；Linux 需在 Compose 中加 `extra_hosts: - "host.docker.internal:host-gateway"`。 |
-| **优雅停机** | Spring Boot 可配置 `server.shutdown=graceful`，配合 `SIGTERM` 保证请求处理完毕。 |
-| **镜像安全更新** | 定期执行 `docker build --pull .` 拉取最新基础镜像。 |
-| **Compose 版本字段** | Docker Compose V2 不再需要 `version`，写上可能报警告，可移除。 |
+| **jar 名称固定** | 在 `pom.xml` 中设置 `<finalName>app</finalName>`，避免 `COPY target/*.jar` 多文件报错 |
+| **多阶段构建优先** | 编译与运行分离，最终镜像不含 Maven 和源码，更小更安全 |
+| **非 root 用户运行** | 务必创建普通用户并`USER`切换，降低安全风险 |
+| **健康检查** | 配合 Actuator 接口，让编排工具感知服务状态，实现自愈 |
+| **时区设置** | Alpine 默认 UTC，需手动设置为`Asia/Shanghai`或其他时区 |
+| **日志与模型持久化** | 使用 volumes 挂载到宿主机，容器删除数据不丢 |
+| **网络互联** | 自定义网络下用**服务名**互访，如 `inference:5000`，不要硬编码 IP |
+| **资源限制** | 生产环境通过 `-m` 或 Compose 的 `deploy.resources` 限制 CPU/内存 |
+| **访问宿主机** | 容器内 `localhost` 指向自身；Windows/Mac 可用 `host.docker.internal`；Linux 需在 Compose 中加 `extra_hosts: - "host.docker.internal:host-gateway"` |
+| **优雅停机** | Spring Boot 可配置 `server.shutdown=graceful`，配合 `SIGTERM` 保证请求处理完毕 |
+| **镜像安全更新** | 定期执行 `docker build --pull .` 拉取最新基础镜像 |
+| **Compose 版本字段** | Docker Compose V2 不再需要 `version`，写上可能报警告，可移除 |
 
 ---
 
 参考链接：[https://www.runoob.com/docker/docker-tutorial.html](https://www.runoob.com/docker/docker-tutorial.html)
+
+[网课链接](https://www.bilibili.com/video/BV1s54y1n7Ev/?spm_id_from=333.1387.favlist.content.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
+
+---
