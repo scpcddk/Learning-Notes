@@ -671,7 +671,7 @@ public class OrderService {
 ```
 
 - **核心规则**：
-  - 默认只有运行时异常（`RuntimeException`）及 `Error` 才自动回滚
+  - **默认只有运行时异常（`RuntimeException`）及 `Error` 才自动回滚**
   - 可指定 `rollbackFor = Exception.class` 让所有异常回滚
   - 可指定 `noRollbackFor = BusinessException.class` 控制特定异常不回滚
   - 默认传播行为是 `REQUIRED`（加入已有事务或新建）
@@ -681,22 +681,22 @@ public class OrderService {
 
 #### 🔥(1) **事务传播行为详解**（7种）
 
-| 传播行为 | 当前有事务 | 当前无事务 | 含义 | 使用场景 |
+| **传播行为** | **当前有事务** | **当前无事务** | 含义 | 使用场景 |
 | :--------: | :----------: | :----------: | ------ | ---------- |
-| `REQUIRED`（默认） | 加入当前事务 | 新建事务 | 有则加入，无则新建 | **最常用**，普通业务方法 |
-| `REQUIRES_NEW` | **挂起当前事务**，新建独立事务 | 新建事务 | 独立王国，互不影响 | 日志记录、审计，**必须成功** |
-| `SUPPORTS` | 加入当前事务 | **以非事务执行** | 有就蹭，没有拉倒 | 查询方法 |
-| `NOT_SUPPORTED` | **挂起当前事务**，以非事务执行 | 以非事务执行 | 拒绝事务 | 发送通知、邮件 |
-| `MANDATORY` | 加入当前事务 | **抛出异常** | 强制要求有事务 | 强制事务上下文 |
-| `NEVER` | **抛出异常** | 以非事务执行 | 绝对禁止事务 | 纯查询，禁止事务 |
-| `NESTED` | 创建**嵌套事务**（savepoint） | 新建事务 | 部分回滚 | 部分回滚场景 |
+| `REQUIRED`（默认） | 加入当前事务 | 新建事务 | **有则加入，无则新建** | **最常用**，普通业务方法 |
+| `REQUIRES_NEW` | **挂起当前事务**，新建独立事务 | 新建事务 | 独立王国，**互不影响** | 日志记录、审计，**必须成功** |
+| `SUPPORTS` | 加入当前事务 | **以非事务执行** | **有就蹭，没有拉倒** | 查询方法 |
+| `NOT_SUPPORTED` | **挂起当前事务**，以非事务执行 | 以非事务执行 | **拒绝事务** | 发送通知、邮件 |
+| `MANDATORY` | 加入当前事务 | **抛出异常** | **强制要求有事务** | 强制事务上下文 |
+| `NEVER` | **抛出异常** | 以非事务执行 | **绝对禁止事务** | 纯查询，禁止事务 |
+| `NESTED` | 创建**嵌套事务**（savepoint） | 新建事务 | **部分回滚** | 部分回滚场景 |
 
 ---
 
 ##### A **`REQUIRED` vs `REQUIRES_NEW` 核心对比**
 
 > [!TIP]
-> **面试重点**：`REQUIRED` vs `REQUIRES_NEW` 的区别:前者共用事务（同回同滚），后者独立事务（互不影响）
+> **面试重点**：`REQUIRED` vs `REQUIRES_NEW` 的区别:前者**共用事务**（同回同滚），后者**独立事务**（互不影响）
 
 **`REQUIRED` vs `REQUIRES_NEW` 深度对比**
 
@@ -726,9 +726,9 @@ public class LogService {
 
 | 特性 | `REQUIRED` | `REQUIRES_NEW` |
 | ------ | ----------- | ---------------- |
-| 事务关系 | 共用同一个事务 | 完全独立的事务 |
-| 提交时机 | 外层事务统一提交 | 方法结束立即提交 |
-| 回滚影响 | 同生共死，一起回滚 | 外层回滚不影响内层；内层异常上抛会影响外层 |
+| 事务关系 | 共用**同一个事务** | **完全独立**的事务 |
+| 提交时机 | **外层事务统一提交** | **方法结束立即提交** |
+| 回滚影响 | 同生共死，**一起回滚** | **外层回滚不影响内层；内层异常上抛会影响外层** |
 | 适用场景 | 普通业务操作 | 审计、日志、必须成功的操作 |
 
 ```java
@@ -792,6 +792,9 @@ public class LogService {
 
 ##### C **`NESTED` 嵌套事务详解**
 
+- 内部异常回滚到保存点（部分回滚），外部是否回滚**取决于异常是否被外部捕获**（捕获则外部提交，否则外部也回滚）
+- **外部异常则必定导致全局回滚**
+
 ```java
 @Transactional
 public void outerMethod() {
@@ -820,13 +823,13 @@ public class StockService {
 ```Java
 执行流程：
 ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
-│  begin  │───►│ insert  │───►│savepoint│───►│  deduct │───►│ 异常回滚 │
-│  外层事务 │    │  order  │    │  创建   │    │  stock  │    │到savepoint│
+│  begin  │───►│ insert  │───►│savepoint│───►│  deduct │───►│异常回滚到│
+│ 外层事务 │    │  order  │    │  创建   │    │  stock  │    │savepoint│
 └─────────┘    └─────────┘    └─────────┘    └─────────┘    └────┬────┘
                                                                  │
-┌─────────┐    ┌─────────┐    ┌─────────┐                     │
-│  insert │───►│  commit │◄───┤  继续执行 │◄────────────────────┘
-│ payment │    │  外层提交 │    │         │
+┌─────────┐    ┌─────────┐    ┌─────────┐                        │
+│  insert │───►│  commit │◄───┤  继续执行│ ◄──────────────────────┘
+│ payment │    │ 外层提交 │    │         │
 └─────────┘    └─────────┘    └─────────┘
 
 结果：order 和 payment 提交成功，stock 回滚
@@ -840,7 +843,7 @@ public class StockService {
 @Transactional(isolation = Isolation.READ_COMMITTED)
 ```
 
-| 隔离级别 | 解决问题 | 说明 |
+| 隔离级别 | **解决问题** | 说明 |
 | ---------- | ---------- | ------ |
 | `DEFAULT` | - | 使用数据库默认级别（MySQL InnoDB 默认 **RR**，Oracle/SQL Server 默认 **RC**） |
 | `READ_UNCOMMITTED` | - | 最低级别，允许脏读 |
@@ -848,13 +851,17 @@ public class StockService {
 | `REPEATABLE_READ` | 脏读、不可重复读 | 同一事务内多次读取结果一致（**MySQL InnoDB 默认**） |
 | `SERIALIZABLE` | 脏读、不可重复读、幻读 | 最高级别，串行执行，性能最差 |
 
+- **脏读**：一个事务读到了另一个事务“还没提交（没确认）”的临时数据
+- **不可重复读**：读到了别人修改（UPDATE）同一行数据，导致值变了
+- **幻读**：读到了别人新增（INSERT）或删除（DELETE）的行，导致“数量”变了
+
 > **面试关联**：Spring 的隔离级别只是"建议"，最终由数据库实现
 
 ---
 
 #### 🔥(3) 事务五大属性
 
-Spring 事务属性对应数据库 ACID 的实现：
+- Spring 事务属性对应数据库 ACID 的实现：
 
 | 属性 | 说明 | 配置方式 |
 | ------ | ------ | ---------- |
@@ -880,23 +887,25 @@ public void createOrder() {
 
 ---
 
-### 2. 事务失效清单（面试必问）
+### 2. **事务失效清单**（面试必问）
 
 | 失效场景 | 原因 | 解决方案 |
 | ---------- | ------ | ---------- |
-| 方法非 `public` | Spring 代理只能拦截 public 方法 | 改为 public，或开启 AspectJ 模式 |
-| 同类自调用 | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()`（需 `exposeProxy = true`） |
-| 异常被 catch 未抛出 | 事务需感知到异常才会回滚 | 在 catch 中重新抛出，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
-| 异常类型非回滚异常 | 默认为 `RuntimeException` 及 `Error` | 配置 `@Transactional(rollbackFor = Exception.class)` |
-| 数据库引擎不支持 | 如 MyISAM | 使用 InnoDB |
-| 多线程调用 | 事务绑定线程，子线程不在事务内 | 重新设计事务边界，确保在事务线程内操作 |
-| 方法被 `final` 修饰 | CGLIB 无法代理 final 方法 | 去掉 final |
-| 未启用事务管理 | 缺少 `@EnableTransactionManagement`（SpringBoot 自动配置已包含，但纯 Spring 需手动） | 确认存在注解或 XML 配置 |
-| 类未被 Spring 管理 | 缺少 `@Service`/`@Component` | 确保类被组件扫描 |
-| 方法被 `static` 修饰 | 静态方法无法被代理 | 改为实例方法 |
-| 事务方法被 `@Async` 调用 | 异步线程脱离原事务上下文 | 将事务逻辑放在 `@Async` 方法内部 |
-| `@Configuration` 错误 | `@Bean` 在 `@Component` 中互调，无 CGLIB 代理 | 确保配置类使用 `@Configuration` |
+| **方法非 `public`** | Spring 代理只能拦截 public 方法 | 改为 public，或开启 AspectJ 模式 |
+| **同类自调用** | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()`（需 `exposeProxy = true`） |
+| **异常被 catch 未抛出** | 事务需感知到异常才会回滚 | 在 catch 中重新抛出，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
+| **异常类型非回滚异常** | 默认为 `RuntimeException` 及 `Error` | 配置 `@Transactional(rollbackFor = Exception.class)` |
+| **数据库引擎不支持** | 如 MyISAM | 使用 InnoDB |
+| **多线程调用** | 事务绑定线程，子线程不在事务内 | 重新设计事务边界，确保在事务线程内操作 |
+| **方法被 `final` 修饰** | CGLIB 无法代理 final 方法 | 去掉 final |
+| **未启用事务管理** | 缺少 `@EnableTransactionManagement`（SpringBoot 自动配置已包含，但纯 Spring 需手动） | 确认存在注解或 XML 配置 |
+| **类未被 Spring 管理** | 缺少 `@Service`/`@Component` | 确保类被组件扫描 |
+| **方法被 `static` 修饰** | 静态方法无法被代理 | 改为实例方法 |
+| **事务方法被 `@Async` 调用** | 异步线程脱离原事务上下文 | 将事务逻辑放在 `@Async` 方法内部 |
+| **`@Configuration` 错误** | `@Bean` 在 `@Component` 中互调，无 CGLIB 代理 | 确保配置类使用 `@Configuration` |
 
+> [!TIP]
+> **速查口诀**：非 public 不代理，同类调用绕代理，异常吞掉不回滚，类型不对也白搭，引擎不对没事务，多线程里事务丢，final 方法难代理，不在容器全白费，静态异步无代理，配置类用 `@Configuration`
 ---
 
 ### 3. 高级场景
@@ -931,10 +940,10 @@ public class OrderEventListener {
 
 | 事件阶段 | 触发时机 | 典型用途 |
 | ---------- | ---------- | ---------- |
-| `BEFORE_COMMIT` | 事务提交前 | 最后校验 |
-| `AFTER_COMMIT` | 事务成功提交后 | 发送通知、同步缓存、MQ |
-| `AFTER_ROLLBACK` | 事务回滚后 | 记录失败、发送告警 |
-| `AFTER_COMPLETION` | 事务完成（提交或回滚） | 清理资源 |
+| `BEFORE_COMMIT` | 事务**提交前** | 最后校验 |
+| `AFTER_COMMIT` | 事务成功**提交后** | 发送通知、同步缓存、MQ |
+| `AFTER_ROLLBACK` | 事务**回滚后** | 记录失败、发送告警 |
+| `AFTER_COMPLETION` | 事务**完成**（提交或回滚） | 清理资源 |
 
 ---
 
@@ -942,23 +951,19 @@ public class OrderEventListener {
 
 | 原则 | 说明 |
 | ------ | ------ |
-| 事务边界要小 | 只包含必要的数据库操作 |
-| 事务内不做 IO | HTTP/RPC/MQ 移到事务外 |
-| 事务内不计算 | 复杂计算提前完成，事务只负责持久化 |
-| 同类不调用 | 避免 `this.method()` 绕过代理 |
-| 异常要抛出 | catch 后必须重新抛或手动回滚 |
-| 只读要标注 | 查询方法加 `readOnly = true`，优化性能 |
-| 传播要选对 | `REQUIRED` 默认，`REQUIRES_NEW` 独立，`NESTED` 嵌套 |
-
----
-
-> **速查口诀**：非 public 不代理，同类调用绕代理，异常吞掉不回滚，类型不对也白搭，引擎不对没事务，多线程里事务丢，final 方法难代理，不在容器全白费，静态异步无代理，配置类用 `@Configuration`
+| 事务**边界要小** | 只包含必要的数据库操作 |
+| 事务**内不做 IO** | HTTP/RPC/MQ 移到事务外 |
+| 事务**内不计算** | 复杂计算提前完成，事务只负责持久化 |
+| **同类不调用** | 避免 `this.method()` 绕过代理 |
+| **异常要抛出** | catch 后必须重新抛或手动回滚 |
+| **只读要标注** | 查询方法加 `readOnly = true`，优化性能 |
+| **传播要选对** | `REQUIRED` 默认，`REQUIRES_NEW` 独立，`NESTED` 嵌套 |
 
 ---
 
 ### 4. 编程式事务
 
-当声明式事务无法满足复杂场景时，使用 `TransactionTemplate` 进行灵活控制。
+- 当声明式事务无法满足复杂场景时，使用 `TransactionTemplate` 进行灵活控制
 
 ```java
 @Service
@@ -991,7 +996,7 @@ public class ComplexService {
 
 ---
 
-#### 🔥(1) 声明式 vs 编程式 对比
+#### 🔥(1) **声明式 vs 编程式 对比**
 
 | 特性 | 声明式事务（`@Transactional`） | 编程式事务（`TransactionTemplate`） |
 | ------ | ------------------------------- | ----------------------------------- |
@@ -1069,8 +1074,7 @@ public class StrictService {
 | 部分回滚 + 后续补偿 | 编程式 `TransactionTemplate` | 手动控制回滚点 |
 | 批量操作，分批提交 | 编程式 `TransactionTemplate` | 循环中手动提交 |
 
----
-
+> [!TIP]
 > **速查口诀**：简单场景用声明，复杂控制用编程，边界精确要手动，动态判断选模板
 
 ---
