@@ -33,7 +33,7 @@ markmap:
 | 适用场景 | 资源受限环境（如嵌入式设备） | **绝大多数企业级应用** |
 
 > [!TIP]
-> **面试一句话**：ApplicationContext 是 BeanFactory 的**超集**，功能更完整，启动时预初始化，开发中几乎只用 ApplicationContext
+> **面试一句话**：`ApplicationContext`是`BeanFactory`的**超集**，功能更完整，启动时预初始化，开发中几乎只用`ApplicationContext`
 
 ---
 
@@ -121,14 +121,14 @@ public class AppConfig {
 ```
 
 - **适用场景**：
-  - ✅ **第三方 jar 包中的类**（如 `DataSource`, `RestTemplate`,   `RedisTemplate`）
+  - ✅ **第三方 jar 包中的类**（如`DataSource`, `RestTemplate`, `RedisTemplate`）
   - ✅ **需要调用静态工厂方法、建造者模式创建的对象**
   - ✅ **需要复杂初始化（设置多个属性、条件判断）的 Bean**
   - ✅ **需要动态决定是否注册 Bean 的条件注册**（配合 `@Conditional`）
 
-> 📌 **提示**：在 SpringBoot 中，很多第三方组件已通过 `AutoConfiguration` 自动配置，一般无需手动写 `@Bean`。但当默认配置不满足时，**可以用 `@Bean` 覆盖默认 Bean**
+> 📌 **提示**：在 SpringBoot 中，很多第三方组件已通过`AutoConfiguration`自动配置，一般无需手动写`@Bean`。但当默认配置不满足时，**可以用 `@Bean` 覆盖默认 Bean**
 
-- **`@Configuration` 的 CGLIB 代理机制**
+- **`@Configuration`的 CGLIB 代理机制**
   - `@Configuration`类会被 CGLIB 代理，确保`@Bean`方法间的互相调用仍返回**容器中的单例**
   - 如果在普通`@Component`类中写`@Bean`，内部调用不会走代理，会产生多个实例。**因此只要涉及`@Bean`互相依赖，必须用`@Configuration`**
 
@@ -422,7 +422,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 
 ## 五、AOP（面向切面编程）
 
-### 1. 核心原理
+### 1. **核心原理**
 
 - **动态代理**：
   - **有接口** → **JDK 动态代理**
