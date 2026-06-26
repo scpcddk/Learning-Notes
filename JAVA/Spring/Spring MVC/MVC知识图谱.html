@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpringMVC 复习速查图</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #f0f2f5;
+    padding: 20px;
+    line-height: 1.6;
+}
+.container { max-width: 1400px; margin: 0 auto; }
+.header {
+    background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+    color: white;
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.header h1 { font-size: 28px; margin-bottom: 6px; }
+.header p { color: #c5cae9; font-size: 14px; }
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.section {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.section-title {
+    padding: 10px 16px;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.section-body { padding: 12px 16px; }
+
+.core .section-title { background: #1565c0; }
+.flow .section-title { background: #00695c; }
+.config .section-title { background: #6a1b9a; }
+.param .section-title { background: #c62828; }
+.interceptor .section-title { background: #e65100; }
+.exception .section-title { background: #b71c1c; }
+.scope .section-title { background: #2e7d32; }
+.tips .section-title { background: #263238; }
+
+.card {
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+.card:last-child { margin-bottom: 0; }
+
+.card-blue { background: #e3f2fd; border-left: 4px solid #1565c0; color: #0d47a1; }
+.card-green { background: #e8f5e9; border-left: 4px solid #2e7d32; color: #1b5e20; }
+.card-yellow { background: #fffde7; border-left: 4px solid #f9a825; color: #e65100; }
+.card-red { background: #ffebee; border-left: 4px solid #c62828; color: #b71c1c; }
+.card-gray { background: #f5f5f5; border-left: 4px solid #9e9e9e; color: #424242; }
+.card-purple { background: #f3e5f5; border-left: 4px solid #6a1b9a; color: #4a148c; }
+.card-orange { background: #fff3e0; border-left: 4px solid #e65100; color: #bf360c; }
+
+.card-bold { font-weight: bold; }
+.card-center { text-align: center; }
+
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.flow-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 6px;
+    font-size: 12.5px;
+}
+.flow-num {
+    background: #1565c0;
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+.flow-text { color: #333; line-height: 1.5; padding-top: 1px; }
+
+.mnemonic-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+.mnemonic-key {
+    background: #263238;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+}
+.mnemonic-val {
+    background: #f5f5f5;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #333;
+}
+
+.pitfall-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+.pitfall-key {
+    background: #c62828;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+}
+.pitfall-val {
+    background: #ffebee;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #b71c1c;
+}
+
+.full-width { grid-column: 1 / -1; }
+
+@media print {
+    body { background: white; padding: 0; }
+    .section { box-shadow: none; border: 1px solid #ddd; }
+}
+</style>
+<base target="_blank">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>SpringMVC 复习速查图</h1>
+        <p>前端控制器 + 五大组件 + 请求流程 + 纯注解配置 | 前后端分离</p>
+    </div>
+
+    <div class="grid">
+        <!-- 一、核心概念 -->
+        <div class="section core">
+            <div class="section-title">一、核心概念</div>
+            <div class="section-body">
+                <div class="card card-blue card-bold card-center">
+                    SpringMVC = 前端控制器(DispatcherServlet) + 可插拔策略组件<br>
+                    本质：继承 HttpServlet 的总控，协调各组件完成请求分发
+                </div>
+                <div class="card card-gray">
+                    <b>五大核心组件：</b><br>
+                    1. DispatcherServlet — 前端总控（不干活，只协调）<br>
+                    2. HandlerMapping — 根据URL找到 Handler（如 RequestMappingHandlerMapping）<br>
+                    3. HandlerAdapter — 适配并执行 Handler（如 RequestMappingHandlerAdapter）<br>
+                    4. Handler — 真正的业务逻辑（@Controller 方法封装为 HandlerMethod）<br>
+                    5. HandlerExceptionResolver — 异常统一处理
+                </div>
+                <div class="card card-yellow card-bold card-center">
+                    前后端分离：返回值直接通过 HttpMessageConverter 转 JSON<br>
+                    不经过 ViewResolver，没有"视图渲染"环节
+                </div>
+            </div>
+        </div>
+
+        <!-- 二、请求执行流程 -->
+        <div class="section flow">
+            <div class="section-title">二、请求执行流程（9步）</div>
+            <div class="section-body">
+                <div class="flow-step"><div class="flow-num">1</div><div class="flow-text">请求进入 <b>DispatcherServlet</b>，调用 doDispatch()</div></div>
+                <div class="flow-step"><div class="flow-num">2</div><div class="flow-text">HandlerMapping 找到 Handler，返回 <b>HandlerExecutionChain</b>（含拦截器链）</div></div>
+                <div class="flow-step"><div class="flow-num">3</div><div class="flow-text">遍历 HandlerAdapters，找到支持该 Handler 的 Adapter</div></div>
+                <div class="flow-step"><div class="flow-num">4</div><div class="flow-text">执行拦截器 <b>preHandle</b>（正序，返回 false 则终止）</div></div>
+                <div class="flow-step"><div class="flow-num">5</div><div class="flow-text">Adapter 调用 Handler：解析参数(@RequestBody等) -> 反射执行 -> 处理返回值(@ResponseBody等)</div></div>
+                <div class="flow-step"><div class="flow-num">6</div><div class="flow-text">执行拦截器 <b>postHandle</b>（逆序，此时响应未提交）</div></div>
+                <div class="flow-step"><div class="flow-num">7</div><div class="flow-text">HandlerExceptionResolver 处理异常（如有）</div></div>
+                <div class="flow-step"><div class="flow-num">8</div><div class="flow-text">执行拦截器 <b>afterCompletion</b>（逆序，资源清理，必定执行）</div></div>
+                <div class="flow-step"><div class="flow-num">9</div><div class="flow-text">JSON 已写入 response，返回客户端</div></div>
+            </div>
+        </div>
+
+        <!-- 三、纯注解配置 -->
+        <div class="section config">
+            <div class="section-title">三、纯注解配置（替代 web.xml）</div>
+            <div class="section-body">
+                <div class="card card-purple card-bold">
+                    核心类：AbstractAnnotationConfigDispatcherServletInitializer<br>
+                    Servlet 3.0+ 容器通过 SPI 自动发现，替代 web.xml
+                </div>
+                <div class="card card-gray">
+                    <b>三个必须重写的方法：</b><br>
+                    getRootConfigClasses() — 根容器（Service/DAO/数据源），排除 @Controller<br>
+                    getServletConfigClasses() — Web容器（Controller/拦截器/视图解析器）<br>
+                    getServletMappings() — URL映射，通常为 "/"<br>
+                    getServletFilters() — 注册过滤器（如 CharacterEncodingFilter UTF-8）
+                </div>
+                <div class="two-col">
+                    <div class="card card-blue" style="text-align:center">
+                        <b>RootConfig</b><br>
+                        @Configuration<br>
+                        @ComponentScan(excludeFilters=@Controller)<br>
+                        管 Service/DAO/事务
+                    </div>
+                    <div class="card card-orange" style="text-align:center">
+                        <b>WebConfig</b><br>
+                        @Configuration<br>
+                        @EnableWebMvc<br>
+                        @ComponentScan("controller")<br>
+                        管 Controller/拦截器
+                    </div>
+                </div>
+                <div class="card card-yellow card-bold card-center">
+                    @EnableWebMvc 导入 DelegatingWebMvcConfiguration<br>
+                    自动注册 HandlerMapping、HandlerAdapter、参数解析器等
+                </div>
+            </div>
+        </div>
+
+        <!-- 四、请求映射与参数 -->
+        <div class="section param">
+            <div class="section-title">四、请求映射 & 参数绑定</div>
+            <div class="section-body">
+                <div class="card card-blue card-bold card-center">
+                    @RestController = @Controller + @ResponseBody（所有方法直接返回JSON）
+                </div>
+                <div class="card card-gray">
+                    <b>@RequestMapping 属性：</b>value/path(路径) | method(方法) | params(参数限制) | headers(请求头) | consumes(请求Content-Type) | produces(响应Content-Type)<br>
+                    <b>组合注解：</b>@GetMapping | @PostMapping | @PutMapping | @DeleteMapping | @PatchMapping
+                </div>
+                <div class="card card-green">
+                    <b>参数绑定速查：</b><br>
+                    @RequestParam — 查询参数/表单参数（可设 required/defaultValue）<br>
+                    @PathVariable — 路径变量 /{id}，可正则匹配 /{id:\d+}<br>
+                    @RequestBody — JSON请求体转对象（需 Content-Type: application/json）<br>
+                    @RequestHeader — 请求头 | @CookieValue — Cookie<br>
+                    HttpServletRequest / HttpServletResponse / HttpSession — 直接注入<br>
+                    @SessionAttribute("key") — 只读自动转换 | @RequestAttribute — 请求域属性
+                </div>
+                <div class="card card-yellow card-bold card-center">
+                    GET 不应带请求体，Tomcat 会忽略，@RequestBody 无法绑定<br>
+                    实体类绑定无需注解：/search?name=Tom&age=20 自动填充到 UserQuery
+                </div>
+            </div>
+        </div>
+
+        <!-- 五、拦截器 -->
+        <div class="section interceptor">
+            <div class="section-title">五、拦截器 HandlerInterceptor</div>
+            <div class="section-body">
+                <div class="card card-orange card-bold card-center">
+                    拦截器 vs 过滤器：拦截器属于 SpringMVC，可拿到 Handler；过滤器属于 Servlet 容器，更底层
+                </div>
+                <div class="card card-gray">
+                    <b>三个方法：</b><br>
+                    preHandle(request, response, handler) — 前置，返回 true 放行，false 拦截<br>
+                    postHandle(request, response, handler, modelAndView) — 后置，逆序执行<br>
+                    afterCompletion(request, response, handler, ex) — 完成，必定执行（资源清理）
+                </div>
+                <div class="card card-blue card-center">
+                    <b>多个拦截器执行顺序（假设 Interceptor1、Interceptor2）：</b><br>
+                    preHandle-1 -> preHandle-2 -> 目标方法 -> postHandle-2 -> postHandle-1 -> afterCompletion-2 -> afterCompletion-1<br>
+                    <b>栈式：正序进，逆序出</b>
+                </div>
+                <div class="card card-yellow card-bold card-center">
+                    preHandle 返回 false：后续不执行，但之前已成功 preHandle 的 afterCompletion 仍会触发<br>
+                    Token 校验后：request.setAttribute("user", user) -> Controller 用 @RequestAttribute 获取
+                </div>
+            </div>
+        </div>
+
+        <!-- 六、响应 & 异常 -->
+        <div class="section exception">
+            <div class="section-title">六、响应处理 & 全局异常</div>
+            <div class="section-body">
+                <div class="card card-blue">
+                    <b>响应方式：</b><br>
+                    @ResponseBody — 返回值直接序列化为JSON<br>
+                    ResponseEntity&lt;T&gt; — 细粒度控制状态码、响应头<br>
+                    forward:/path — 转发（@Controller 方法返回）<br>
+                    redirect:/path — 重定向（@Controller 方法返回）
+                </div>
+                <div class="card card-green card-center">
+                    <b>@RestController 或 @ResponseBody 方法中返回 "forward:..." 会被当成普通字符串写入响应体，不会转发</b>
+                </div>
+                <div class="card card-red card-bold">
+                    全局异常处理：@RestControllerAdvice + @ExceptionHandler<br>
+                    被 ExceptionHandlerExceptionResolver 扫描，按异常类型匹配最近的方法<br>
+                    建议定义统一返回体 Result，而非散装 Map
+                </div>
+            </div>
+        </div>
+
+        <!-- 七、作用域 -->
+        <div class="section scope">
+            <div class="section-title">七、作用域 & 线程安全</div>
+            <div class="section-body">
+                <div class="card card-gray">
+                    <b>作用域速查：</b><br>
+                    singleton（默认）— 容器唯一，所有请求共享 → <b>Controller 默认单例，禁止可变成员变量</b><br>
+                    prototype — 每次获取新建，Spring 不管理销毁<br>
+                    request — 每个HTTP请求一个实例，需 proxyMode=TARGET_CLASS 注入单例<br>
+                    session — 每个用户会话一个实例<br>
+                    application — ServletContext 唯一
+                </div>
+                <div class="card card-red card-bold card-center">
+                    单例 Controller 安全原则：<br>
+                    不要定义可变成员变量 | 不要手动创建线程<br>
+                    需要状态 -> 放入 request/session Bean 或方法局部变量
+                </div>
+            </div>
+        </div>
+
+        <!-- 八、高频问题速查 -->
+        <div class="section tips">
+            <div class="section-title">八、高频问题 & 解决方案</div>
+            <div class="section-body">
+                <div class="pitfall-row"><div class="pitfall-key">参数接收失败 400</div><div class="pitfall-val">@RequestParam 未传参且未设 required=false 或 defaultValue</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">JSON 415/400</div><div class="pitfall-val">Content-Type 不是 application/json | 缺少 Jackson 依赖 | 字段名不匹配（驼峰/下划线）</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">跨域 CORS</div><div class="pitfall-val">局部：@CrossOrigin | 全局：WebMvcConfigurer.addCorsMappings()</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">中文乱码</div><div class="pitfall-val">CharacterEncodingFilter UTF-8 + forceEncoding=true | Tomcat server.xml URIEncoding="UTF-8"</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">静态资源 404</div><div class="pitfall-val">@EnableWebMvc 完全接管，需手动 addResourceHandlers("/static/**")</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">Controller 404</div><div class="pitfall-val">检查 @ComponentScan 包路径 | getServletMappings() 是否为 "/" | 方法是否标注 @RequestMapping</div></div>
+            </div>
+        </div>
+
+        <!-- 九、文件上传下载 -->
+        <div class="section core">
+            <div class="section-title">九、文件上传下载</div>
+            <div class="section-body">
+                <div class="card card-blue">
+                    <b>上传：</b>注册 MultipartResolver Bean（名称固定 multipartResolver）<br>
+                    customizeRegistration() 配置临时目录、最大文件大小<br>
+                    Controller 用 @RequestParam("file") MultipartFile file 接收<br>
+                    <b>注意：</b>@RequestBody 不能用于文件上传
+                </div>
+                <div class="card card-green">
+                    <b>下载：</b>ResponseEntity&lt;Resource&gt; 返回文件流<br>
+                    Content-Disposition: attachment; filename*=UTF-8'' 兼容中文名
+                </div>
+            </div>
+        </div>
+
+        <!-- 十、XML vs 注解映射 -->
+        <div class="section flow">
+            <div class="section-title">十、XML vs 注解映射（看懂即可）</div>
+            <div class="section-body">
+                <div class="card card-gray">
+                    <b>web.xml 核心三块：</b>编码过滤器(CharacterEncodingFilter) | DispatcherServlet | Servlet映射<br>
+                    <b>spring-servlet.xml 核心：</b>&lt;context:component-scan&gt; | &lt;mvc:annotation-driven/&gt;<br>
+                    <b>映射关系：</b>web.xml -> AbstractAnnotationConfigDispatcherServletInitializer | &lt;mvc:annotation-driven/&gt; -> @EnableWebMvc | &lt;context:component-scan&gt; -> @ComponentScan
+                </div>
+            </div>
+        </div>
+
+        <!-- 十一、SpringMVC vs SpringBoot -->
+        <div class="section config full-width">
+            <div class="section-title">十一、SpringMVC vs SpringBoot</div>
+            <div class="section-body">
+                <div class="two-col">
+                    <div class="card card-blue" style="text-align:center">
+                        <b>原生 SpringMVC</b><br>
+                        外置 Tomcat，打包 war<br>
+                        手写 Initializer + Config<br>
+                        手动管理依赖版本<br>
+                        适合：理解底层原理、排查疑难杂症
+                    </div>
+                    <div class="card card-green" style="text-align:center">
+                        <b>SpringBoot</b><br>
+                        内嵌容器，jar 直接运行<br>
+                        自动配置 DispatcherServlet<br>
+                        starter 一站式管理依赖<br>
+                        自动注册 Jackson、静态资源、全局异常
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

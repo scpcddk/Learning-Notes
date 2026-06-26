@@ -123,9 +123,9 @@ Servlet API 改为 `jakarta.servlet:jakarta.servlet-api:6.0.0`，Spring MVC 6 �
 
 ---
 
-### 3.2 **消除 web.xml：使用 `ServletContainerInitializer` 的实现**
+### 3.2 **消除 web.xml：使用`ServletContainerInitializer`的实现**
 
-- Spring 提供了 `AbstractAnnotationConfigDispatcherServletInitializer`，它会自动被 Servlet 3.0+ 容器（如 Tomcat 8+）发现并初始化
+- Spring 提供了`AbstractAnnotationConfigDispatcherServletInitializer`，它会自动被 Servlet 3.0+ 容器（如 Tomcat 8+）发现并初始化
 
 ```java
 package com.example.config;

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux 命令复习速查图</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #f0f2f5;
+    padding: 20px;
+    line-height: 1.6;
+}
+.container { max-width: 1400px; margin: 0 auto; }
+.header {
+    background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+    color: white;
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.header h1 { font-size: 28px; margin-bottom: 6px; }
+.header p { color: #c5cae9; font-size: 14px; }
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.section {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.section-title {
+    padding: 10px 16px;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.section-body { padding: 12px 16px; }
+
+.file .section-title { background: #1565c0; }
+.edit .section-title { background: #00695c; }
+.disk .section-title { background: #6a1b9a; }
+.net .section-title { background: #c62828; }
+.sys .section-title { background: #e65100; }
+.misc .section-title { background: #2e7d32; }
+.tips .section-title { background: #263238; }
+
+.card {
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+.card:last-child { margin-bottom: 0; }
+
+.card-blue { background: #e3f2fd; border-left: 4px solid #1565c0; color: #0d47a1; }
+.card-green { background: #e8f5e9; border-left: 4px solid #2e7d32; color: #1b5e20; }
+.card-yellow { background: #fffde7; border-left: 4px solid #f9a825; color: #e65100; }
+.card-red { background: #ffebee; border-left: 4px solid #c62828; color: #b71c1c; }
+.card-gray { background: #f5f5f5; border-left: 4px solid #9e9e9e; color: #424242; }
+.card-purple { background: #f3e5f5; border-left: 4px solid #6a1b9a; color: #4a148c; }
+.card-orange { background: #fff3e0; border-left: 4px solid #e65100; color: #bf360c; }
+
+.card-bold { font-weight: bold; }
+.card-center { text-align: center; }
+
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.cmd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+.cmd-table th {
+    background: #e3f2fd;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 2px solid #1565c0;
+    color: #0d47a1;
+}
+.cmd-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+.cmd-table tr:hover { background: #f5f5f5; }
+
+.code-block {
+    background: #263238;
+    color: #aed581;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin-bottom: 8px;
+}
+
+.pitfall-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+.pitfall-key {
+    background: #c62828;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+}
+.pitfall-val {
+    background: #ffebee;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #b71c1c;
+}
+
+.full-width { grid-column: 1 / -1; }
+
+@media print {
+    body { background: white; padding: 0; }
+    .section { box-shadow: none; border: 1px solid #ddd; }
+}
+</style>
+<base target="_blank">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Linux 命令复习速查图</h1>
+        <p>文件管理 | 文档编辑 | 磁盘管理 | 网络通讯 | 系统管理 | 高频场景</p>
+    </div>
+
+    <div class="grid">
+        <!-- 一、文件管理 -->
+        <div class="section file">
+            <div class="section-title">一、文件管理</div>
+            <div class="section-body">
+                <div class="card card-blue card-bold card-center">
+                    核心命令：ls cd pwd mkdir rm cp mv cat chmod
+                </div>
+
+                <table class="cmd-table">
+                    <tr><th>命令</th><th>常用参数</th><th>作用</th></tr>
+                    <tr><td><b>ls</b></td><td>-lahtr</td><td>列出目录内容；-l长格式 -a隐藏文件 -h人类可读 -t按时间 -r反向</td></tr>
+                    <tr><td><b>cd</b></td><td>~ / - ..</td><td>切换目录；~home目录 /根目录 -上次目录 ..上级目录</td></tr>
+                    <tr><td><b>pwd</b></td><td>-L -P</td><td>显示当前路径；-L逻辑路径(默认) -P物理路径(不解析软链)</td></tr>
+                    <tr><td><b>mkdir</b></td><td>-p</td><td>创建目录；-p递归创建父目录</td></tr>
+                    <tr><td><b>rm</b></td><td>-rfi</td><td>删除；-r递归 -f强制 -i确认</td></tr>
+                    <tr><td><b>cp</b></td><td>-ravi</td><td>复制；-r递归 -a归档(保留属性) -v详细 -i确认</td></tr>
+                    <tr><td><b>mv</b></td><td>-fi</td><td>移动/重命名；-f强制 -i确认</td></tr>
+                    <tr><td><b>cat</b></td><td>-nbs</td><td>查看/连接文件；-n行号 -b非空行号 -s压缩空行</td></tr>
+                </table>
+
+                <div class="card card-yellow card-bold">
+                    chmod 权限：r=4 w=2 x=1<br>
+                    符号模式：chmod u+x file (所有者加执行) | chmod a+r file (所有人加读)<br>
+                    数字模式：chmod 755 file (u=rwx g=rx o=rx) | chmod 644 file (u=rw g=r o=r)
+                </div>
+
+                <div class="card card-green">
+                    <b>重定向与管道：</b><br>
+                    &gt; 覆盖写入 | &gt;&gt; 追加写入 | 2&gt; 错误重定向 | &amp;&gt; 同时重定向标准输出和错误<br>
+                    | 管道：左边输出送给右边当输入<br>
+                    例：ps aux | grep java | wc -l
+                </div>
+            </div>
+        </div>
+
+        <!-- 二、文档编辑 -->
+        <div class="section edit">
+            <div class="section-title">二、文档编辑 (vi/vim + grep)</div>
+            <div class="section-body">
+                <div class="card card-blue card-bold card-center">
+                    vim 三种模式：命令模式 → i/a/o 进入输入模式 → Esc 返回 → : 进入底线命令模式
+                </div>
+
+                <table class="cmd-table">
+                    <tr><th>模式</th><th>命令</th><th>功能</th></tr>
+                    <tr><td rowspan="6">命令模式</td><td>h/j/k/l</td><td>左下上右移动</td></tr>
+                    <tr><td>gg / G</td><td>文件首行 / 末行</td></tr>
+                    <tr><td>dd / yy / p</td><td>删除(剪切)行 / 复制行 / 粘贴</td></tr>
+                    <tr><td>u / Ctrl+r</td><td>撤销 / 重做</td></tr>
+                    <tr><td>/word / ?word</td><td>向下/向上搜索</td></tr>
+                    <tr><td>n / N</td><td>下一个/上一个匹配</td></tr>
+                    <tr><td rowspan="3">底线命令</td><td>:w / :q / :wq</td><td>保存 / 退出 / 保存退出</td></tr>
+                    <tr><td>:q!</td><td>强制退出不保存</td></tr>
+                    <tr><td>:%s/old/new/g</td><td>全文替换</td></tr>
+                    <tr><td rowspan="3">输入模式</td><td>i / a / o</td><td>光标前/后/下插入</td></tr>
+                    <tr><td>I / A / O</td><td>行首/行尾/上插入</td></tr>
+                    <tr><td>Esc</td><td>返回命令模式</td></tr>
+                </table>
+
+                <div class="card card-green">
+                    <b>grep 文本搜索：</b><br>
+                    grep "ERROR" app.log — 搜索ERROR<br>
+                    grep -i "null" app.log — 忽略大小写<br>
+                    grep -v "DEBUG" app.log — 排除DEBUG行<br>
+                    grep -n "error" app.log — 显示行号<br>
+                    grep -r "pattern" dir/ — 递归搜索目录
+                </div>
+            </div>
+        </div>
+
+        <!-- 三、磁盘管理 -->
+        <div class="section disk">
+            <div class="section-title">三、磁盘管理</div>
+            <div class="section-body">
+                <table class="cmd-table">
+                    <tr><th>命令</th><th>参数</th><th>作用</th></tr>
+                    <tr><td><b>df</b></td><td>-h</td><td>显示磁盘空间使用；-h人类可读</td></tr>
+                    <tr><td><b>free</b></td><td>-h -s 2</td><td>显示内存使用；-h人类可读 -s 2每2秒刷新</td></tr>
+                    <tr><td><b>du</b></td><td>-sh dir</td><td>查看目录大小；-s汇总 -h人类可读</td></tr>
+                </table>
+
+                <div class="card card-yellow card-bold card-center">
+                    df -h /var — 查看指定目录所在分区空间<br>
+                    du -sh * | sort -rh | head -10 — 查看当前目录下最大的10个文件/目录
+                </div>
+            </div>
+        </div>
+
+        <!-- 四、网络通讯 -->
+        <div class="section net">
+            <div class="section-title">四、网络通讯</div>
+            <div class="section-body">
+                <table class="cmd-table">
+                    <tr><th>命令</th><th>参数</th><th>作用</th></tr>
+                    <tr><td><b>ping</b></td><td>-c 4</td><td>测试连通性；-c 4发4个包后停止</td></tr>
+                    <tr><td><b>ss</b></td><td>-tlnp</td><td>查看网络连接；-t TCP -l监听 -n数字 -p进程名</td></tr>
+                    <tr><td><b>netstat</b></td><td>-ano</td><td>查看端口占用(Windows: netstat -ano | findstr :8080)</td></tr>
+                    <tr><td><b>nslookup</b></td><td></td><td>DNS查询域名对应IP</td></tr>
+                    <tr><td><b>dig</b></td><td></td><td>更详细的DNS信息</td></tr>
+                </table>
+
+                <div class="card card-blue card-bold">
+                    curl 命令行网络工具：<br>
+                    curl -X POST -d "name=John" url — POST请求<br>
+                    curl -H "Content-Type: application/json" url — 自定义请求头<br>
+                    curl -o file.html url — 保存到文件<br>
+                    curl -L url — 跟随重定向<br>
+                    curl -I url — 只获取响应头<br>
+                    curl -u user:pass url — 基本认证
+                </div>
+            </div>
+        </div>
+
+        <!-- 五、系统管理 -->
+        <div class="section sys">
+            <div class="section-title">五、系统管理</div>
+            <div class="section-body">
+                <table class="cmd-table">
+                    <tr><th>命令</th><th>参数</th><th>作用</th></tr>
+                    <tr><td><b>ps</b></td><td>aux / -ef</td><td>静态显示进程状态；aux显示所有含其他用户</td></tr>
+                    <tr><td><b>top</b></td><td>-d 3 -p PID</td><td>实时进程信息；-d刷新间隔 -p指定进程</td></tr>
+                    <tr><td><b>htop</b></td><td></td><td>交互式进程查看器(彩色/鼠标/进程树)</td></tr>
+                    <tr><td><b>kill</b></td><td>-9 / -15</td><td>终止进程；-9 SIGKILL强制 -15 SIGTERM正常</td></tr>
+                    <tr><td><b>sudo</b></td><td>-i -u user</td><td>提升权限；-i模拟登录 -u指定用户</td></tr>
+                    <tr><td><b>systemctl</b></td><td>start/stop/enable/status</td><td>服务管理；enable开机自启</td></tr>
+                    <tr><td><b>journalctl</b></td><td>-u service -f</td><td>查看系统日志；-f实时追踪</td></tr>
+                </table>
+
+                <div class="card card-yellow card-bold card-center">
+                    su vs sudo：<br>
+                    su — 需要目标用户密码，完整切换环境，会话持续到exit<br>
+                    sudo — 需要当前用户密码，单次命令或5分钟缓存，更细粒度权限控制
+                </div>
+
+                <div class="card card-green">
+                    <b>ps 进程状态 STAT：</b><br>
+                    R=运行 S=休眠 T=暂停 Z=僵尸 D=不可中断IO<br>
+                    &lt;=高优先级 N=低优先级 L=锁在内存
+                </div>
+            </div>
+        </div>
+
+        <!-- 六、其他命令 -->
+        <div class="section misc">
+            <div class="section-title">六、其他命令 (apt / echo / tail)</div>
+            <div class="section-body">
+                <div class="card card-blue card-bold">
+                    apt 包管理（Debian/Ubuntu）：<br>
+                    sudo apt update — 更新软件源列表<br>
+                    sudo apt upgrade — 升级已安装软件包<br>
+                    sudo apt install pkg — 安装<br>
+                    sudo apt remove pkg — 删除(保留配置)<br>
+                    sudo apt purge pkg — 删除并清除配置<br>
+                    sudo apt autoremove — 自动清理无用依赖
+                </div>
+
+                <div class="card card-green card-bold">
+                    echo 输出：<br>
+                    echo "hello" — 输出字符串<br>
+                    echo $VAR — 输出变量<br>
+                    echo -e "line1\nline2" — 启用转义(-e)<br>
+                    echo "text" &gt; file.txt — 覆盖写入<br>
+                    echo "text" &gt;&gt; file.txt — 追加写入
+                </div>
+
+                <div class="card card-orange card-bold">
+                    tail 查看文件尾部：<br>
+                    tail -n 20 file — 显示最后20行<br>
+                    tail -f file — 实时追踪新增内容(常用看日志)<br>
+                    tail -f app.log | grep ERROR — 实时过滤日志中的ERROR
+                </div>
+            </div>
+        </div>
+
+        <!-- 七、高频场景速查 -->
+        <div class="section tips full-width">
+            <div class="section-title">七、高频场景速查</div>
+            <div class="section-body">
+                <div class="two-col">
+                    <div>
+                        <div class="code-block">
+# 查找并删除大文件
+find /path -type f -size +100M -exec ls -lh {} \;
+
+# 查找占用磁盘空间最大的目录
+du -sh /* 2&gt;/dev/null | sort -rh | head -10
+
+# 批量修改文件权限
+find . -type f -exec chmod 644 {} \;
+find . -type d -exec chmod 755 {} \;
+
+# 查找并替换文件内容
+sed -i 's/old/new/g' file.txt
+
+# 压缩/解压
+tar -czvf archive.tar.gz dir/    # 压缩
+tar -xzvf archive.tar.gz         # 解压
+                        </div>
+                    </div>
+                    <div>
+                        <div class="code-block">
+# 查看端口占用(Linux)
+ss -tlnp | grep 8080
+
+# 查看端口占用(Windows)
+netstat -ano | findstr :8080
+tasklist | findstr &lt;PID&gt;
+
+# 实时查看日志
+tail -f /var/log/app.log | grep ERROR
+
+# 杀死进程
+kill -9 $(pgrep -f "java")
+
+# 查看系统负载
+uptime
+
+# 查看当前登录用户
+who / w
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pitfall-row"><div class="pitfall-key">rm -rf 慎用</div><div class="pitfall-val">rm -rf / 会删除整个系统！删除前先用 ls 确认，或用 -i 交互模式</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">权限不足</div><div class="pitfall-val">Permission denied -> 检查文件权限(ls -l)或用 sudo 执行</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">命令找不到</div><div class="pitfall-val">command not found -> 检查PATH环境变量，或安装对应软件包</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">端口被占</div><div class="pitfall-val">Address already in use -> ss -tlnp | grep 端口 找到进程后 kill</div></div>
+                <div class="pitfall-row"><div class="pitfall-key">磁盘满了</div><div class="pitfall-val">No space left on device -> df -h 查看，du -sh 找大文件清理</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
