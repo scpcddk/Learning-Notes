@@ -1,17 +1,22 @@
 # 📦 Maven 核心笔记（Java 云原生 AI 方向）
 
+---
+
 ## 1. Maven 是什么？
 
-- **项目构建工具**：管理依赖、编译、测试、打包、部署
+- **项目构建工具**：管理**依赖、编译、测试、打包、部署**
 - **核心文件**：`pom.xml`（Project Object Model）
 
-### 特点
+### **特点**
 
 - **约定优于配置**：提供标准化的项目结构和构建生命周期
 - **依赖管理**：自动处理项目依赖关系
 - **插件体系**：丰富的插件支持各种构建任务
 - **多模块支持**：简化大型项目的管理
 - **中央仓库**：访问全球共享的库
+
+> [!TIP]
+> **核心心法**：依赖交给 Maven 管，打包交给 Maven 做，你只负责写好 Java 业务逻辑和 Dockerfile
 
 ---
 
@@ -29,13 +34,15 @@ mvn -v
 **配置文件**：`~/.m2/settings.xml`（可配置阿里云镜像加速）
 
 ```xml
-<mirrors>
-    <mirror>
-        <id>aliyun</id>
-        <mirrorOf>central</mirrorOf>
-        <url>https://maven.aliyun.com/repository/public</url>
-    </mirror>
-</mirrors>
+<settings>
+    <mirrors>
+        <mirror>
+            <id>aliyun</id>
+            <mirrorOf>central</mirrorOf>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+    </mirrors>
+</settings>
 ```
 
 ---
@@ -44,19 +51,19 @@ mvn -v
 
 | 命令 | 说明 |
 | ------ | ------ |
-| `mvn clean` | 删除 target/ 目录 |
+| `mvn clean` | 删除 `target/` 目录 |
 | `mvn compile` | 编译 Java 代码 |
 | `mvn test` | 执行测试用例 |
 | `mvn package` | 打包成 JAR（或 WAR） |
 | `mvn install` | 将 JAR 安装到本地仓库 |
-| `mvn spring-boot:run` | 直接运行 SpringBoot 应用 |
-| `mvn dependency:tree` | 查看依赖树 |
+| `mvn spring-boot:run` | 直接运行 Spring Boot 应用 |
+| `mvn dependency:tree` | 查看依赖树（排冲突神器） |
 
 > 💡 快速跳过测试：`mvn clean package -DskipTests`
 
 ---
 
-## 4. `pom.xml` 核心结构（SpringBoot 示例）
+## 4. **`pom.xml` 核心结构**（Spring Boot 示例）
 
 ```xml
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -71,7 +78,7 @@ mvn -v
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <!-- 父工程：SpringBoot 统一依赖管理 -->
+    <!-- 父工程：Spring Boot 统一依赖管理 -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -86,7 +93,7 @@ mvn -v
     </properties>
 
     <dependencies>
-        <!-- SpringBoot Web -->
+        <!-- Spring Boot Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -111,7 +118,7 @@ mvn -v
 
     <build>
         <plugins>
-            <!-- SpringBoot 打包插件：生成可执行 fat jar -->
+            <!-- Spring Boot 打包插件：生成可执行 fat jar -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -121,17 +128,22 @@ mvn -v
 </project>
 ```
 
-- `<properties>` → `<dependencies>` → `<build>` 符合 POM 规范
+> [!IMPORTANT]
+> **结构顺序**：`<properties>` → `<dependencies>` → `<build>` 符合 POM 规范
 
 ---
 
 ## 5. 依赖管理要点（避免踩坑）
 
-- **scope 理解**：
-  - `compile`（默认）：全阶段生效，打包进 JAR
-  - `provided`：编译测试需要，但打包时排除（例如 `lombok`）
-  - `test`：仅测试时使用（如 `junit`）
-- **排除传递依赖**（解决冲突）：
+### 5.1 scope 理解
+
+| scope | 作用范围 | 典型场景 |
+| ------- | --------- | --------- |
+| `compile` | **默认**，全阶段生效，打包进 JAR | 大部分依赖 |
+| `provided` | 编译测试需要，**打包时排除** | `lombok`、Servlet API（容器已提供） |
+| `test` | 仅测试阶段使用 | `junit` |
+
+### 5.2 排除传递依赖（解决冲突）
 
 ```xml
 <dependency>
@@ -148,16 +160,19 @@ mvn -v
 
 ---
 
-## 6. 生命周期与插件关系（理解即可）
+## 6. 生命周期与插件关系
 
-| 阶段 | 执行插件目标 |
-| ------ | ------------- |
-| clean | `maven-clean-plugin:clean` |
-| compile | `maven-compiler-plugin:compile` |
-| test | `maven-surefire-plugin:test` |
-| package | `maven-jar-plugin:jar`（或 spring-boot:repackage） |
-| install | `maven-install-plugin:install` |
-| deploy | 上传到私服 |
+| 阶段 | 执行插件目标 | 说明 |
+| ------ | ------------- | ------ |
+| `clean` | `maven-clean-plugin:clean` | 清理 target |
+| `compile` | `maven-compiler-plugin:compile` | 编译源码 |
+| `test` | `maven-surefire-plugin:test` | 执行测试 |
+| `package` | `maven-jar-plugin:jar`（或 `spring-boot:repackage`） | 打包 |
+| `install` | `maven-install-plugin:install` | 安装到本地仓库 |
+| `deploy` | — | 上传到私服 |
+
+> [!IMPORTANT]
+> **调用规则**：`mvn 阶段`会自动执行该阶段之前的所有阶段。例如 `mvn package` 会先执行 `compile` → `test` → `package`
 
 ---
 
@@ -187,14 +202,20 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
             <env>dev</env>
         </properties>
     </profile>
+    <profile>
+        <id>prod</id>
+        <properties>
+            <env>prod</env>
+        </properties>
+    </profile>
 </profiles>
 ```
 
-  运行时：`mvn clean package -Pdev`
+运行时：`mvn clean package -Pdev`
 
-### 📌 场景3：为什么 SpringBoot 打包后 JAR 很大？
+### 📌 场景3：为什么 Spring Boot 打包后 JAR 很大？
 
-- SpringBoot 插件会将所有依赖（包括 Tomcat）打成一个 **fat jar**。容器化部署时很合适，不需要外置 Tomcat
+- Spring Boot 插件会将所有依赖（包括 Tomcat）打成一个 **fat jar**。容器化部署时很合适，不需要外置 Tomcat
 
 ---
 
@@ -202,16 +223,18 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 
 | 错误信息 | 原因 | 解决方案 |
 | --------- | ------ | --------- |
-| `Could not find artifact` | 依赖下载失败 | 检查 mirror 或手动下载到本地仓库 |
-| `Unsupported class file major version 61` | JDK版本不匹配 | 修改 `properties` 中的 `java.version` |
+| `Could not find artifact` | 依赖下载失败 | 检查 mirror 配置，或手动下载到本地仓库 |
+| `Unsupported class file major version 61` | JDK 版本不匹配 | 修改 `properties` 中的 `java.version` |
 | `Main class not found` | 未指定启动类 | 在 `<properties>` 增加 `<start-class>` 或正常放置 `@SpringBootApplication` |
 | `Package XXX does not exist` | 依赖未引入或 scope 错误 | 运行 `mvn dependency:tree` 检查 |
 
 ---
 
-💡 核心心法（Maven 版）：
-依赖交给 Maven 管，打包交给 Maven 做，你只负责写好 Java 业务逻辑和 Dockerfile
+## 9. **核心记忆口诀**
 
-参考链接：[https://www.runoob.com/maven/maven-tutorial.html]
+> [!TIP]
+> **坐标**定项目，**父工程**管版本，**依赖**看 scope，**打包**靠插件，**排错**用 tree，**跳过**加 `-DskipTests`
 
 ---
+
+参考链接：[https://www.runoob.com/maven/maven-tutorial.html](https://www.runoob.com/maven/maven-tutorial.html)

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Docker 速查复习笔记</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.7;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            padding: 40px;
+        }
+        h1 {
+            color: #2496ed;
+            font-size: 2em;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #1a73e8;
+            font-size: 1.3em;
+            margin: 28px 0 12px 0;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e8f0fe;
+        }
+        h3 {
+            color: #444;
+            font-size: 1.05em;
+            margin: 18px 0 8px 0;
+        }
+        .concept-box {
+            background: #f0f7ff;
+            border-left: 4px solid #2496ed;
+            padding: 12px 16px;
+            margin: 12px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 0.92em;
+        }
+        th {
+            background: #2496ed;
+            color: #fff;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        tr:nth-child(even) { background: #fafbfc; }
+        tr:hover { background: #f0f7ff; }
+        code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 0.9em;
+            color: #d73a49;
+        }
+        .highlight {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+        }
+        .tip {
+            background: #e6fffb;
+            border: 1px solid #87e8de;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+        }
+        .tip::before {
+            content: "💡 ";
+            font-weight: bold;
+        }
+        .warn {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+        }
+        .warn::before {
+            content: "⚠️ ";
+            font-weight: bold;
+        }
+        ul {
+            margin: 8px 0 8px 24px;
+        }
+        li {
+            margin: 4px 0;
+        }
+        .cmd-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .cmd-tag {
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 0.85em;
+            font-family: monospace;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐳 Docker 速查复习笔记</h1>
+        <p class="subtitle">面向 Spring Boot 项目 | 简洁版</p>
+
+        <h2>一、核心概念</h2>
+        <div class="concept-box">
+            <strong>镜像（Image）</strong>：只读模板，包含运行环境（JDK + jar）<br>
+            <strong>容器（Container）</strong>：镜像的运行实例，可启停删，相互隔离<br>
+            <strong>仓库（Repository）</strong>：存放镜像的地方，如 Docker Hub
+        </div>
+
+        <h2>二、常用命令速查</h2>
+        <table>
+            <tr><th>命令</th><th>作用</th></tr>
+            <tr><td><code>docker run -d -p 8080:8080 --name app 镜像</code></td><td>后台启动容器，端口映射</td></tr>
+            <tr><td><code>docker ps / ps -a</code></td><td>查看运行中 / 所有容器</td></tr>
+            <tr><td><code>docker build -t my-image .</code></td><td>构建镜像</td></tr>
+            <tr><td><code>docker images</code></td><td>列出本地镜像</td></tr>
+            <tr><td><code>docker pull/push 镜像</code></td><td>拉取 / 推送镜像</td></tr>
+            <tr><td><code>docker exec -it 容器 bash</code></td><td>进入容器交互终端</td></tr>
+            <tr><td><code>docker start/stop/restart 容器</code></td><td>启停重启容器</td></tr>
+            <tr><td><code>docker rm / rmi</code></td><td>删除容器 / 镜像</td></tr>
+            <tr><td><code>docker logs -f 容器</code></td><td>查看日志</td></tr>
+            <tr><td><code>docker-compose up -d</code></td><td>后台启动多服务</td></tr>
+            <tr><td><code>docker-compose down</code></td><td>停止并删除 compose 服务</td></tr>
+        </table>
+
+        <div class="tip">常用选项：<code>-d</code> 后台运行 | <code>-p 宿主机:容器</code> 端口映射 | <code>-v</code> 挂载卷 | <code>--name</code> 命名 | <code>--restart=always</code> 自动重启</div>
+
+        <h2>三、Dockerfile 核心指令</h2>
+        <table>
+            <tr><th>指令</th><th>作用</th></tr>
+            <tr><td><code>FROM</code></td><td>指定基础镜像</td></tr>
+            <tr><td><code>WORKDIR</code></td><td>设置工作目录</td></tr>
+            <tr><td><code>COPY</code></td><td>复制文件到镜像（推荐用 COPY，不用 ADD）</td></tr>
+            <tr><td><code>RUN</code></td><td>构建时执行命令</td></tr>
+            <tr><td><code>ENV</code></td><td>设置环境变量</td></tr>
+            <tr><td><code>EXPOSE</code></td><td>声明端口（仅文档作用）</td></tr>
+            <tr><td><code>CMD</code></td><td>容器启动默认命令，可被覆盖</td></tr>
+            <tr><td><code>ENTRYPOINT</code></td><td>入口命令，不会被覆盖，可追加参数</td></tr>
+        </table>
+
+        <div class="warn"><strong>CMD vs ENTRYPOINT</strong>：Spring Boot 推荐只用 <code>ENTRYPOINT</code>，避免误覆盖启动命令。组合用法：ENTRYPOINT 固定命令 + CMD 提供默认参数。</div>
+
+        <h3>多阶段构建（Java 项目必用）</h3>
+        <div class="highlight">
+            构建阶段用 Maven + JDK 编译 → 运行阶段只保留 JRE + jar<br>
+            效果：镜像体积从 600MB+ 降至 200MB 以内
+        </div>
+
+        <h3>生产级 Dockerfile 要点</h3>
+        <ul>
+            <li>用 <code>eclipse-temurin:21-jre-alpine</code> 等轻量基础镜像</li>
+            <li>多阶段构建，编译与运行分离</li>
+            <li>创建非 root 用户运行（<code>USER app</code>）</li>
+            <li>设置时区 <code>Asia/Shanghai</code></li>
+            <li>添加 <code>HEALTHCHECK</code> 健康检查（配合 Actuator）</li>
+            <li>JVM 参数通过 <code>ENV JAVA_OPTS</code> 注入</li>
+        </ul>
+
+        <h2>四、docker-compose 核心</h2>
+        <table>
+            <tr><th>字段</th><th>作用</th></tr>
+            <tr><td><code>services</code></td><td>定义所有服务</td></tr>
+            <tr><td><code>ports</code></td><td>端口映射 <code>"8080:8080"</code></td></tr>
+            <tr><td><code>volumes</code></td><td>数据挂载持久化</td></tr>
+            <tr><td><code>networks</code></td><td>自定义网络，容器间用服务名互访</td></tr>
+            <tr><td><code>depends_on</code></td><td>控制启动顺序（不保证服务就绪）</td></tr>
+            <tr><td><code>environment</code></td><td>注入环境变量</td></tr>
+            <tr><td><code>restart</code></td><td>重启策略，推荐 <code>unless-stopped</code></td></tr>
+        </table>
+
+        <h3>数据挂载三种方式</h3>
+        <ul>
+            <li><strong>匿名卷</strong>：<code>- /app/logs</code>（Docker 自动管理）</li>
+            <li><strong>命名卷</strong>：<code>- app-logs:/app/logs</code>（方便备份共享）</li>
+            <li><strong>宿主机目录</strong>：<code>- ./logs:/app/logs</code>（开发调试最常用）</li>
+        </ul>
+
+        <div class="tip">同一网络内容器直接用<strong>服务名</strong>作为域名通信，如 <code>http://inference:5000/predict</code>，不要硬编码 IP</div>
+
+        <h2>五、镜像优化技巧</h2>
+        <ul>
+            <li>优先用 <code>alpine</code> / <code>slim</code> 版本，避免 <code>latest</code> 完整版</li>
+            <li>多阶段构建分离编译与运行</li>
+            <li>合并 RUN 命令，减少层数，及时清理缓存</li>
+            <li>添加 <code>.dockerignore</code> 排除无关文件</li>
+            <li>固定依赖版本，利用构建缓存</li>
+        </ul>
+
+        <h2>六、落地注意事项</h2>
+        <table>
+            <tr><th>注意点</th><th>说明</th></tr>
+            <tr><td>jar 名称固定</td><td>pom.xml 中设置 <code>&lt;finalName&gt;app&lt;/finalName&gt;</code>，避免 COPY 多文件报错</td></tr>
+            <tr><td>非 root 运行</td><td>务必创建普通用户并 USER 切换，降低安全风险</td></tr>
+            <tr><td>时区设置</td><td>Alpine 默认 UTC，需手动设置 Asia/Shanghai</td></tr>
+            <tr><td>日志持久化</td><td>用 volumes 挂载到宿主机，容器删除数据不丢</td></tr>
+            <tr><td>访问宿主机</td><td>容器内 localhost 指向自身；Win/Mac 用 <code>host.docker.internal</code>；Linux 需加 extra_hosts</td></tr>
+            <tr><td>优雅停机</td><td>Spring Boot 配置 <code>server.shutdown=graceful</code>，配合 SIGTERM</td></tr>
+            <tr><td>大数字精度</td><td>JS 解析大整数会丢失，后端 Long 转字符串传输</td></tr>
+            <tr><td>Compose 版本</td><td>V2 不再需要 <code>version</code> 字段，写上可能报警告</td></tr>
+        </table>
+
+        <div class="warn"><strong>安全：</strong>禁止用 <code>eval()</code> 解析 JSON；定期 <code>docker build --pull</code> 更新基础镜像；生产环境限制 CPU/内存资源</div>
+
+        <div class="footer">
+            Docker 复习速查 | 简洁版
+        </div>
+    </div>
+</body>
+</html>

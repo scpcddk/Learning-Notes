@@ -16,7 +16,7 @@
 ### 1.2 为什么后端要学 Shell？
 
 - **自动化部署**：写脚本一键打包、上传、重启服务
-- **日志分析**：用 `grep`、`awk` 快速排查线上问题
+- **日志分析**：用`grep`、`awk`快速排查线上问题
 - **批量测试**：循环调用接口、压测脚本
 - **环境配置**：初始化服务器、安装依赖
 
@@ -78,25 +78,24 @@ echo ${str:1:2}       # 从下标1截取2个：el
 
 - **单引号**:字符会**原样输出**，里面的**变量**是**无效**的,不能出现单独一个的单引号（对单引号使用转义符后也不行）
 - **双引号**:里面**可以有变量**,可以出现转义字符
-
 - **拼接字符串**:
 
-```bash
-your_name="runoob"
-# 使用双引号拼接
-greeting="hello, "$your_name" !"
-greeting_1="hello, ${your_name} !"
-echo $greeting  $greeting_1
-
-# 使用单引号拼接
-greeting_2='hello, '$your_name' !'
-greeting_3='hello, ${your_name} !'
-echo $greeting_2  $greeting_3
-
-输出结果为：
-hello, runoob ! hello, runoob !
-hello, runoob ! hello, ${your_name} !
-```
+  ```bash
+  your_name="runoob"
+  # 使用双引号拼接
+  greeting="hello, "$your_name" !"
+  greeting_1="hello, ${your_name} !"
+  echo $greeting  $greeting_1
+  
+  # 使用单引号拼接
+  greeting_2='hello, '$your_name' !'
+  greeting_3='hello, ${your_name} !'
+  echo $greeting_2  $greeting_3
+  
+  输出结果为：
+  hello, runoob ! hello, runoob !
+  hello, runoob ! hello, ${your_name} !
+  ```
 
 ---
 
@@ -127,28 +126,28 @@ fi
 
 - **常用条件测试**（`test` 命令或 `[ ]`）：
 
-| 表达式 | 含义 |
-| -------- | ------ |
-| `[ -f file ]` | 文件存在且为普通文件 |
-| `[ -d dir ]` | 目录存在 |
-| `[ -z str ]` | 字符串长度为0 |
-| `[ -n str ]` | 字符串长度非0 |
-| `[ str1 = str2 ]` | 字符串相等 |
-| `[ a -eq b ]` | 整数相等（-ne, -gt, -lt, -ge, -le） |
-| `[ condition1 -a condition2 ]` | 与运算（-o 或） |
+  | 表达式 | 含义 |
+  | -------- | ------ |
+  | `[ -f file ]` | 文件存在且为普通文件 |
+  | `[ -d dir ]` | 目录存在 |
+  | `[ -z str ]` | 字符串长度为0 |
+  | `[ -n str ]` | 字符串长度非0 |
+  | `[ str1 = str2 ]` | 字符串相等 |
+  | `[ a -eq b ]` | 整数相等（-ne, -gt, -lt, -ge, -le） |
+  | `[ condition1 -a condition2 ]` | 与运算（-o 或） |
 
 - 示例：
 
-```bash
-if [ $# -eq 0 ]; then
-    echo "请提供参数"
-    exit 1
-fi
-
-if [ -f "/var/log/nginx/error.log" ]; then
-    echo "日志文件存在"
-fi
-```
+  ```bash
+  if [ $# -eq 0 ]; then
+      echo "请提供参数"
+      exit 1
+  fi
+  
+  if [ -f "/var/log/nginx/error.log" ]; then
+      echo "日志文件存在"
+  fi
+  ```
 
 ---
 
@@ -242,13 +241,13 @@ greet "World"
 | `<` | 从文件**读入** |
 | `\|` | **管道**，前一个命令的输出作为后一个的输入 |
 
-示例：
+- 示例：
 
-```bash
-echo "hello" > output.txt
-./my.sh 2> error.log
-ls -l | grep ".jar"
-```
+  ```bash
+  echo "hello" > output.txt
+  ./my.sh 2> error.log
+  ls -l | grep ".jar"
+  ```
 
 ---
 
@@ -294,15 +293,15 @@ sed -i 's/old/new/g' *.java
 
 ## 7. 调试与安全
 
-- **调试模式**：`bash -x script.sh` 逐行执行并显示变量值。
-- **严格模式**：在脚本开头加 `set -e`（遇到错误退出）和 `set -u`（使用未定义变量时报错）。
-- **避免注入**：使用 `"$var"` 双引号包裹变量。
+- **调试模式**：`bash -x script.sh` 逐行执行并显示变量值
+- **严格模式**：在脚本开头加 `set -e`（遇到错误退出）和 `set -u`（使用未定义变量时报错）
+- **避免注入**：使用 `"$var"` 双引号包裹变量
 
 ---
 
 ## 8. 学习建议
 
-- **先掌握 20 条常用命令**：`echo`, `cat`, `grep`, `awk`, `sed`, `ps`, `kill`, `curl`, `wget`, `tar`, `chmod`, `ls`, `cd`, `pwd`, `cp`, `mv`, `rm`, `mkdir`, `find`, `tail`。
+- **先掌握 20 条常用命令**：`echo`, `cat`, `grep`, `awk`, `sed`, `ps`, `kill`, `curl`, `wget`, `tar`, `chmod`, `ls`, `cd`, `pwd`, `cp`, `mv`, `rm`, `mkdir`, `find`, `tail`
 - **动手写**：把重复的手工操作写成脚本（例如启动 Spring Boot + 健康检查）
 - **善用搜索引擎**：忘记语法时查 `bash for loop`、`bash if file exists` 即可
 

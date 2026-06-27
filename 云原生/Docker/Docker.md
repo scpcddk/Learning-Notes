@@ -2,7 +2,7 @@
 
 ---
 
-## 1. **核心概念**
+## 1. 核心概念
 
 - **镜像（Image）**：一个只读的**模板**，包含运行环境（如 JDK + 应用 jar）
 - **容器（Container）**：镜像的**运行实例**，可启动、停止、删除，相互隔离
@@ -10,7 +10,9 @@
 
 ---
 
-## 2. ==**常用命令**==
+## 2. 常用命令
+
+### 2.1 基础命令
 
 | **命令** | **功能** | **示例** |
 | --------------------- | -------------------------------- | ------------------------------------------ |
@@ -54,12 +56,28 @@
 - `--name`：指定容器名称
 - `-v 宿主机目录:容器目录`：挂载数据卷（持久化）
 - `--restart=always`：自动重启
+- `-m 512m`：内存硬限制
+- `--cpus="1.5"`：CPU 配额限制
+
+---
+
+### 2.2 调试排障命令
+
+| 场景 | 命令 |
+| ------ | ------ |
+| 查看容器实时资源 | `docker stats 容器名` |
+| 查看容器进程 | `docker top 容器名` |
+| 查看容器详细配置 | `docker inspect 容器名` |
+| 查看容器内文件系统变化 | `docker diff 容器名` |
+| 复制容器内文件到宿主机 | `docker cp 容器名:/app/logs .` |
+| 进入已停止的容器 | `docker commit 容器名 临时镜像 && docker run -it 临时镜像 bash` |
+| 查看容器退出码 | `docker inspect 容器名 --format='{{.State.ExitCode}}'` |
 
 ---
 
 ## 3. Dockerfile 模板（Spring Boot 项目 + AI 扩展）
 
-### 3.1 **常用指令详解**
+### 3.1 常用指令详解
 
 | 指令 | 作用 | 示例 |
 | ------ | ------ | ------ |
@@ -82,7 +100,40 @@
 
 ---
 
-### 3.2 多阶段构建（Java 项目瘦身必用）
+### 3.2 镜像分层与构建缓存
+
+- Docker 镜像采用**分层存储**（Union File System），Dockerfile 中每条指令都会创建一个新的只读层
+
+  ```dockerfile
+  FROM eclipse-temurin:21-jre-alpine    # 第1层：基础镜像层
+  WORKDIR /app                          # 第2层
+  COPY target/app.jar app.jar           # 第3层（若jar变化，此层及之后缓存失效）
+  RUN chmod +x app.jar                  # 第4层
+  ENTRYPOINT ["java", "-jar", "app.jar"] # 第5层
+  ```
+
+- **关键规则：**
+  - 层是**只读**的，容器启动时在最上层添加**可写层**
+  - 某一层变化后，**该层之后的所有层缓存失效**，需重新构建
+  - **优化技巧**：将变化频率低的指令放前面（如依赖安装），变化高的放后面（如代码 COPY）
+
+- **最佳实践示例（优化前 vs 优化后）：**
+
+  ```dockerfile
+  # ❌ 优化前：每次代码改动都重新下载依赖
+  COPY . .                              # 代码和 pom.xml 一起复制
+  RUN mvn clean package -DskipTests     # 依赖+编译，缓存完全失效
+  
+  # ✅ 优化后：先复制 pom.xml 下载依赖，利用缓存
+  COPY pom.xml .
+  RUN mvn dependency:go-offline -B      # 依赖层缓存，pom.xml 不变就不重新下载
+  COPY src ./src
+  RUN mvn clean package -DskipTests -B  # 只有 src 变化时才重新编译
+  ```
+
+---
+
+### 3.3 多阶段构建（Java 项目瘦身必用）
 
 构建阶段用 Maven + JDK 编译，运行阶段只保留 JRE，最终镜像不包含源码和构建工具
 
@@ -107,7 +158,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ---
 
-### 3.3 实战模板 1：Spring Boot 生产级 Dockerfile
+### 3.4 实战模板 1：Spring Boot 生产级 Dockerfile
 
 ```dockerfile
 # ========== 构建阶段 ==========
@@ -136,8 +187,8 @@ COPY --from=builder /build/target/*.jar app.jar
 RUN chown -R app:app /app
 USER app
 
-# JVM 参数可通过环境变量覆盖
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
+# JVM 参数可通过环境变量覆盖（Java 8u191+/11+ 默认开启容器支持）
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx512m"
 EXPOSE 8080
 
 # 健康检查（需引入 spring-boot-starter-actuator）
@@ -153,15 +204,15 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 ```bash
 # 构建镜像
 docker build -t my-spring-app .
-# 运行容器
-docker run -d -p 8080:8080 --name spring-app my-spring-app
+# 运行容器（带资源限制）
+docker run -d -p 8080:8080 --name spring-app -m 512m --cpus="1.5" my-spring-app
 ```
 
 - 若未使用多阶段构建，可直接 `mvn clean package -DskipTests` 后在`Dockerfile`中用 `COPY target/*.jar app.jar`（需确保目录下只有一个`jar`）
 
 ---
 
-### 3.4 实战模板 2：Python AI 推理服务 Dockerfile
+### 3.5 实战模板 2：Python AI 推理服务 Dockerfile
 
 ```dockerfile
 FROM python:3.10-slim
@@ -197,9 +248,9 @@ ENTRYPOINT ["python", "app.py"]
 
 ---
 
-### 3.5 镜像优化技巧速查
+### 3.6 镜像优化技巧速查
 
-- **选对基础镜像**：优先用 `alpine` 或 `slim` 版本，避免 `latest` 完整版
+- **选对基础镜像**：优先用 `alpine` 或 `slim` 版本，避免 `latest` 完整版；固定具体版本号，如 `eclipse-temurin:21.0.2_13-jre-alpine`
 - **多阶段构建**：`Java/Go`项目必备，编译与运行分离
 - **合并 RUN 命令**：减少层数，及时清理缓存和临时文件
   
@@ -210,6 +261,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends 包名 \
 
 - **添加 `.dockerignore`**：排除 `.git`、`target`（若外部构建）、`node_modules` 等无关内容
 - **固定依赖版本**：Python 用 `requirements.txt` 锁定版本，Maven 在 `pom.xml` 中明确版本号
+
+---
+
+### 3.7 镜像安全扫描
+
+构建后检查漏洞：
+
+```bash
+# Docker 内置（需登录）
+docker scout cves my-spring-app
+
+# 开源工具 Trivy
+trivy image my-spring-app
+```
+
+**安全加固建议：**
+
+- 使用非 root 用户（已有 ✅）
+- 最小化基础镜像（alpine/slim，已有 ✅）
+- 固定基础镜像版本，避免 `latest`
+- 只暴露必要的端口
+- 只复制必要的文件（配合 `.dockerignore`）
 
 ---
 
@@ -280,7 +353,27 @@ services:
 
 ---
 
-### 4.4 完整编排模板：Spring Boot + AI 推理服务
+### 4.4 网络模式详解
+
+| 模式 | 说明 | 适用场景 |
+| ------ | ------ | ---------- |
+| **bridge** | 默认模式，容器通过 veth pair 连接 docker0 网桥，NAT 访问外网 | 大多数单机容器通信 |
+| **host** | 容器共享宿主机网络栈，无 NAT 隔离 | 性能敏感（如高并发网关），但端口会冲突 |
+| **none** | 禁用所有网络，仅 lo 回环 | 完全隔离场景 |
+| **container** | 与另一个容器共享网络栈 | 如 Sidecar 模式（日志采集、代理） |
+| **自定义 bridge** | 用户创建的 bridge 网络，支持 DNS 自动解析（服务名互访） | docker-compose 默认使用 |
+
+```bash
+# 查看容器网络详情
+docker inspect 容器名 | grep -A 20 "NetworkSettings"
+
+# 容器间通信本质：通过 docker0 网桥（172.17.0.1/16）转发
+# 自定义网络额外提供：内置 DNS，容器间可用服务名 ping 通
+```
+
+---
+
+### 4.5 完整编排模板：Spring Boot + AI 推理服务
 
 ```yaml
 services:
@@ -290,7 +383,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - JAVA_OPTS=-Xms256m -Xmx512m
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx512m
       - SPRING_PROFILES_ACTIVE=docker
       - AI_SERVICE_URL=http://inference:5000/predict
     volumes:
@@ -300,6 +393,11 @@ services:
     restart: unless-stopped
     depends_on:
       - inference
+    logging:                       # 日志轮转，防止撑满磁盘
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   inference:                      # AI 推理服务
     build: ./inference
@@ -312,6 +410,11 @@ services:
     networks:
       - app-net
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   app-net:
@@ -320,7 +423,52 @@ networks:
 
 ---
 
-### 4.5 Compose 常用运维命令
+### 4.6 生产环境配置
+
+#### 资源限制
+
+```yaml
+services:
+  backend:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+```
+
+> 注意：Compose V2 中 `deploy.resources` 在 Swarm 模式外可能不生效，单机可用 `docker run` 参数替代。
+
+#### 日志管理（集中化）
+
+```yaml
+# 方案1：json-file 驱动 + 轮转（默认）
+logging:
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# 方案2：local 驱动（Docker 20.10+，性能更好）
+logging:
+  driver: "local"
+  options:
+    max-size: "10m"
+
+# 方案3：发送到 Fluentd，再转发到 Elasticsearch
+logging:
+  driver: fluentd
+  options:
+    fluentd-address: "localhost:24224"
+    tag: "docker.{{.Name}}"
+```
+
+---
+
+### 4.7 Compose 常用运维命令
 
 | 命令 | 作用 |
 | ------ | ------ |
@@ -334,7 +482,48 @@ networks:
 
 ---
 
-## 5. **注意事项**（落地必看）
+## 5. CI/CD 流水线示例（GitHub Actions）
+
+```yaml
+# .github/workflows/docker-build.yml
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/my-spring-app:${{ github.sha }}
+```
+
+---
+
+## 6. 注意事项（落地必看）
 
 | 注意事项 | 说明 |
 | ---------- | ------ |
@@ -345,16 +534,16 @@ networks:
 | **时区设置** | Alpine 默认 UTC，需手动设置为`Asia/Shanghai`或其他时区 |
 | **日志与模型持久化** | 使用 volumes 挂载到宿主机，容器删除数据不丢 |
 | **网络互联** | 自定义网络下用**服务名**互访，如 `inference:5000`，不要硬编码 IP |
-| **资源限制** | 生产环境通过 `-m` 或 Compose 的 `deploy.resources` 限制 CPU/内存 |
+| **资源限制** | 生产环境通过 `-m` / `--cpus` 或 Compose 的 `deploy.resources` 限制 CPU/内存，防止雪崩 |
 | **访问宿主机** | 容器内 `localhost` 指向自身；Windows/Mac 可用 `host.docker.internal`；Linux 需在 Compose 中加 `extra_hosts: - "host.docker.internal:host-gateway"` |
 | **优雅停机** | Spring Boot 可配置 `server.shutdown=graceful`，配合 `SIGTERM` 保证请求处理完毕 |
-| **镜像安全更新** | 定期执行 `docker build --pull .` 拉取最新基础镜像 |
+| **镜像安全更新** | 定期执行 `docker build --pull .` 拉取最新基础镜像；使用 `docker scout` 或 `trivy` 扫描漏洞 |
 | **Compose 版本字段** | Docker Compose V2 不再需要 `version`，写上可能报警告，可移除 |
+| **JVM 容器感知** | Java 8u191+ / 11+ 默认开启 `-XX:+UseContainerSupport`，JVM 自动读取 cgroup 内存限制；早期版本需显式配置，否则按宿主机总内存分配导致 OOM |
+| **日志轮转** | 生产必配 `logging` 的 `max-size` 和 `max-file`，防止日志撑满磁盘 |
 
 ---
 
 参考链接：[https://www.runoob.com/docker/docker-tutorial.html](https://www.runoob.com/docker/docker-tutorial.html)
 
 [网课链接](https://www.bilibili.com/video/BV1s54y1n7Ev/?spm_id_from=333.1387.favlist.content.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
-
----
