@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>线性代数核心复习笔记</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #dbeafe;
+            --accent: #f59e0b;
+            --accent-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --purple: #8b5cf6;
+            --purple-light: #ede9fe;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --radius: 16px;
+            --radius-sm: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 15px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #2563eb 100%);
+            color: white;
+            padding: 60px 20px 50px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(37,99,235,0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139,92,246,0.2) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 0; right: 0;
+            height: 60px;
+            background: var(--bg);
+            clip-path: ellipse(60% 100% at 50% 100%);
+        }
+        .header-content { position: relative; z-index: 1; }
+        .header h1 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 2.6em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .header-subtitle {
+            font-size: 1.1em;
+            opacity: 0.85;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            font-size: 0.85em;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .header-badge span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+        .badge-red { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .badge-yellow { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+        .badge-green { background: #10b981; box-shadow: 0 0 8px #10b981; }
+
+        /* ===== Navigation ===== */
+        .nav-container {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+        .nav {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 14px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 24px;
+            font-size: 0.88em;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav a::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--primary-light);
+            border-radius: 24px;
+            transform: scale(0);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: -1;
+        }
+        .nav a:hover::before { transform: scale(1); }
+        .nav a:hover {
+            color: var(--primary);
+            border-color: var(--primary-light);
+            transform: translateY(-1px);
+        }
+        .nav a:active { transform: translateY(0) scale(0.97); }
+
+        /* ===== Container ===== */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* ===== Section Cards ===== */
+        .section {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 36px 40px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            scroll-margin-top: 80px;
+        }
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: linear-gradient(180deg, var(--primary) 0%, var(--purple) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .section:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        .section:hover::before { opacity: 1; }
+
+        .section-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.7em;
+            color: var(--text);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .section-num {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85em;
+            font-weight: 700;
+            font-family: 'Noto Sans SC', sans-serif;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+            flex-shrink: 0;
+        }
+        .section-num.star {
+            background: linear-gradient(135deg, var(--accent) 0%, #f97316 100%);
+            box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+        }
+
+        .subsection-title {
+            font-size: 1.15em;
+            color: var(--text);
+            margin: 28px 0 14px;
+            padding-left: 14px;
+            border-left: 4px solid var(--accent);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== Tables ===== */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            margin: 16px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.94em;
+        }
+        th, td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.92em;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr { transition: background 0.2s; }
+        tr:hover { background: #f8fafc; }
+
+        /* ===== Special Boxes ===== */
+        .box {
+            border-radius: var(--radius-sm);
+            padding: 20px 24px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid;
+        }
+        .box::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+        }
+        .box-warning {
+            background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+            border-color: #fecaca;
+            color: #7f1d1d;
+        }
+        .box-warning::before { background: var(--danger); }
+        .box-tip {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+            border-color: #a7f3d0;
+            color: #064e3b;
+        }
+        .box-tip::before { background: var(--success); }
+        .box-note {
+            background: linear-gradient(135deg, #fffbeb 0%, #fffbf0 100%);
+            border-color: #fde68a;
+            color: #78350f;
+        }
+        .box-note::before { background: var(--accent); }
+        .box-theory {
+            background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+            border-color: #bfdbfe;
+            color: #1e3a5f;
+        }
+        .box-theory::before { background: var(--primary); }
+        .box-purple {
+            background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%);
+            border-color: #ddd6fe;
+            color: #4c1d95;
+        }
+        .box-purple::before { background: var(--purple); }
+
+        .box-title {
+            font-weight: 700;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .box-icon { font-size: 1.2em; }
+
+        /* ===== Formulas ===== */
+        .formula {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: var(--radius-sm);
+            padding: 20px 24px;
+            margin: 16px 0;
+            font-family: 'Courier New', 'Noto Sans SC', monospace;
+            font-size: 1.05em;
+            overflow-x: auto;
+            color: #334155;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            line-height: 2;
+        }
+
+        /* ===== Lists ===== */
+        ul, ol { margin: 14px 0 14px 28px; }
+        li { margin: 8px 0; position: relative; }
+        ul li::marker { color: var(--primary); }
+
+        /* ===== Star marker ===== */
+        .star { 
+            color: var(--accent); 
+            font-weight: 700;
+            text-shadow: 0 0 1px rgba(245,158,11,0.3);
+        }
+
+        /* ===== Inline code ===== */
+        code {
+            background: #f1f5f9;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #be185d;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* ===== Quick Table ===== */
+        .quick-table th { 
+            background: linear-gradient(180deg, var(--accent-light) 0%, #fef9c3 100%);
+            color: #92400e;
+        }
+
+        /* ===== Footer ===== */
+        .footer {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            background: linear-gradient(180deg, transparent 0%, rgba(241,245,249,0.5) 100%);
+            border-top: 1px solid var(--border);
+        }
+        .footer-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.3em;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        .footer-tags {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .tag {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 500;
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .tag:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* ===== Print Styles ===== */
+        @media print {
+            .nav-container { display: none; }
+            .header { padding: 30px 20px; background: #1e3a5f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .section { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+            .section::before { display: none; }
+            body { background: white; }
+            .container { padding: 20px; }
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.9em; }
+            .header { padding: 40px 20px 35px; }
+            .section { padding: 24px 20px; }
+            .section-title { font-size: 1.4em; }
+            .nav { gap: 6px; padding: 10px 12px; }
+            .nav a { padding: 6px 12px; font-size: 0.82em; }
+            th, td { padding: 10px 12px; font-size: 0.88em; }
+            .formula { padding: 14px 16px; font-size: 0.95em; }
+        }
+
+        /* ===== Animations ===== */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .section {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        .section:nth-child(1) { animation-delay: 0.05s; }
+        .section:nth-child(2) { animation-delay: 0.1s; }
+        .section:nth-child(3) { animation-delay: 0.15s; }
+        .section:nth-child(4) { animation-delay: 0.2s; }
+        .section:nth-child(5) { animation-delay: 0.25s; }
+        .section:nth-child(6) { animation-delay: 0.3s; }
+        .section:nth-child(7) { animation-delay: 0.35s; }
+        .section:nth-child(8) { animation-delay: 0.4s; }
+
+        /* ===== Scrollbar ===== */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ===== Selection ===== */
+        ::selection {
+            background: rgba(37,99,235,0.2);
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <h1>线性代数核心复习笔记</h1>
+        <p class="header-subtitle">Linear Algebra · Core Review</p>
+        <div class="header-badge">
+            <span class="badge-red"></span> 概念
+            <span class="badge-yellow"></span> 定理
+            <span class="badge-green"></span> 方法
+        </div>
+    </div>
+</div>
+
+<div class="nav-container">
+    <div class="nav">
+        <a href="#ch1">第一章</a>
+        <a href="#ch2">第二章</a>
+        <a href="#ch3">第三章</a>
+        <a href="#ch4">第四章</a>
+        <a href="#ch5">第五章</a>
+        <a href="#relations">三大关系</a>
+        <a href="#ch6">第六章</a>
+        <a href="#quick">速查表</a>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- 第一章 -->
+<div class="section" id="ch1">
+    <h2 class="section-title"><span class="section-num">1</span>行列式</h2>
+
+    <h3 class="subsection-title">1.1 基本定义</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>概念</th><th>要点</th></tr>
+        <tr><td><strong>n阶行列式</strong></td><td>D = Σ a<sub>1j</sub>A<sub>1j</sub>，按第一行展开</td></tr>
+        <tr><td><strong>余子式</strong> M<sub>ij</sub></td><td>划去第i行第j列后的n-1阶行列式</td></tr>
+        <tr><td><strong>代数余子式</strong> A<sub>ij</sub></td><td>A<sub>ij</sub> = (-1)<sup>i+j</sup>M<sub>ij</sub></td></tr>
+    </table>
+    </div>
+
+    <h3 class="subsection-title">1.2 核心性质（计算必用）</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>性质</th><th>内容</th></tr>
+        <tr><td>转置不变</td><td>D = D<sup>T</sup></td></tr>
+        <tr><td>按行/列展开</td><td>D = a<sub>i1</sub>A<sub>i1</sub> + a<sub>i2</sub>A<sub>i2</sub> + ... + a<sub>in</sub>A<sub>in</sub></td></tr>
+        <tr><td>提取公因子</td><td>某行有公因子k，可提到行列式外</td></tr>
+        <tr><td>拆行相加</td><td>某行元素为两数之和，可拆成两个行列式之和</td></tr>
+        <tr><td>两行相同→0</td><td>两行元素相同，行列式为0</td></tr>
+        <tr><td>两行成比例→0</td><td>两行元素成比例，行列式为0</td></tr>
+        <tr><td>倍加不变</td><td>某行k倍加到另一行，行列式值不变</td></tr>
+        <tr><td>互换变号</td><td>互换两行，行列式变号</td></tr>
+    </table>
+    </div>
+
+    <h3 class="subsection-title">1.3 特殊行列式</h3>
+    <ul>
+        <li><strong>对角/三角行列式</strong> = 对角线元素乘积</li>
+        <li><strong>反对称行列式</strong>（奇数阶）：D = 0</li>
+        <li><strong>范德蒙德行列式</strong>：D<sub>n</sub> = ∏<sub>1≤i&lt;j≤n</sub>(a<sub>j</sub>-a<sub>i</sub>)</li>
+    </ul>
+
+    <h3 class="subsection-title">1.4 Cramer法则</h3>
+    <div class="box box-theory">
+        <div class="box-title"><span class="box-icon">📐</span>定理</div>
+        <strong>条件：</strong>n个方程n个未知数，且系数行列式 D ≠ 0<br>
+        <strong>结论：</strong>唯一解 x<sub>i</sub> = D<sub>i</sub>/D，其中 D<sub>i</sub> 是将D的第i列换为常数列
+    </div>
+</div>
+
+<!-- 第二章 -->
+<div class="section" id="ch2">
+    <h2 class="section-title"><span class="section-num">2</span>矩阵及其运算</h2>
+
+    <h3 class="subsection-title">2.1 基本运算</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>运算</th><th>法则</th><th>注意</th></tr>
+        <tr><td><strong>加法</strong></td><td>对应元素相加</td><td>必须同型</td></tr>
+        <tr><td><strong>数乘</strong></td><td>每个元素乘k</td><td>(k+l)A = kA+lA；k(A+B)=kA+kB</td></tr>
+        <tr><td><strong>乘法</strong></td><td>行×列</td><td><span class="star">★ 不满足交换律！</span> AB ≠ BA</td></tr>
+        <tr><td><strong>转置</strong></td><td>(AB)<sup>T</sup> = B<sup>T</sup>A<sup>T</sup></td><td>(A<sup>T</sup>)<sup>T</sup> = A</td></tr>
+        <tr><td><strong>幂</strong></td><td>A<sup>k</sup> · A<sup>l</sup> = A<sup>k+l</sup></td><td>(AB)<sup>k</sup> ≠ A<sup>k</sup>B<sup>k</sup>（一般情况）</td></tr>
+    </table>
+    </div>
+
+    <h3 class="subsection-title">2.2 逆矩阵 <span class="star">★重点</span></h3>
+    <p><strong>定义：</strong>AB = BA = E，则 B = A<sup>-1</sup></p>
+    <p><strong>判定定理：</strong>A 可逆 ⇔ |A| ≠ 0</p>
+    <p><strong>求法：</strong></p>
+    <div class="formula">A<sup>-1</sup> = (1/|A|) A<sup>*</sup></div>
+    <p>其中 <strong>伴随矩阵</strong> A<sup>*</sup> 的元素是代数余子式的<strong>转置</strong>：</p>
+    <div class="formula">
+        A<sup>*</sup> = [ A<sub>11</sub>  A<sub>21</sub>  ...<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A<sub>12</sub>  A<sub>22</sub>  ...<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...&nbsp;&nbsp;&nbsp;...&nbsp;&nbsp;&nbsp;... ]
+    </div>
+
+    <div class="box box-tip">
+        <div class="box-title"><span class="box-icon">💡</span>速记技巧</div>
+        <strong>2阶速记：</strong>A = [a b; c d]，则 A<sup>*</sup> = [d -b; -c a]<br>
+        口诀：<strong>对角互换，非对角变号</strong>
+    </div>
+
+    <p><strong>逆矩阵性质：</strong></p>
+    <ul>
+        <li>(A<sup>-1</sup>)<sup>-1</sup> = A</li>
+        <li>(kA)<sup>-1</sup> = (1/k)A<sup>-1</sup></li>
+        <li>(A<sup>T</sup>)<sup>-1</sup> = (A<sup>-1</sup>)<sup>T</sup></li>
+        <li><span class="star">★ (AB)<sup>-1</sup> = B<sup>-1</sup>A<sup>-1</sup> —— 顺序颠倒</span></li>
+    </ul>
+
+    <h3 class="subsection-title">2.3 分块矩阵</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>类型</th><th>特点</th></tr>
+        <tr>
+            <td><strong>分块对角阵</strong></td>
+            <td>[A<sub>1</sub> &nbsp; ; &nbsp; A<sub>2</sub>]，则 |A|=|A<sub>1</sub>||A<sub>2</sub>|，A<sup>-1</sup>=[A<sub>1</sub><sup>-1</sup> &nbsp; ; &nbsp; A<sub>2</sub><sup>-1</sup>]</td>
+        </tr>
+    </table>
+    </div>
+
+    <div class="box box-note">
+        <div class="box-title"><span class="box-icon">📌</span>高频考点：上（下）三角分块</div>
+        若 M = [A B; 0 C]（或 [A 0; B C]），其中 A, C 可逆，则：<br><br>
+        • <strong>行列式</strong>：|M| = |A| · |C|<br>
+        • <strong>逆矩阵</strong>：[A B; 0 C]<sup>-1</sup> = [A<sup>-1</sup> &nbsp; -A<sup>-1</sup>BC<sup>-1</sup>; 0 &nbsp; C<sup>-1</sup>]<br>
+        <span class="star">★ 务必记住！</span>
+    </div>
+
+    <h3 class="subsection-title">2.4 初等变换与初等矩阵 <span class="star">★重点</span></h3>
+    <p><strong>三种初等行变换：</strong></p>
+    <ol>
+        <li>互换两行：r<sub>i</sub> ↔ r<sub>j</sub></li>
+        <li>某行乘非零常数：kr<sub>i</sub></li>
+        <li>某行k倍加到另一行：r<sub>i</sub> + kr<sub>j</sub></li>
+    </ol>
+
+    <div class="box box-theory">
+        <div class="box-title"><span class="box-icon">🔗</span>核心关系</div>
+        对A做一次初等<strong>行</strong>变换 = <strong>左乘</strong>对应的初等矩阵<br>
+        对A做一次初等<strong>列</strong>变换 = <strong>右乘</strong>对应的初等矩阵
+    </div>
+
+    <p><strong>求逆的初等变换法：</strong></p>
+    <div class="formula">(A | E) &nbsp;→(初等行变换)→&nbsp; (E | A<sup>-1</sup>)</div>
+
+    <div class="box box-warning">
+        <div class="box-title"><span class="box-icon">⚠️</span>初等变换使用禁区（超级易错点）</div>
+        1. <strong>求矩阵的秩</strong>：行变换和列变换<strong>均可</strong>使用。<br>
+        2. <strong>解线性方程组</strong>（求通解/特解）：<strong>只能</strong>使用<strong>初等行变换</strong>（列变换会改变解空间！）<br>
+        3. <strong>求向量组的极大无关组</strong>并保留原向量组合关系：<strong>只能</strong>使用<strong>初等行变换</strong>（列变换会打乱向量的分量位置）<br>
+        4. <strong>求逆矩阵</strong>：<strong>只能</strong>使用<strong>初等行变换</strong>（即 (A|E)→(E|A<sup>-1</sup>)），若用列变换需改为竖排形式，极易搞混，<strong>建议统一只用行变换</strong>。
+    </div>
+</div>
+
+<!-- 第三章 -->
+<div class="section" id="ch3">
+    <h2 class="section-title"><span class="section-num">3</span>向量组的线性相关性</h2>
+
+    <h3 class="subsection-title">3.1 线性相关/无关</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>概念</th><th>定义</th><th>判定</th></tr>
+        <tr><td><strong>线性相关</strong></td><td>存在不全为零的k<sub>i</sub>，使 Σk<sub>i</sub>α<sub>i</sub> = 0</td><td>齐次方程组有非零解</td></tr>
+        <tr><td><strong>线性无关</strong></td><td>仅当所有k<sub>i</sub>=0时，Σk<sub>i</sub>α<sub>i</sub> = 0</td><td>齐次方程组只有零解</td></tr>
+    </table>
+    </div>
+
+    <p><strong>重要结论：</strong></p>
+    <ul>
+        <li>含有零向量的向量组必线性相关</li>
+        <li>部分相关则整体相关；整体无关则部分无关</li>
+        <li>n+1个n维向量必线性相关</li>
+        <li><strong>正交向量组必线性无关</strong></li>
+    </ul>
+
+    <h3 class="subsection-title">3.2 极大无关组与秩</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>概念</th><th>定义</th></tr>
+        <tr><td><strong>极大无关组</strong></td><td>线性无关，且能表示向量组中所有向量</td></tr>
+        <tr><td><strong>向量组的秩</strong></td><td>极大无关组所含向量的个数</td></tr>
+    </table>
+    </div>
+
+    <div class="box box-tip">
+        <div class="box-title"><span class="box-icon">💡</span>求法</div>
+        将向量组排成矩阵，做<strong>初等行变换</strong>化为行阶梯形，非零行数=秩，主元所在列对应原向量组的极大无关组
+    </div>
+
+    <h3 class="subsection-title">3.3 矩阵的秩</h3>
+    <div class="formula">R(A) = A的行秩 = A的列秩 = A的非零子式的最高阶数</div>
+    <p><strong>性质：</strong></p>
+    <ul>
+        <li>R(A) = R(A<sup>T</sup>)</li>
+        <li>R(AB) ≤ min{R(A), R(B)}</li>
+        <li>R(A+B) ≤ R(A) + R(B)</li>
+        <li>若 AB = O，则 R(A) + R(B) ≤ n</li>
+    </ul>
+
+    <h3 class="subsection-title">3.4 Schmidt正交化 <span class="star">★方法</span></h3>
+    <p>给定线性无关向量组 α<sub>1</sub>, α<sub>2</sub>, ...：</p>
+    <div class="formula">
+        β<sub>1</sub> = α<sub>1</sub><br><br>
+        β<sub>2</sub> = α<sub>2</sub> - [β<sub>1</sub>,α<sub>2</sub>]/[β<sub>1</sub>,β<sub>1</sub>] · β<sub>1</sub><br><br>
+        β<sub>3</sub> = α<sub>3</sub> - [β<sub>1</sub>,α<sub>3</sub>]/[β<sub>1</sub>,β<sub>1</sub>] · β<sub>1</sub> - [β<sub>2</sub>,α<sub>3</sub>]/[β<sub>2</sub>,β<sub>2</sub>] · β<sub>2</sub>
+    </div>
+    <p>再单位化：ε<sub>i</sub> = β<sub>i</sub> / ‖β<sub>i</sub>‖（注意：向量范数用<strong>双竖线</strong> ‖·‖）</p>
+
+    <h3 class="subsection-title">3.5 正交矩阵</h3>
+    <p><strong>定义：</strong>A<sup>T</sup>A = E（即 A<sup>-1</sup> = A<sup>T</sup>）</p>
+    <p><strong>等价条件：</strong></p>
+    <ul>
+        <li>A的行向量组是规范正交向量组</li>
+        <li>A的列向量组是规范正交向量组</li>
+    </ul>
+</div>
+
+<!-- 第四章 -->
+<div class="section" id="ch4">
+    <h2 class="section-title"><span class="section-num">4</span>线性方程组</h2>
+
+    <h3 class="subsection-title">4.1 解的判定 <span class="star">★核心定理</span></h3>
+    <p><strong>非齐次方程组</strong> Ax = β：</p>
+    <div class="table-wrap">
+    <table>
+        <tr><th>条件</th><th>结论</th></tr>
+        <tr><td>R(A) ≠ R(A|β)</td><td><strong>无解</strong></td></tr>
+        <tr><td>R(A) = R(A|β) = n（未知数个数）</td><td><strong>唯一解</strong></td></tr>
+        <tr><td>R(A) = R(A|β) = r &lt; n</td><td><strong>无穷多解</strong>，含 n-r 个自由参数</td></tr>
+    </table>
+    </div>
+
+    <p><strong>齐次方程组</strong> Ax = 0：</p>
+    <ul>
+        <li>R(A) = n：只有零解</li>
+        <li>R(A) = r &lt; n：有非零解，基础解系含 n-r 个向量</li>
+    </ul>
+
+    <h3 class="subsection-title">4.2 解的结构</h3>
+    <div class="box box-theory">
+        <div class="box-title"><span class="box-icon">📐</span>齐次方程组</div>
+        基础解系 ξ<sub>1</sub>, ξ<sub>2</sub>, ..., ξ<sub>n-r</sub>（解空间的极大无关组）<br>
+        <strong>通解：</strong>x = k<sub>1</sub>ξ<sub>1</sub> + k<sub>2</sub>ξ<sub>2</sub> + ... + k<sub>n-r</sub>ξ<sub>n-r</sub>
+    </div>
+    <div class="box box-theory">
+        <div class="box-title"><span class="box-icon">📐</span>非齐次方程组</div>
+        <strong>通解</strong> = 特解 η<sub>0</sub> + 导出组（对应齐次）的通解<br>
+        x = η<sub>0</sub> + k<sub>1</sub>ξ<sub>1</sub> + ... + k<sub>n-r</sub>ξ<sub>n-r</sub>
+    </div>
+</div>
+
+<!-- 第五章 -->
+<div class="section" id="ch5">
+    <h2 class="section-title"><span class="section-num">5</span>矩阵的相似对角化</h2>
+
+    <h3 class="subsection-title">5.1 特征值与特征向量 <span class="star">★重点</span></h3>
+    <p><strong>定义：</strong>Aξ = λξ（ξ ≠ 0）</p>
+    <p><strong>求法：</strong></p>
+    <ol>
+        <li>解特征方程 |λE - A| = 0 → 得特征值 λ<sub>i</sub></li>
+        <li>对每个 λ<sub>i</sub>，解 (λ<sub>i</sub>E - A)x = 0 → 得特征向量</li>
+    </ol>
+
+    <p><strong>性质：</strong></p>
+    <ul>
+        <li>λ<sub>1</sub> + λ<sub>2</sub> + ... + λ<sub>n</sub> = tr(A) = a<sub>11</sub> + a<sub>22</sub> + ... + a<sub>nn</sub></li>
+        <li>λ<sub>1</sub>λ<sub>2</sub>...λ<sub>n</sub> = |A|</li>
+        <li>A 可逆 ⇔ 所有特征值非零</li>
+        <li>若 λ 是A的特征值，则：
+            <ul>
+                <li>λ<sup>k</sup> 是 A<sup>k</sup> 的特征值</li>
+                <li>p(λ) 是 p(A) 的特征值</li>
+                <li>1/λ 是 A<sup>-1</sup> 的特征值（A可逆时）</li>
+            </ul>
+        </li>
+    </ul>
+
+    <p><strong>特征向量性质：</strong></p>
+    <ul>
+        <li><strong>不同特征值对应的特征向量线性无关</strong></li>
+        <li>同一特征值的特征向量的非零线性组合仍是该特征值的特征向量</li>
+    </ul>
+
+    <h3 class="subsection-title">5.2 相似对角化 <span class="star">★重点</span></h3>
+    <p><strong>定义：</strong>P<sup>-1</sup>AP = Λ = diag(λ<sub>1</sub>, λ<sub>2</sub>, ..., λ<sub>n</sub>)</p>
+
+    <div class="box box-theory">
+        <div class="box-title"><span class="box-icon">📐</span>判定定理</div>
+        A 可对角化 ⇔ A 有 <strong>n个线性无关的特征向量</strong>
+    </div>
+
+    <div class="box box-tip">
+        <div class="box-title"><span class="box-icon">💡</span>推论</div>
+        A 有 <strong>n个互异特征值</strong> → A 必可对角化
+    </div>
+
+    <div class="box box-note">
+        <div class="box-title"><span class="box-icon">📌</span>对角化判定实操步骤</div>
+        1. 求出全部特征值，若有 <strong>n个互异</strong> 特征值 → <strong>直接可对角化</strong><br>
+        2. 若有重根（如 λ 是 k 重根）：<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;• 必须验证：n - R(λE - A) = k（即<strong>几何重数 = 代数重数</strong>）<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;• 若小于 k，则<strong>不可对角化</strong>
+    </div>
+
+    <p><strong>求相似变换矩阵P：</strong></p>
+    <ol>
+        <li>求出n个线性无关的特征向量 ξ<sub>1</sub>, ξ<sub>2</sub>, ..., ξ<sub>n</sub></li>
+        <li>令 P = (ξ<sub>1</sub>, ξ<sub>2</sub>, ..., ξ<sub>n</sub>)</li>
+        <li>则 P<sup>-1</sup>AP = diag(λ<sub>1</sub>, λ<sub>2</sub>, ..., λ<sub>n</sub>)</li>
+    </ol>
+
+    <div class="box box-tip">
+        <div class="box-title"><span class="box-icon">💡</span>应用</div>
+        若 A = PΛP<sup>-1</sup>，则 A<sup>k</sup> = PΛ<sup>k</sup>P<sup>-1</sup>
+    </div>
+</div>
+
+<!-- 三大关系 -->
+<div class="section" id="relations">
+    <h2 class="section-title"><span class="section-num star">★</span>三大关系对比表（易混淆必背）</h2>
+    <div class="table-wrap">
+    <table>
+        <tr><th>关系</th><th>定义式</th><th>变换矩阵条件</th><th>不变/同量</th><th>适用对象</th></tr>
+        <tr>
+            <td><strong>等价</strong></td>
+            <td>B = PAQ</td>
+            <td>P,Q 可逆（任意）</td>
+            <td><strong>秩</strong>相同</td>
+            <td>任意矩阵</td>
+        </tr>
+        <tr>
+            <td><strong>相似</strong></td>
+            <td>B = P<sup>-1</sup>AP</td>
+            <td>P 可逆（同一矩阵及其逆）</td>
+            <td>特征值、迹、行列式相同</td>
+            <td>同阶方阵</td>
+        </tr>
+        <tr>
+            <td><strong>合同</strong></td>
+            <td>B = C<sup>T</sup>AC</td>
+            <td>C 可逆（转置形式）</td>
+            <td><strong>正/负惯性指数</strong>相同</td>
+            <td><strong>实对称矩阵</strong></td>
+        </tr>
+    </table>
+    </div>
+
+    <div class="box box-purple">
+        <div class="box-title"><span class="box-icon">🧠</span>核心记忆口诀</div>
+        <strong>等价看秩，相似看特征值，合同看正负惯性指数。</strong>
+    </div>
+</div>
+
+<!-- 第六章 -->
+<div class="section" id="ch6">
+    <h2 class="section-title"><span class="section-num">6</span>二次型</h2>
+
+    <div class="box box-warning">
+        <div class="box-title"><span class="box-icon">⚠️</span>前提强调</div>
+        二次型 f = x<sup>T</sup>Ax 中的矩阵 A <strong>一定是实对称矩阵</strong>（A<sup>T</sup>=A），否则特征值正负无法判定正定。
+    </div>
+
+    <h3 class="subsection-title">6.1 基本概念</h3>
+    <ul>
+        <li><strong>二次型：</strong>f = x<sup>T</sup>Ax，其中 A 是<strong>实对称矩阵</strong></li>
+        <li><strong>标准形：</strong>f = d<sub>1</sub>y<sub>1</sub><sup>2</sup> + d<sub>2</sub>y<sub>2</sub><sup>2</sup> + ... + d<sub>n</sub>y<sub>n</sub><sup>2</sup>（只含平方项）</li>
+        <li><strong>规范形：</strong>f = y<sub>1</sub><sup>2</sup> + ... + y<sub>p</sub><sup>2</sup> - y<sub>p+1</sub><sup>2</sup> - ... - y<sub>r</sub><sup>2</sup>（系数为±1或0）</li>
+    </ul>
+
+    <h3 class="subsection-title">6.2 合同变换</h3>
+    <p><strong>定义：</strong>B = C<sup>T</sup>AC（C可逆），称A与B<strong>合同</strong></p>
+    <p><strong>性质：</strong>合同 → 等价 → 等秩；但等价/等秩 <strong>⇏</strong> 合同</p>
+
+    <h3 class="subsection-title">6.3 化标准形的方法</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>方法</th><th>特点</th></tr>
+        <tr><td><strong>正交变换</strong> x = Qy（Q正交矩阵）</td><td>标准形系数 = <strong>特征值</strong>；保持几何形状不变</td></tr>
+        <tr><td><strong>配方法</strong></td><td>不一定得到特征值，但计算简单</td></tr>
+        <tr><td><strong>初等变换法</strong>（合同对角化）</td><td>对A同时做相同的行列初等变换</td></tr>
+    </table>
+    </div>
+
+    <h3 class="subsection-title">6.4 惯性定理 <span class="star">★重点</span></h3>
+    <div class="box box-theory">
+        <div class="box-title"><span class="box-icon">📐</span>定理</div>
+        <strong>标准形中正系数的个数（正惯性指数p）和负系数的个数（负惯性指数q）是唯一确定的</strong>
+    </div>
+    <p><strong>合同判定：</strong>两实对称矩阵合同 ⇔ 正惯性指数相同且负惯性指数相同</p>
+
+    <h3 class="subsection-title">6.5 正定二次型 <span class="star">★重点</span></h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>类型</th><th>定义</th><th>判定条件</th></tr>
+        <tr>
+            <td><strong>正定</strong></td>
+            <td>∀x ≠ 0, f &gt; 0</td>
+            <td>① 正惯性指数 = n；② 特征值全&gt;0；③ <strong>顺序主子式全&gt;0</strong></td>
+        </tr>
+        <tr>
+            <td><strong>负定</strong></td>
+            <td>∀x ≠ 0, f &lt; 0</td>
+            <td>奇数阶顺序主子式&lt;0，偶数阶顺序主子式&gt;0</td>
+        </tr>
+        <tr>
+            <td><strong>半正定</strong></td>
+            <td>∀x ≠ 0, f ≥ 0</td>
+            <td>负惯性指数 = 0；无负特征值</td>
+        </tr>
+    </table>
+    </div>
+
+    <p><strong>顺序主子式：</strong></p>
+    <div class="formula">
+        D<sub>k</sub> = | a<sub>11</sub> ... a<sub>1k</sub> |<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| ...&nbsp;&nbsp;...&nbsp;&nbsp;... |<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| a<sub>k1</sub> ... a<sub>kk</sub> |，&nbsp;&nbsp;k=1,2,...,n
+    </div>
+</div>
+
+<!-- 快速查询表 -->
+<div class="section" id="quick">
+    <h2 class="section-title"><span class="section-num">Q</span>快速查询表：核心公式与方法</h2>
+    <div class="table-wrap">
+    <table class="quick-table">
+        <tr><th>场景</th><th>方法</th></tr>
+        <tr><td>求逆矩阵</td><td>① 伴随矩阵法（2、3阶）；② 初等行变换法 (A|E)→(E|A<sup>-1</sup>)</td></tr>
+        <tr><td>求矩阵的秩</td><td>初等行变换化为行阶梯形，数非零行</td></tr>
+        <tr><td>求向量组的秩/极大无关组</td><td>排成矩阵，初等行变换</td></tr>
+        <tr><td>解线性方程组</td><td>增广矩阵初等行变换 → 行最简形</td></tr>
+        <tr><td>求特征值/特征向量</td><td>|λE-A|=0 → (λ<sub>i</sub>E-A)x=0</td></tr>
+        <tr><td>判断能否对角化</td><td>是否有n个线性无关特征向量（重根需验证几何重数）</td></tr>
+        <tr><td>化二次型为标准形</td><td>正交变换（得特征值）或配方法</td></tr>
+        <tr><td>判断二次型正定性</td><td>顺序主子式全&gt;0 / 特征值全&gt;0</td></tr>
+    </table>
+    </div>
+
+    <h3 class="subsection-title">题型索引（考前冲刺速查）</h3>
+    <div class="table-wrap">
+    <table>
+        <tr><th>核心内容</th><th>常见考题类型</th></tr>
+        <tr><td>行列式计算</td><td>填空、选择（利用性质化简）</td></tr>
+        <tr><td>逆矩阵 / 矩阵方程</td><td>大题第一问（AX=B 型）</td></tr>
+        <tr><td>向量组极大无关组</td><td>大题（求秩并表出其余向量）</td></tr>
+        <tr><td>特征值与对角化</td><td>大题（求 P 使 P<sup>-1</sup>AP=Λ，并求 A<sup>n</sup>）</td></tr>
+        <tr><td>二次型正定判定</td><td>含参讨论大题（利用顺序主子式或特征值）</td></tr>
+    </table>
+    </div>
+</div>
+
+</div>
+
+<div class="footer">
+    <p class="footer-title">线性代数核心复习笔记</p>
+    <p>概念覆盖 · 实战避坑 · 易混淆辨析</p>
+    <div class="footer-tags">
+        <span class="tag">📐 行列式</span>
+        <span class="tag">🔢 矩阵</span>
+        <span class="tag">📊 向量</span>
+        <span class="tag">📋 方程组</span>
+        <span class="tag">🔍 特征值</span>
+        <span class="tag">📈 二次型</span>
+    </div>
+</div>
+
+</body>
+</html>
