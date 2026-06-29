@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Java 核心语法速查</title>
+<style>
+:root{--bg:#f8f9fa;--card:#fff;--text:#212529;--accent:#0d6efd;--accent2:#6610f2;--success:#198754;--warning:#ffc107;--danger:#dc3545;--muted:#6c757d;--border:#dee2e6;--code-bg:#f1f3f5;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}
+.container{max-width:960px;margin:0 auto;padding:20px}
+header{text-align:center;padding:30px 0;border-bottom:2px solid var(--accent);margin-bottom:25px}
+header h1{font-size:2.2rem;color:var(--accent);letter-spacing:-1px}
+header p{color:var(--muted);margin-top:8px}
+.toc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:25px;position:sticky;top:10px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.toc h3{font-size:1rem;margin-bottom:10px;color:var(--accent2)}
+.toc ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+.toc li a{text-decoration:none;color:var(--text);background:var(--code-bg);padding:4px 12px;border-radius:20px;font-size:.85rem;transition:.2s}
+.toc li a:hover{background:var(--accent);color:#fff}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 26px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.section h2{font-size:1.3rem;color:var(--accent);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--code-bg);display:flex;align-items:center;gap:8px}
+.section h3{font-size:1.05rem;color:var(--accent2);margin:18px 0 10px}
+.section h4{font-size:.95rem;color:var(--text);margin:14px 0 8px;font-weight:600}
+.tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:4px;font-weight:600;vertical-align:middle;margin-left:6px}
+.tag-danger{background:#f8d7da;color:#842029}
+.tag-success{background:#d1e7dd;color:#0f5132}
+.tag-warning{background:#fff3cd;color:#664d03}
+.tag-info{background:#cff4fc;color:#055160}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:.9rem}
+th,td{padding:8px 12px;border:1px solid var(--border);text-align:left}
+th{background:var(--code-bg);font-weight:600;color:var(--accent)}
+tr:nth-child(even){background:#fafbfc}
+code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:Consolas,Monaco,"Courier New",monospace;font-size:.88em;color:#d63384}
+pre{background:#1e1e1e;color:#d4d4d4;padding:14px 16px;border-radius:8px;overflow-x:auto;margin:10px 0;font-size:.85rem;line-height:1.5}
+pre code{background:transparent;padding:0;color:inherit;font-size:.9em}
+.highlight{background:linear-gradient(120deg,#fff3cd 0%,#fff3cd 100%);background-repeat:no-repeat;background-size:100% 40%;background-position:0 88%;padding:0 2px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.grid-2{grid-template-columns:1fr}}
+.tip{border-left:4px solid var(--success);background:#f0f9f4;padding:12px 16px;border-radius:0 8px 8px 0;margin:10px 0;font-size:.9rem}
+.warn{border-left:4px solid var(--danger);background:#fdf2f2;padding:12px 16px;border-radius:0 8px 8px 0;margin:10px 0;font-size:.9rem}
+.warn strong{color:var(--danger)}
+.tip strong{color:var(--success)}
+ul,ol{margin:8px 0 8px 20px}
+li{margin:4px 0}
+</style>
+<base target="_blank">
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>☕ Java 核心语法速查</h1>
+<p>面向 C++ 背景 | 重点突出 | 考前复习</p>
+</header>
+
+<nav class="toc">
+<h3>📑 快速导航</h3>
+<ul>
+<li><a href="#s1">Java vs C++</a></li>
+<li><a href="#s2">基础语法</a></li>
+<li><a href="#s3">类与对象</a></li>
+<li><a href="#s4">三大特性</a></li>
+<li><a href="#s5">抽象与接口</a></li>
+<li><a href="#s6">内部类</a></li>
+<li><a href="#s7">String & 集合</a></li>
+<li><a href="#s8">异常与 IO</a></li>
+<li><a href="#s9">避坑指南</a></li>
+</ul>
+</nav>
+
+<!-- 1. Java vs C++ -->
+<section class="section" id="s1">
+<h2>一、Java vs C++ 核心差异</h2>
+<table>
+<tr><th>维度</th><th>C++</th><th>Java</th></tr>
+<tr><td>内存管理</td><td>手动 new/delete，有指针运算</td><td>JVM 自动 GC，<span class="highlight">无指针</span></td></tr>
+<tr><td>继承</td><td>多继承</td><td><span class="highlight">单继承 + 多实现</span></td></tr>
+<tr><td>入口</td><td>任意函数 main</td><td>必须在类中 <code>public static void main</code></td></tr>
+<tr><td>编译产物</td><td>机器码</td><td>字节码（跨平台）</td></tr>
+<tr><td>模块组织</td><td>头文件 + namespace</td><td>包(package) + import</td></tr>
+<tr><td>字符串</td><td>可修改</td><td><span class="highlight">String 不可变</span></td></tr>
+<tr><td>比较</td><td>== 可重载</td><td>== 比地址，<span class="highlight">equals 比内容</span></td></tr>
+</table>
+</section>
+
+<!-- 2. 基础语法 -->
+<section class="section" id="s2">
+<h2>二、基础语法速查</h2>
+
+<h3>2.1 包与导入</h3>
+<ul>
+<li><code>package</code> 必须第一行；目录结构必须与包名一致</li>
+<li><code>import</code> 只影响编译期，零性能损耗；<code>java.lang</code> 自动导入</li>
+<li><code>import static java.lang.Math.PI;</code> 只导入常量（推荐）</li>
+</ul>
+<div class="tip"><strong>编译运行：</strong><code>javac -d . *.java</code> 自动生成包目录；运行用全限定名 <code>java com.game.main.Main</code></div>
+
+<h3>2.2 数据类型</h3>
+<table>
+<tr><th>基本类型</th><th>字节</th><th>默认值</th><th>包装类</th></tr>
+<tr><td>byte</td><td>1</td><td>0</td><td>Byte</td></tr>
+<tr><td>short</td><td>2</td><td>0</td><td>Short</td></tr>
+<tr><td>int</td><td>4</td><td>0</td><td>Integer</td></tr>
+<tr><td>long</td><td>8</td><td>0L</td><td>Long</td></tr>
+<tr><td>float</td><td>4</td><td>0.0f</td><td>Float</td></tr>
+<tr><td>double</td><td>8</td><td>0.0d</td><td>Double</td></tr>
+<tr><td>char</td><td>2 (Unicode)</td><td>'\u0000'</td><td>Character</td></tr>
+<tr><td>boolean</td><td>1/4</td><td>false</td><td>Boolean</td></tr>
+</table>
+<div class="warn"><strong>注意：</strong>boolean 仅 true/false，<strong>不能用 0/1 替代</strong>；char 2 字节可存中文</div>
+
+<h3>2.3 参数传递 <span class="tag tag-danger">核心</span></h3>
+<p><strong>Java 只有值传递</strong>，但表现不同：</p>
+<table>
+<tr><th>类型</th><th>传递内容</th><th>方法内修改属性</th><th>重新赋值/new</th></tr>
+<tr><td>基本类型</td><td>数值副本</td><td>外部不变</td><td>外部不变</td></tr>
+<tr><td>对象引用</td><td>地址副本</td><td><span class="highlight">外部可见</span></td><td>外部不变（改了局部副本指向）</td></tr>
+</table>
+<div class="warn"><strong>陷阱：</strong>方法内 <code>d = new Dog();</code> 或交换两个对象引用，外部<strong>绝不受影响</strong></div>
+
+<h3>2.4 访问权限</h3>
+<table>
+<tr><th>修饰符</th><th>同类</th><th>同包</th><th>子类(不同包)</th><th>任何类</th></tr>
+<tr><td>private</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+<tr><td>default</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+<tr><td>protected</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td>public</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+</table>
+</section>
+
+<!-- 3. 类与对象 -->
+<section class="section" id="s3">
+<h2>三、类与对象</h2>
+
+<h3>3.1 new 创建对象流程 <span class="tag tag-danger">7步</span></h3>
+<ol>
+<li>加载 .class 到方法区</li>
+<li>栈中声明引用变量（初始 null）</li>
+<li>堆中开辟空间</li>
+<li>默认初始化（0 / false / null）</li>
+<li>显式初始化（定义处赋值、初始化块）</li>
+<li>构造方法初始化</li>
+<li>地址赋给引用变量</li>
+</ol>
+
+<h3>3.2 成员变量 vs 局部变量</h3>
+<table>
+<tr><th>维度</th><th>成员变量</th><th>局部变量</th></tr>
+<tr><td>位置</td><td>类内方法外</td><td>方法/代码块内</td></tr>
+<tr><td>默认值</td><td><span class="highlight">有</span></td><td><span class="highlight">无，必须手动初始化</span></td></tr>
+<tr><td>存储</td><td>堆</td><td>栈</td></tr>
+<tr><td>修饰符</td><td>可用 public/private/static</td><td>不能用访问修饰符</td></tr>
+</table>
+
+<h3>3.3 构造方法</h3>
+<ul>
+<li>方法名 = 类名，<strong>无返回值（void 也不能写）</strong></li>
+<li>无显式构造时，编译器自动送无参构造；<strong>一旦写了有参，默认构造消失</strong></li>
+<li><code>this(...)</code> / <code>super(...)</code> 必须在构造方法<strong>第一行</strong>，且互斥</li>
+</ul>
+
+<h3>3.4 static 核心</h3>
+<table>
+<tr><th>特性</th><th>实例成员</th><th>static 成员</th></tr>
+<tr><td>归属</td><td>对象</td><td>类</td></tr>
+<tr><td>内存</td><td>堆（每个对象一份）</td><td>方法区（全类一份）</td></tr>
+<tr><td>this</td><td>✅ 有</td><td>❌ 无</td></tr>
+<tr><td>访问实例变量</td><td>✅</td><td>❌</td></tr>
+<tr><td>调用方式</td><td>对象.成员</td><td><span class="highlight">类名.成员</span></td></tr>
+</table>
+<div class="warn"><strong>陷阱：</strong>静态方法不能直接访问实例变量/this；用对象调静态成员语法允许但极不推荐</div>
+
+<h3>3.5 代码块执行顺序</h3>
+<p><strong>static 代码块</strong>（类加载，仅一次）→ <strong>构造代码块</strong>（每次 new 前）→ <strong>构造方法</strong></p>
+
+<h3>3.6 final</h3>
+<table>
+<tr><th>修饰目标</th><th>作用</th></tr>
+<tr><td>final class</td><td>不可继承（String、System、Math）</td></tr>
+<tr><td>final method</td><td>不可重写</td></tr>
+<tr><td>final 变量</td><td>只能赋值一次；引用类型不能换地址，但可改属性</td></tr>
+<tr><td>final 参数</td><td>方法内不可修改</td></tr>
+</table>
+</section>
+
+<!-- 4. 三大特性 -->
+<section class="section" id="s4">
+<h2>四、面向对象三大特性</h2>
+
+<h3>4.1 封装</h3>
+<p>private 属性 + public getter/setter；可在 setter 中加校验逻辑</p>
+
+<h3>4.2 继承 <span class="tag tag-danger">extends</span></h3>
+<ul>
+<li>Java <strong>单继承</strong>，支持多层继承；顶级父类是 <code>java.lang.Object</code></li>
+<li>子类构造默认隐含 <code>super()</code>；若父类无无参构造，子类必须手动 <code>super(参数)</code></li>
+<li>成员变量：就近原则；<code>this.name</code> 本类，<code>super.name</code> 父类</li>
+</ul>
+
+<h3>4.3 方法重写 Override</h3>
+<ul>
+<li>方法名、参数列表、返回值必须相同（返回值可为子类型）</li>
+<li>访问权限不能更严格；不能抛更宽泛受检异常</li>
+<li><strong>private、static、final 方法不可重写</strong></li>
+<li>用 <code>@Override</code> 注解校验</li>
+</ul>
+
+<h3>4.4 多态 <span class="tag tag-danger">核心</span></h3>
+<p><strong>前提：</strong>继承/实现关系 + 父类引用指向子类对象 + 方法重写</p>
+<table>
+<tr><th>调用类型</th><th>编译</th><th>运行</th></tr>
+<tr><td>变量</td><td>看左边（父类）</td><td>看左边（父类）</td></tr>
+<tr><td>方法</td><td>看左边（父类）</td><td><span class="highlight">看右边（子类重写）</span></td></tr>
+</table>
+<div class="tip"><strong>口诀：</strong>变量编译运行都看左，方法编译看左运行看右</div>
+
+<h3>4.5 向下转型</h3>
+<pre><code>// Java 14+ 模式匹配（推荐）
+if (animal instanceof Dog d) {
+    d.bark();  // d 直接可用
+}
+// 旧写法
+if (animal instanceof Dog) {
+    Dog d = (Dog) animal;
+    d.bark();
+}</code></pre>
+<div class="warn"><strong>注意：</strong>必须先 instanceof 判断，否则可能 ClassCastException</div>
+</section>
+
+<!-- 5. 抽象与接口 -->
+<section class="section" id="s5">
+<h2>五、抽象类与接口</h2>
+
+<div class="grid-2">
+<div>
+<h3>5.1 抽象类 abstract</h3>
+<ul>
+<li><strong>不能实例化</strong>，可有成员变量、构造方法、普通方法</li>
+<li>子类必须重写所有抽象方法，否则子类也为抽象类</li>
+<li>构造方法供子类 <code>super()</code> 使用</li>
+</ul>
+</div>
+<div>
+<h3>5.2 接口 interface</h3>
+<ul>
+<li><strong>不能实例化</strong>，无构造方法</li>
+<li>JDK7-：只有 public abstract 方法 + public static final 常量</li>
+<li>JDK8：默认方法(default)、静态方法(static)</li>
+<li>JDK9：私有方法(private)</li>
+</ul>
+</div>
+</div>
+
+<h3>5.3 关系总结</h3>
+<table>
+<tr><th>关系</th><th>规则</th></tr>
+<tr><td>类与类</td><td>单继承，多层继承</td></tr>
+<tr><td>类与接口</td><td>多实现；可继承类同时实现多个接口</td></tr>
+<tr><td>接口与接口</td><td>多继承</td></tr>
+</table>
+
+<h3>5.4 默认/静态/私有方法（JDK8+）</h3>
+<pre><code>interface MyInterface {
+    default void foo() { }      // 不强制重写；多接口冲突时必须重写
+    static void bar() { }      // 只能接口名调用
+    private void helper() { }   // JDK9+；供默认/静态方法复用
+}</code></pre>
+</section>
+
+<!-- 6. 内部类 -->
+<section class="section" id="s6">
+<h2>六、内部类速查</h2>
+<table>
+<tr><th>类型</th><th>修饰符</th><th>访问外部类私有</th><th>创建方式</th></tr>
+<tr><td>成员内部类</td><td>无/static/private 等</td><td>✅</td><td><code>outer.new Inner()</code></td></tr>
+<tr><td>静态嵌套类</td><td>static</td><td>❌ 仅静态成员</td><td><code>new Outer.Inner()</code></td></tr>
+<tr><td>局部内部类</td><td>方法内，无修饰符</td><td>✅</td><td>只能在方法内创建</td></tr>
+<tr><td>匿名内部类</td><td>无名字</td><td>✅</td><td><code>new 接口() { ... }</code></td></tr>
+</table>
+<div class="tip"><strong>口诀：</strong>成员依赖外类对象，静态独立只访静态，局部方法内变量要 final，匿名一次使用省命名</div>
+</section>
+
+<!-- 7. String & 集合 -->
+<section class="section" id="s7">
+<h2>七、String & 集合</h2>
+
+<h3>7.1 String <span class="tag tag-danger">不可变</span></h3>
+<ul>
+<li><code>==</code> 比地址，<code>equals</code> 比内容；常量池复用，<code>new String</code> 在堆</li>
+<li>所有修改操作（replace/substring/trim）<strong>返回新字符串</strong>，原串不变</li>
+<li>频繁修改用 <code>StringBuilder</code>（线程不安全）或 <code>StringBuffer</code>（线程安全）</li>
+</ul>
+
+<h3>7.2 StringBuilder 常用</h3>
+<pre><code>StringBuilder sb = new StringBuilder("hello");
+sb.append(" world").reverse();  // 链式调用
+String result = sb.toString();</code></pre>
+
+<h3>7.3 数组</h3>
+<ul>
+<li>动态：<code>int[] arr = new int[5];</code> 静态：<code>int[] arr = {1,2,3};</code></li>
+<li>对象数组初始化后元素全为 <strong>null</strong>，必须逐个 new</li>
+<li>遍历：普通 for / 增强 for（只读）</li>
+</ul>
+
+<h3>7.4 ArrayList <span class="tag tag-info">泛型</span></h3>
+<pre><code>ArrayList&lt;String&gt; list = new ArrayList&lt;&gt;();
+list.add("a"); list.add(0, "b");     // 增
+list.remove("a"); list.remove(0);    // 删
+list.set(0, "c");                    // 改
+list.get(0); list.size();            // 查</code></pre>
+<div class="warn"><strong>注意：</strong>集合只能存引用类型，基本类型自动装箱（JDK5+）</div>
+</section>
+
+<!-- 8. 异常与 IO -->
+<section class="section" id="s8">
+<h2>八、异常与 IO</h2>
+
+<h3>8.1 异常体系</h3>
+<table>
+<tr><th>类型</th><th>继承</th><th>处理要求</th><th>典型</th></tr>
+<tr><td>受检异常</td><td>Exception（非 Runtime）</td><td><span class="highlight">必须处理</span>（try-catch / throws）</td><td>IOException, SQLException</td></tr>
+<tr><td>运行时异常</td><td>RuntimeException</td><td>不强制，代码避免</td><td>NullPointerException, ArrayIndexOutOfBounds</td></tr>
+</table>
+
+<h3>8.2 try-with-resources（推荐）</h3>
+<pre><code>try (BufferedReader br = new BufferedReader(new FileReader("a.txt"))) {
+    String line;
+    while ((line = br.readLine()) != null) {
+        System.out.println(line);
+    }
+} catch (IOException e) {
+    e.printStackTrace();
+}</code></pre>
+
+<h3>8.3 IO 流选择</h3>
+<table>
+<tr><th>场景</th><th>使用</th></tr>
+<tr><td>文本文件读写</td><td>FileReader / FileWriter（字符流）</td></tr>
+<tr><td>二进制文件（图片/视频）</td><td>FileInputStream / FileOutputStream（字节流）</td></tr>
+<tr><td>高效缓冲</td><td>BufferedReader / BufferedInputStream</td></tr>
+<tr><td>指定编码</td><td>InputStreamReader / OutputStreamWriter</td></tr>
+</table>
+<div class="warn"><strong>字节流不要直接读文本转字符串</strong>，会乱码；字符流不要处理二进制文件</div>
+</section>
+
+<!-- 9. 避坑 -->
+<section class="section" id="s9">
+<h2>九、C++ 转 Java 避坑指南</h2>
+
+<h3>9.1 == vs equals <span class="tag tag-danger">高频错误</span></h3>
+<table>
+<tr><th>场景</th><th>正确</th><th>错误</th></tr>
+<tr><td>基本类型</td><td><code>==</code></td><td>无 equals</td></tr>
+<tr><td>字符串内容</td><td><code>"abc".equals(s)</code>（常量在前防 NPE）</td><td><code>s == "abc"</code></td></tr>
+<tr><td>对象内容</td><td><code>obj1.equals(obj2)</code>（需重写）</td><td><code>obj1 == obj2</code></td></tr>
+<tr><td>包装类</td><td><code>equals()</code></td><td><code>==</code>（-128~127 缓存区间外失效）</td></tr>
+<tr><td>判 null</td><td><code>s == null</code></td><td><code>s.equals(null)</code>（NPE！）</td></tr>
+<tr><td>枚举</td><td><code>==</code>（单例安全）</td><td>equals 也可，但 == 更高效</td></tr>
+</table>
+
+<h3>9.2 equals + hashCode 必须成对重写</h3>
+<div class="warn"><strong>铁律：</strong>重写 equals 必须同步重写 hashCode。HashSet/HashMap 先按 hashCode 定位桶，再 equals 比较。hashCode 不等则永远不会触发 equals，导致去重失败。</div>
+<pre><code>@Override public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof User)) return false;
+    return id == ((User)o).id;
+}
+@Override public int hashCode() {
+    return Objects.hash(id);
+}</code></pre>
+
+<h3>9.3 其他陷阱</h3>
+<ul>
+<li><strong>没有指针运算</strong>：不能 <code>p++</code></li>
+<li><strong>没有析构函数</strong>：GC 自动回收，可用 <code>try-finally</code> 或 <code>try-with-resources</code></li>
+<li><strong>没有 goto</strong>（保留字但不可用）</li>
+<li><strong>文件名 = public 类名</strong>，大小写敏感</li>
+<li><strong>String 不可变</strong>：所有修改返回新对象，忘接返回值等于白改</li>
+</ul>
+</section>
+
+<footer style="text-align:center;padding:30px;color:var(--muted);font-size:.9rem">
+<p>☕ 祝你考试顺利 | Java 核心语法速查</p>
+</footer>
+
+</div>
+</body>
+</html>
