@@ -3,7 +3,7 @@ markmap:
   initialExpandLevel: 2
 ---
 
-# Spring6 Core(AOP + IOC) 精简学习笔记
+# Spring6 Core(IOC + AOP) 精简学习笔记
 
 > **目标**：应试 + 开发实用，剔除 XML，纯注解，适配 Spring6 / SpringBoot3
 
@@ -134,7 +134,7 @@ public class AppConfig {
 
 ---
 
-### 4. **常用注解汇总**（方式一专用）
+### 4. ==**常用注解汇总**==（方式一专用）
 
 | 优先级 | 注解 | 作用 | 示例 |
 | :------: | ------ | ------ | ------ |
@@ -143,9 +143,9 @@ public class AppConfig {
 | 🔥🔥🔥 | `@Service` | **Service 层**（语义化）:实现业务逻辑，事务控制，调用 Repository | `@Service` |
 | 🔥🔥 | `@Repository` | **DAO/Repository层**:封装数据库增删改查，转换异常 | `@Repository` |
 | 🔥🔥 | `@Controller` / `@RestController` | **Web层**:接收 HTTP 请求，调用 Service，返回响应 | `@RestController` |
-| 🔥 | `@Qualifier` | 配合 `@Autowired` 按**名称**注入 | `@Qualifier("userDaoImpl")` |
+| 🔥 | `@Qualifier` | 配合`@Autowired`按**名称**注入 | `@Qualifier("userDaoImpl")` |
 | 🔥 | `@Value` | 注入配置值 | `@Value("${jdbc.url}")` |
-| 🔥 | `@Scope` | 指定作用域（`singleton` / `prototype`） | `@Scope("prototype")` |
+| 🔥 | `@Scope` | 指定**作用域**（`singleton` / `prototype`） | `@Scope("prototype")` |
 | 🔥 | `@PostConstruct` / `@PreDestroy` | 初始化/销毁回调 | `@PostConstruct void init(){}` |
 | 🔥 | `@Primary` | 声明同类型 Bean 的首选 | `@Primary` |
 | 🔥 | `@ConfigurationProperties` | 绑定配置前缀到类 | `@ConfigurationProperties(prefix = "app")` |
@@ -189,7 +189,7 @@ public class AppConfig {
 
 ---
 
-#### (2)`@Autowired`vs`@Resource`vs`@Inject`对比
+#### (2)**`@Autowired`vs`@Resource`vs`@Inject`对比**
 
 | 注解 | 来源 | 注入规则 | 是否支持 `required` |
 | ------ | ------ | ---------- | --------------------- |
@@ -395,7 +395,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 
 ---
 
-### 3. 🔥 Spring Boot 自动配置原理
+### 3. 🔥 **Spring Boot 自动配置原理**
 
 `@SpringBootApplication` 拆解：
 
@@ -481,6 +481,8 @@ public class LogAspect {
 
 ### 3. **切点表达式最简写法**
 
+- `execution` 就是 Spring AOP 中用来“**精准定位**”的触发器。它决定了当程序运行到哪个类的哪个方法时，你写的额外功能（如日志、事务、权限校验）才会被自动触发执行
+
 ```java
 // 格式：execution(修饰符? 返回值类型 包名.类名.方法名(参数) 异常?)
 
@@ -503,11 +505,15 @@ execution(void com.example..*.*(..))
 execution(* com.example..*.*(..))
 ```
 
-- 💡 **开发口诀**：`*` 表示任意类型/方法名；`..` 表示任意参数或子包
+- `*`（星号）：表示“**任意内容**”，但只能**代表一层**
+  比如 `*` 可以代表任意返回值类型、任意方法名、任意类名、任意参数类型（但参数个数固定时，* 代表一个参数）
+- `..`（两个点）：表示“**任意数量**”或“**任意层级**”
+  - 用在**参数位置**：代表 0 个或多个任意类型的参数
+  - 用在**包名位置**：代表当前包及其所有子包
 
 ---
 
-### 4. 🔥 `@Pointcut` 复用最佳实践
+### 4. `@Pointcut` 复用最佳实践
 
 实际开发建议将切点表达式抽离，集中管理：
 
@@ -568,7 +574,7 @@ public void methodA() {
 }
 ```
 
-**解决方案一**：通过 `AopContext.currentProxy()` 获取当前代理对象（需开启 `exposeProxy`）
+**解决方案一**：通过`AopContext.currentProxy()` 获取当前代理对象（需开启 `exposeProxy`）
 
 - 步骤1:在启动类上加一行注解：`@EnableAspectJAutoProxy(exposeProxy = true)`
 - 步骤2：用代理对象调用：

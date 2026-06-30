@@ -351,9 +351,9 @@ public class UserController {
 | ---------- | -------- | --- |
 | `@GetMapping` | `@RequestMapping(method = RequestMethod.GET)` | 处理 HTTP GET 请求，通常用于**查询或获取**资源 |
 | `@PostMapping` | `@RequestMapping(method = RequestMethod.POST)` | 处理 HTTP POST 请求，通常用于**创建**资源 |
-| `@PutMapping` | `@RequestMapping(method = RequestMethod.PUT)` | 处理 HTTP PUT 请求，通常用于**更新或替换**整个资源 |
+| `@PutMapping` | `@RequestMapping(method = RequestMethod.PUT)` | 处理 HTTP PUT 请求，通常用于**更新或替换整个**资源 |
 | `@DeleteMapping` | `@RequestMapping(method = RequestMethod.DELETE)` | 处理 HTTP DELETE 请求，用于**删除**资源 |
-| `@PatchMapping` | `@RequestMapping(method = RequestMethod.PATCH)` | 处理 HTTP PATCH 请求，通常用于部分**修改**资源 |
+| `@PatchMapping` | `@RequestMapping(method = RequestMethod.PATCH)` | 处理 HTTP PATCH 请求，通常用于**部分修改**资源 |
 
 ---
 
@@ -468,7 +468,71 @@ public Result save(@RequestBody @Valid User user) {
 
 ---
 
-### 5.6 请求头 / Cookie
+### 5.6 ==**对比区分**==
+
+#### (1)**对比表格**
+
+| 对比维度 | @PathVariable（路径变量） | @RequestParam（请求参数） | @RequestBody（请求体） |
+| :--- | :--- | :--- | :--- |
+| **数据位置** | **URL 路径中**（`/users/{id}`） | URL **问号后面**（`?page=1`）<br>或 Form 表单域 | HTTP **请求体（Body）** 中 |
+| **请求方式** | GET / POST / PUT / DELETE 通用 | 通用，**尤其 GET** | **POST / PUT / PATCH** |
+| **真实URL示例** | `GET /users/1001` | `GET /users?id=1001` | `POST /users` <br>(Body: `{"name":"John"}`) |
+| **后端接收方式** | 单个变量（`@PathVariable Long id`） | 单个变量、Map 或对象（若用对象需配合 `@ModelAttribute`） | **完整的实体对象（POJO）**、Map |
+| **必填性** | **路径自带必填**（URL匹配不上直接404） | 默认必填（可设 `required=false`） | 默认必填（可设 `required=false`，但Body为空则对象为null） |
+| **典型应用场景** | **RESTful 资源定位**：<br>查/删/改某个特定 ID 的数据 | **查询过滤 + 分页**：<br>列表筛选、排序、页码控制 | **新增/修改数据**：<br>提交复杂 JSON 表单 |
+
+---
+
+#### (2)**实战代码**
+
+```java
+@RestController
+@RequestMapping("/users")
+public class UserController {
+
+    // 1. @PathVariable：查询 ID=1001 的特定用户
+    // 请求：GET /users/1001
+    @GetMapping("/{id}")
+    public String getById(@PathVariable Long id) {
+        return "查询用户ID: " + id;
+    }
+
+    // 2. @RequestParam：查询所有用户，带分页和状态筛选
+    // 请求：GET /users?page=2&size=10&status=active
+    @GetMapping
+    public String listUsers(@RequestParam int page, 
+                            @RequestParam int size, 
+                            @RequestParam String status) {
+        return "分页查询, page=" + page + ", status=" + status;
+    }
+
+    // 3. @RequestBody：新增一个用户（JSON放Body里）
+    // 请求：POST /users  Body: {"name":"John", "age":25}
+    @PostMapping
+    public String createUser(@RequestBody User user) {
+        return "新增用户: " + user.getName();
+    }
+}
+```
+
+---
+
+#### (3)**一句口诀**
+
+> [!TIP]
+> **“路径变量定位资源（`@PathVariable`），查询参数过滤筛选（`@RequestParam`），请求体传复杂数据（`@RequestBody`）”**
+
+**前端发请求时，你只看 URL 就懂了：**
+
+- 看到 `/users/123` → 后端用 `@PathVariable`
+- 看到 `/users?age=18` → 后端用 `@RequestParam`
+- 看到 Body 里有大段 JSON → 后端用 `@RequestBody`
+
+如果后端写错了注解，前端传得再对也收不到。遇到参数为空时，先检查前端传的**位置**和后端写的**注解**是否匹配就对了！
+
+---
+
+### 5.7 请求头 / Cookie
 
 > Cookie（HTTP Cookie） 是服务器发送到用户浏览器并保存在本地的一小块数据，浏览器后续请求时会自动携带它
 
@@ -484,7 +548,7 @@ public String readHeader(@RequestHeader("User-Agent") String ua,
 
 ---
 
-### 5.7 Session 操作
+### 5.8 Session 操作
 
 > Session（会话） 是服务器端用来保存同一个用户多次请求之间的状态数据的一种机制
 
@@ -656,7 +720,9 @@ preHandle → 目标方法 → postHandle → afterCompletion
 
 - 如果`preHandle`返回`false`，则直接跳到`afterCompletion`（仅限已执行过`preHandle`的拦截器）
 
-#### (2) 多个拦截器（假设顺序为 Interceptor1、Interceptor2）
+#### (2) **多个拦截器**
+
+假设顺序为 Interceptor1、Interceptor2
 
 ```Java
 preHandle-1 → preHandle-2 → 目标方法 → postHandle-2 → postHandle-1 → afterCompletion-2 → afterCompletion-1
@@ -744,6 +810,27 @@ public class GlobalExceptionHandler {
 
 ---
 
+### 8.3 **与`try-catch`对比**
+
+> [!TIP]
+> **Spring 全局异常处理 = 系统自动帮你把所有 Controller 包裹进了一个统一的 `try-catch` 里。**
+
+| 对比维度 | **手动 try-catch**（硬编码） | **全局异常处理**（`@RestControllerAdvice`） |
+| :--- | :--- | :--- |
+| **代码量** | 每个接口重复写，极其冗余 | 只写一次，全项目共用 |
+| **业务代码** | 被 `catch` 块严重污染，可读性差 | **零污染**，业务层只管 `throw`，干净清爽 |
+| **返回格式** | 难以统一，A 接口返 `code`，B 接口返 `msg` | **强制统一**，所有异常返回相同 JSON 结构 |
+| **维护成本** | 改一个错误码，要翻遍所有 Controller | 只需改全局处理类中的一个方法 |
+| **核心原则** | 违背“单一职责” | 完美践行“AOP（面向切面编程）”思想 |
+
+
+> [!NOTE]
+> **Service 层和 Controller 层永远不写 `try-catch` 处理业务返回结果，异常全部往上抛，交给全局异常处理器统一“擦屁股”。**
+
+（只有极特殊情况，如事务回滚中捕获异常防止事务失效，才需手动处理。）
+
+---
+
 ## 9. SpringMVC 与 SpringBoot 的关联与区别
 
 ### 9.1 SpringBoot 自动配置了什么
@@ -774,7 +861,7 @@ public class GlobalExceptionHandler {
 
 ## 10. 开发高频问题 & 解决方案速查
 
-### 1. 参数接收失败（常见 400 Bad Request）
+### 10.1 参数接收失败（常见 400 Bad Request）
 
 - **现象**：`Required request parameter 'xxx' is not present`
 - **原因**：`@RequestParam` 标注但未传参，且未设 `required=false` 或 `defaultValue`
@@ -782,7 +869,7 @@ public class GlobalExceptionHandler {
 
 ---
 
-### 2. JSON 解析异常（415 / 400）
+### 10.2 JSON 解析异常（415 / 400）
 
 - **现象**：`Content type 'application/x-www-form-urlencoded' not supported` 或 JSON 反序列化失败
 - **原因**：
@@ -804,7 +891,7 @@ public void configureMessageConverters(List<HttpMessageConverter<?>> converters)
 
 ---
 
-### 3. 跨域问题（CORS）
+### 10.3 跨域问题（CORS）
 
 - **现象**：浏览器提示 `No 'Access-Control-Allow-Origin' header`
 - **方案1（局部）**：`@CrossOrigin(origins = "http://localhost:3000")` 加在 Controller 或方法
@@ -822,7 +909,7 @@ public void addCorsMappings(CorsRegistry registry) {
 
 ---
 
-### 4. 中文乱码
+### 10.4 中文乱码
 
 - **请求乱码**：Tomcat 默认 URI 编码为 ISO-8859-1，需配置 `server.xml` 中 `URIEncoding="UTF-8"`。SpringBoot 中 `server.tomcat.uri-encoding=UTF-8` 已默认
 - **响应乱码**：确保 `@RequestMapping` 的 `produces = "application/json;charset=UTF-8"` 或全局配置 `StringHttpMessageConverter` 默认 UTF-8
@@ -840,7 +927,7 @@ protected Filter[] getServletFilters() {
 
 ---
 
-### 5. 静态资源 404
+### 10.5 静态资源 404
 
 在纯注解配置中，`@EnableWebMvc` 会完全接管资源映射，默认不暴露 `*.html` 等
 
@@ -858,7 +945,7 @@ protected Filter[] getServletFilters() {
 
 ---
 
-### 6. 请求 404，明明写了 Controller
+### 10.6 请求 404，明明写了 Controller
 
 - **检查**：`@Controller` 或 `@RestController` 是否被扫描到。确认 `@ComponentScan` 包含所在包
 - **检查**：`getServletMappings()` 是否匹配（例如映射为 `/*` 和 `/` 的区别）
@@ -1067,8 +1154,6 @@ public ResponseEntity<org.springframework.core.io.Resource> download(
 
 > 当前主流是纯注解 + Spring Boot，但维护老项目、阅读文档、排查底层问题时仍需看懂 XML。本章只讲 **必须掌握的片段**，不深究
 
----
-
 ### 13.1 `web.xml`（核心 3 块）
 
 ```xml
@@ -1157,15 +1242,15 @@ public ResponseEntity<org.springframework.core.io.Resource> download(
 </beans>
 ```
 
-**要点**：
+==**要点**==：
 
-- `base-package` 写错 → 404
-- 删除 `<mvc:annotation-driven/>` → `@ResponseBody` 返回对象会 406 或不能转 JSON
+- `base-package` **写错 → 404**
+- **删除** `<mvc:annotation-driven/>` → `@ResponseBody` 返回对象会 **406** 或不能转 JSON
 - `xmlns` 那些命名空间直接复制，不要手改
 
 ---
 
-### 13.3 **与注解版的映射关系**
+### 13.3 ==**与注解版的映射关系**==
 
 | XML 配置 | 注解 / Java Config 替代 |
 | ---------- | ------------------------ |
