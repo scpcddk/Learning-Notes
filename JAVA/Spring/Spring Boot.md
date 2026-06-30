@@ -10,13 +10,15 @@
 ### 1.1 自动配置原理（Auto-Configuration）
 
 #### 本章核心定位
-Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的 `@Import` 与条件化装配，下游支撑所有 Starter 的零配置开箱即用。
+
+Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的 `@Import` 与条件化装配，下游支撑所有 Starter 的零配置开箱即用
 
 #### 核心原理
 
 **通俗版：** Spring Boot 启动时扫描 classpath 下所有 jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 Bean，不满足就跳过。
 
 **底层版：**
+
 1. 入口：`@SpringBootApplication` → `@EnableAutoConfiguration` → `@Import(AutoConfigurationImportSelector.class)`
 2. `AutoConfigurationImportSelector#selectImports()` 调用 `getCandidateConfigurations()`，通过 `SpringFactoriesLoader` 读取 `AutoConfiguration.imports`
 3. `ConditionEvaluator` 对每个配置类执行条件评估
@@ -46,9 +48,11 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 ### 1.2 Starter 机制
 
 #### 本章核心定位
+
 Spring Boot 生态的"插件化标准"，是自动配置的工程化封装。企业级开发中，自定义 Starter 是封装公共组件的标准方式。
 
 #### 核心原理
+
 Starter 是一个普通 Maven 模块，通过 `pom.xml` 引入所需依赖，并在 `META-INF/spring/` 下注册自动配置类。当用户引入 Starter 依赖后，Spring Boot 自动扫描并加载其中的自动配置。
 
 #### 典型代码模板

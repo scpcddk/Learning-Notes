@@ -38,7 +38,7 @@ markmap:
 | **DispatcherServlet** | `DispatcherServlet` | 前端**总控**，协调其他组件，本身不干活 |
 | **HandlerMapping** | `HandlerMapping` | 根据请求（URL、方法等）**找到**对应的 Handler（处理器） |
 | **HandlerAdapter** | `HandlerAdapter` | **适配并执行** Handler，屏蔽不同类型的处理器差异 |
-| **Handler（处理器）** | `Object`（通常是我们写的 `@Controller` 方法封装） | 真正**执行业务逻辑**的地方 |
+| **Handler（处理器）** | `Object`（通常是我们写的`@Controller`方法封装） | 真正**执行业务逻辑**的地方 |
 | **HandlerExceptionResolver** | `HandlerExceptionResolver` | **处理**执行过程中抛出的**异常**（视图与 REST 响应的异常统一处理） |
 
 ---
