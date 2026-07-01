@@ -9,13 +9,13 @@
 
 ### 1.1 自动配置原理（Auto-Configuration）
 
-#### 本章核心定位
+#### 1.1.1 本章核心定位
 
 Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的 `@Import` 与条件化装配，下游支撑所有 Starter 的零配置开箱即用
 
-#### 核心原理
+#### 1.1.2 核心原理
 
-**通俗版：** Spring Boot 启动时扫描 classpath 下所有 jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 Bean，不满足就跳过。
+**通俗版：** Spring Boot 启动时扫描 classpath 下所有 jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 Bean，不满足就跳过
 
 **底层版：**
 
@@ -25,17 +25,17 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 4. 通过评估的配置类注册为 `BeanDefinition`，由 `BeanFactory` 实例化
 5. 自动配置 Bean 通常带 `@ConditionalOnMissingBean`，用户自定义 Bean 优先级更高
 
-#### 核心知识点清单
+#### 1.1.3 核心知识点清单
 
 | 考点 | 内容 |
-|------|------|
+| ------ | ------ |
 | 自动配置加载文件 | 3.x: `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`；2.x: `META-INF/spring.factories` |
 | 核心类 | `AutoConfigurationImportSelector`、`SpringFactoriesLoader`、`ConditionEvaluator` |
 | 条件注解族 | `@ConditionalOnClass`、`@ConditionalOnMissingBean`、`@ConditionalOnProperty`、`@ConditionalOnWebApplication` |
 | 排除自动配置 | `@SpringBootApplication(exclude = {...})` 或 `spring.autoconfigure.exclude` |
 | 查看匹配详情 | 启动加 `--debug` 或 `debug=true`，看 `Positive matches` / `Negative matches` |
 
-#### 面试高频问答
+#### 1.1.4 面试高频问答
 
 **Q：Spring Boot 自动配置原理是什么？**
 > 答：通过 `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`，读取 `AutoConfiguration.imports` 获取所有自动配置类。`ConditionEvaluator` 进行条件评估，满足条件的注册为 BeanDefinition 并实例化。
@@ -47,15 +47,15 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 
 ### 1.2 Starter 机制
 
-#### 本章核心定位
+#### 1.2.1 本章核心定位
 
 Spring Boot 生态的"插件化标准"，是自动配置的工程化封装。企业级开发中，自定义 Starter 是封装公共组件的标准方式。
 
-#### 核心原理
+#### 1.2.2 核心原理
 
 Starter 是一个普通 Maven 模块，通过 `pom.xml` 引入所需依赖，并在 `META-INF/spring/` 下注册自动配置类。当用户引入 Starter 依赖后，Spring Boot 自动扫描并加载其中的自动配置。
 
-#### 典型代码模板
+#### 1.2.3 典型代码模板
 
 ```java
 // 配置属性类
@@ -83,11 +83,12 @@ public class AiServiceAutoConfiguration {
 ```
 
 **`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`：**
+
 ```text
 com.myapp.aiservice.AiServiceAutoConfiguration
 ```
 
-#### 面试高频问答
+#### 1.2.4 面试高频问答
 
 **Q：如何自定义一个 Starter？Spring Boot 如何识别你的自动配置类？**
 > 答：① 创建 Maven 模块，引入 `spring-boot-autoconfigure` 依赖；② 编写 `xxxProperties` 配置属性类 + `xxxAutoConfiguration` 自动配置类；③ 在 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中注册自动配置类全限定名；④ 用户引入 Starter 后，Spring Boot 通过 `SpringFactoriesLoader` 读取该文件并加载配置。
@@ -99,19 +100,21 @@ com.myapp.aiservice.AiServiceAutoConfiguration
 
 ### 1.3 启动生命周期与初始化
 
-#### 本章核心定位
+#### 1.3.1 本章核心定位
+
 应用启动完成后执行初始化逻辑的"标准钩子"，解决"Bean 创建完但应用未就绪"的时序问题。
 
-#### 核心原理
+#### 1.3.2 核心原理
+
 Spring Boot 应用启动完成后，会查找容器中所有 `CommandLineRunner` 和 `ApplicationRunner` 接口的实现类，按 `@Order` 排序后依次执行。
 
 | 方式 | 执行时机 | 适用场景 |
-|------|----------|----------|
+| ------ | ---------- | ---------- |
 | `@PostConstruct` | 当前 Bean 创建完 | Bean 内部初始化（如配置校验） |
 | `CommandLineRunner` | **整个应用启动完** | 需要数据库连接等全局初始化（预热缓存、加载字典） |
 | `ApplicationRunner` | 整个应用启动完 | 同 `CommandLineRunner`，但参数为 `ApplicationArguments` |
 
-#### 典型代码模板
+#### 1.3.3 典型代码模板
 
 ```java
 @Component
@@ -135,7 +138,7 @@ public class DictLoaderRunner implements ApplicationRunner {
 }
 ```
 
-#### 面试高频问答
+#### 1.3.4 面试高频问答
 
 **Q：`@PostConstruct` 和 `CommandLineRunner` 有什么区别？**
 > 答：`@PostConstruct` 在当前 Bean 初始化完成后立即执行，此时应用可能尚未完全启动（如数据库连接池未就绪）；`CommandLineRunner` 在整个 Spring Boot 应用启动完成后执行，适合需要依赖其他组件就绪的全局初始化任务。
@@ -146,12 +149,13 @@ public class DictLoaderRunner implements ApplicationRunner {
 
 ### 2.1 YAML/Properties 配置与加载优先级
 
-#### 核心原理
+#### 2.1.1 核心原理
+
 Spring Boot 从 17 个位置加载配置，按优先级高到低覆盖。`application.yml` 用缩进表示层级，多环境通过 `spring.profiles.active` 切换。
 
 **配置源优先级（高→低）：** 命令行参数 > JNDI > System 属性 > 环境变量 > `application-{profile}.yml` > `application.yml` > `@PropertySource`
 
-#### 典型代码模板
+#### 2.1.2 典型代码模板
 
 ```yaml
 # application.yml（主配置）
@@ -164,7 +168,24 @@ spring:
       prod: prod,common
 ```
 
-**Maven 资源过滤配置（必须）：**
+- **YAML 语法要点**：
+  - 缩进只能用空格（禁用 Tab），冒号后必须加空格
+  - 列表用 `- 元素` 表示
+  - 多文档用 `---` 分隔不同 Profile（2.4+ 用 `spring.config.activate.on-profile`）
+
+#### 2.1.3 多环境文件结构（推荐）
+
+```text
+resources/
+├── application.yml           # 主配置（含 group 定义）
+├── application-common.yml    # 通用配置
+├── application-dev.yml       # 开发环境专属
+└── application-prod.yml      # 生产环境专属
+```
+
+**加载顺序：** 激活 `dev` 时，`application.yml` → `application-dev.yml` → `application-common.yml`（后者覆盖前者）
+
+#### 2.1.4 Maven 资源过滤配置
 
 ```xml
 <build>
@@ -189,16 +210,21 @@ spring:
 </build>
 ```
 
+- **常见问题**：
+  - **占位符失效**：IDE 直接运行 main 方法时 Maven 过滤不生效，需在 VM options 加 -Dspring.profiles.active=dev 或打包后 java -jar 启动。
+  - **`@Value` 陷阱**：不支持松散绑定（如 api-key 需写 @Value("${app.ai.api-key}")）；配置缺失且无默认值会启动报错，建议加默认值（如 @Value("${test.hello:默认}")）
+
 ---
 
 ### 2.2 配置绑定（@ConfigurationProperties）
 
-#### 核心原理
+#### 2.2.1 核心原理
+
 `ConfigurationPropertiesBindingPostProcessor` 拦截带 `@ConfigurationProperties` 的类，调用 `Binder` 递归绑定属性，支持松散绑定和 JSR-303 校验。
 
-#### 典型代码模板
+#### 2.2.2 典型代码模板
 
-**方式一：Setter 绑定（传统，可变）**
+- **方式一：Setter 绑定（传统，可变）**
 
 ```java
 @Data
@@ -214,7 +240,7 @@ public class AiProperties {
 }
 ```
 
-**方式二：构造函数绑定（推荐，不可变，线程安全）**
+- **方式二：构造函数绑定（推荐，不可变，线程安全）**
 
 ```java
 @Validated
@@ -237,7 +263,7 @@ public class AiProperties {
 }
 ```
 
-**激活构造函数绑定：**
+- **激活构造函数绑定：**
 
 ```java
 @Configuration
@@ -245,7 +271,7 @@ public class AiProperties {
 public class AiConfig { }
 ```
 
-#### 面试高频问答
+#### 2.2.3 面试高频问答
 
 **Q：`@ConfigurationProperties` 和 `@Value` 的区别？什么时候必须用构造器绑定？**
 > 答：`@Value` 适合单个属性注入，不支持松散绑定和校验；`@ConfigurationProperties` 适合批量绑定复杂对象，支持松散绑定和 JSR-303 校验。构造器绑定适用于：① 需要不可变配置（`final` 字段）；② 多线程安全要求高的场景；③ 构造时进行完整性校验。
@@ -254,10 +280,11 @@ public class AiConfig { }
 
 ### 2.3 配置属性元数据（★ v4.0 新增）
 
-#### 本章核心定位
+#### 2.3.1 本章核心定位
+
 让自定义 Starter 在 IDE（如 IntelliJ IDEA）中提供自动提示和配置补全，提升开发体验。
 
-#### 典型代码模板
+#### 2.3.2 典型代码模板
 
 在 `src/main/resources/META-INF/spring-configuration-metadata.json` 中定义：
 
@@ -302,8 +329,9 @@ public class AiConfig { }
 
 ### 2.4 配置文件加密（Jasypt）（★ v4.0 新增）
 
-#### 本章核心定位
-生产环境敏感信息（数据库密码、API Key）不应明文存储，Jasypt 提供透明加密方案。
+#### 2.4.1 本章核心定位
+
+生产环境敏感信息（数据库密码、API Key）不应明文存储，Jasypt 提供透明加密方案
 
 #### 典型代码模板
 
@@ -816,7 +844,7 @@ class UserServiceTest {
 
 ### 9.1 Maven 打包与 Docker 容器化
 
-#### 典型代码模板
+#### 9.1.1 典型代码模板
 
 ```dockerfile
 # Dockerfile（多阶段构建 + 分层Jar）
@@ -993,10 +1021,11 @@ stringData:
 
 ### 10.1 核心端点与配置
 
-#### 本章核心定位
+#### 10.1.1 本章核心定位
+
 Spring Boot 自带的"运维监控仪表盘"，提供健康检查、指标、环境、日志级别调整等生产级端点。
 
-#### 典型代码模板
+#### 10.1.2 典型代码模板
 
 ```yaml
 management:
@@ -1017,7 +1046,7 @@ management:
 **常用端点速查：**
 
 | 端点 | 功能 | 生产建议 |
-|------|------|----------|
+| ------ | ------ | ---------- |
 | `/actuator/health` | 健康状态 | 必须暴露，用于负载均衡检查 |
 | `/actuator/health/liveness` | 存活检查 | K8s 配置 `livenessProbe` |
 | `/actuator/health/readiness` | 就绪检查 | K8s 配置 `readinessProbe` |
@@ -1025,7 +1054,7 @@ management:
 | `/actuator/env` | 环境变量与配置 | 敏感信息需脱敏 |
 | `/actuator/loggers` | 查看/修改日志级别 | 线上问题排查神器 |
 
-#### 自定义健康检查
+#### 10.2.3 自定义健康检查
 
 ```java
 @Component
