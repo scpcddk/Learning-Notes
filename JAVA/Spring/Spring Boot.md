@@ -1,7 +1,7 @@
 # Spring Boot 后端开发核心知识框架（升级版 v4.0）
 
-> **版本说明**：基于 v3.0 全面优化，基于 Spring Boot 3.3.x + Java 21，最后更新 2026-06。  
-> 补全了全章节面试问答闭环，修正了 RestTemplate/WebClient 技术描述，新增分布式定时、配置加密、优雅停机、Security 6 新写法等生产必备知识。Mermaid 时序图替代 ASCII，避坑指南增加"发现办法"列。
+> **版本说明**：基于 v3.0 全面优化，基于 Spring Boot 3.3.x + Java 21，最后更新 2026-07
+> 补全了全章节面试问答闭环，修正了 RestTemplate/WebClient 技术描述，新增分布式定时、配置加密、优雅停机、Security 6 新写法等生产必备知识。Mermaid 时序图替代 ASCII，避坑指南增加"发现办法"列
 
 ---
 
@@ -11,19 +11,18 @@
 
 #### 1.1.1 本章核心定位
 
-Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的 `@Import` 与条件化装配，下游支撑所有 Starter 的零配置开箱即用
+Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的`@Import`与条件化装配，下游支撑所有 Starter 的零配置开箱即用
 
 #### 1.1.2 核心原理
 
-**通俗版：** Spring Boot 启动时扫描 classpath 下所有 jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 Bean，不满足就跳过
+- **通俗版：** Spring Boot 启动时扫描 `classpath` 下所有 jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 Bean，不满足就跳过
 
-**底层版：**
-
-1. 入口：`@SpringBootApplication` → `@EnableAutoConfiguration` → `@Import(AutoConfigurationImportSelector.class)`
-2. `AutoConfigurationImportSelector#selectImports()` 调用 `getCandidateConfigurations()`，通过 `SpringFactoriesLoader` 读取 `AutoConfiguration.imports`
-3. `ConditionEvaluator` 对每个配置类执行条件评估
-4. 通过评估的配置类注册为 `BeanDefinition`，由 `BeanFactory` 实例化
-5. 自动配置 Bean 通常带 `@ConditionalOnMissingBean`，用户自定义 Bean 优先级更高
+- **底层版：**
+  1. 入口：`@SpringBootApplication` → `@EnableAutoConfiguration` → `@Import(AutoConfigurationImportSelector.class)`
+  2. `AutoConfigurationImportSelector#selectImports()` 调用 `getCandidateConfigurations()`，通过 `SpringFactoriesLoader` 读取 `AutoConfiguration.imports`
+  3. `ConditionEvaluator` 对每个配置类执行条件评估
+  4. 通过评估的配置类注册为 `BeanDefinition`，由 `BeanFactory` 实例化
+  5. 自动配置 Bean 通常带 `@ConditionalOnMissingBean`，用户自定义 Bean 优先级更高
 
 #### 1.1.3 核心知识点清单
 
@@ -38,7 +37,8 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 #### 1.1.4 面试高频问答
 
 **Q：Spring Boot 自动配置原理是什么？**
-> 答：通过 `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`，读取 `AutoConfiguration.imports` 获取所有自动配置类。`ConditionEvaluator` 进行条件评估，满足条件的注册为 BeanDefinition 并实例化。
+> 答：通过 `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`，读取 `AutoConfiguration.imports` 获取所有自动配置类。`ConditionEvaluator` 进行条件评估，满足条件的注册为 BeanDefinition 并实例化
+> 详见自动配置原理（Spring Core)
 
 **Q：如何查看哪些自动配置生效了？**
 > 答：启动时加 `--debug` 参数，或在 `application.yml` 中设置 `debug: true`，控制台会输出 `Positive matches`（生效）和 `Negative matches`（未生效）的完整列表。
@@ -49,11 +49,11 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 
 #### 1.2.1 本章核心定位
 
-Spring Boot 生态的"插件化标准"，是自动配置的工程化封装。企业级开发中，自定义 Starter 是封装公共组件的标准方式。
+Spring Boot 生态的"插件化标准"，是自动配置的工程化封装。企业级开发中，自定义 Starter 是封装公共组件的标准方式
 
 #### 1.2.2 核心原理
 
-Starter 是一个普通 Maven 模块，通过 `pom.xml` 引入所需依赖，并在 `META-INF/spring/` 下注册自动配置类。当用户引入 Starter 依赖后，Spring Boot 自动扫描并加载其中的自动配置。
+Starter 是一个普通 Maven 模块，通过`pom.xml`引入所需依赖，并在`META-INF/spring/`下注册自动配置类。当用户引入 Starter 依赖后，Spring Boot 自动扫描并加载其中的自动配置
 
 #### 1.2.3 典型代码模板
 
@@ -91,10 +91,10 @@ com.myapp.aiservice.AiServiceAutoConfiguration
 #### 1.2.4 面试高频问答
 
 **Q：如何自定义一个 Starter？Spring Boot 如何识别你的自动配置类？**
-> 答：① 创建 Maven 模块，引入 `spring-boot-autoconfigure` 依赖；② 编写 `xxxProperties` 配置属性类 + `xxxAutoConfiguration` 自动配置类；③ 在 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中注册自动配置类全限定名；④ 用户引入 Starter 后，Spring Boot 通过 `SpringFactoriesLoader` 读取该文件并加载配置。
+> 答：① 创建 Maven 模块，引入 `spring-boot-autoconfigure` 依赖；② 编写 `xxxProperties` 配置属性类 + `xxxAutoConfiguration` 自动配置类；③ 在 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中注册自动配置类全限定名；④ 用户引入 Starter 后，Spring Boot 通过 `SpringFactoriesLoader` 读取该文件并加载配置
 
 **Q：自定义 Starter 时，为什么要加 `@ConditionalOnMissingBean`？**
-> 答：防止与用户自定义的同名 Bean 冲突，保证用户自定义 Bean 优先级更高，体现"约定大于配置，配置大于默认"的原则。
+> 答：防止与用户自定义的同名 Bean 冲突，保证用户自定义 Bean 优先级更高，体现"约定大于配置，配置大于默认"的原则
 
 ---
 
@@ -102,7 +102,7 @@ com.myapp.aiservice.AiServiceAutoConfiguration
 
 #### 1.3.1 本章核心定位
 
-应用启动完成后执行初始化逻辑的"标准钩子"，解决"Bean 创建完但应用未就绪"的时序问题。
+应用启动完成后执行初始化逻辑的"标准钩子"，解决"Bean 创建完但应用未就绪"的时序问题
 
 #### 1.3.2 核心原理
 
@@ -141,7 +141,7 @@ public class DictLoaderRunner implements ApplicationRunner {
 #### 1.3.4 面试高频问答
 
 **Q：`@PostConstruct` 和 `CommandLineRunner` 有什么区别？**
-> 答：`@PostConstruct` 在当前 Bean 初始化完成后立即执行，此时应用可能尚未完全启动（如数据库连接池未就绪）；`CommandLineRunner` 在整个 Spring Boot 应用启动完成后执行，适合需要依赖其他组件就绪的全局初始化任务。
+> 答：`@PostConstruct` 在当前 Bean 初始化完成后立即执行，此时应用可能尚未完全启动（如数据库连接池未就绪）；`CommandLineRunner` 在整个 Spring Boot 应用启动完成后执行，适合需要依赖其他组件就绪的全局初始化任务
 
 ---
 
@@ -151,7 +151,7 @@ public class DictLoaderRunner implements ApplicationRunner {
 
 #### 2.1.1 核心原理
 
-Spring Boot 从 17 个位置加载配置，按优先级高到低覆盖。`application.yml` 用缩进表示层级，多环境通过 `spring.profiles.active` 切换。
+Spring Boot 从 17 个位置加载配置，按优先级高到低覆盖。`application.yml`用**缩进**表示层级，多环境通过`spring.profiles.active`切换
 
 **配置源优先级（高→低）：** 命令行参数 > JNDI > System 属性 > 环境变量 > `application-{profile}.yml` > `application.yml` > `@PropertySource`
 
@@ -211,8 +211,8 @@ resources/
 ```
 
 - **常见问题**：
-  - **占位符失效**：IDE 直接运行 main 方法时 Maven 过滤不生效，需在 VM options 加 -Dspring.profiles.active=dev 或打包后 java -jar 启动。
-  - **`@Value` 陷阱**：不支持松散绑定（如 api-key 需写 @Value("${app.ai.api-key}")）；配置缺失且无默认值会启动报错，建议加默认值（如 @Value("${test.hello:默认}")）
+  - **占位符失效**：IDE 直接运行 main 方法时 Maven 过滤不生效，需在 VM options 加 -Dspring.profiles.active=dev 或打包后 java -jar 启动
+  - **`@Value` 陷阱**：不支持松散绑定（如 api-key 需写 `@Value("${app.ai.api-key}")）；`配置缺失且无默认值会启动报错，建议加默认值（如 `@Value("${test.hello:默认}")`）
 
 ---
 
@@ -220,7 +220,7 @@ resources/
 
 #### 2.2.1 核心原理
 
-`ConfigurationPropertiesBindingPostProcessor` 拦截带 `@ConfigurationProperties` 的类，调用 `Binder` 递归绑定属性，支持松散绑定和 JSR-303 校验。
+`ConfigurationPropertiesBindingPostProcessor`拦截带`@ConfigurationProperties`的类，调用`Binder`递归绑定属性，支持松散绑定和 JSR-303 校验
 
 #### 2.2.2 典型代码模板
 
@@ -366,12 +366,12 @@ public String encrypt(String plain) {
 
 ---
 
-## 三、常用注解速查体系
+## 三、==常用注解速查体系==
 
-### 3.1 请求映射与参数获取
+### 3.1 **请求映射与参数获取**
 
 | 注解 | 作用 | 示例 |
-|------|------|------|
+| ------ | ------ | ------ |
 | `@GetMapping` | 处理 GET | `@GetMapping("/users")` |
 | `@PostMapping` | 处理 POST | `@PostMapping("/users")` |
 | `@PutMapping` | 全量更新 | `@PutMapping("/users/{id}")` |
@@ -382,29 +382,29 @@ public String encrypt(String plain) {
 | `@RequestBody` | 请求体 JSON | `@RequestBody @Valid UserDTO dto` |
 | `@RequestHeader` | 请求头 | `@RequestHeader("Authorization") String token` |
 
-### 3.2 Bean 注入与生命周期
+### 3.2 **Bean 注入与生命周期**
 
 | 注解 | 说明 | 推荐使用场景 |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | `@Autowired` | 按**类型**注入（Spring 专属） | 配合 `@Qualifier` 使用 |
 | `@Resource` | 按**名称**注入（JDK 标准） | 推荐，降低与 Spring 耦合 |
 | `@Qualifier` | 配合 `@Autowired` 指定 Bean 名称 | 多实现类区分 |
 | `@Primary` | 标注优先注入的实现类 | 多实现类默认注入 |
 
-### 3.3 分层架构注解
+### 3.3 **分层架构注解**
 
 | 注解 | 作用 | 与 `@Component` 区别 |
-|------|------|---------------------|
+| ------ | ------ | --------------------- |
 | `@Service` | 业务层 | 语义化，无功能差异 |
 | `@Repository` | 数据层 | 自动转换持久化异常为 `DataAccessException` |
 | `@Controller` | 控制层（返回视图名） | 配合视图解析器使用 |
 | `@RestController` | 控制层（返回数据） | `@Controller + @ResponseBody` |
 | `@Component` | 通用组件 | 无特殊语义 |
 
-### 3.4 核心功能注解
+### 3.4 **核心功能注解**
 
 | 注解 | 作用 |
-|------|------|
+| ------ | ------ |
 | `@Configuration` | 声明配置类（含 `@Component`） |
 | `@Bean` | 在配置类中手动注册 Bean |
 | `@Value` | 读取配置文件单个值 |
@@ -418,7 +418,7 @@ public String encrypt(String plain) {
 ### 3.5 条件注解速查表（★ v4.0 新增）
 
 | 注解 | 条件 | 典型使用场景 |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | `@ConditionalOnClass` | classpath 存在指定类 | 有 MySQL 驱动才配置数据源 |
 | `@ConditionalOnMissingBean` | 容器中不存在该 Bean | 用户自定义优先 |
 | `@ConditionalOnProperty` | 配置项满足指定值 | `myapp.feature.enabled=true` |
@@ -429,7 +429,7 @@ public String encrypt(String plain) {
 ### 3.6 @Controller vs @RestController
 
 | 注解 | 返回 `String` 时 | 适用场景 |
-|------|------------------|----------|
+| ------ | ------------------ | ---------- |
 | `@Controller` | 解析为**页面名**（如 `index.html`） | 服务端渲染（Thymeleaf） |
 | `@RestController` | 直接作为**文本/JSON**返回 | REST API / 前后端分离 |
 
@@ -926,7 +926,7 @@ services:
       retries: 3
 ```
 
-> **说明**：Docker Compose V2 已不需要 `version: '3.8'` 声明，直接使用 services 顶层键即可。
+> **说明**：Docker Compose V2 已不需要 `version: '3.8'` 声明，直接使用 services 顶层键即可
 
 ---
 

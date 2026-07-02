@@ -23,8 +23,8 @@ markmap:
 
 ### 1.2 与 Servlet 的血缘关系
 
-- SpringMVC 的入口是 **`DispatcherServlet`**，它本质就是一个 `Servlet`（继承自 `HttpServlet`）
-- 在原生`Servlet`开发中，每个请求需要对应一个`Servlet`或在 `doGet/doPost` 中手写分发逻辑。SpringMVC 将这种分发能力升级为**可插拔的组件链**：请求到达 `DispatcherServlet` 后，由专门的组件负责找到处理器、执行处理器、处理视图/响应
+- SpringMVC 的入口是 **`DispatcherServlet`**，它本质就是一个`Servlet`（继承自 `HttpServlet`）
+- 在原生`Servlet`开发中，每个请求需要对应一个`Servlet`或在`doGet/doPost`中手写分发逻辑。SpringMVC 将这种分发能力升级为**可插拔的组件链**：请求到达`DispatcherServlet`后，由专门的组件负责找到处理器、执行处理器、处理视图/响应
 - **一句话**：SpringMVC = 更好用的 Servlet 前端控制器 + 丰富的策略组件
 
 ---
@@ -332,9 +332,9 @@ public class UserController {
   - `?`:表示任意一个字符
   - `*`:表示0~n个字符
   - `**`:表示当前目录或基于当前目录的多级目录
-  - 路径匹配优先级：`?` > `*` > `**`
+  - 路径匹配**优先级**：`?` > `*` > `**`
 
-#### (1)**`@RequestMapping` 常用属性**
+#### (1) **`@RequestMapping` 常用属性**
 
 | 属性 | 作用 | 示例 |
 | ------ | ------ | ------ |
@@ -345,7 +345,7 @@ public class UserController {
 | `consumes` | 限定**请求**的 **Content-Type**(内容类型) | `consumes = "application/json"` |
 | `produces` | 限定**响应**的 **Content-Type** | `produces = "application/json"` |
 
-#### (2)**组合注解（等价写法）**
+#### (2) **组合注解（等价写法）**
 
 | **组合注解** | **等价于** | **作用** |
 | ---------- | -------- | --- |
@@ -386,11 +386,11 @@ public String hello(@RequestParam("name") String name,
 - `@RequestParam` 用来从 HTTP 请求的查询字符串（? 后面的部分）中**取出某个参数的值**，并**赋给 Controller 方法中的对应参数**
 - **常用参数**：
 
-|属性|作用|示例|
-|-|-|-|
-|`value`（或`name`）|指定URL中的**参数名**（当参数名与方法参数名不同时使用）|`@RequestParam("user_id") Long id`|
-|`required`|**是否必须传递**该参数（默认为`true`）|`@RequestParam(required = false) String keyword`|
-|`defaultValue`|参数缺失或值为空时使用的**默认值**|`@RequestParam(defaultValue = "1") int page`|
+  |属性|作用|示例|
+  |-|-|-|
+  |`value`（或`name`）|指定URL中的**参数名**（当参数名与方法参数名不同时使用）|`@RequestParam("user_id") Long id`|
+  |`required`|**是否必须传递**该参数（默认为`true`）|`@RequestParam(required = false) String keyword`|
+  |`defaultValue`|参数缺失或值为空时使用的**默认值**|`@RequestParam(defaultValue = "1") int page`|
 
 ---
 
@@ -835,7 +835,7 @@ public class GlobalExceptionHandler {
 
 ### 9.1 SpringBoot 自动配置了什么
 
-当我们引入 `spring-boot-starter-web`：
+当我们引入`spring-boot-starter-web`：
 
 - **内嵌 Tomcat**：不再需要外置 Servlet 容器
 - **`DispatcherServlet` 自动注册**：映射路径默认为 `/`，相当于 `AbstractAnnotationConfigDispatcherServletInitializer` 的自动化
@@ -1211,7 +1211,7 @@ public ResponseEntity<org.springframework.core.io.Resource> download(
 
 **要点**：
 
-- `encodingFilter` + `forceEncoding=true` 是乱码解决标准配置
+- `encodingFilter` + `forceEncoding=true`是乱码解决标准配置
 - `filter-mapping` 用 `/*`，`servlet-mapping` 用 `/`
 - `contextConfigLocation` 可指向 `classpath:spring-servlet.xml`（文件放 `resources` 下）或 `/WEB-INF/xxx.xml`（放 `WEB-INF` 下）
 
@@ -1245,8 +1245,8 @@ public ResponseEntity<org.springframework.core.io.Resource> download(
 ==**要点**==：
 
 - `base-package` **写错 → 404**
-- **删除** `<mvc:annotation-driven/>` → `@ResponseBody` 返回对象会 **406** 或不能转 JSON
-- `xmlns` 那些命名空间直接复制，不要手改
+- **删除**`<mvc:annotation-driven/>` → `@ResponseBody`返回对象会 **406** 或不能转 JSON
+- `xmlns`那些命名空间直接复制，不要手改
 
 ---
 

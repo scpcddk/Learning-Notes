@@ -411,7 +411,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 
 **自动配置流程**：
 
-1. `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`
+1. `@EnableAutoConfiguration`导入`AutoConfigurationImportSelector`
 2. 读取`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（SpringBoot3）或`spring.factories`（旧版）
 3. 通过`@ConditionalOnClass`、`@ConditionalOnMissingBean`等条件过滤
 4. 满足条件的配置类生效，注册其中的`@Bean`
