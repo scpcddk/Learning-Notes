@@ -48,10 +48,10 @@ markmap:
 
 ---
 
-#### (1)**方式一：包扫描 + 注解**（推荐自己写的类）
+#### (1) **方式一：包扫描 + 注解**（推荐自己写的类）
 
 - **步骤**：
-  - 在**配置类**或**启动类**上添加`@ComponentScan`（SpringBoot 中  `@SpringBootApplication`已隐含）
+  - 在**配置类**或**启动类**上添加`@ComponentScan`（SpringBoot 中`@SpringBootApplication`已隐含）
     - **启动类**:启动类是一个普通的 Java 类，内部包含`public static void main  (String[] args)`方法，该方法作为应用程序的**入口**,本身也是一个配置类
     - **配置类**:定义和注册 Spring 容器中的 Bean，或提供额外的**配置**（如数据源、拦截器、第三方库的初始化）
       - 将相关的一组 Bean 放在同一个配置类中，提高代码的可维护性
@@ -87,7 +87,7 @@ public class UserService { ... }
 
 ---
 
-#### 🔥🔥 方式二：配置类 + @Bean（推荐第三方类 / 复杂初始化）
+#### (2) 方式二：配置类 + @Bean（推荐第三方类 / 复杂初始化）
 
 - **步骤**：
   1. **创建`@Configuration`类**
@@ -320,7 +320,7 @@ public class UserService {
 ```
 
 > [!TIP]
-> ✅ **开发结论**：字段注入最方便；**构造器注入**最规范（推荐用于 `final` 字段）
+> ✅ **开发结论**：**字段注入**最方便；**构造器注入**最规范（推荐用于 `final` 字段）
 
 ---
 
@@ -375,7 +375,7 @@ public class AppProperties {
 }
 ```
 
-配合 `@EnableConfigurationProperties` 或在 Boot 中自动支持，支持**松散绑定**、JSR303 校验。开发微服务时非常实用
+配合`@EnableConfigurationProperties`或在 Boot 中自动支持，支持**松散绑定**、JSR303 校验。开发微服务时非常实用
 
 ---
 

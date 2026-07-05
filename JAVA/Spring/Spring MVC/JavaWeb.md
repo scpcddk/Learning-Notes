@@ -200,7 +200,7 @@ public class HelloServlet extends HttpServlet {
 
 ---
 
-## 5.RESTful
+## 5. RESTful
 
 > **RESTful** 是一种基于 REST（Representational State Transfer，表述性状态转移）架构风格的设计规范，主要用于构建可扩展、松耦合的网络服务（尤其是 Web API）
 

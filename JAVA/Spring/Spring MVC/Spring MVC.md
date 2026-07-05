@@ -859,7 +859,7 @@ public class GlobalExceptionHandler {
 
 ---
 
-## 10. 开发高频问题 & 解决方案速查
+## 10. **开发高频问题 & 解决方案速查**
 
 ### 10.1 参数接收失败（常见 400 Bad Request）
 
@@ -929,9 +929,9 @@ protected Filter[] getServletFilters() {
 
 ### 10.5 静态资源 404
 
-在纯注解配置中，`@EnableWebMvc` 会完全接管资源映射，默认不暴露 `*.html` 等
+在纯注解配置中，`@EnableWebMvc`会完全接管资源映射，默认不暴露`*.html`等
 
-- **解决**：覆盖 `addResourceHandlers`：
+- **解决**：覆盖`addResourceHandlers`：
 
   ```java
   @Override
@@ -1264,7 +1264,7 @@ public ResponseEntity<org.springframework.core.io.Resource> download(
 
 ### 13.4 你需要会什么？（达标标准）
 
-- **能看懂**：知道 `web.xml` 中三块配置的作用，能定位乱码、404 问题
+- **能看懂**：知道`web.xml`中三块配置的作用，能定位乱码、404 问题
 - **能修改**：改包名、改文件路径、加一个 filter
 - **不要求**：手写复杂的 `<bean>` 配置、记命名空间细节、写 DTD
 
