@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI辅助学习指南 — 软件工程大一专属</title>
+    <style>
+        :root {
+            --primary: #1e3a5f;
+            --secondary: #2d5a87;
+            --accent: #e8b339;
+            --accent-light: #f5d78e;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --text-light: #5a6c7d;
+            --border: #e1e8ed;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #3498db;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 60px 30px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: rgba(232, 179, 57, 0.1);
+            border-radius: 50%;
+        }
+
+        .hero h1 {
+            font-size: 2.4em;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .hero .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-bottom: 25px;
+        }
+
+        .hero .motto {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1.05em;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .hero .motto strong {
+            color: var(--accent-light);
+        }
+
+        /* Section Styles */
+        .section {
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+
+        .section h2 {
+            font-size: 1.5em;
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2 .icon {
+            font-size: 1.3em;
+        }
+
+        .section h3 {
+            font-size: 1.2em;
+            color: var(--secondary);
+            margin: 25px 0 12px 0;
+        }
+
+        .section p {
+            margin-bottom: 12px;
+            color: var(--text-light);
+        }
+
+        /* Philosophy Box */
+        .philosophy-box {
+            background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+            border-left: 5px solid var(--accent);
+            padding: 25px 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .philosophy-box .quote {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: var(--primary);
+            text-align: center;
+            font-style: italic;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        tr:hover {
+            background: #eef2f7;
+        }
+
+        /* Tags & Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-primary { background: #e3f2fd; color: #0d47a1; }
+
+        /* Flowchart */
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 25px 0;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 18px 22px;
+            background: linear-gradient(90deg, #f0f7ff 0%, #ffffff 100%);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .flow-step:hover {
+            border-color: var(--accent);
+            transform: translateX(5px);
+        }
+
+        .flow-step .step-num {
+            min-width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1em;
+            flex-shrink: 0;
+        }
+
+        .flow-step .step-content {
+            flex: 1;
+        }
+
+        .flow-step .step-title {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.05em;
+        }
+
+        .flow-step .step-desc {
+            color: var(--text-light);
+            font-size: 0.92em;
+            margin-top: 3px;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            font-size: 1.5em;
+            color: var(--accent);
+            margin: -5px 0;
+            z-index: 1;
+        }
+
+        /* Method Cards */
+        .method-card {
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .method-card.method-a {
+            border-color: var(--success);
+            background: #f0fff4;
+        }
+
+        .method-card.method-b {
+            border-color: var(--info);
+            background: #f0f7ff;
+        }
+
+        .method-card .method-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: var(--success);
+            color: white;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 700;
+        }
+
+        .method-card.method-b .method-label {
+            background: var(--info);
+        }
+
+        .method-card h4 {
+            color: var(--primary);
+            margin-bottom: 12px;
+            font-size: 1.15em;
+        }
+
+        .method-card ul {
+            margin-left: 20px;
+            color: var(--text-light);
+        }
+
+        .method-card li {
+            margin-bottom: 6px;
+        }
+
+        /* Red Lines */
+        .red-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 18px 22px;
+            background: #fff5f5;
+            border: 2px solid #feb2b2;
+            border-radius: 12px;
+            margin: 12px 0;
+        }
+
+        .red-line .icon {
+            font-size: 1.5em;
+            color: var(--danger);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .red-line .content {
+            flex: 1;
+        }
+
+        .red-line .content strong {
+            color: var(--danger);
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.05em;
+        }
+
+        .red-line .content p {
+            margin: 0;
+            color: var(--text);
+        }
+
+        /* Tool Grid */
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .tool-card {
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .tool-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .tool-card .tool-name {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .tool-card .tool-use {
+            color: var(--text-light);
+            font-size: 0.9em;
+        }
+
+        /* Prompt Template */
+        .prompt-box {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 25px;
+            border-radius: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            line-height: 1.7;
+            margin: 20px 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .prompt-box .placeholder {
+            color: #f5d78e;
+            font-weight: 600;
+        }
+
+        .prompt-box .comment {
+            color: #6c7086;
+        }
+
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            padding: 12px 0 12px 35px;
+            position: relative;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .checklist li::before {
+            content: '☐';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-size: 1.3em;
+        }
+
+        /* KPI Box */
+        .kpi-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .kpi-box .kpi-title {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .kpi-box .kpi-items {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .kpi-box .kpi-item {
+            text-align: center;
+        }
+
+        .kpi-box .kpi-num {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .kpi-box .kpi-label {
+            font-size: 0.9em;
+            opacity: 0.85;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+            font-size: 0.9em;
+        }
+
+        .footer .version {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 1.7em; }
+            .section { padding: 22px; }
+            table { font-size: 0.85em; }
+            th, td { padding: 10px 12px; }
+            .kpi-items { gap: 20px; }
+        }
+
+        /* Print Styles */
+        @media print {
+            .hero { background: var(--primary) !important; -webkit-print-color-adjust: exact; }
+            .section { box-shadow: none; break-inside: avoid; }
+            .flow-step { break-inside: avoid; }
+            .red-line { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Hero -->
+        <div class="hero">
+            <h1>🎓 AI辅助学习指南</h1>
+            <p class="subtitle">东北大学 · 软件工程 · 大一新生专属</p>
+            <div class="motto">
+                <strong>AI是地图，不是目的地；是教练，不是替身</strong>
+            </div>
+        </div>
+
+        <!-- Philosophy -->
+        <div class="section">
+            <h2><span class="icon">💡</span> 核心哲学</h2>
+            <div class="philosophy-box">
+                <p class="quote">"你拿着地图亲手探索的每一步，都比AI给你的完美答案，价值高100倍。"</p>
+            </div>
+            <p>软件工程是<strong>工科，不是文科</strong>。最终拼的不是谁的框架更完美、谁的笔记更全，拼的是你有没有真正理解底层逻辑，能不能从零写出代码，能不能自己解决问题。</p>
+        </div>
+
+        <!-- Core Principles -->
+        <div class="section">
+            <h2><span class="icon">⚖️</span> 四大核心铁则</h2>
+            <table>
+                <tr>
+                    <th style="width:25%">铁则</th>
+                    <th>含义</th>
+                    <th style="width:20%">违反后果</th>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">铁则一</span></td>
+                    <td><strong>永远先独立思考、自主学习</strong>，AI是最后一步辅助，不是第一步解决方案</td>
+                    <td>丧失工程师核心竞争力</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">铁则二</span></td>
+                    <td><strong>所有代码必须亲手敲</strong>，所有bug必须亲手排查，AI只给方向，不给完整可复制的代码</td>
+                    <td>"知识点都懂，一写就废"</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">铁则三</span></td>
+                    <td><strong>所有AI生成的内容</strong>，必须通过官方文档、教材交叉验证，绝对不盲信</td>
+                    <td>吸收错误知识，形成肌肉记忆</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">铁则四</span></td>
+                    <td><strong>固定主力工具</strong>：日常学习用豆包，编程算法用DeepSeek，长文档用Gemini，不频繁更换</td>
+                    <td>精力分散，效率下降</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- KPI -->
+        <div class="section">
+            <h2><span class="icon">📊</span> 大一核心KPI</h2>
+            <div class="kpi-box">
+                <div class="kpi-title">量化目标 · 每日 · 每周</div>
+                <div class="kpi-items">
+                    <div class="kpi-item">
+                        <div class="kpi-num">100+</div>
+                        <div class="kpi-label">行有效代码/天</div>
+                    </div>
+                    <div class="kpi-item">
+                        <div class="kpi-num">1</div>
+                        <div class="kpi-label">个迷你项目/周</div>
+                    </div>
+                    <div class="kpi-item">
+                        <div class="kpi-num">15</div>
+                        <div class="kpi-label">分钟独立思考/问题</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7-Step Loop -->
+        <div class="section">
+            <h2><span class="icon">🔄</span> 七步最优学习闭环</h2>
+            <p style="margin-bottom:20px;">完全贴合你现有的学习习惯，补齐所有核心短板，可直接落地执行。</p>
+
+            <div class="flowchart">
+                <div class="flow-step">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">主动前置自学</div>
+                        <div class="step-desc">网课/书籍/文档 → 手写笔记，标注重难点 | <strong>30-60分钟/知识点</strong> | 遇到不懂先查官方文档，预留15分钟独立思考</div>
+                    </div>
+                </div>
+                <div class="flow-arrow">▼</div>
+                <div class="flow-step">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">AI体系化梳理</div>
+                        <div class="step-desc">手写笔记+教材内容喂给AI → 搭建<strong>知识链路图</strong> → 修正错误、补漏 → 标注期末/竞赛/校招考点 | 工具：Gemini、豆包、Kimi</div>
+                    </div>
+                </div>
+                <div class="flow-arrow">▼</div>
+                <div class="flow-step">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-title">费曼AI陪练</div>
+                        <div class="step-desc">用自己的话给AI完整讲解 → AI点评纠错 → AI提<strong>3个深度问题</strong> → 答不上来回到Step 1 | 工具：豆包、ChatGPT</div>
+                    </div>
+                </div>
+                <div class="flow-arrow">▼</div>
+                <div class="flow-step">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <div class="step-title">编码实践落地 ⭐核心</div>
+                        <div class="step-desc">① 写5-10段示例代码并跑通 ② 迷你项目亲手实现 ③ Debug训练（报错先自己排查15分钟）| <strong>每天至少100行代码</strong> | 工具：DeepSeek、ChatGPT</div>
+                    </div>
+                </div>
+                <div class="flow-arrow">▼</div>
+                <div class="flow-step">
+                    <div class="step-num">5</div>
+                    <div class="step-content">
+                        <div class="step-title">定向答疑</div>
+                        <div class="step-desc">整理遗留问题 → 附<strong>代码+报错+已尝试方法</strong> → 问"我理解的是xxx，请问哪里错了？" → AI只给方向不给答案 | 提问是最后一步，不是第一步</div>
+                    </div>
+                </div>
+                <div class="flow-arrow">▼</div>
+                <div class="flow-step">
+                    <div class="step-num">6</div>
+                    <div class="step-content">
+                        <div class="step-title">间隔性AI出题考察</div>
+                        <div class="step-desc">艾宾浩斯曲线：<strong>第1天/第3天/第7天</strong> → 理论题+编程题+深度思考题 → <strong>闭卷独立完成</strong> → AI批改复盘 | 工具：DeepSeek、豆包</div>
+                    </div>
+                </div>
+                <div class="flow-arrow">▼</div>
+                <div class="flow-step">
+                    <div class="step-num">7</div>
+                    <div class="step-content">
+                        <div class="step-title">周期性复盘</div>
+                        <div class="step-desc"><strong>每周日晚</strong>周复盘 + <strong>每月底</strong>月复盘 → 进度分析+薄弱补强+综合测试 → 迭代优化学习体系 | 工具：豆包、Gemini</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Methods -->
+        <div class="section">
+            <h2><span class="icon">🗺️</span> 两大方法：互补使用</h2>
+
+            <div class="method-card method-a">
+                <div class="method-label">方法A · AI先给框架</div>
+                <h4>适用场景：体系性强、模块多的大知识点</h4>
+                <ul>
+                    <li>C++面向对象全内容</li>
+                    <li>数据结构与算法全册</li>
+                    <li>计算机网络OSI七层模型</li>
+                    <li>蓝桥杯全考点梳理</li>
+                </ul>
+                <p><strong>核心作用：</strong>先拿全局地图，避免学的时候迷路，抓不住核心主线。</p>
+            </div>
+
+            <div class="method-card method-b">
+                <div class="method-label">方法B · 自己先搭框架</div>
+                <h4>适用场景：逻辑密集、需深度啃透的硬核小知识点</h4>
+                <ul>
+                    <li>C++指针与内存管理</li>
+                    <li>递归算法</li>
+                    <li>多态的底层实现</li>
+                    <li>链表增删改查底层逻辑</li>
+                </ul>
+                <p><strong>核心原因：</strong>必须自己先推导、先思考，先看AI框架会直接跳过核心认知过程。</p>
+            </div>
+        </div>
+
+        <!-- Method A Execution -->
+        <div class="section">
+            <h2><span class="icon">📋</span> 方法A执行流程（5步）</h2>
+
+            <h3>Step 1 · 15分钟极简前置预习（红线，绝对不能跳过）</h3>
+            <ul class="checklist">
+                <li>翻一遍教材目录/网课大纲，搞清楚"这个知识点是干嘛的、要解决什么问题"</li>
+                <li>随手记<strong>3个核心问题</strong>（如：为什么要有面向对象？和C语言比好在哪？）</li>
+                <li>标注老师划的期末重点、已掌握的基础内容</li>
+            </ul>
+
+            <h3>Step 2 · 给AI发严格约束指令</h3>
+            <p>绝对不能只说"给我一个XX的学习框架"，必须使用以下模板：</p>
+            <div class="prompt-box">
+我是东北大学软件工程大一新生，正在学习【<span class="placeholder">大知识点名称</span>】，
+我的核心学习目标是【<span class="placeholder">应付期末统考+蓝桥杯C++ B组竞赛+为后续专业课打基础</span>】，
+我已经预习过教材目录，知道这个知识点的核心作用是【<span class="placeholder">你预习后写的</span>】，
+我最想搞懂的3个核心问题是：
+1. 【<span class="placeholder">你的问题1</span>】
+2. 【<span class="placeholder">你的问题2</span>】
+3. 【<span class="placeholder">你的问题3</span>】
+
+请你严格按照以下要求生成学习框架，不要输出任何无关内容：
+1. 框架只做2级结构，绝对不能超过3级，只给核心主线和模块划分
+2. 严格贴合学习目标，只保留期末必考、蓝桥杯常考、后续专业课必用的核心内容
+3. 框架要体现清晰的知识递进逻辑，从基础到进阶，不能乱序
+4. 给每个一级模块标注学习优先级（核心必学/选学了解），以及预计学习时长
+5. 最后单独标注：这个知识点和我之前学过的【<span class="placeholder">已学内容</span>】的核心关联
+            </div>
+
+            <h3>Step 3 · 框架个性化修改（5分钟）</h3>
+            <ul class="checklist">
+                <li>删掉已完全掌握的内容</li>
+                <li>标红预习时的核心疑问、老师划的期末重点</li>
+                <li>调整学习顺序，贴合网课/教材节奏</li>
+                <li>补充自己想额外了解的内容，删掉没用的选学模块</li>
+            </ul>
+
+            <h3>Step 4 · 分模块填充式学习</h3>
+            <p>按照模块逐个执行<strong>七步学习闭环</strong>（Step 1→7），绝对不能只抄笔记不思考。</p>
+
+            <h3>Step 5 · 全知识点学完后的迭代</h3>
+            <ul class="checklist">
+                <li>把填充完整的框架喂给AI，迭代优化，和之前学的内容串联</li>
+                <li>让AI出一套综合测试题（理论+编程+深度思考），闭卷完成，批改复盘</li>
+            </ul>
+        </div>
+
+        <!-- Advanced Usage -->
+        <div class="section">
+            <h2><span class="icon">🚀</span> 高阶用法拓展（6大维度）</h2>
+            <table>
+                <tr>
+                    <th style="width:22%">维度</th>
+                    <th style="width:45%">具体做法</th>
+                    <th style="width:33%">推荐工具</th>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-primary">理论学习</span></td>
+                    <td>体系化总结 + 费曼AI陪练 + 多源交叉验证</td>
+                    <td>Gemini、豆包、Kimi</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-success">编码能力</span></td>
+                    <td>逐行注释拆解 + Debug陪练（不给答案）+ 代码规范优化 + 迷你项目</td>
+                    <td>DeepSeek、ChatGPT</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-warning">算法竞赛</span></td>
+                    <td>思路推导训练 + 刷题复盘错题本 + 蓝桥杯定向模拟</td>
+                    <td>DeepSeek、ChatGPT</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-info">规划复盘</span></td>
+                    <td>个性化路径规划 + 周期性复盘测试</td>
+                    <td>豆包、Gemini</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-primary">能力前置</span></td>
+                    <td>官方文档解读训练 + Linux环境搭建 + 开源项目阅读</td>
+                    <td>ChatGPT、Gemini</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-success">全局框架</span></td>
+                    <td>AI给2级框架 → 你修改填充 → 迭代优化</td>
+                    <td>豆包、Gemini</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Tool Assignment -->
+        <div class="section">
+            <h2><span class="icon">🛠️</span> 工具分工（固定主力，不频繁换）</h2>
+            <div class="tool-grid">
+                <div class="tool-card">
+                    <div class="tool-name">🟢 豆包</div>
+                    <div class="tool-use">日常学习<br>体系化总结<br>规划复盘<br>中文理解强</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">🔵 DeepSeek</div>
+                    <div class="tool-use">编程开发<br>算法推理<br>数理推导<br>Debug辅助</div>
+                </div>
+                <div class="tool-card">
+                    <div class="tool-name">🟡 Gemini</div>
+                    <div class="tool-use">长文档处理<br>文献阅读<br>开源项目<br>谷歌搜索背书</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Red Lines -->
+        <div class="section">
+            <h2><span class="icon">🚫</span> 五条绝对红线</h2>
+
+            <div class="red-line">
+                <div class="icon">⛔</div>
+                <div class="content">
+                    <strong>红线一：不让AI代写代码、作业、实验报告</strong>
+                    <p>代写只会让你期末挂科，毁掉核心能力。软件工程是工科，背知识点没用，必须亲手敲。</p>
+                </div>
+            </div>
+
+            <div class="red-line">
+                <div class="icon">⛔</div>
+                <div class="content">
+                    <strong>红线二：不遇到问题第一时间就问AI</strong>
+                    <p>必须先独立思考15分钟。自主解决问题的能力是工程师的核心竞争力，大一就养成依赖习惯，后续复杂工程问题会寸步难行。</p>
+                </div>
+            </div>
+
+            <div class="red-line">
+                <div class="icon">⛔</div>
+                <div class="content">
+                    <strong>红线三：不盲信AI生成的内容</strong>
+                    <p>AI存在幻觉，可能给出过时语法、不符合ISO标准的写法、有隐藏bug的代码。必须通过官方文档、教材交叉验证。</p>
+                </div>
+            </div>
+
+            <div class="red-line">
+                <div class="icon">⛔</div>
+                <div class="content">
+                    <strong>红线四：不只学理论不写代码</strong>
+                    <p>编码量是大一软工学生拉开差距的核心KPI。哪怕把指针框架背得滚瓜烂熟，不会亲手写链表、不会排查野指针bug，等于白学。</p>
+                </div>
+            </div>
+
+            <div class="red-line">
+                <div class="icon">⛔</div>
+                <div class="content">
+                    <strong>红线五：不让AI代替思考</strong>
+                    <p>AI只能帮你补全信息、引导思路，不能替你做推导、做决策。逻辑推理能力、算法思维是大厂校招的核心考察点。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shortcomings -->
+        <div class="section">
+            <h2><span class="icon">🔍</span> 必须补齐的3大短板</h2>
+            <table>
+                <tr>
+                    <th style="width:25%">短板</th>
+                    <th style="width:35%">后果</th>
+                    <th style="width:40%">解决方案</th>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">缺编码实践</span></td>
+                    <td>知识点都懂，一写代码就废；影响期末实验、竞赛、校招</td>
+                    <td>每天至少<strong>100行</strong>有效代码，每周<strong>1个</strong>迷你项目</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-warning">知识体系碎片化</span></td>
+                    <td>只见树木不见森林，无法建立工程思维，和普通码农没区别</td>
+                    <td>用"AI先给全局框架→你逐个填充"方法，搭建完整知识链路</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-info">过度依赖AI</span></td>
+                    <td>丧失自主查文档、Debug、拆解需求的能力，遇到复杂问题就卡壳</td>
+                    <td>遇到问题先独立思考<strong>15分钟</strong>，AI只给方向不给答案</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Weekly Plan Template -->
+        <div class="section">
+            <h2><span class="icon">📅</span> 周计划模板</h2>
+            <table>
+                <tr>
+                    <th style="width:18%">时间</th>
+                    <th>任务</th>
+                    <th style="width:15%">闭环步骤</th>
+                </tr>
+                <tr>
+                    <td>周一至周五<br><small>每天2-3小时</small></td>
+                    <td>按框架模块逐个学习：自学 → AI梳理 → 费曼讲解 → 编码实践（5-10段示例代码）</td>
+                    <td><span class="badge badge-primary">Step 1-4</span></td>
+                </tr>
+                <tr>
+                    <td>周六</td>
+                    <td>完成本周迷你项目 + Debug训练 + 定向答疑</td>
+                    <td><span class="badge badge-primary">Step 4-5</span></td>
+                </tr>
+                <tr>
+                    <td>周日</td>
+                    <td>间隔出题考察（第1/3/7天）+ 周复盘 + 迭代优化</td>
+                    <td><span class="badge badge-primary">Step 6-7</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>🎓 <span class="version">AI辅助学习指南 v1.0</span></p>
+            <p>东北大学 · 软件工程 · 大一新生专属</p>
+            <p style="margin-top:10px; font-style:italic; color:var(--accent);">"AI是地图，不是目的地；是教练，不是替身。"</p>
+            <p style="margin-top:15px; font-size:0.8em; opacity:0.6;">基于建构主义学习理论 · 主动学习 · 工程实践导向</p>
+        </div>
+    </div>
+</body>
+</html>
