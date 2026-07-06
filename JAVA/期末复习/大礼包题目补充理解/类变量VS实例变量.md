@@ -79,6 +79,7 @@ class Demo {
 Demo d = new Demo();
 System.out.println(d.count); // 语法上可行，但 IDEA 会警告
 ```
+
 **标准写法**：必须使用 `Demo.count`（类名访问）。如果考试问“哪种访问方式最佳”，选“类名访问”。
 
 ---
