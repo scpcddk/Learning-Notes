@@ -1386,7 +1386,9 @@ public ProblemDetail handleBusiness(BusinessException e) {
 
 ## 十三、性能优化与日志体系
 
-### 13.1 日志配置与调优
+### 13.1 **日志配置与调优**
+
+#### 13.1.1 **YAML 配置**
 
 ```yaml
 logging:
@@ -1404,7 +1406,103 @@ logging:
       max-history: 30
 ```
 
-**日志使用规范：**
+---
+
+#### 13.1.2 **XML配置**
+
+> [!WARNING]
+> 上述 YAML 配置未开启异步日志，高并发下同步刷盘会阻塞业务线程。生产环境需额外创建 src/main/resources/logback-spring.xml，用 AsyncAppender 包装 RollingFileAppender（如下），YAML 与 XML 会**自动合并生效**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!--
+        功能：引入 Spring Boot 预设的日志配置
+        效果：定义了 CONSOLE_LOG_PATTERN、FILE_LOG_PATTERN 等基础变量
+        注意：后续自定义的 appender 可直接复用 ${CONSOLE_LOG_PATTERN} 等占位符
+    -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+    <!-- ==================== 1. 控制台输出 Appender ==================== -->
+    <!--
+        作用：将日志实时打印到终端（IDE / 容器标准输出）
+        场景：开发调试、容器日志收集（如 K8s 的 kubectl logs）
+    -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- 复用 Spring Boot 默认的控制台格式，包含时间、线程、日志级别等 -->
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <!-- 指定字符集，避免中文乱码 -->
+            <charset>${CONSOLE_LOG_CHARSET}</charset>
+        </encoder>
+    </appender>
+
+    <!-- ==================== 2. 文件输出 Appender ==================== -->
+    <!--
+        作用：将日志持久化到磁盘文件
+        关键特性：支持文件滚动（按大小和时间切割）、自动归档
+    -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <!-- 复用 Spring Boot 默认的文件格式（如无特殊要求，维持统一风格） -->
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>${FILE_LOG_CHARSET}</charset>
+        </encoder>
+
+        <!-- 当前日志文件路径：若 YAML 未定义 LOG_FILE，则回退到 logs/app.log -->
+        <file>${LOG_FILE:-logs/app.log}</file>
+
+        <!-- 滚动策略：按时间 + 大小双重触发（推荐替代纯 SizeBased 或 TimeBased） -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 归档文件命名格式：按日期分目录，并用 %i 区分同一日期的多个文件 -->
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个日志文件最大容量：默认 10MB，超过则触发滚动 -->
+            <maxFileSize>${LOG_FILE_MAX_SIZE:-10MB}</maxFileSize>
+            <!-- 归档文件保留天数：默认 30 天，过期自动清理，防止磁盘爆满 -->
+            <maxHistory>${LOG_FILE_MAX_HISTORY:-30}</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ==================== 3. 异步文件输出 Appender ==================== -->
+    <!--
+        作用：将 FILE Appender 改造为异步写入（生产者-消费者模型）
+        意义：解耦业务线程和磁盘 I/O，高并发下可显著降低接口 RT（响应时间）
+        警告：若此处不配置，同步刷盘会成为性能瓶颈（生产必备）
+    -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- 引用已定义好的 FILE Appender，作为实际写入的“消费者” -->
+        <appender-ref ref="FILE" />
+
+        <!-- 阻塞队列容量：512 条日志。过大浪费内存，过小容易丢弃日志，建议 256~1024 -->
+        <queueSize>512</queueSize>
+
+        <!--
+            丢弃阈值：0 表示队列满时永不丢弃日志（会阻塞业务线程等待队列腾出空间）
+            默认策略是丢弃 TRACE/DEBUG/INFO，此处设为 0 是为了保护 ERROR 级日志必达
+            注意：若极端流量下经常阻塞，可调大 queueSize 或调高阈值，需压测决定
+        -->
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+
+    <!-- ==================== 4. 根日志级别与 Appender 绑定 ==================== -->
+    <!--
+        说明：根级别（root）控制全局日志输出门限
+        注意：若需针对特定包微调，在 application.yml 中配置 logging.level 即可覆盖此处的 INFO
+    -->
+    <root level="INFO">
+        <!-- 开发/调试时保留控制台输出，方便实时查看 -->
+        <appender-ref ref="CONSOLE" />
+        <!-- 生产环境建议启用异步文件，替代同步 FILE（可注释掉 CONSOLE 减少 I/O） -->
+        <appender-ref ref="ASYNC_FILE" />
+    </root>
+</configuration>
+```
+
+保存到 `src/main/resources/logback-spring.xml`，直接就能跑。YAML 里的 `logging.file.name` 和 `rollingpolicy` 会自动生效（通过 `${LOG_FILE}` 等占位符读取），不需要重复配置。
+
+---
+
+#### 13.1.3 **日志使用规范：**
 
 ```java
 @Slf4j
@@ -1418,33 +1516,102 @@ public class UserService {
 }
 ```
 
+- 日志级别从低到高分为 TRACE < DEBUG < INFO < WARN < ERROR (SLF4J（Spring Boot 默认）不包含 FATAL)，Logback 将严重错误归入 ERROR。Spring Boot 默认打印 INFO 及以上级别
+
+> [!TIP]
 > **生产技巧**：通过 Actuator `/actuator/loggers` 实时调整日志级别，无需重启排查线上问题。
+>
+> ```yaml
+> management:
+>   endpoints:
+>     web:
+>       exposure:
+>         include: loggers
+> ```
+
+---
+
+#### 13.1.4 MDC 自定义日志字段
+
+- **场景**：每条日志自动携带用户 ID、请求 ID、IP 等业务字段。
+- **原理**：MDC（Mapped Diagnostic Context）是基于 `ThreadLocal` 的线程本地存储，请求入口放数据，日志打印时自动填充占位符，请求结束清除。
+- **使用示例（Filter 统一注入）：**
+
+```java
+@WebFilter("/*")
+public class LogFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+        try {
+            MDC.put("reqId", UUID.randomUUID().toString().replace("-", ""));
+            MDC.put("ip", request.getRemoteAddr());
+            chain.doFilter(request, response);
+        } finally {
+            MDC.clear();  // 必须清除，防止线程复用污染
+        }
+    }
+}
+```
+
+- **日志配置占位符：**
+
+```xml
+<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{reqId}] [%X{ip}] %-5level %logger{36} - %msg%n</pattern>
+```
+
+- **关键点：**
+
+| 要点 | 说明 |
+| ------ | ------ |
+| 占位符 | `%X{key}`，key 与 `MDC.put` 保持一致 |
+| 清除 | 必须 `MDC.clear()`，否则线程复用导致日志串了 |
+| 子线程 | MDC 基于 ThreadLocal，子线程默认丢失，需手动传递 `MDC.getCopyOfContextMap()` |
+| 已有工具 | Spring Cloud Sleuth / Micrometer Tracing 会自动注入 traceId，无需手动编写 |
+
+---
+
+#### 13.1.5 TraceId 注入（让日志中的 `%X{traceId}` 生效）
+
+```java
+@WebFilter("/*")
+public class TraceFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+        try {
+            MDC.put("traceId", UUID.randomUUID().toString().replace("-", ""));
+            chain.doFilter(request, response);
+        } finally {
+            MDC.clear();  // 必须清除，防止线程复用污染
+        }
+    }
+}
+```
 
 ---
 
 ### 13.2 性能优化速查表（★ v4.0 重构）
 
-#### 启动优化
+#### 13.2.1 启动优化
 
 | 优化项 | 配置 | 说明 |
-|--------|------|------|
+| -------- | ------ | ------ |
 | 懒初始化 | `spring.main.lazy-initialization=true` | 开发环境加速启动，**生产禁用** |
 | AOT 处理 | `./gradlew bootBuildImage` | GraalVM 原生镜像，启动毫秒级 |
 
-#### 请求优化
+#### 13.2.2 请求优化
 
 | 优化项 | 配置 | 说明 |
-|--------|------|------|
+| -------- | ------ | ------ |
 | HTTP 压缩 | `server.compression.enabled=true` | 减少传输体积 |
 | JSON 忽略 null | `spring.jackson.default-property-inclusion=non_null` | 减少响应体大小 |
-| 连接池调优 | HikariCP `maximum-pool-size` = CPU × 2 + 有效磁盘数 | 参考 PostgreSQL 推荐公式 |
+| 连接池调优 | HikariCP `maximum-pool-size=20` | 微服务内网/SSD 场景固定 20 左右，不建议公式化（原 PostgreSQL 公式已过时） |
 | 虚拟线程 | `spring.threads.virtual.enabled=true`（Spring Boot 3.2+） | Java 21 轻量级并发 |
 
-#### JVM 与容器优化
+#### 13.2.3 JVM 与容器优化
 
 | 优化项 | 配置 | 说明 |
-|--------|------|------|
-| 容器内存感知 | `-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0` | 自动识别容器内存限制 |
+| -------- | ------ | ------ |
+| 容器内存感知 | `-XX:MaxRAMPercentage=75.0` | **注意**：Java 10+/8u191+ 已默认开启 `UseContainerSupport`，无需显式声明 |
 | 优雅停机 | `server.shutdown=graceful` + `spring.lifecycle.timeout-per-shutdown-phase=30s` | K8s 滚动更新零停机 |
 | 随机数优化 | `-Djava.security.egd=file:/dev/./urandom` | 容器内加速随机数生成 |
 
@@ -1462,6 +1629,7 @@ spring:
 ```
 
 **K8s 配合配置：**
+
 ```yaml
 spec:
   template:
@@ -1476,6 +1644,63 @@ spec:
 ```
 
 > **原理**：收到 SIGTERM 后，Spring Boot 停止接收新请求，等待已有请求处理完毕或超时后关闭容器。`preStop` 钩子确保在停止前负载均衡器已将该 Pod 从服务列表中移除。
+
+---
+
+### 13.4 数据层与缓存优化（★ v4.0 新增）
+
+#### 13.4.1 HikariCP 连接池调优
+
+```yaml
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20           # 内网/SSD 场景固定 20 左右
+      minimum-idle: 10
+      connection-timeout: 3000        # 获取连接超时，快速失败
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      leak-detection-threshold: 10000 # 🌟 超过 10 秒打印堆栈，定位慢 SQL 和长事务
+```
+
+#### 13.4.2 多级缓存（Caffeine + Redis）
+
+```yaml
+spring:
+  cache:
+    type: redis
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=60s
+```
+
+```java
+@Cacheable(value = "users", key = "#id", cacheManager = "caffeineCacheManager")
+public User getById(Long id) { ... }
+```
+
+#### 13.4.3 事务与 SQL 超时控制
+
+```java
+@Transactional(timeout = 3)   // 强制 3 秒超时回滚
+public void updateOrder() { ... }
+```
+
+```yaml
+spring:
+  jdbc:
+    template:
+      query-timeout: 5         # 全局 SQL 超时兜底
+```
+
+---
+
+### 13.5 可观测性监控指标（★ v4.0 新增）
+
+| 指标 | Prometheus 表达式 | 告警阈值 |
+|------|-------------------|---------|
+| GC 停顿 | `jvm_gc_pause_seconds_max` | > 200ms |
+| Tomcat 线程繁忙率 | `tomcat_threads_busy / tomcat_threads_max` | > 80% |
+| 连接池活跃数 | `hikaricp_connections_active` | 接近 maximum-pool-size |
 
 ---
 
