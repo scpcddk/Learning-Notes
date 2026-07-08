@@ -416,6 +416,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 3. 通过`@ConditionalOnClass`、`@ConditionalOnMissingBean`等条件过滤
 4. 满足条件的配置类生效，注册其中的`@Bean`
 
+> [!TIP]
 > **开发启示**：自定义 Starter 时，在`META-INF/spring/`下配置自己的自动配置类路径
 
 ---
