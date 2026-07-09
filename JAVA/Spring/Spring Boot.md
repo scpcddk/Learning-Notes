@@ -1,4 +1,4 @@
-# Spring Boot 后端开发核心知识框架（升级版 v4.0）
+# Spring Boot 后端开发核心知识框架（升级版 v4.1）
 
 > **版本说明**：基于 v3.0 全面优化，基于 Spring Boot 3.3.x + Java 21，最后更新 2026-07
 > 补全了全章节面试问答闭环，修正了 RestTemplate/WebClient 技术描述，新增分布式定时、配置加密、优雅停机、Security 6 新写法等生产必备知识。Mermaid 时序图替代 ASCII，避坑指南增加"发现办法"列
@@ -38,10 +38,9 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 
 **Q：Spring Boot 自动配置原理是什么？**
 > 答：通过 `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`，读取 `AutoConfiguration.imports` 获取所有自动配置类。`ConditionEvaluator` 进行条件评估，满足条件的注册为 BeanDefinition 并实例化
-> 详见自动配置原理（Spring Core)
 
 **Q：如何查看哪些自动配置生效了？**
-> 答：启动时加 `--debug` 参数，或在 `application.yml` 中设置 `debug: true`，控制台会输出 `Positive matches`（生效）和 `Negative matches`（未生效）的完整列表。
+> 答：启动时加 `--debug` 参数，或在 `application.yml` 中设置 `debug: true`，控制台会输出 `Positive matches`（生效）和 `Negative matches`（未生效）的完整列表
 
 ---
 
@@ -106,7 +105,7 @@ com.myapp.aiservice.AiServiceAutoConfiguration
 
 #### 1.3.2 核心原理
 
-Spring Boot 应用启动完成后，会查找容器中所有 `CommandLineRunner` 和 `ApplicationRunner` 接口的实现类，按 `@Order` 排序后依次执行。
+Spring Boot 应用启动完成后，会查找容器中所有 `CommandLineRunner` 和 `ApplicationRunner` 接口的实现类，按 `@Order` 排序后依次执行 
 
 | 方式 | 执行时机 | 适用场景 |
 | ------ | ---------- | ---------- |
@@ -1519,7 +1518,7 @@ public class UserService {
 - 日志级别从低到高分为 TRACE < DEBUG < INFO < WARN < ERROR (SLF4J（Spring Boot 默认）不包含 FATAL)，Logback 将严重错误归入 ERROR。Spring Boot 默认打印 INFO 及以上级别
 
 > [!TIP]
-> **生产技巧**：通过 Actuator `/actuator/loggers` 实时调整日志级别，无需重启排查线上问题。
+> **生产技巧**：通过 Actuator `/actuator/loggers` 实时调整日志级别，无需重启排查线上问题
 >
 > ```yaml
 > management:
