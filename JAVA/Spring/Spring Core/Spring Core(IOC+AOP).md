@@ -19,6 +19,7 @@ markmap:
 - **容器**：`ApplicationContext`（如`AnnotationConfigApplicationContext`）
 - **Bean**：由 Spring 管理的对象
 
+> [!TIP]
 > ⚠️ **理解**：你不再`new`对象，而是向容器"要"对象
 
 ---
@@ -27,7 +28,7 @@ markmap:
 
 | 特性 | BeanFactory | ApplicationContext |
 | ------ | ------------- | ------------------- |
-| 加载时机 | **懒加载**（用时才创建） | **预加载**（启动时创建所有单例） |
+| 加载时机 | **懒加载**（**用时才创建**） | **预加载**（**启动时创建所有单例**） |
 | 功能 | 基础 IOC（Bean 创建、依赖注入） | 继承 BeanFactory + AOP、事件、国际化、资源加载 |
 | 典型实现 | `XmlBeanFactory`（已废弃） | `AnnotationConfigApplicationContext` |
 | 适用场景 | 资源受限环境（如嵌入式设备） | **绝大多数企业级应用** |
@@ -52,7 +53,7 @@ markmap:
 
 - **步骤**：
   - 在**配置类**或**启动类**上添加`@ComponentScan`（SpringBoot 中`@SpringBootApplication`已隐含）
-    - **启动类**:启动类是一个普通的 Java 类，内部包含`public static void main  (String[] args)`方法，该方法作为应用程序的**入口**,本身也是一个配置类
+    - **启动类**:启动类是一个普通的 Java 类，内部包含`public static void main  (String[] args)`方法，该方法作为**应用程序的入口**,**本身也是一个配置类**
     - **配置类**:定义和注册 Spring 容器中的 Bean，或提供额外的**配置**（如数据源、拦截器、第三方库的初始化）
       - 将相关的一组 Bean 放在同一个配置类中，提高代码的可维护性
   - 在**类**上使用 `@Component` / `@Service` / `@Repository` / `@Controller` 标记
@@ -73,6 +74,7 @@ public class UserService { ... }
   - ✅ **绝大多数业务类**
   - ✅ **无侵入、开发效率最高**
 
+> [!NOTE]
 > 📌 **注意**：派生注解本质就是 `@Component`，只是增加了语义层（`@Service` 标识业务层，`@Repository` 标识数据层）
 
 - **`@ComponentScan`自定义过滤**：有时需要排除某些类或包，避免冲突：
@@ -83,6 +85,7 @@ public class UserService { ... }
                                                       pattern = "com.example.test.*"))
 ```
 
+> [!TIP]
 > 可通过`includeFilters`精确控制**只扫描**某些注解，面试偶尔会考"如何选择性不注册某个 Bean"
 
 ---
@@ -126,7 +129,8 @@ public class AppConfig {
   - ✅ **需要复杂初始化（设置多个属性、条件判断）的 Bean**
   - ✅ **需要动态决定是否注册 Bean 的条件注册**（配合 `@Conditional`）
 
-> 📌 **提示**：在 SpringBoot 中，很多第三方组件已通过`AutoConfiguration`自动配置，一般无需手动写`@Bean`。但当默认配置不满足时，**可以用 `@Bean` 覆盖默认 Bean**
+> [!TIP]
+> 📌 **提示**：在 `SpringBoot` 中，很多第三方组件已通过`AutoConfiguration`自动配置，一般无需手动写`@Bean`。但当默认配置不满足时，**可以用 `@Bean` 覆盖默认 `Bean`**
 
 - **`@Configuration`的 CGLIB 代理机制**
   - `@Configuration`类会被 CGLIB 代理，确保`@Bean`方法间的互相调用仍返回**容器中的单例**
@@ -158,7 +162,7 @@ public class AppConfig {
 #### (1)**辅助理解**:`@Autowired`注入原理
 
 > [!NOTE]
-> Spring 在 Bean 创建的属性填充阶段，通过一个特殊的 BeanPostProcessor 扫描带有注解的字段/方法，利用反射和依赖查找规则，将匹配的 Bean 注入进去
+> `Spring` 在 `Bean` 创建的属性填充阶段，通过一个特殊的 `BeanPostProcessor` 扫描带有注解的字段/方法，利用反射和依赖查找规则，将匹配的 `Bean` 注入进去
 
 - **执行流程简化**
   1. **时机**  
