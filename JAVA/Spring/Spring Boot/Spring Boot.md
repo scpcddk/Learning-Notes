@@ -15,14 +15,14 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 
 #### 1.1.2 核心原理
 
-- **通俗版：** Spring Boot 启动时扫描 `classpath` 下所有 jar 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 Bean，不满足就跳过
+- **通俗版：** Spring Boot 启动时扫描 `classpath` 下所有 `jar` 包中的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 文件，读取自动配置类。每个配置类带条件注解（如 `@ConditionalOnClass`），满足条件就注册 `Bean`，不满足就跳过
 
 - **底层版：**
   1. 入口：`@SpringBootApplication` → `@EnableAutoConfiguration` → `@Import(AutoConfigurationImportSelector.class)`
   2. `AutoConfigurationImportSelector#selectImports()` 调用 `getCandidateConfigurations()`，通过 `SpringFactoriesLoader` 读取 `AutoConfiguration.imports`
   3. `ConditionEvaluator` 对每个配置类执行条件评估
   4. 通过评估的配置类注册为 `BeanDefinition`，由 `BeanFactory` 实例化
-  5. 自动配置 Bean 通常带 `@ConditionalOnMissingBean`，用户自定义 Bean 优先级更高
+  5. 自动配置 `Bean` 通常带 `@ConditionalOnMissingBean`，用户自定义 `Bean` 优先级更高
 
 #### 1.1.3 核心知识点清单
 
@@ -37,10 +37,12 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 #### 1.1.4 面试高频问答
 
 **Q：Spring Boot 自动配置原理是什么？**
-> 答：通过 `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`，读取 `AutoConfiguration.imports` 获取所有自动配置类。`ConditionEvaluator` 进行条件评估，满足条件的注册为 BeanDefinition 并实例化
+
+- 答：通过 `@EnableAutoConfiguration` 导入 `AutoConfigurationImportSelector`，读取 `AutoConfiguration.imports` 获取所有自动配置类。`ConditionEvaluator` 进行条件评估，满足条件的注册为 `BeanDefinition` 并实例化
 
 **Q：如何查看哪些自动配置生效了？**
-> 答：启动时加 `--debug` 参数，或在 `application.yml` 中设置 `debug: true`，控制台会输出 `Positive matches`（生效）和 `Negative matches`（未生效）的完整列表
+
+- 答：启动时加 `--debug` 参数，或在 `application.yml` 中设置 `debug: true`，控制台会输出 `Positive matches`（生效）和 `Negative matches`（未生效）的完整列表
 
 ---
 
@@ -48,11 +50,11 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 
 #### 1.2.1 本章核心定位
 
-Spring Boot 生态的"插件化标准"，是自动配置的工程化封装。企业级开发中，自定义 Starter 是封装公共组件的标准方式
+`Spring Boot` 生态的"插件化标准"，是自动配置的工程化封装。企业级开发中，自定义 `Starter` 是封装公共组件的标准方式
 
 #### 1.2.2 核心原理
 
-Starter 是一个普通 Maven 模块，通过`pom.xml`引入所需依赖，并在`META-INF/spring/`下注册自动配置类。当用户引入 Starter 依赖后，Spring Boot 自动扫描并加载其中的自动配置
+`Starter` 是一个普通 `Maven` 模块，通过`pom.xml`引入所需依赖，并在`META-INF/spring/`下注册自动配置类。当用户引入 `Starter` 依赖后，`Spring Boot` 自动扫描并加载其中的自动配置
 
 #### 1.2.3 典型代码模板
 
@@ -90,10 +92,12 @@ com.myapp.aiservice.AiServiceAutoConfiguration
 #### 1.2.4 面试高频问答
 
 **Q：如何自定义一个 Starter？Spring Boot 如何识别你的自动配置类？**
-> 答：① 创建 Maven 模块，引入 `spring-boot-autoconfigure` 依赖；② 编写 `xxxProperties` 配置属性类 + `xxxAutoConfiguration` 自动配置类；③ 在 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中注册自动配置类全限定名；④ 用户引入 Starter 后，Spring Boot 通过 `SpringFactoriesLoader` 读取该文件并加载配置
+
+- 答：① 创建 Maven 模块，引入 `spring-boot-autoconfigure` 依赖；② 编写 `xxxProperties` 配置属性类 + `xxxAutoConfiguration` 自动配置类；③ 在 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中注册自动配置类全限定名；④ 用户引入 Starter 后，Spring Boot 通过 `SpringFactoriesLoader` 读取该文件并加载配置
 
 **Q：自定义 Starter 时，为什么要加 `@ConditionalOnMissingBean`？**
-> 答：防止与用户自定义的同名 Bean 冲突，保证用户自定义 Bean 优先级更高，体现"约定大于配置，配置大于默认"的原则
+
+- 答：防止与用户自定义的同名 Bean 冲突，保证用户自定义 Bean 优先级更高，体现"约定大于配置，配置大于默认"的原则
 
 ---
 
@@ -101,11 +105,11 @@ com.myapp.aiservice.AiServiceAutoConfiguration
 
 #### 1.3.1 本章核心定位
 
-应用启动完成后执行初始化逻辑的"标准钩子"，解决"Bean 创建完但应用未就绪"的时序问题
+应用启动完成后执行初始化逻辑的"标准钩子"，解决 `Bean` 创建完但应用未就绪"的时序问题
 
 #### 1.3.2 核心原理
 
-Spring Boot 应用启动完成后，会查找容器中所有 `CommandLineRunner` 和 `ApplicationRunner` 接口的实现类，按 `@Order` 排序后依次执行 
+Spring Boot 应用启动完成后，会查找容器中所有 `CommandLineRunner` 和 `ApplicationRunner` 接口的实现类，按 `@Order` 排序后依次执行
 
 | 方式 | 执行时机 | 适用场景 |
 | ------ | ---------- | ---------- |
@@ -140,7 +144,8 @@ public class DictLoaderRunner implements ApplicationRunner {
 #### 1.3.4 面试高频问答
 
 **Q：`@PostConstruct` 和 `CommandLineRunner` 有什么区别？**
-> 答：`@PostConstruct` 在当前 Bean 初始化完成后立即执行，此时应用可能尚未完全启动（如数据库连接池未就绪）；`CommandLineRunner` 在整个 Spring Boot 应用启动完成后执行，适合需要依赖其他组件就绪的全局初始化任务
+
+- 答：`@PostConstruct` 在当前 `Bean` 初始化完成后立即执行，此时应用可能尚未完全启动（如数据库连接池未就绪）；`CommandLineRunner` 在整个 `Spring Boot` 应用启动完成后执行，适合需要依赖其他组件就绪的全局初始化任务
 
 ---
 
@@ -168,9 +173,9 @@ spring:
 ```
 
 - **YAML 语法要点**：
-  - 缩进只能用空格（禁用 Tab），冒号后必须加空格
+  - 缩进只能用空格（禁用 `Tab`），冒号后必须加空格
   - 列表用 `- 元素` 表示
-  - 多文档用 `---` 分隔不同 Profile（2.4+ 用 `spring.config.activate.on-profile`）
+  - 多文档用 `---` 分隔不同 `Profile`（2.4+ 用 `spring.config.activate.on-profile`）
 
 #### 2.1.3 多环境文件结构（推荐）
 
@@ -184,34 +189,145 @@ resources/
 
 **加载顺序：** 激活 `dev` 时，`application.yml` → `application-dev.yml` → `application-common.yml`（后者覆盖前者）
 
-#### 2.1.4 Maven 资源过滤配置
+#### 2.1.4 **Maven 多环境与资源过滤完整配置**
+
+为了让 `application.yml` 中的 `@spring.profiles.active@` 占位符在打包时被正确替换，需在 `pom.xml` 中同时完成三件事：
+① 定义默认环境属性
+② 开启资源过滤
+③ 声明多环境 Profile
+
+**可直接复制到项目 `pom.xml` 的核心配置模板（含详细注释）：**
 
 ```xml
+<!-- ========================================================== -->
+<!-- 第一步：属性定义（<properties>）                            -->
+<!-- 位置：<parent> 之后，<dependencies> 之前                    -->
+<!-- 作用：定义全局变量，供 Maven 生命周期及占位符引用           -->
+<!-- ========================================================== -->
+<properties>
+    <!-- JDK 版本（Spring Boot 3.x 强制 Java 17+，推荐 21 LTS） -->
+    <java.version>21</java.version>
+    
+    <!-- ★★★ 核心配置：默认激活的环境 ★★★                       -->
+    <!-- 占位符格式：@...@ 是 Maven 资源过滤专用语法             -->
+    <!-- 默认值设为 dev：不加 -P 参数打包时，自动使用 dev 环境   -->
+    <spring.profiles.active>dev</spring.profiles.active>
+</properties>
+
+<!-- ========================================================== -->
+<!-- 第二步：构建配置（<build>）                                 -->
+<!-- 位置：<dependencies> 之后，<profiles> 之前                  -->
+<!-- ========================================================== -->
 <build>
+    <!-- ★★★ 资源过滤配置（<resources>） ★★★                    -->
+    <!-- 作用：决定哪些文件在打包时进行占位符（@xxx@）替换       -->
     <resources>
+        <!-- 资源块 1：开启过滤的资源（仅针对 yml 配置文件）     -->
         <resource>
+            <!-- 资源目录（标准 Maven 结构）                      -->
             <directory>src/main/resources</directory>
+            
+            <!-- filtering=true：开启变量替换，将 @xxx@ 替换为    -->
+            <!-- pom.xml 中 <properties> 或命令行传入的值          -->
             <filtering>true</filtering>
+            
+            <!-- includes：只处理 Spring Boot 的核心配置文件      -->
             <includes>
                 <include>application.yml</include>
                 <include>application-*.yml</include>
             </includes>
         </resource>
+        
+        <!-- 资源块 2：不开启过滤的资源（其他所有文件）          -->
         <resource>
             <directory>src/main/resources</directory>
+            
+            <!-- filtering=false：直接原样拷贝到 target/classes，-->
+            <!-- 不对任何占位符做替换。对静态资源（图片、字体、Mapper XML 等）必须设为 false，否则会导致文件损坏 -->
             <filtering>false</filtering>
+            
+            <!-- excludes：排除刚才已经过滤过的 yml 文件，避免重复处理或被错误覆盖                             -->
             <excludes>
                 <exclude>application.yml</exclude>
                 <exclude>application-*.yml</exclude>
             </excludes>
         </resource>
     </resources>
+
+    <!-- 插件配置（保留您关心的 spring-boot-maven-plugin）       -->
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <!--          配置说明：排除 lombok                  -->
+            <!-- 作用：防止 lombok 在运行时因代理/类加载问题影响   -->
+            <configuration>
+                <excludes>
+                    <exclude>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                    </exclude>
+                </excludes>
+            </configuration>
+        </plugin>
+    </plugins>
 </build>
+
+<!-- ========================================================== -->
+<!-- 第三步：多环境 Profile 定义（<profiles>）                   -->
+<!-- 位置：<build> 之后，</project> 结束标签之前                 -->
+<!-- 作用：根据激活条件（如 -P 参数）动态覆盖 properties 的值    -->
+<!-- ========================================================== -->
+<profiles>
+    <!-- Profile 1：开发环境（dev） -->
+    <profile>
+        <id>dev</id>
+        <properties>
+            <!-- 覆盖 <properties> 中的默认值，强制设为 dev -->
+            <spring.profiles.active>dev</spring.profiles.active>
+        </properties>
+        <!-- activation.activeByDefault=true：如果不加 -P 参数， -->
+        <!-- 默认激活此 Profile，方便本地开发直接打包              -->
+        <activation>
+            <activeByDefault>true</activeByDefault>
+        </activation>
+    </profile>
+
+    <!-- Profile 2：测试环境（test） -->
+    <profile>
+        <id>test</id>
+        <properties>
+            <spring.profiles.active>test</spring.profiles.active>
+        </properties>
+        <!-- 无 activation，必须显式激活：mvn package -P test -->
+    </profile>
+
+    <!-- Profile 3：生产环境（prod） -->
+    <profile>
+        <id>prod</id>
+        <properties>
+            <spring.profiles.active>prod</spring.profiles.active>
+        </properties>
+        <!-- 必须显式激活：mvn package -P prod -->
+    </profile>
+</profiles>
 ```
 
-- **常见问题**：
-  - **占位符失效**：IDE 直接运行 main 方法时 Maven 过滤不生效，需在 VM options 加 -Dspring.profiles.active=dev 或打包后 java -jar 启动
-  - **`@Value` 陷阱**：不支持松散绑定（如 api-key 需写 `@Value("${app.ai.api-key}")）；`配置缺失且无默认值会启动报错，建议加默认值（如 `@Value("${test.hello:默认}")`）
+**使用方式速查表：**
+
+| 场景 | 命令 | 说明 |
+| ------ | ------ | ------ |
+| 默认打包（开发环境） | `mvn clean package` | 自动激活 dev |
+| 打包测试环境 | `mvn clean package -P test` | 替换为 test |
+| 打包生产环境 | `mvn clean package -P prod` | 替换为 prod |
+| **运行时覆盖（最佳实践）** | `java -jar app.jar --spring.profiles.active=prod` | 无需重新打包，一份 `jar` 通吃所有环境 |
+
+⚠️ **必读避坑提醒（与文档附录 B 联动）**
+
+1. **IDE 直接运行 `main` 方法时**：Maven 资源过滤**不会生效**，`@spring.profiles.active@` 原样保留，不会被替换。  
+   - **本地调试解决方案**：在 IDEA `VM options` 中添加 `-Dspring.profiles.active=dev`，或直接在 `application.yml` 中写死 `active: dev`
+2. **生产部署建议**：虽然 Maven 过滤能打出不同环境的包，但更推荐**只打一个通用 jar**，启动时通过 `--spring.profiles.active=prod` 或环境变量 `SPRING_PROFILES_ACTIVE=prod` 切换。这样做符合 **12-Factor App** 原则（配置与代码严格分离），且能避免因环境不同而产生不同构建产物带来的发布风险
+3. **`@Value` 陷阱**：不支持松散绑定（如 `api-key` 需写 `@Value("${app.ai.api-key}")）；`配置缺失且无默认值会启动报错，建议加默认值（如 `@Value("${test.hello:默认}")`）
 
 ---
 
@@ -219,7 +335,7 @@ resources/
 
 #### 2.2.1 核心原理
 
-`ConfigurationPropertiesBindingPostProcessor`拦截带`@ConfigurationProperties`的类，调用`Binder`递归绑定属性，支持松散绑定和 JSR-303 校验
+`ConfigurationPropertiesBindingPostProcessor` 拦截带 `@ConfigurationProperties` 的类，调用 `Binder` 递归绑定属性，支持松散绑定和 `JSR-303` 校验
 
 #### 2.2.2 典型代码模板
 
@@ -314,7 +430,8 @@ public class AiConfig { }
 }
 ```
 
-> **工程建议**：使用 `spring-boot-configuration-processor` 注解处理器，编译时自动生成该文件，无需手写。
+> [!TIP]
+> **工程建议**：使用 `spring-boot-configuration-processor` 注解处理器，编译时自动生成该文件，无需手写
 
 ```xml
 <dependency>
@@ -481,7 +598,7 @@ public class User {
 #### 本章核心定位
 "定义接口，自动生成 SQL" 的快速数据访问方案，适合简单 CRUD 场景，与 MyBatis-Plus 形成互补。
 
-#### 典型代码模板
+#### 4.2.1 典型代码模板
 
 ```java
 // 1. 实体
@@ -521,6 +638,41 @@ Optional<User> findByIdWithDepartment(@Param("id") Long id);
 ```
 
 > **选型建议**：复杂 SQL、多表关联用 MyBatis-Plus；简单单表 CRUD、快速原型用 JPA。
+
+#### 4.2.2 事务传播行为（@Transactional 必知）
+
+| 传播行为 | 说明 | 适用场景 |
+|----------|------|----------|
+| `REQUIRED`（默认） | 当前有事务则加入，无则新建 | 常规业务方法 |
+| `REQUIRES_NEW` | 始终新建事务，挂起当前事务 | 独立日志记录、不因主事务回滚而回滚 |
+| `NESTED` | 当前有事务则嵌套（保存点），无则新建 | 局部回滚不影响外层 |
+| `SUPPORTS` | 当前有则加入，无则以非事务执行 | 只读查询 |
+| `NOT_SUPPORTED` | 以非事务执行，挂起当前事务 | 不需要事务的辅助操作 |
+| `MANDATORY` | 必须已有事务，否则抛异常 | 强制事务上下文 |
+| `NEVER` | 必须非事务执行，否则抛异常 | 禁止事务的场景 |
+
+**隔离级别速查：**
+
+| 隔离级别 | 脏读 | 不可重复读 | 幻读 |
+|----------|:----:|:----------:|:----:|
+| `READ_UNCOMMITTED` | ✅ | ✅ | ✅ |
+| `READ_COMMITTED`（多数 DB 默认） | ❌ | ✅ | ✅ |
+| `REPEATABLE_READ`（MySQL 默认） | ❌ | ❌ | ✅ |
+| `SERIALIZABLE` | ❌ | ❌ | ❌ |
+
+**代码示例：**
+
+```java
+@Transactional(propagation = Propagation.REQUIRES_NEW, 
+               isolation = Isolation.READ_COMMITTED,
+               timeout = 3,           // 超时 3 秒自动回滚
+               rollbackFor = Exception.class)
+public void doCriticalBusiness() {
+    // 独立事务，外层回滚不影响此操作
+}
+```
+
+> ⚠️ **坑**：同类中 A 方法调用 B 方法（B 带 `@Transactional`），事务不生效。必须通过代理调用（注入自身或拆分到不同 Service）。
 
 ---
 
@@ -578,10 +730,11 @@ public interface UserMapper {
 
 ### 5.3 全局异常处理与参数校验
 
-#### 核心原理
+#### 5.3.1 核心原理
+
 `@RestControllerAdvice` + `@ExceptionHandler` 全局拦截异常，配合 `spring-boot-starter-validation` 实现请求参数自动校验。
 
-#### 典型代码模板
+#### 5.3.2 典型代码模板
 
 ```java
 @RestControllerAdvice
@@ -631,16 +784,272 @@ public Result<User> create(@RequestBody @Valid UserDTO dto) {
 }
 ```
 
+收到，您直接把这整段**「@Validated 核心知识块」**插入到笔记 **「五、分层架构规范 → 5.3 全局异常处理与参数校验」** 这一节的 **末尾**（即放在 `// Controller 中使用` 代码示例之后）即可。它解答了面试中 90% 的校验相关问题。
+
+---
+
+#### 5.3.3 **@Valid 与 @Validated 深度辨析**
+
+`@Valid`（JSR-303 标准）和 `@Validated`（Spring 专属）是参数校验的两大核心注解，它们既有重合又有区别，面试高频考点如下：
+
+| 对比维度 | `@Valid`（JSR-303 标准） | `@Validated`（Spring 专属） |
+| ---------- | -------------------------- | ----------------------------- |
+| **所属规范** | Jakarta Bean Validation 标准 | Spring 框架扩展注解 |
+| **核心功能** | 触发校验 | 触发校验 + 分组校验（groups） |
+| **支持分组校验** | ❌ 不支持（需配合 Spring 的 `@Validated`） | ✅ 原生支持 `groups` 属性 |
+| **支持嵌套校验** | ✅ 支持（对象内部包含对象时，用 `@Valid` 标记嵌套属性） | ❌ 不直接支持嵌套，需在嵌套属性上额外加 `@Valid` |
+| **可标注位置** | 方法参数、字段、构造器 | 类、方法参数、方法（类上标注后，内部所有 `@PostConstruct`/`@PreDestroy` 会校验） |
+| **触发异常类型** | `MethodArgumentNotValidException`（Controller 层） | `ConstraintViolationException`（Service 层或方法级） |
+
+**典型用法一：Controller 层请求体校验（最常用，推荐 `@Valid`）**
+
+```java
+// 使用 @Valid 校验 RequestBody（JSR-303 标准写法）
+@PostMapping("/users")
+public Result<User> create(@RequestBody @Valid UserCreateDTO dto) {
+    // 校验失败自动抛出 MethodArgumentNotValidException
+    // 由 GlobalExceptionHandler 统一处理
+}
+```
+
+**典型用法二：Controller 层简单参数校验（如 `@RequestParam` / `@PathVariable`）**
+
+如果要对 GET 请求的 `@RequestParam` 或 `@PathVariable` 做非空、长度限制，**必须使用 `@Validated` 标注在 Controller 类上**：
+
+```java
+@Validated          // ★ 必须加在类上，才能激活方法参数上的校验注解
+@RestController
+public class UserController {
+
+    @GetMapping("/users/{id}")
+    public Result<User> getById(
+        @PathVariable @Min(1) Long id,                      // 校验路径参数必须 >= 1
+        @RequestParam @NotBlank @Size(max = 10) String type // 校验查询参数非空、长度 <= 10
+    ) {
+        // 校验失败抛出 ConstraintViolationException
+    }
+}
+```
+
+**典型用法三：Service 层方法参数校验（避免手动 if-else）**:
+
+> [!TIP]
+> ✅ **工程建议**：将校验前置到 Controller 层，Service 层默认信任 Controller 传过来的合法数据。但若 Service 层也可能被其他 Service 调用，则可在 Service 层加二次校验保证健壮性
+
+```java
+@Service
+@Validated          // ★ 必须加在类上
+public class UserService {
+
+    // 校验方法参数（DTO 内部字段用 @Valid 触发嵌套校验）
+    public void updateUser(@Valid @NotNull UserUpdateDTO dto) {
+        // 校验失败抛出 ConstraintViolationException
+    }
+
+    // 校验普通参数
+    public User getById(@NotNull @Min(1) Long id) {
+        // ...
+    }
+}
+```
+
+**典型用法四：分组校验（`@Validated` 独有优势）**
+
+同一个 DTO 在“新增”和“更新”时有不同校验规则（例如新增时 ID 必须为空，更新时 ID 必须不为空），用分组校验解决：
+
+```java
+// 1. 定义分组接口（作为标识即可）
+public class CreateGroup {}
+public class UpdateGroup {}
+
+// 2. DTO 中按组标记校验规则
+@Data
+public class UserDTO {
+    @Null(groups = CreateGroup.class, message = "新增时 ID 必须为空")
+    @NotNull(groups = UpdateGroup.class, message = "更新时 ID 不能为空")
+    private Long id;
+
+    @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})
+    @Size(min = 2, max = 20)
+    private String username;
+}
+
+// 3. Controller 中使用 @Validated 指定组
+@PostMapping("/users")
+public Result create(@RequestBody @Validated(CreateGroup.class) UserDTO dto) {
+    // 只会校验 CreateGroup 分组下的规则（id 必须为 null）
+}
+
+@PutMapping("/users")
+public Result update(@RequestBody @Validated(UpdateGroup.class) UserDTO dto) {
+    // 只会校验 UpdateGroup 分组下的规则（id 必须不为 null）
+}
+```
+
+**全局异常处理增强（适配 `@Validated` 的异常类型）**
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // 原有的 @Valid（@RequestBody）校验失败
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<Void> handleValid(MethodArgumentNotValidException e) {
+        String msg = e.getFieldErrors().stream()
+            .map(error -> error.getField() + ":" + error.getDefaultMessage())
+            .collect(Collectors.joining(", "));
+        return Result.error(msg);
+    }
+
+    // ★ 新增：处理 @Validated（方法参数校验）失败
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Result<Void> handleConstraintViolation(ConstraintViolationException e) {
+        String msg = e.getConstraintViolations().stream()
+            .map(violation -> violation.getPropertyPath() + ":" + violation.getMessage())
+            .collect(Collectors.joining(", "));
+        return Result.error("参数校验失败：" + msg);
+    }
+
+    // 兜底...
+}
+```
+
+**避坑速查**:
+
+| 坑 | 现象 | 解决 |
+| ---- | ------ | ------ |
+| `@Validated` 加在方法上无效 | 方法参数上的 `@NotNull`/`@Size` 未触发校验 | 必须把 `@Validated` 标注在 **类** 上，Spring 才会为类生成代理进行方法级校验 |
+| 嵌套对象属性为 null 时不校验 | 外层对象校验通过，但内部对象字段为空却没报错 | 在嵌套对象字段上**额外加 `@Valid`**：`@Valid private Address address;` |
+| 分组校验传了多个组 | `@Validated({CreateGroup.class, UpdateGroup.class})` | 合法，且的关系（满足任一组的约束都算通过） |
+
+#### 5.3.4 常用校验注解速查
+
+| 注解 | 适用类型 | 说明 |
+| ------ | ---------- | ------ |
+| `@NotNull` | 任意类型 | 值不能为 `null` |
+| `@Null` | 任意类型 | 值必须为 `null` |
+| `@NotBlank` | `String` | 非 `null` + 至少一个非空白字符（最常用） |
+| `@NotEmpty` | `String`、`Collection`、`Map`、数组 | 非 `null` 且大小 > 0 |
+| `@Size(min, max)` | `String`、`Collection`、`Map`、数组 | 长度/大小在指定区间内 |
+| `@Min(value)` | `BigDecimal`、`BigInteger`、`byte`、`short`、`int`、`long` 及包装类 | ≥ 指定值 |
+| `@Max(value)` | 同上 | ≤ 指定值 |
+| `@DecimalMin(value)` | 同上（支持高精度） | ≥ 指定值（字符串形式，适合金额） |
+| `@DecimalMax(value)` | 同上（支持高精度） | ≤ 指定值 |
+| `@Digits(integer, fraction)` | 同上 | 限制整数位数和小数位数 |
+| `@AssertTrue` | `Boolean`、`boolean` | 必须为 `true` |
+| `@AssertFalse` | `Boolean`、`boolean` | 必须为 `false` |
+| `@Email` | `String` | 符合邮箱格式 |
+| `@Pattern(regexp)` | `String` | 匹配正则表达式 |
+| `@Past` | 日期类型（`Date`、`LocalDate` 等） | 必须为过去时间 |
+| `@Future` | 日期类型 | 必须为未来时间 |
+
+**使用示例：**
+
+```java
+@Data
+public class UserDTO {
+    @NotBlank(message = "用户名不能为空")      // 字符串必填
+    @Size(min = 3, max = 20)                  // 长度 3-20
+    private String username;
+
+    @NotNull(message = "年龄不能为空")
+    @Min(1) @Max(120)
+    private Integer age;
+
+    @Email
+    @NotBlank
+    private String email;
+
+    @DecimalMin("0.00") @DecimalMax("999999.99")
+    private BigDecimal salary;
+
+    @Digits(integer = 3, fraction = 2)        // 如 100.50
+    private BigDecimal score;
+
+    @Pattern(regexp = "^1[3-9]\\d{9}$")
+    private String phone;
+}
+```
+
+> [!WARNING]
+> ⚠️ **注意**：`@NotNull`、`@Min`、`@Max` 在 `String` 上也能用（如 `@Min(1)` 表示字符串长度 ≥ 1），但语义不清晰，推荐字符串用 `@Size`，数值用 `@Min/@Max`，各司其职
+
+---
+
+### 5.4 Spring AOP 切面编程
+
+#### 5.4.1 核心概念速查
+
+| 术语 | 说明 |
+|------|------|
+| `@Aspect` | 标注切面类 |
+| `@Before` | 方法执行前增强 |
+| `@After` | 方法执行后增强（无论是否异常） |
+| `@AfterReturning` | 方法正常返回后增强 |
+| `@AfterThrowing` | 方法抛异常后增强 |
+| `@Around` | 环绕增强（最强大，可控制是否执行目标方法） |
+| `@Pointcut` | 定义切点表达式，复用匹配规则 |
+
+#### 5.4.2 典型代码（统一日志 + 接口耗时）
+
+```java
+@Slf4j
+@Aspect
+@Component
+public class LogAspect {
+
+    // 切点：匹配 com.example.service 下所有类所有方法
+    @Pointcut("execution(* com.example.service..*.*(..))")
+    public void servicePointcut() {}
+
+    // 环绕增强：记录耗时
+    @Around("servicePointcut()")
+    public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+        long start = System.currentTimeMillis();
+        String method = joinPoint.getSignature().toShortString();
+        try {
+            Object result = joinPoint.proceed();  // 执行目标方法
+            log.info("{} 执行成功，耗时 {}ms", method, System.currentTimeMillis() - start);
+            return result;
+        } catch (Throwable e) {
+            log.error("{} 执行异常，耗时 {}ms", method, System.currentTimeMillis() - start, e);
+            throw e;
+        }
+    }
+
+    // 自定义注解 + AOP（推荐，灵活精准）
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Monitor {}
+
+    @Around("@annotation(monitor)")
+    public Object aroundMonitor(ProceedingJoinPoint pjp, Monitor monitor) throws Throwable {
+        // 只对打了 @Monitor 的方法生效
+        return pjp.proceed();
+    }
+}
+```
+
+**切点表达式常用写法：**
+
+| 表达式 | 说明 |
+|--------|------|
+| `execution(* com.example.service.*.*(..))` | service 包下所有类所有方法 |
+| `execution(* com.example.service..*.*(..))` | service 包及其子包 |
+| `@annotation(com.example.Monitor)` | 所有带 `@Monitor` 的方法 |
+| `within(com.example..*)` | 包级拦截 |
+
 ---
 
 ## 六、Web 层进阶：拦截器与跨域
 
 ### 6.1 拦截器（HandlerInterceptor）
 
-#### 本章核心定位
+#### 6.1.1 本章核心定位
+
 请求进入 Controller 前的"安检门"，用于鉴权、日志、限流等横切逻辑。
 
-#### 典型代码模板
+#### 6.1.2 典型代码模板
 
 ```java
 @Component
@@ -670,10 +1079,36 @@ public class WebConfig implements WebMvcConfigurer {
 }
 ```
 
-#### 面试高频问答
+#### 6.1.3 面试高频问答
 
 **Q：拦截器和过滤器的执行顺序？如何让一个请求不被拦截器拦截？**
 > 答：执行顺序：**Filter（Servlet 层）→ Interceptor（Spring MVC 层）→ Controller**。Filter 在请求进入 DispatcherServlet 前执行，Interceptor 在 HandlerMapping 之后、Controller 之前执行。让请求不被拦截：① 在 `addInterceptors` 中用 `excludePathPatterns` 排除路径；② 在 `preHandle` 中根据条件动态 `return false`；③ 使用 `@Order` 控制多个拦截器的优先级。
+
+#### 6.1.4 Filter vs Interceptor vs AOP 对比
+
+| 对比项 | `Filter`（Servlet 规范） | `Interceptor`（Spring MVC） | `AOP`（Spring） |
+|--------|--------------------------|-----------------------------|-----------------|
+| 层级 | Servlet 容器层 | Spring MVC 层（HandlerMapping 后） | Spring Bean 层（方法级） |
+| 执行时机 | **请求进入 DispatcherServlet 前** | Controller **之前/之后** | 方法执行前后（可精确到任意 Bean） |
+| 能否获取 Spring Bean | ❌ 需要额外配置 | ✅ | ✅ |
+| 适用场景 | 字符编码、XSS 过滤、日志 | 鉴权、日志、跨域 | 事务、缓存、监控、重试 |
+
+**执行顺序图（请求路径）：**
+
+```
+Client Request 
+    → Filter（doFilter） 
+        → DispatcherServlet 
+            → Interceptor（preHandle） 
+                → AOP（@Around 前置） 
+                    → Controller 执行 
+                → AOP（@Around 后置） 
+            → Interceptor（postHandle / afterCompletion） 
+        → 返回响应 
+    → Filter（返回后）
+```
+
+> **工程建议**：鉴权用 `Interceptor`（可精准匹配路径），日志用 `Filter` 或 `Interceptor`，性能监控/重试用 `AOP`（可精确到方法）。
 
 ---
 
@@ -1410,7 +1845,7 @@ logging:
 #### 13.1.2 **XML配置**
 
 > [!WARNING]
-> 上述 YAML 配置未开启异步日志，高并发下同步刷盘会阻塞业务线程。生产环境需额外创建 src/main/resources/logback-spring.xml，用 AsyncAppender 包装 RollingFileAppender（如下），YAML 与 XML 会**自动合并生效**
+> 上述 `YAML` 配置未开启异步日志，高并发下同步刷盘会阻塞业务线程。生产环境需额外创建 `src/main/resources/logback-spring.xml`，用 `AsyncAppender` 包装 `RollingFileAppender`（如下），`YAML` 与 `XML` 会**自动合并生效**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
