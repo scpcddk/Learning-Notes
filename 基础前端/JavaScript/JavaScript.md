@@ -2,7 +2,8 @@
 
 ## 1. 变量与数据类型
 
-> 把数据当成“水”，变量就是“储水罐”，类型决定这罐水是热水、冷水还是压力值。
+> [!TIP]
+> 把数据当成“水”，变量就是“储水罐”，类型决定这罐水是热水、冷水还是压力值
 
 ---
 
@@ -10,7 +11,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| **一句话定义** | 变量是存储数据的容器，数据类型决定了数据能做什么操作。 |
+| **一句话定义** | 变量是存储数据的**容器**，数据类型决定了数据能做什么操作 |
 | **难度** | ⭐⭐ (入门但易踩坑) |
 | **使用频率** | 🔴🔴🔴 极高（每行代码都在用） |
 | **关联知识** | 作用域、内存、运算符、函数传参、API 数据解析 |
@@ -34,7 +35,8 @@ pressure = 0.8;             // 严格模式报错，松散模式埋雷
 let pressure = 0.8;
 ```
 
-**生活比喻**：`let` 是可擦写的白板，`const` 是刻字的石碑，`var` 是容易弄丢的便签纸。
+> [!TIP]
+> **生活比喻**：`let` 是可擦写的白板，`const` 是刻字的石碑，`var` 是容易弄丢的便签纸
 
 ---
 
@@ -63,7 +65,8 @@ console.log(alarmList1); // ['断电','超压','过温']，被意外修改了
 let alarmList2 = [...alarmList1];
 ```
 
-**关键结论**：**基本类型（数字、字符串、布尔）像一张照片的复印，引用类型（对象、数组、函数）像一张照片的共享相册链接。**
+> [!TIP]
+> **关键结论**：**基本类型（数字、字符串、布尔）像一张照片的复印，引用类型（对象、数组、函数）像一张照片的共享相册链接**
 
 ---
 
@@ -130,7 +133,7 @@ console.log('活跃报警:', activeAlarms);
 // 输出：当前供水温度: 82.5 ℃  供回温差: 22.3 ℃  活跃报警: ['sensor_fault', 'high_supply_temp']
 ```
 
-**解释**：从后端接口拿到的一定是字符串或原始对象，必须进行类型转换和拷贝再操作，否则数据展示错误或原始数据被污染。
+**解释**：从后端接口拿到的一定是字符串或原始对象，必须进行类型转换和拷贝再操作，否则数据展示错误或原始数据被污染
 
 ---
 
@@ -151,7 +154,7 @@ console.log('活跃报警:', activeAlarms);
 
 在换热站无人值守前端项目中，变量与数据类型的运用无处不在：
 
-- **传感器实时数据存储**：用 `let` 存储经常变化的温度、压力、流量值，用 `const` 保存报警阈值（`MAX_PRESSURE = 1.6`）。
+- **传感器实时数据存储**：用 `let` 存储经常变化的温度、压力、流量值，用 `const` 保存报警阈值（`MAX_PRESSURE = 1.6`）
 - **API 数据解析**：后端返回的 JSON 中数字可能是字符串类型，需要统一 `Number()` 转换后再用于图表绑定。
 - **报警列表管理**：报警数组是引用类型，展示时需浅拷贝后排序，避免混淆原始数据顺序，也防止无意修改缓存的数据源。
 - **站状态位运算**：一个站可能有多个状态标识（如运行、故障、离线），可通过**基本类型**布尔或数字位掩码来表示，保证状态判断准确。
@@ -175,7 +178,7 @@ console.log(b);
 
 **答案**：`10`  
 **常见错误**：以为 `b` 跟着变成 20。  
-**解析**：基本类型赋值是值的复制，`b` 保存的是 `a` 的旧值 10，之后 `a` 改变不影响 `b`。`const` 只是不能重新赋值，值本身可以改变？这里存的数字是基本类型，无法改变，所以 `b` 还是 10。
+**解析**：基本类型赋值是值的复制，`b` 保存的是 `a` 的旧值 10，之后 `a` 改变不影响 `b`。**`const` 只是不能重新赋值，值本身可以改变**.这里存的数字是基本类型，无法改变，所以 `b` 还是 10。
 </details>
 
 #### Q2: 如何正确判断一个变量是不是数字 0（排除假值）？
@@ -244,8 +247,8 @@ let total2 = `供水${supply}℃, 回水${returnTemp}℃`;
 
 ```js
 // ✅ 短路求值常用于设置默认值
-let pressure = getPressure() || 0.0;  // 如果左边假值，用0
-let name = stationName ?? "未命名";   // 空值合并，只有null/undefined才用默认
+let pressure = getPressure() || 0.0;  // 看的是 “真假”（只要左边是假值，就用右边）
+let name = stationName ?? "未命名";   // 看的是 “有没有值”（只有左边是 null 或 undefined，才用右边）
 
 // ❌ 错误 — 误判0为假
 let flow = 0;
@@ -397,7 +400,7 @@ const LoadCalc = () => {};
 // ✅ 默认参数
 function setThreshold(temp = 75) { ... }
 
-// ❌ 错误 — 传递null不会触发默认值
+// ❌ 错误 — 函数默认参数只在参数为 undefined 时生效。null 在 JS 里被当作“一个主动传进来的有效值”，所以它不会触发默认，直接原样赋值为 null
 setThreshold(null); // temp = null
 
 // ✅ 对象解构参数，直观
@@ -405,12 +408,22 @@ function updateSensor({ id, value = 0 }) {
   console.log(id, value);
 }
 updateSensor({ id: 'T1', value: 22 });
+
+// 原写法（拆解后）
+function updateSensor(obj) {
+  let id = obj.id;          // 从对象里取 id
+  let value = obj.value;    // 从对象里取 value
+  if (value === undefined) {
+    value = 0;              // 只有取不到（undefined）时才赋默认0
+  }
+  console.log(id, value);
+}
 ```
 
 #### 3. 作用域 —— “每个房间的私有物品”
 
 ```js
-let outside = "全局";
+let outside = "全局"; //var 没有块级作用域，整个函数内部都能访问，结果立刻不同
 function room() {
   let inside = "函数内";
   console.log(outside); // 可访问外部
@@ -418,7 +431,7 @@ function room() {
     let block = "块级"; // let/const 块级
   }
   console.log(block); // ❌ ReferenceError: block is not defined
-}
+}//花括号 {} 是 let/const 的“防弹玻璃”，里面看得见外面，外面绝对看不见里面。
 ```
 
 #### 4. 闭包 —— “背包记忆”
@@ -501,7 +514,7 @@ for (var i = 1; i <= 3; i++) {
 
 | 项目 | 内容 |
 |------|------|
-| **一句话定义** | 对象存储键值对，数组存储有序列表。 |
+| **一句话定义** | 对象存储键值对，数组存储有序列表 |
 | **难度** | ⭐⭐ |
 | **使用频率** | 🔴🔴🔴 |
 | **关联知识** | JSON、API、遍历、解构 |
@@ -532,11 +545,12 @@ console.log(sensor?.location?.x); // 安全
 ```js
 let temps = [23.1, 24.5, 22.0, 26.3];
 
-// ✅ filter 获取异常温度
+// ✅ filter(挑出符合条件的) 获取异常温度
 let anomalies = temps.filter(t => t > 25);
-// ✅ map 转换为华氏度显示
+// ✅ map(加工每个元素) 转换为华氏度显示
 let fahrenheit = temps.map(t => t * 9/5 + 32);
-// ✅ reduce 求平均
+// ✅ reduce(汇总成单一结果) 求平均
+// 数组.reduce( (acc, curr) => { 返回新值 }, 存钱罐初始值 );
 let avg = temps.reduce((sum, t) => sum + t, 0) / temps.length;
 
 // ❌ 错误 — 忘记提供reduce初始值，空数组报错
@@ -635,7 +649,7 @@ console.log("压力最高站:", maxPressureStation.name);
 
 | 项目 | 内容 |
 |------|------|
-| **一句话定义** | 通过 JavaScript 操纵 HTML 元素，实现动态交互。 |
+| **一句话定义** | 通过 JavaScript **操纵 HTML 元素**，实现动态交互 |
 | **难度** | ⭐⭐ |
 | **使用频率** | 🔴🔴🔴 |
 | **关联知识** | 浏览器对象、事件、异步渲染 |
@@ -646,9 +660,14 @@ console.log("压力最高站:", maxPressureStation.name);
 
 ```js
 // ✅ 现代方法
+//  document.querySelector：JS 用来在网页里“抓取”HTML标签的工具
 const tempSpan = document.querySelector('#temp-value');
 const allAlarms = document.querySelectorAll('.alarm-item');
 
+// document	整个网页文档
+// querySelector	懒汉模式：查询并返回第一个
+// querySelectorAll()	勤劳模式：返回 NodeList（集合），哪怕只有 1 个
+// ('.temp')	查询条件（CSS选择器）
 // ❌ 错误 — 没注意选择器匹配多个，直接用innerHTML
 document.querySelector('.temp').innerHTML = 90; // 只改了第一个
 // ✅ 如果有多个则循环或精确选择
@@ -680,17 +699,24 @@ tempSpan.classList.add('warning');
 const btn = document.getElementById('confirm-btn');
 
 // ✅ 添加监听
+// JS 引擎做了一件事：在 btn 上贴一个纸条，上面写着“如果有人点击，就喊这句话”
 btn.addEventListener('click', function(event) {
   console.log('参数已保存');
   event.stopPropagation(); // 阻止冒泡（按需）
 });
 
 // ❌ 错误 — 在循环中直接使用var索引
+// for 循环跑得飞快，点击发生在循环结束之后。
+// var 只给一块公共黑板，点击时，JS 只能拿到这个最终值
+// let 每人发一张私人便利贴,每次点击都有自己的值
 for (var i=0; i<buttons.length; i++) {
   buttons[i].addEventListener('click', () => console.log(i));
 } // 所有都打印同一个值
 // ✅ 用let或闭包
 ```
+
+> [!TIP]
+> 但凡在 `for` 循环里绑定点击事件，索引变量永远只用 `let` 
 
 #### 4. 创建与删除元素
 
@@ -775,7 +801,7 @@ setInterval(() => {
 
 | 项目 | 内容 |
 |------|------|
-| **一句话定义** | 处理需要等待的操作（网络请求、定时），不阻塞主线程。 |
+| **一句话定义** | 处理需要等待的操作（网络请求、定时），不阻塞主线程 |
 | **难度** | ⭐⭐⭐⭐ |
 | **使用频率** | 🔴🔴🔴 |
 | **关联知识** | Promise, fetch, 事件循环, 错误处理 |
@@ -786,20 +812,36 @@ setInterval(() => {
 
 ```js
 // ❌ 回调地狱
-getStationData(1, function(data) {
-  updateUI(data, function() {
-    checkAlarms(function(alarms) {
-      // ...
+// 回调地狱本质就是异步任务的‘单向阻塞流水线’——上一道工序不交付，下一道工序只能干瞪眼，整个业务流被时序依赖彻底焊死，毫无弹性
+getStationData(1, function(data) {      // 步骤1：去服务器拿1号站的数据
+  updateUI(data, function() {           // 步骤2：拿到数据后，更新页面UI（可能带动画）
+    checkAlarms(function(alarms) {      // 步骤3：UI更新完后，再去检查有没有警报
+      // ... 最终拿到警报结果
     });
   });
 });
 ```
+
+<details><summary>补充</summary>
+
+- 为什么叫“地狱”？（四个致命伤）
+
+| 痛点 | 大白话解释 | 你的代码里怎么体现 |
+| :--- | :--- | :--- |
+| **1. 金字塔缩进（Pyramid of Doom）** | 每多一层异步，缩进就往右推一格，业务复杂时能推到屏幕外面去。 | 现在才3层，看着还行。要是加个“保存日志”“发送通知”，直接变成向右的三角形。 |
+| **2. 错误处理无处安放（Try-Catch失效）** | `try-catch` 只能抓同步错误，抓不住异步回调里的报错。如果 `updateUI` 崩了，外面根本不知道。 | 你没法在外面用 `try` 包住整个链条，只能每个回调里单独写 `if(err)`，代码瞬间翻倍。 |
+| **3. 流程无法“中断”或“跳过”** | 如果步骤2（`updateUI`）发现数据非法，想直接结束不往下走，你没法 `return` 或 `break`。 | 你必须在 `updateUI` 的回调里判断，如果错了，就别调用 `checkAlarms`，但代码结构极其拧巴。 |
+| **4. 变量作用域污染** | 内层函数能拿到外层变量，但外层拿不到内层。如果你想在最后把 `data` 和 `alarms` 合并，只能把它们挂在全局对象上，极其危险。 | 最终 `// ...` 里想同时用 `data` 和 `alarms`？抱歉，`data` 在外层，`alarms` 在内层，你得写闭包传参，超级麻烦。 |
+</details>
 
 #### 2. Promise —— “承诺未来给结果”
 
 ```js
 // ✅ 创建Promise
 function fetchStationData(id) {
+   // 异步操作写在这里
+   // new Promise = 下个快递单（异步任务）。
+   // resolve = 签收成功，货给 .then；reject = 丢件理赔，货给 .catch
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (id > 0) resolve({ id, temp: 75 });
@@ -820,10 +862,10 @@ fetchStationData(1)
 // ✅ 现代写法
 async function loadDashboard() {
   try {
-    const data = await fetchStationData(1);
-    console.log(data.temp);
+    const data = await fetchStationData(1);  // 等待 Promise 完成，拿到实际数据
+    console.log(data.temp);                  // 此时 data 是 { temp: ... } 这样的对象
   } catch (error) {
-    console.error('加载失败:', error);
+    console.error('加载失败:', error);       // 如果请求出错，统一捕获
   }
 }
 // ❌ 错误 — 忘记await
