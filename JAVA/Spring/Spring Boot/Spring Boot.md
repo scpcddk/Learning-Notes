@@ -531,6 +531,13 @@ public String encrypt(String plain) {
 | `@Cacheable` | 方法结果缓存 |
 | `@CacheEvict` | 清除缓存 |
 
+<details><summary>补充</summary>
+
+- 无论你选逻辑删除还是物理删除，只要用了 `@Cacheable` 却没配合 `@CacheEvict`，就一定会产生“脏数据”问题
+  - **只要方法上写了 `@Cacheable`，所有涉及增、删、改的操作，都必须配套 `@CacheEvict` 或 `@CachePut`** 
+  - **删除操作永远用 `@CacheEvict`（驱逐），绝不用 `@CachePut`（更新），因为删除后缓存里不应再有该 Key**
+</details>
+
 ### 3.5 条件注解速查表（★ v4.0 新增）
 
 | 注解 | 条件 | 典型使用场景 |
@@ -630,6 +637,37 @@ public class UserService {
 }
 ```
 
+<details><summary>@Column</summary>
+
+在 Java 持久化（JPA/Hibernate）中，`@Column` 注解用于将**实体类（Entity）中的字段**映射到**数据库表中的列**。它允许你精细控制列名、数据类型、长度、约束以及 DDL 生成策略
+
+以下是 `@Column` 的完整使用指南，涵盖核心属性、代码示例及常见陷阱
+
+**最常用核心属性**:
+
+| 属性 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| **`name`** | String | 指定数据库表的列名（默认与字段名相同，如 `userName` -> `user_name` 取决于命名策略）。 |
+| **`nullable`** | boolean | 是否允许为 `null`（默认 `true`）。生成 DDL 时会添加 `NOT NULL` 约束。 |
+| **`length`** | int | 列长度（默认 255）。仅对 `String` 类型有效，生成 `VARCHAR(length)`。 |
+| **`unique`** | boolean | 是否为唯一约束（默认 `false`）。常用于业务唯一键（如手机号、邮箱）。 |
+| **`columnDefinition`** | String | **优先级最高**，直接写 SQL 片段定义列。会覆盖 `length`、`nullable` 等属性。 |
+| **`insertable`** | boolean | 是否允许该列出现在 INSERT 语句中（默认 `true`）。常用于自动生成的时间戳字段。 |
+| **`updatable`** | boolean | 是否允许该列出现在 UPDATE 语句中（默认 `true`）。常用于“创建时间”字段。 |
+| **`precision`** | int | 数字总位数（默认 0）。用于 `BigDecimal` 或数值类型。 |
+| **`scale`** | int | 小数位数（默认 0）。用于 `BigDecimal`。 |
+
+**`@Column` vs `@Basic`**:
+
+| 注解 | 作用范围 | 主要用途 |
+| :--- | :--- | :--- |
+| **`@Column`** | **DDL（数据库结构）** | 控制列名、类型、长度、约束、是否可插入/更新。 |
+| **`@Basic`** | **JPA 运行时行为** | 控制字段是否懒加载（`fetch = LAZY`）以及是否可为空（仅影响 ORM 运行时，不影响 DDL）。 |
+
+通常 `@Column` 与 `@Basic` 可共存，但大多数场景下**仅使用 `@Column`** 即可满足需求
+</details>
+
+> [!TIP]
 > **JPA 懒加载陷阱**：`LazyInitializationException` 是因为 Session 已关闭。推荐方案：① 使用 `JOIN FETCH` 或 `EntityGraph` 在查询时加载关联数据；② 避免 `OpenEntityManagerInView`（会导致长事务和连接泄露）。
 
 ```java
@@ -637,6 +675,7 @@ public class UserService {
 Optional<User> findByIdWithDepartment(@Param("id") Long id);
 ```
 
+> [!TIP]
 > **选型建议**：复杂 SQL、多表关联用 MyBatis-Plus；简单单表 CRUD、快速原型用 JPA。
 
 #### 4.2.2 事务传播行为（@Transactional 必知）
