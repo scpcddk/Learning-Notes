@@ -1,6 +1,7 @@
 # 📘 npm 实用笔记
 
-## 1. 核心文件解读
+## 1. **核心文件解读**
+
 | 文件 | 作用 | 是否提交 Git |
 | :--- | :--- | :--- |
 | **`package.json`** | 项目配置入口，记录**依赖范围**和**脚本命令** | ✅ 必须提交 |
@@ -13,17 +14,19 @@
 ## 2. 高频命令大全（按场景分类）
 
 ### 📦 安装与卸载
+
 | 命令 | 说明 |
 | :--- | :--- |
-| `npm init -y` | 快速生成默认 `package.json` |
-| `npm i` / `npm install` | ==根据 `package.json` 安装**所有**依赖== |
-| `npm i <包名>` | 安装生产依赖（默认写入 `dependencies`） |
+| `npm init -y` | 快速生成默认`package.json` |
+| `npm i` / `npm install` | ==根据`package.json` 安装**所有**依赖== |
+| `npm i <包名>` | 安装生产依赖（默认写入`dependencies`） |
 | `npm i <包名> -D` | 安装开发依赖（写入 `devDependencies`，如测试/打包工具） |
 | `npm i <包名> -g` | 全局安装（命令行工具，如 `pm2`、`yarn`） |
 | `npm uninstall <包名>` | 卸载依赖（自动移除 `package.json` 记录） |
 | `npm ci` | **严格按 lock 文件安装**（比 `npm i` 更快，常用于 CI/CD 流水线） |
 
 ### 🚀 版本与更新
+
 | 命令 | 说明 |
 | :--- | :--- |
 | `npm outdated` | 查看哪些依赖有可用更新 |
@@ -35,12 +38,92 @@
 | `npm ls <包名>` | 查看依赖树中某包的版本（厘清为什么安装它） |
 
 ### 🛠 脚本运行
+
 | 命令 | 说明 |
 | :--- | :--- |
 | `npm run <脚本名>` | ==**执行** `package.json` 中 `scripts` 定义的命令== |
 | `npm start` | 特殊脚本，可简写（无需 `run`） |
 | `npm test` | 特殊脚本，可简写（无需 `run`） |
 | `npx <包名>` | 无需安装，直接执行本地或远程命令（推荐代替全局安装调试工具） |
+
+<details><summary>深入理解npm run</summary>
+
+### 🧩 补充：深入理解 `npm run`
+
+`npm run <脚本名>` 不只是执行一段字符串，它会做三件关键的事：
+
+1.  **临时把 `node_modules/.bin` 加入系统 PATH**  
+    这样就能直接调用项目本地安装的各种命令行工具（如 `webpack`、`eslint`、`vite`），而不需要全局安装
+2.  **继承所有 npm 环境变量**  
+    脚本内可直接使用 `$npm_package_name`、`$npm_package_version` 等变量
+3.  **支持前置/后置钩子**  
+    自动执行 `pre<script>` 和 `post<script>` 脚本
+
+#### 🔧 常用技巧
+
+**1. 传递参数**
+
+给 `npm run` 传参需要用 `--` 隔开：
+
+```bash
+# 启动时指定端口
+npm run dev -- --port 3000
+
+# 只运行某个测试文件
+npm run test -- --grep="login"
+```
+
+**2. pre / post 钩子**
+
+在 `package.json` 中定义：
+
+```json
+"scripts": {
+  "prebuild": "npm run lint",
+  "build": "webpack --mode production",
+  "postbuild": "echo Build success!"
+}
+```
+
+运行 `npm run build` 时，会**自动先执行 `prebuild`，再执行 `build`，最后执行 `postbuild`**。
+
+**3. 串行与并行运行多个脚本**
+
+```bash
+# 串行：先 lint 再测试
+npm run lint && npm run test
+
+# 并行（需要安装 npm-run-all）
+npm i -D npm-run-all
+# 然后
+npm-run-all --parallel dev server
+```
+
+**4. 跨平台设置环境变量**
+
+直接在脚本里写 `NODE_ENV=production` 在 Windows 上会报错。可用 `cross-env`：
+
+```bash
+npm i -D cross-env
+```
+
+```json
+"scripts": {
+  "build": "cross-env NODE_ENV=production webpack"
+}
+```
+
+**5. 列出所有可用脚本**
+
+```bash
+npm run
+```
+
+会直接打印 `scripts` 里所有命令，比翻文件快。
+
+**为什么你会觉得“好多命令都是 npm run”？**  
+因为现代前端工程化的工具链（编译、打包、检查、测试、部署）全都通过 `scripts` 集中管理，最终入口就是 `npm run <任务名>`。这其实是一种**统一接口**，让团队不需要记忆工具的具体 CLI 参数。
+</details>
 
 ---
 
@@ -108,8 +191,10 @@ nrm use npm           # 切回官方
 | `command not found: xxx`（本地包命令） | 环境变量未加载本地 bin | 使用 `npx <包名>` 执行（如 `npx webpack`），或 `./node_modules/.bin/xxx` |
 
 ### 🛠 权限问题进阶修复（一劳永逸）
+
 - **方法一（推荐）**：使用 **nvm** 管理 Node 版本，彻底避免权限问题。
 - **方法二**：重设 npm 全局安装目录到用户目录下：
+  
   ```bash
   mkdir ~/.npm-global
   npm config set prefix ~/.npm-global
@@ -117,14 +202,17 @@ nrm use npm           # 切回官方
   ```
 
 ### 💣 终极核武器（依赖死活装不上时）
+
 ```bash
 rm -rf node_modules package-lock.json && npm install
 ```
+
 清空所有依赖与锁文件后重装，可解决绝大部分玄学问题。
 
 ---
 
 ## 7. 极简发布自己的包（流程备忘）
+
 1. 登录：`npm login`
 2. 修改版本号：`npm version patch`（自动升补丁号）
 3. 发布：`npm publish`
