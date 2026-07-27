@@ -148,14 +148,14 @@
 
 | **命令** | **功能** | **示例** |
 | --------------------- | -------------------------------- | ------------------------------------------ |
-| `docker run` | **启动**一个新的容器**并运行**命令 | `docker run -d ubuntu` |
-| `docker ps` | **列出**当前正在运行的容器 | `docker ps` |
+| `docker run` | ==**启动**一个新的容器**并运行**命令== | `docker run -d ubuntu` |
+| `docker ps` | ==**列出**当前正在运行的容器== | `docker ps` |
 | `docker ps -a` | 列出所有容器（包括已停止的容器） | `docker ps -a` |
-| `docker build` | 使用`Dockerfile`**构建镜像** | `docker build -t my-image .` |
+| `docker build` | ==使用`Dockerfile`**构建镜像**== | `docker build -t my-image .` |
 | `docker images` | **列出**本地存储的所有**镜像** | `docker images` |
 | `docker pull` | 从 Docker 仓库**拉取镜像** | `docker pull ubuntu` |
 | `docker push` | 将**镜像推送**到 Docker 仓库 | `docker push my-image` |
-| `docker exec` | 在运行的容器中**执行命令** | `docker exec -it container_name bash` |
+| `docker exec` | ==在运行的容器中**执行命令**== | `docker exec -it container_name bash` |
 | `docker stop` | **停止**一个或多个容器 | `docker stop container_name` |
 | `docker start` | **启动**已停止的容器 | `docker start container_name` |
 | `docker restart` | **重启**一个容器 | `docker restart container_name` |
@@ -176,13 +176,12 @@
 | `docker stats` | 显示容器的实时资源使用情况 | `docker stats` |
 | `docker login` | 登录`Docker`仓库 | `docker login` |
 | `docker logout` | 登出`Docker`仓库 | `docker logout` |
-| `docker system prune -a` | 清理未使用的镜像、容器、网络（慎用） | `docker system prune -a` |
+| `docker system prune -a` | 清理未使用的镜像、容器、网络（慎用） | `docker system prune -a` |补充，这里面缺了很多
+
+常用`docker run`选项:
 
 - `-t`：在新容器内指定一个伪终端或终端
 - `-i`：允许你对容器内的标准输入 (STDIN) 进行交互
-
-**常用`docker run`选项**：
-
 - `-d`：后台运行
 - `-p 宿主机端口:容器端口`：端口映射
 - `--name`：指定容器名称
@@ -190,6 +189,93 @@
 - `--restart=always`：自动重启
 - `-m 512m`：内存硬限制
 - `--cpus="1.5"`：CPU 配额限制
+
+---
+
+### 🧩 一、镜像深度操作
+
+| 命令 | 功能 | 示例 |
+| :--- | :--- | :--- |
+| `docker save` | ==将一个或多个镜像**导出**为归档文件（`.tar`）== | `docker save -o myapp.tar nginx:alpine` |
+| **`docker load`** | ==从 `save` 导出的归档文件中**导入镜像**（离线迁移核心）== | `docker load -i myapp.tar` |
+| `docker tag` | 给本地镜像打上新的**标签**（仓库名+版本） | `docker tag nginx:latest myrepo/nginx:v1.0` |
+| `docker history` | 查看镜像的**构建历史**（分层细节与大小） | `docker history ubuntu:22.04 --no-trunc` |
+| `docker import` | 从压缩包或 URL **导入**内容创建镜像（配合 `export`） | `docker import myapp.tar.gz myapp:imported` |
+| `docker export` | 将**容器**当前文件系统**导出**为快照（扁平化，丢失历史） | `docker export container_id > snapshot.tar` |
+| `docker commit` | 将容器的改动**提交**为新的镜像（生产环境不推荐，调试用） | `docker commit -m "fix bug" container_id newimg:v2` |
+
+---
+
+### ⚙️ 二、容器高级控制与调试
+
+| 命令 | 功能 | 示例 |
+| :--- | :--- | :--- |
+| `docker attach` | **附着**到正在运行容器的主进程（与 `exec` 不同，直接进主线程） | `docker attach container_name` |
+| `docker pause` | **暂停**容器内所有进程（挂起状态，不占用 CPU） | `docker pause container_name` |
+| `docker unpause` | 恢复被暂停的容器 | `docker unpause container_name` |
+| `docker wait` | 阻塞当前终端，直到容器停止并返回退出码 | `docker wait container_name` |
+| `docker rename` | 重命名一个已有的容器 | `docker rename old_name new_name` |
+| `docker update` | 动态更新运行中容器的资源限制（CPU/内存） | `docker update --cpus=2 -m 4G container_name` |
+| `docker kill` | **强制杀死**容器进程（发送 SIGKILL，比 `stop` 更粗暴） | `docker kill container_name` |
+| `docker container prune` | 删除所有**已停止**的容器（释放磁盘空间） | `docker container prune -f` |
+
+---
+
+### 📂 三、文件与数据交互（主机↔容器）
+
+| 命令 | 功能 | 示例 |
+| :--- | :--- | :--- |
+| **`docker cp`** | ==在**主机与容器**之间**拷贝**文件/目录== | `docker cp ./local.txt container:/app/` |
+| `docker diff` | 查看容器**文件系统**相对于镜像的改动（新增/修改/删除） | `docker diff container_name` |
+
+---
+
+### 🌐 四、网络与卷（Volume）精细管理
+
+| 命令 | 功能 | 示例 |
+| :--- | :--- | :--- |
+| `docker network create` | 创建自定义网络（如 bridge/overlay） | `docker network create --driver bridge my-net` |
+| `docker network inspect` | 查看网络的详细配置与连接的容器 | `docker network inspect my-net` |
+| `docker network rm` | 删除一个网络 | `docker network rm my-net` |
+| `docker network prune` | 删除所有未被使用的网络 | `docker network prune` |
+| `docker volume create` | 创建一个数据卷 | `docker volume create my-data` |
+| `docker volume inspect` | 查看数据卷的挂载路径与元数据 | `docker volume inspect my-data` |
+| `docker volume rm` | 删除一个数据卷 | `docker volume rm my-data` |
+| `docker volume prune` | 删除所有未被容器挂载的数据卷 | `docker volume prune -f` |
+
+---
+
+### 🔍 五、监控、排障与系统信息
+
+| 命令 | 功能 | 示例 |
+| :--- | :--- | :--- |
+| `docker top` | 查看容器内运行的**进程列表**（类似 Linux `top`） | `docker top container_name` |
+| `docker events` | 实时打印 Docker 守护进程的**事件流**（调试利器） | `docker events --since 1h` |
+| `docker port` | 查看容器**端口映射**情况 | `docker port container_name` |
+| `docker system df` | 查看 Docker 磁盘占用详情（镜像/容器/卷/构建缓存） | `docker system df -v` |
+| `docker system prune` | 清理未使用的**镜像、容器、网络**（不加 `-a` 保留最新层） | `docker system prune -f` |
+| `docker system events` | （同 `docker events`，系统级事件查看） | `docker system events` |
+
+---
+
+### 🧩 六、Docker Compose 深度补充
+
+| 命令 | 功能 | 示例 |
+| :--- | :--- | :--- |
+| `docker-compose exec` | 在 compose 运行中的服务里执行命令（与 `run` 区分） | `docker-compose exec web bash` |
+| `docker-compose build` | 重新构建 compose 中的服务镜像 | `docker-compose build --no-cache web` |
+| `docker-compose pull` | 拉取 compose 服务依赖的最新镜像 | `docker-compose pull backend` |
+| `docker-compose stop` | 停止 compose 服务（不删除容器） | `docker-compose stop web` |
+| `docker-compose rm` | 删除 compose 已停止的服务容器 | `docker-compose rm -v web` |
+| `docker-compose config` | 验证并查看合并后的 compose 配置（排错用） | `docker-compose config` |
+
+---
+
+### ⚠️ 排障口诀
+
+- **`save` 配 `load`**：镜像迁移；**`export` 配 `import`**：文件系统快照（别混用）。
+- **`stop` 优雅退出** vs **`kill` 暴力强杀**：前者给进程 SIGTERM，后者直接 SIGKILL。
+- **`commit` 救急不救穷**：生产环境请用 `Dockerfile + build` 实现可复现构建。
 
 ---
 
