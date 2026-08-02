@@ -184,7 +184,7 @@ module.exports = defineConfig({
 >1. `const { defineConfig } = require('@vue/cli-service')`
 >
 >- 从 `@vue/cli-service` 包中解构出 `defineConfig` 函数。
->- **作用**：`defineConfig` 是 Vue CLI 3+ 提供的辅助函数，主要用来提供**智能提示**（TypeScript 类型支持）和**配置校验**，避免手写对象时出现拼写>错误或格式问题。虽然直接用普通对象也行，但官方推荐使用它。
+>- **作用**：`defineConfig` 是 Vue CLI 3+ 提供的辅助函数，主要用来提供**智能提示**（TypeScript 类型支持）和**配置校验**，避免手写对象时出现拼写错误或格式问题。虽然直接用普通对象也行，但官方推荐使用它。
 >
 >2. `module.exports = defineConfig({ ... })`
 >
@@ -203,18 +203,18 @@ module.exports = defineConfig({
 >  - 执行 `npm run build`（生产构建）时，值为 `'production'`。
 >    - **开发模式(development)保留详细报错和未压缩代码方便你调试排查问题，生产模式(production)则通过压缩混淆、剔除无用代码并关闭所有警告来大幅减小体积，让用户加载飞快。**
 >- **开发环境**（`development`）：`publicPath` 设为 `'/'`，表示资源从站点根目录加载，适合本地开发（`localhost:8080`）。
->- **生产环境**（`production`）：`publicPath` 设为 `'/仓库名/'`（例如 `'/CloudPlatform/'`），这里“仓库名”通常指 **GitHub 仓库的名称**，因为很>多项目会部署到 GitHub Pages，而 GitHub Pages 的访问地址是 `https://<用户名>.github.io/<仓库名>/`，所以资源必须加上仓库名前缀才能正确加载。
+>- **生产环境**（`production`）：`publicPath` 设为 `'/仓库名/'`（例如 `'/CloudPlatform/'`），这里“仓库名”通常指 **GitHub 仓库的名称**，因为很多项目会部署到 GitHub Pages，而 GitHub Pages 的访问地址是 `https://<用户名>.github.io/<仓库名>/`，所以资源必须加上仓库名前缀才能正确加载。
 >
 >5. 为什么注释强调“前后斜杠不能少”？
 >
 >- `publicPath` 的值必须**以斜杠开头和结尾**。
 >  - **前导斜杠**：表示绝对路径（从域名根开始），例如 `/CloudPlatform/` 表示从 `https://xxx.github.io/CloudPlatform/` 开始。
->  - **末尾斜杠**：表示这是一个目录，确保路径拼接时正确，比如 `/CloudPlatform/js/app.js` 而不是 `/CloudPlatformjs/app.js`（缺少斜杠会导致路径错>误）。
+>  - **末尾斜杠**：表示这是一个目录，确保路径拼接时正确，比如 `/CloudPlatform/js/app.js` 而不是 `/CloudPlatformjs/app.js`（缺少斜杠会导致路径错误）。
 >- 如果部署在子路径下，末尾斜杠尤为重要，否则可能会出现资源 404 或路由匹配异常。
 >
 >6. 对其他配置的影响
 >
->- **Vue Router 的 `base` 选项**：如果你使用了 Vue Router 的 **history 模式**，还需要同步设置路由的 `base` 选项为同样的值（如 `/仓库名/`），否>则刷新页面时路由会 404。
+>- **Vue Router 的 `base` 选项**：如果你使用了 Vue Router 的 **history 模式**，还需要同步设置路由的 `base` 选项为同样的值（如 `/仓库名/`），否则刷新页面时路由会 404。
 >- **开发代理**：开发环境下 `publicPath` 为 `/`，所以不需要额外配置，但若后端接口代理了，要注意路径冲突。
 >
 >7. 更灵活的配置方式

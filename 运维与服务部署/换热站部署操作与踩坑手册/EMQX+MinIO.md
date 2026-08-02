@@ -1,7 +1,10 @@
 # EMQX + MinIO
 
+---
+
 ## 项目背景
-> 目标：为 Jetson 边缘 AI 盒子搭建一个与云端通信的基础设施层，实现设备指令下发、数据回传、模型安全分发。
+
+> **目标**：为 Jetson 边缘 AI 盒子搭建一个与云端通信的基础设施层，实现设备指令下发、数据回传、模型安全分发。
 
 - **MQTT Broker（EMQX）**：充当 Jetson 与云端服务的“对讲机”，负责双向消息传递。
 - **对象存储（MinIO）**：存放 Jetson 回传的图片/视频，以及云端更新的 AI 模型文件（如 `.engine`、`.onnx`）。
@@ -9,16 +12,21 @@
 
 ---
 
-## 环境现状调研
+## 
+
 登录服务器 `202.199.6.249`（用户 `neu`）后，先摸清现有资源：
+
 ```bash
 docker ps
 ```
+
 输出显示已有 10+ 个容器运行中，包括：
+
 - `nginx`、`mysql:8.0`、`postgres:15-alpine`、`redis:6-alpine`
 - Dify 应用全家桶（`dify-api`、`dify-web`、`dify-sandbox` 等）
 
 **关键发现**：
+
 - Docker 已安装，版本 27.5.1，无需安装。
 - 服务器未配置外网代理，无法直接拉取 Docker Hub 镜像。
 - 存在 Docker 组权限问题，用户 `neu` 需加入 `docker` 组才能无 `sudo` 使用。
@@ -28,26 +36,34 @@ docker ps
 ## 第一阶段：解决 Docker 网络隔离与权限
 
 ### 1. 用户权限修复
+
 `docker ps` 报错 `permission denied`。  
 **解决**：将 `neu` 加入 `docker` 组并刷新会话。  
+
 ```bash
 sudo usermod -aG docker $USER
 newgrp docker   # 或退出重新登录
 ```
 
 ### 2. 镜像拉取失败：IPv6 超时 + 无外网
+
 首次 `docker run emqx/emqx:latest` 报错：
+
 ```
 dial tcp [2a03:2880:...]:443: connect: connection timed out
 ```
+
 查看已有镜像源配置：
+
 ```bash
 sudo docker info | grep "Registry Mirrors"
 # 输出：https://docker.gh-proxy.com/
 ```
+
 但该代理已失效，Docker 仍尝试直连 Docker Hub 且优先走 IPv6。
 
 #### 尝试配置镜像加速 + 禁用 IPv6
+
 ```bash
 sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
@@ -57,17 +73,22 @@ sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 EOF
 sudo systemctl restart docker
 ```
+
 重启后 `docker pull` 仍失败，因为**校园网服务器根本不能访问外网**，加速器同样需要出校。
 
 #### 代理探测
+
 根据实验室提供的 `202.199.6.249` 测试 HTTP 代理（常见端口 8080、3128）：
+
 ```bash
 curl -I --proxy http://202.199.6.249:8080 https://www.baidu.com   # 连接被拒绝
 curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒绝
 ```
+
 确认该地址并非 HTTP 代理，很可能仅是内网 IP。
 
 ### 3. 最终方案：离线镜像导入
+
 **思路**：在个人电脑（可上网）拉取镜像并打包，再通过 SCP 传到服务器加载。
 
 - 个人电脑（Windows + Docker Desktop 29.5.2）：
@@ -78,12 +99,14 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
   docker pull minio/minio:latest
   docker save minio/minio:latest -o minio.tar
   ```
+
 - SCP 传输到服务器（跳过首次主机验证）：
   
   ```powershell
   scp -o StrictHostKeyChecking=no emqx.tar neu@202.199.6.249:/home/neu/
   scp minio.tar neu@202.199.6.249:/home/neu/
   ```
+
 - 服务器加载：
   
   ```bash
@@ -98,6 +121,7 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
 ## 第二阶段：部署 EMQX
 
 ### 启动容器
+
 ```bash
 docker run -d \
   --name emqx \
@@ -106,6 +130,7 @@ docker run -d \
   -e EMQX_DASHBOARD__DEFAULT_PASSWORD=123456 \
   emqx/emqx:latest
 ```
+
 - `1883`：MQTT 协议端口，供设备连接。
 - `18083`：Web 管理界面端口。
 - 设置管理员密码（测试环境用弱密码，生产需强化）。
@@ -117,6 +142,7 @@ docker run -d \
 ## 第三阶段：部署 MinIO（对象存储）
 
 ### 第一次尝试失败
+
 ```bash
 docker run -d \
   --name minio \
@@ -127,18 +153,24 @@ docker run -d \
   -v minio_data:/data \
   minio/minio server /data --console-address ":9001"
 ```
+
 `docker ps` 看不见容器，`docker logs minio` 显示：
+
 ```
 FATAL: MINIO_ROOT_PASSWORD length should be at least 8 characters
 ```
+
 **原因**：MinIO 强制密码长度 ≥8，`123456` 仅 6 位。
 
 ### 解决
+
 删除容器并重建，设置新密码 `admin123456`：
+
 ```bash
 docker rm minio
 docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 ```
+
 访问 `http://202.199.6.249:9001`，用 `admin / admin123456` 登录成功。
 
 **体会**：环境变量的细微约束往往在日志中直白体现，`docker logs` 是排错第一利器。
@@ -156,6 +188,7 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 - **对应你的场景**：Jetson 作为边缘设备，需要定时上报传感器数据或图片，同时接收云端的模型更新指令。认证保证了这条通道是“专线”，不会混入干扰信息。
 
 操作流程（通过 Web 界面）：
+
 1. 登录 `http://202.199.6.249:18083` → `Access Control` → `Authentication`。
 2. 创建 `Password-Based` 认证，后端选择 `Built-in Database`。
 3. 进入新认证器的 `Users` 页，添加用户如 `jetson` / `jetson123`。
@@ -182,8 +215,7 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
   你的后端服务（用 MinIO 的管理账号）生成一个**带有效期、防篡改的 URL**，然后下发给 Jetson。Jetson 拿着这个 URL 就能在指定时间内下载最新的模型，或者上传一段视频。
 - **举例**：  
   你更新了 `yolov8.engine` 模型上传到 `models` Bucket。  
-  后端调用 MinIO API 生成一个 24 小时有效的预签名 URL：  
-  `http://202.199.6.249:9000/models/yolov8.engine?X-Amz-...&X-Amz-Expires=86400`  
+  后端调用 MinIO API 生成一个 24 小时有效的预签名 URL：  `http://202.199.6.249:9000/models/yolov8.engine?X-Amz-...&X-Amz-Expires=86400`  
   Jetson 收到这个 URL 后直接下载，无需知道自己身在哪个 MinIO 实例，也不知道密码。24 小时后链接自动失效，别人即使抓包拿到链接也没用了。
 
 
@@ -201,17 +233,17 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 ## 技术栈与架构梳理
 
 ```
-┌──────────┐       MQTT (1883)       ┌─────────┐
+┌──────────┐       MQTT (1883)        ┌─────────┐
 │  Jetson  │────────────────────────▶│  EMQX   │
-│ 边缘盒子 │◀────────────────────────│ (MQTT)  │
-└────┬─────┘   ＜指令、数据同步＞     └────┬────┘
-     │                                    │
-     │  HTTPS (9000)                      │ WebHook/REST
-     │  上传图片 / 下载模型               │
-     ▼                                    ▼
+│ 边缘盒子  │◀────────────────────────│ (MQTT)  │
+└────┬─────┘   ＜指令、数据同步＞       └────┬────┘
+     │                                     │
+     │  HTTPS (9000)                       │ WebHook/REST
+     │  上传图片 / 下载模型                 │
+     ▼                                     ▼
 ┌─────────┐                          ┌─────────┐
 │  MinIO  │                          │ 后端服务 │
-│ (存储)  │                          │ (未来)  │
+│ (存储)  │                          │ (未来)   │
 └─────────┘                          └─────────┘
 ```
 
