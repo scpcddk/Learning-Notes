@@ -1,5 +1,7 @@
 # 校园网零成本 Spring Boot 后端 API 部署完整复盘
 
+---
+
 ## 1. 项目背景与核心需求
 
 **项目**：换热站边缘计算平台（CloudPlatform）  
@@ -8,6 +10,7 @@
 **核心目标**：为前端页面和 Jetson 边缘盒子提供一个**稳定、可路由、长期可用**的后端 API 地址，使得所有人无论在实验室还是宿舍，都能像调用线上服务一样调用后端接口，且整个过程不花一分钱。
 
 **面临的约束**：
+
 - 服务器无公网 IP，且校园网出口限制导致**无法访问外网**（Docker Hub、apt 源均不可达）
 - 服务器上已运行大量 Docker 容器（Dify 平台、Nginx、MySQL 等），**不能影响现有业务**
 - 零预算，不允许购买云服务器、域名等
@@ -29,8 +32,8 @@ docker ps
 
 **这一步的意义**：
 
-- **避免端口冲突**：80、443 已被占，我不能在宿主机再装 Nginx，也不能用 3306 启动新 MySQL。
-- **复用已有服务**：既然已有 MySQL 和 Nginx 容器，就可以直接配置对接，而不是重新创建。
+- **避免端口冲突**：80、443 已被占，我不能在宿主机再装 Nginx，也不能用 3306 启动新 MySQL
+- **复用已有服务**：既然已有 MySQL 和 Nginx 容器，就可以直接配置对接，而不是重新创建
 
 ### 2.2 检查宿主机 Nginx 状态
 
@@ -76,11 +79,11 @@ newgrp docker
   ```
 
 - 服务器端解压到 `/opt`：
-  
+
   ```bash
   sudo tar -xzf /home/neu/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz -C /opt/
-  
   ```
+
 - 验证：
   
   ```bash
@@ -88,7 +91,7 @@ newgrp docker
   # openjdk version "17.0.20" ...
   ```
 
-**为什么解压到 `/opt`？**  
+**为什么解压到 `/opt`？**
 `/opt` 目录通常用于安装第三方独立软件，不干扰系统自带的 Java 11。将来如果不需要，直接删除目录即可，干干净净。
 
 ---
@@ -113,7 +116,7 @@ newgrp docker
 - `package`：执行编译、测试（跳过）、打包成 JAR
 - `-DskipTests`：**跳过测试**。因为本地开发环境没有连接数据库，一运行测试就会因数据库连接失败而中断构建。部署阶段我们只关心能否打出包，测试应在其他地方做。
 
-结果：`BUILD SUCCESS`，在 `target/` 目录生成 `CloudPlatform-0.0.1-SNAPSHOT.jar`。
+**结果**：`BUILD SUCCESS`，在 `target/` 目录生成 `CloudPlatform-0.0.1-SNAPSHOT.jar`
 
 ### 4.3 上传 JAR 到服务器
 
@@ -137,7 +140,7 @@ sudo chown -R neu:neu /opt/iot-backend
 
 ### 5.2 编写 systemd 服务文件
 
-`/etc/systemd/system/iot-api.service` 内容：
+`/etc/systemd/system/iot-api.service`内容：
 
 ```ini
 [Unit]
@@ -167,7 +170,8 @@ WantedBy=multi-user.target
 - `RestartSec=10`：重启间隔，防止疯狂重启造成日志风暴。
 - `WantedBy=multi-user.target`：开机自启。
 
-**为什么用 systemd 而不是 `nohup java -jar &` 或 `screen`？**  
+**为什么用 systemd 而不是 `nohup java -jar &` 或 `screen`？** 
+
 - `nohup` 的方式无法自动重启，进程挂了就真死了。
 - `screen` 需要手动进入会话，不方便自动化。
 - `systemd` 是 Linux 标准的服务管理器，开机自启、崩溃自愈、日志集中管理（`journalctl`），更适合生产环境。
@@ -196,7 +200,7 @@ sudo systemctl status iot-api         # 查看状态
 sudo journalctl -u iot-api -n 50 --no-pager
 ```
 
-关键错误：
+**关键错误**：
 
 ```
 Access denied for user 'root'@'192.168.100.1' (using password: NO)
@@ -212,11 +216,11 @@ spring.datasource.url=jdbc:mysql://localhost:3306/cloudplatform
 spring.datasource.username=root
 spring.datasource.password=
 ```
-而服务器上的 MySQL 容器**不允许 root 无密码登录**，且数据库名也不对（服务器上是 `cloud_platform` 或有密码保护）。
+而服务器上的 MySQL 容器**不允许 root 无密码登录**，且数据库名也不对（服务器上是 `cloud_platform` 或有密码保护）
 
 ### 6.3 解决思路
 
-我们不能每次都去改源码重新打包（太麻烦），而是采用 **Spring Boot 外部化配置** 特性，用一个外部文件覆盖 JAR 内的配置。
+我们不能每次都去改源码重新打包（太麻烦），而是采用 **Spring Boot 外部化配置** 特性，用一个外部文件覆盖 JAR 内的配置
 
 ---
 
@@ -254,7 +258,7 @@ sudo nano /etc/systemd/system/iot-api.service
 ExecStart=/opt/jdk-17.0.20+8/bin/java -jar /opt/iot-backend/app.jar --spring.config.additional-location=file:/opt/iot-backend/application.properties
 ```
 
-`--spring.config.additional-location` 会让 Spring Boot 额外加载指定位置的配置文件，其属性**优先级高于** JAR 内的默认配置。这就实现了“不改代码，只改外部文件”的灵活部署。
+`--spring.config.additional-location` 会让 Spring Boot 额外加载指定位置的配置文件，其属性**优先级高于** JAR 内的默认配置。这就实现了“不改代码，只改外部文件”的灵活部署
 
 ### 7.3 **重载并重启**
 
@@ -528,3 +532,5 @@ curl http://localhost/iot-api/
 ---
 
 **写在最后**：这次部署不仅仅是跑起来一个 Spring Boot 应用，更重要的是建立起了一套**可维护、可扩展、安全稳定**的 API 服务体系。它证明了一个后端工程师的价值不仅仅在于写代码，更在于**让代码在真实环境中可靠地运行，并让团队所有人都能方便地使用它**。这正是从“只会写接口”到“能独当一面”的跨越
+
+---
