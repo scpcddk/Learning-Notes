@@ -31,7 +31,7 @@ docker run -d --name emqx \
 - `8084`：WebSocket SSL 端口
 - `18083`：Dashboard 管理控制台
 
-启动后访问 `http://服务器IP:18083`，默认账号 `admin` / 密码 `public`，**务必登录后立即修改密码**。
+启动后访问 `http://服务器IP:18083`，默认账号 `admin` / 密码 `public`，**务必登录后立即修改密码**
 
 ---
 
