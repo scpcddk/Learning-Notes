@@ -367,6 +367,7 @@ stream {
 ### 6.2 EMQX 配置调整
 
 通过 Dashboard 或 `etc/emqx.conf` 修改（挂载配置卷）：
+
 - 最大连接数：`listener.tcp.external.max_connections`
 - 节点间通信缓冲区：`rpc.tcp_buffer_size`
 - 开启共享订阅以实现消息派发负载均衡
