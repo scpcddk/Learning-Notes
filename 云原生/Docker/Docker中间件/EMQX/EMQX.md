@@ -45,8 +45,8 @@ MQTT 是**应用层**协议，依赖 TCP（**传输层**）提供可靠的双向
 
 - **MQTT 客户端**：每个换热站控制器是一个客户端，有唯一 Client ID
 - **主题（Topic）**：如 `station/1/temperature`，用 `/` 分层，可用通配符订阅：
-  - 单层 `+`：`station/+/temperature` 匹配所有站温度
-  - 多层 `#`：`station/#` 匹配所有站所有数据
+  - **单层** `+`：`station/+/temperature` 匹配所有站温度
+  - **多层** `#`：`station/#` 匹配所有站所有数据
 - **会话（Session）**：客户端断开后，若设置了 Clean Session = false，EMQX 会保留未接收的 QoS 1/2 消息，重连后推送。
 - **保留消息（Retained Message）**：主题最后一条消息会被存储，新订阅者立即获得当前值，适合获取设备最新状态。
 - **遗嘱消息（Will Message）**：客户端异常断开时，EMQX 自动发布一条消息，可用来检测设备离线。
@@ -163,9 +163,9 @@ MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文分为三大类�
 
 #### 2.3.9 遗嘱功能详解（教程大纲第19点）
 
-遗嘱在 CONNECT 报文中指定（Will Topic, Will Payload, Will QoS, Will Retain）。当服务端检测到客户端异常断开（如 TCP 连接异常、心跳超时），会立即发布遗嘱消息。若客户端正常 DISCONNECT，则不会触发遗嘱。该功能常与保留消息配合，实现设备状态自动更新（参见 2.2 节）。
+遗嘱在 CONNECT 报文中指定（Will Topic, Will Payload, Will QoS, Will Retain）。当服务端检测到**客户端异常断开**（如 TCP 连接异常、心跳超时），会立即发布遗嘱消息。若客户端正常 DISCONNECT，则不会触发遗嘱。该功能常与保留消息配合，实现设备状态自动更新（参见 2.2 节）。
 
-**注**：理解上述报文交互后，可使用 Wireshark 抓包或 MQTTX 的“调试”模式观察报文细节，辅助排障。
+> **注**：理解上述报文交互后，可使用 Wireshark 抓包或 MQTTX 的“调试”模式观察报文细节，辅助排障。
 
 ---
 
@@ -198,10 +198,12 @@ EMQX 在客户端连接时 POST 请求该接口，根据返回状态码决定是
 ### 3.3 安全增强
 
 - **强制 TLS 加密**：为 `8883` 端口配置证书，关闭公网 `1883` 明文端口或仅限内网使用。可通过环境变量挂载证书：
+  
   ```bash
   -e EMQX_LISTENERS__SSL__DEFAULT__KEYFILE=/etc/certs/key.pem
   -e EMQX_LISTENERS__SSL__DEFAULT__CERTFILE=/etc/certs/cert.pem
   ```
+  
 - **客户端证书认证**：在 PLC/RTU 无法输入密码时，可启用 X.509 证书认证，EMQX 支持基于客户端证书的主题白名单。
 - **Dashboard 保护**：修改默认管理员密码后，在前端 Nginx 添加 IP 白名单或 Basic Auth 二次认证。
 
