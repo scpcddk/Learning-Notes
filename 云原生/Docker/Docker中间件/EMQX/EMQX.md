@@ -203,7 +203,7 @@ EMQX 在客户端连接时 POST 请求该接口，根据返回状态码决定是
   -e EMQX_LISTENERS__SSL__DEFAULT__KEYFILE=/etc/certs/key.pem
   -e EMQX_LISTENERS__SSL__DEFAULT__CERTFILE=/etc/certs/cert.pem
   ```
-  
+
 - **客户端证书认证**：在 PLC/RTU 无法输入密码时，可启用 X.509 证书认证，EMQX 支持基于客户端证书的主题白名单。
 - **Dashboard 保护**：修改默认管理员密码后，在前端 Nginx 添加 IP 白名单或 Basic Auth 二次认证。
 
@@ -211,7 +211,7 @@ EMQX 在客户端连接时 POST 请求该接口，根据返回状态码决定是
 
 ## 4. 规则引擎与数据集成
 
-这是核心部分：把设备数据自动写入时序数据库或消息队列。
+这是**核心部分**：把设备数据自动写入时序数据库或消息队列。
 
 ### 4.1 规则引擎基本流程
 

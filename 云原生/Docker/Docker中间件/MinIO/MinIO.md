@@ -1,10 +1,13 @@
 # MinIO 使用笔记（换热站项目 · Docker 部署）
 
+---
+
 ## 1. MinIO 是什么，我们用它做什么
 
 MinIO 是一个开源的高性能对象存储服务，完全兼容 Amazon S3 API。可以理解为搭建一个**私有的对象存储服务器**，像网盘一样存取文件。
 
 **在换热站项目中的用途：**
+
 - 存储现场设备抓拍的图片（如热成像图、仪表盘照片）
 - 存储历史数据备份文件（CSV 导出）
 - 存储日志归档、固件升级包
@@ -12,12 +15,15 @@ MinIO 是一个开源的高性能对象存储服务，完全兼容 Amazon S3 API
 - **冷数据长期归档**：将 EMQX 收集的原始消息或 InfluxDB 的历史数据导出为 JSON/CSV 文件，存入 MinIO 降低时序库存储压力
 - **模型/配置文件分发**：边缘计算盒子可从 MinIO 下载更新后的 AI 模型或换热站控制策略，通过预签名 URL 安全分发
 
+> [!NOTE]
 > 💡 **补充：版本选择建议**
 >
 > 由于 MinIO 在 RELEASE.2023-04-20 后将许可证从 Apache 2.0 改为 AGPL v3，且较新版本（约 RELEASE.2025-04-28 后）的 Docker 镜像默认移除了内置 Console（Web 管理界面），**学习/内网使用推荐固定版本**：
+> 
 > ```bash
 > docker pull minio/minio:RELEASE.2025-04-08T15-41-24Z
 > ```
+>
 > 该版本同时保留 Console 且许可证仍为 AGPL，对内部使用无影响。
 
 ---
@@ -36,7 +42,8 @@ docker run -d --name minio \
   minio/minio server /data --console-address ":9001"
 ```
 
-端口说明：
+**端口说明**：
+
 - `9000`：S3 API 端口（程序上传下载用）
 - `9001`：Web 管理控制台端口
 
@@ -44,9 +51,11 @@ docker run -d --name minio \
 
 启动后访问 `http://服务器IP:9001`，用 `minioadmin / minioadmin` 登录。
 
+> [!NOTE]
 > 💡 **补充：模拟纠删码的单机多盘测试**
 >
 > 如果想在不搭建集群的情况下体验纠删码特性，可以在单节点指定多个数据目录：
+> 
 > ```bash
 > docker run -d --name minio \
 >   -p 9000:9000 -p 9001:9001 \
@@ -58,34 +67,43 @@ docker run -d --name minio \
 >   -v /data/disk4:/data/disk4 \
 >   minio/minio server /data/disk{1...4} --console-address ":9001"
 > ```
+>
 > 此时 MinIO 会自动启用纠删码（EC:2），允许损坏 2 块盘而不丢失数据。
 
+> [!NOTE]
 > 💡 **补充：内存与资源配置**
 >
 > MinIO 对内存要求不高（默认 1-2GB 足够），但使用纠删码时建议加上内存限制：
+> 
 > ```bash
 > docker run -d --name minio \
 >   -m 2g \
 >   --restart=unless-stopped \
 >   ...
 > ```
+>
 > 如果磁盘是 SSD，可在启动时添加 `--add-host` 解决网络解析问题；生产环境建议设置 `ulimit -n 65536` 提高文件描述符限制。
 
 ### 2.2 数据持久化
 
 上面 `-v /data/minio:/data` 把容器内数据映射到宿主机目录。生产环境建议挂载独立硬盘或使用 Docker Volume。**建议同时挂载 `certs` 目录用于 TLS 证书。**
 
+> [!NOTE]
 > 💡 **补充：使用环境变量文件（推荐生产）**
 >
 > 创建 `.env` 文件：
+> 
 > ```env
 > MINIO_ROOT_USER=your_secure_user
 > MINIO_ROOT_PASSWORD=your_secure_password_8chars_min
 > ```
+>
 > 启动时：
+> 
 > ```bash
 > docker run -d --name minio --env-file .env ...
 > ```
+>
 > 这样凭证不会出现在命令行历史或 docker ps 中，更安全。
 
 ---
@@ -107,9 +125,11 @@ docker run -d --name minio \
 - **通过预签名 URL 让边缘设备安全上传/下载，避免在设备上保存长期凭证**
 - 利用**生命周期管理**自动清理过期图片，控制存储成本
 
+> [!NOTE]
 > 💡 **补充：副本与纠删码基础**
 >
 > MinIO 默认不复制单盘数据，生产环境分布式部署时使用**纠删码**（Erasure Code）代替多副本。典型配置：
+> 
 > - 4 盘：`EC:2`（可坏 2 盘）
 > - 8 盘及以上：`EC:4`（可坏 4 盘）
 > 存储利用率 = (N - M) / N，例如 8 盘 EC:4 利用率为 50%。
@@ -179,29 +199,35 @@ mc ilm rule add myminio/heat-station-images --expire-days 30
 mc mirror myminio/heat-station-images myminio-backup/heat-station-images
 ```
 
+> [!NOTE]
 > 💡 **补充：mc 的更多实用运维命令**
 >
 > 查看桶大小和对象数量：
+> 
 > ```bash
 > mc du myminio/heat-station-images
 > ```
 >
 > 批量删除前缀匹配的对象（清理临时文件）：
+> 
 > ```bash
 > mc rm --recursive --force myminio/heat-station-images/temp/
 > ```
 >
 > 查看桶的当前策略：
+> 
 > ```bash
 > mc anonymous get myminio/heat-station-images
 > ```
 >
 > 设置上传/下载带宽限速（单位：bit/s）：
+> 
 > ```bash
 > mc --limit-rate 1MiB cp largefile.dat myminio/heat-station-images/
 > ```
 >
 > 通过 `--json` 输出结构化日志，方便对接监控系统：
+> 
 > ```bash
 > mc admin info myminio --json | jq '.info.buckets.count'
 > ```
@@ -253,6 +279,7 @@ upload_url = client.presigned_put_object(
 # 设备拿到这个 URL 后可用 PUT 请求上传文件
 ```
 
+> [!NOTE]
 > 💡 **补充：大文件分片上传（超过 128MB）**
 >
 > 超过 128MB 的文件，MinIO SDK 会自动进行分片（Multipart Upload）：
@@ -270,6 +297,7 @@ upload_url = client.presigned_put_object(
 > 分片上传支持断点续传吗？**原生不支持**，但可结合 `upload_id` 管理实现。对换热站场景，如果网络不稳定，建议使用预签名 URL 直传配合前端重试机制。
 >
 > **设置元数据（自定义标签）**：
+> 
 > ```python
 > client.fput_object(
 >     "heat-station-images",
@@ -289,10 +317,12 @@ upload_url = client.presigned_put_object(
 ### 5.1 创建专用 Access Key
 
 在 Web 控制台 → Access Keys → Create Access Key，为不同服务创建独立密钥：
+
 - `station-gateway`：只允许上传到 `heat-station-images`
 - `web-backend`：可读写所有桶
 - `report-reader`：只读 `public-reports`
 
+> [!NOTE]
 > 💡 **补充：mc 命令创建 Access Key**
 >
 > ```bash
@@ -301,11 +331,13 @@ upload_url = client.presigned_put_object(
 > ```
 >
 > 查看已有用户列表：
+> 
 > ```bash
 > mc admin user list myminio
 > ```
 >
 > 禁用/启用用户：
+> 
 > ```bash
 > mc admin user disable myminio station-gateway
 > mc admin user enable myminio station-gateway
@@ -345,6 +377,7 @@ upload_url = client.presigned_put_object(
 }
 ```
 
+> [!NOTE]
 > 💡 **补充：策略中支持的常用 Action**
 >
 > | Action | 说明 |
@@ -364,10 +397,12 @@ upload_url = client.presigned_put_object(
 - **启用 TLS 加密**：在公网或不可信内网中，配置 MinIO 的 TLS 证书，杜绝明文传输。
 - **设置桶的默认加密**：可以配置服务端加密（SSE-S3），确保数据在磁盘上加密存储。
 
+> [!NOTE]
 > 💡 **补充：更多安全加固措施**
 >
 > - **IP 白名单**：使用 `mc admin policy` 结合 `Condition` 中的 `aws:SourceIp` 限制访问来源 IP：
->   ```json
+>   
+>  ```json
 >   {
 >     "Effect": "Deny",
 >     "Action": ["s3:*"],
@@ -377,16 +412,20 @@ upload_url = client.presigned_put_object(
 >     }
 >   }
 >   ```
+>
 > - **禁用 Console 公网暴露**：生产环境可将 Console 端口（9001）绑定为 `127.0.0.1`，通过 SSH 隧道或内网代理访问。
 > - **启用审计日志**：通过环境变量 `MINIO_AUDIT_*` 将操作日志写入文件或 Elasticsearch。
 
+> [!NOTE]
 > 💡 **补充：对象锁定（Object Lock）实现防篡改与合规**
 >
 > 若换热站图片、归档数据需要防止被意外删除或恶意篡改，可在**开启版本控制**的桶上启用对象锁定：
+> 
 > - 创建桶时指定 `--with-lock`：`mc mb --with-lock myminio/locked-bucket`
 > - 然后可以设置默认保留模式（合规/治理）和保留期限
 > - 也可以对单个对象设置 Legal Hold（法律保留），阻止任何删除操作
-> 注意：对象锁定一经设置，在保留期内**连 root 用户都无法删除**，适合关键证据固化。
+> 
+> **注意**：对象锁定一经设置，在保留期内**连 root 用户都无法删除**，适合关键证据固化。
 
 ---
 
@@ -424,6 +463,7 @@ volumes:
 
 执行 `docker-compose up -d` 即可。
 
+> [!NOTE]
 > 💡 **补充：Nginx 反向代理配置（推荐生产）**
 >
 > 通常不在公网直接暴露 MinIO 端口，而是通过 Nginx 代理，统一管理域名和证书：
@@ -470,12 +510,14 @@ volumes:
 > ```
 >
 > 然后设置环境变量让 MinIO 感知外部代理地址：
+> 
 > ```yaml
 > environment:
 >   - MINIO_SERVER_URL=https://minio-api.your-domain.com
 >   - MINIO_BROWSER_REDIRECT_URL=https://minio-console.your-domain.com
 > ```
 
+> [!NOTE]
 > 💡 **补充：快速生成自签名 TLS 证书（测试/内网用）**
 >
 > ```bash
@@ -483,6 +525,7 @@ volumes:
 > openssl req -x509 -newkey rsa:4096 -keyout private.key -out public.crt -days 3650 -nodes -subj "/CN=minio.local"
 > # 将两个文件放入 ./certs 目录挂载即可
 > ```
+>
 > 正式公网服务建议使用 Let's Encrypt 或受信任 CA 签发证书。
 
 ---
@@ -514,18 +557,22 @@ MinIO 支持通过 MQTT 发送桶事件通知，反过来也可以配合使用�
 
 **性能优化建议**：大图片不适合用 Base64 走 MQTT，应让设备通过预签名 URL 直传 MinIO，MQTT 只传递上传完成的通知（包含对象名）。
 
+> [!NOTE]
 > 💡 **补充：MinIO 原生桶事件通知机制**
 >
 > MinIO 本身支持将桶内的 PUT/DELETE 事件通过 Webhook、AMQP、Kafka、Redis、NATS 等渠道推送。
 >
 > **配置 Webhook 通知（接收上传完成事件）**：
+> 
 > ```bash
 > mc admin config set myminio notify_webhook:1 \
 >   endpoint="http://your-backend:8080/minio-callback" \
 >   queue_dir="/tmp/webhook" \
 >   queue_limit="10000"
 > ```
+>
 > 然后重启 MinIO 生效，再通过 `mc event add` 为指定桶绑定事件：
+> 
 > ```bash
 > mc event add myminio/heat-station-images \
 >   arn:minio:sqs::1:webhook \
@@ -556,9 +603,11 @@ curl http://localhost:9000/minio/health/ready
     - targets: ['192.168.1.100:9000']
 ```
 
+> [!NOTE]
 > 💡 **补充：Prometheus 抓取需启用认证（Bearer Token）**
 >
 > 如果 MinIO 启用了认证，需要按如下方式配置：
+> 
 > ```yaml
 > - job_name: minio
 >   metrics_path: /minio/v2/metrics/cluster
@@ -571,6 +620,7 @@ curl http://localhost:9000/minio/health/ready
 > 也可以使用 `mc admin prometheus generate myminio` 自动生成带认证的抓取配置。
 >
 > **关键监控指标**：
+> 
 > - `minio_bucket_usage_total_bytes`：桶已用容量
 > - `minio_bucket_usage_object_total`：桶对象总数
 > - `minio_node_disk_free_bytes` / `minio_node_disk_total_bytes`：磁盘剩余与总容量
@@ -586,6 +636,7 @@ curl http://localhost:9000/minio/health/ready
 docker logs -f minio
 ```
 
+> [!NOTE]
 > 💡 **补充：结构化日志输出（便于对接日志系统）**
 >
 > MinIO 支持将日志以 JSON 格式输出，便于 ELK/Loki 采集：
@@ -609,6 +660,7 @@ mc mirror myminio/heat-station-images /backup/heat-station-images/
 mc mirror myminio/heat-station-images myminio-backup/heat-station-images
 ```
 
+> [!NOTE]
 > 💡 **补充：使用 `mc admin` 进行集群元数据备份**
 >
 > 除了文件数据，IAM 用户、策略等元数据也需要备份：
@@ -633,9 +685,11 @@ docker run -d --name minio1 ... minio/minio server http://minio{1...4}/data
 ```
 需配置统一的网络和存储，生产环境建议结合 Kubernetes 或使用官方推荐的编排方式。
 
+> [!NOTE]
 > 💡 **补充：分布式集群的扩容方式**
 >
 > MinIO 支持两种扩容方式：
+> 
 > 1. **增加节点**（推荐）：新节点加入现有集群，MinIO 自动重平衡数据（需使用相同的 `MINIO_ROOT_USER` 和 `MINIO_ROOT_PASSWORD`）。
 > 2. **增加磁盘**（需重启）：在现有节点增加磁盘挂载点，修改启动命令中的磁盘路径列表后重启，MinIO 会在后台逐步扩展数据分布。
 >
@@ -649,6 +703,7 @@ docker run -d --name minio1 ... minio/minio server http://minio{1...4}/data
 - **上传失败，提示签名不匹配**：检查系统时间是否同步，MinIO 依赖正确的时间进行签名校验。使用 `ntpdate` 或 `chrony` 同步。
 - **存储空间不足**：配置监控告警并启用生命周期管理自动清理；定期检查 `mc admin info` 的磁盘使用情况。
 
+> [!NOTE]
 > 💡 **补充：更多常见问题**
 >
 > - **Web UI 不显示 Console 入口**：新版镜像已移除内置 Console，需指定旧版本 `RELEASE.2025-04-08T15-41-24Z` 或单独部署 Console 容器。
@@ -657,6 +712,7 @@ docker run -d --name minio1 ... minio/minio server http://minio{1...4}/data
 > - **MinIO 服务运行但 `mc admin info` 很慢**：检查磁盘 IO 是否有问题，或 bucket 数量过多（单实例建议不超过 10 万个 bucket）。
 > - **磁盘即将写满的预警阈值**：MinIO 默认磁盘使用率达到 90% 时会进入只读模式，可通过环境变量 `MINIO_DISK_USAGE_WARNING_PERCENT`（默认 90）和 `MINIO_DISK_USAGE_CRITICAL_PERCENT`（默认 95）调整预警阈值。
 
+> [!NOTE]
 > 💡 **补充：调整日志级别与调试输出**
 >
 > 排查复杂问题时，可临时开启更详细的日志：
@@ -686,31 +742,38 @@ mc share upload --expire <时间> <别名>/<桶名>/<对象>  # 生成临时上�
 mc mirror <源别名>/<桶> <目标别名>/<桶>  # 镜像/备份整个桶
 ```
 
+> [!NOTE]
 > 💡 **补充：命令速查扩展**
 >
 > **站点复制（Site Replication）**：当有多个 MinIO 集群时，可通过站点复制实现 Bucket 和 IAM 的跨集群同步：
+> 
 > ```bash
 > mc admin replicate add myminio1 myminio2
 > ```
+>
 > 注意：站点复制需所有集群版本一致，且启用虚拟主机风格（`MINIO_DOMAIN`）。
 >
 > **服务状态和重启**：
+> 
 > ```bash
 > mc admin service status myminio        # 查看服务状态
 > mc admin service restart myminio       # 重启服务（分布式集群会逐个重启）
 > ```
 >
 > **查看桶配额**：
+> 
 > ```bash
 > mc admin bucket quota myminio/heat-station-images
 > ```
 >
 > **对象版本控制操作（若已开启）**：
+> 
 > ```bash
 > mc ls --versions myminio/heat-station-images/station1/snapshot.jpg
 > mc rm --version-id <version-id> myminio/heat-station-images/station1/snapshot.jpg  # 删除特定版本
 > ```
 
+> [!NOTE]
 > 💡 **补充：版本控制与对象锁定相关命令**
 >
 > ```bash
@@ -723,7 +786,7 @@ mc mirror <源别名>/<桶> <目标别名>/<桶>  # 镜像/备份整个桶
 
 ---
 
-> 提示：这份笔记已涵盖开发、运维、安全及与 EMQX 配合的多种场景，可根据项目阶段按需查阅。后续深化时可补充 Kubernetes 部署、版本控制（Bucket Versioning）及站点复制等高阶特性。
+> **提示**：这份笔记已涵盖开发、运维、安全及与 EMQX 配合的多种场景，可根据项目阶段按需查阅。后续深化时可补充 Kubernetes 部署、版本控制（Bucket Versioning）及站点复制等高阶特性。
 
 ---
 
