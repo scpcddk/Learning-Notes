@@ -2,13 +2,7 @@
 
 **1.下载：https://www.minio.org.cn/download.shtml#/windows**  
 
-
-
 <img src="..\image\1.png" style="zoom: 50%;" />
-
-
-
-
 
 **2.任意创建好目录，把minio.exe放入目录中，并创建data目录**
 ![](..\image\2.png)
@@ -25,7 +19,7 @@
 
 ![](..\image\4.png)
 
-
+---
 
 # 二.Springboot整合
 
@@ -77,8 +71,6 @@
 </dependencies>
 ```
 
-
-
 **2.添加minio相关配置（application.yml）**
 
 ```yaml
@@ -97,8 +89,6 @@ knife4j:
     language: zh_cn
   enable: true
 ```
-
-
 
 **3.创建配置类（不知道创建在哪里的看下面目录结构）**
 
@@ -119,10 +109,9 @@ public class MinioConfig {
                 .build();
     }
 }
-
 ```
 
-
+---
 
 # 三.准备工作
 
@@ -136,24 +125,19 @@ public class MinioService {
     @Autowired
     private MinioClient minioClient;
 }
-
 ```
 
 **目前的目录结构：**
 
 ![](..\image\5.png)
 
+---
 
-
-# 四.操作minio
-
-
+# **四.操作minio**
 
 **如下方法都是在minioservice里面添加的**
 
-
-
-## **1.上传文件**
+## 1.上传文件
 
 ```java
 	/**
@@ -186,8 +170,6 @@ public class MinioService {
 ```
 
 ## 2.获取文件url(可通过浏览器访问)
-
-
 
 ```java
 	/**
@@ -226,13 +208,11 @@ public class MinioService {
     }
 ```
 
+---
 
-
-# 5.测试
+# 五.测试
 
 ## 1.创建控制层
-
-
 
 创建**uploadFileController**
 
@@ -273,13 +253,9 @@ public class UploadFileController {
 }
 ```
 
-
-
 当前目录
 
 ![](..\image\6.png)
-
-
 
 ## 2.启动项目访问
 
@@ -289,8 +265,8 @@ public class UploadFileController {
 
 ![](..\image\7.png)
 
-
-
 后面测试内容请看视频讲解
 
 [配套网课](https://www.bilibili.com/video/BV1CWtJz1EcX?spm_id_from=333.788.player.switch&vd_source=e0c0ad2a316e90d4078b1131e8182407&p=5)
+
+---

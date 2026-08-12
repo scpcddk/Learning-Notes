@@ -14,6 +14,7 @@ MinIO 是一个开源的高性能对象存储服务，完全兼容 Amazon S3 API
 - 边缘 AI 模型文件（模型权重、配置文件）的分发与更新
 - 前端 Web 页面或移动端直接通过预签名 URL 上传/下载，避免后端中转
 
+> [!TIP]
 > **版本选择**：MinIO 在 `RELEASE.2023-04-20` 后将许可证从 Apache 2.0 改为 AGPL v3，且较新版本（约 `RELEASE.2025-04-28` 后）的 Docker 镜像移除了内置 Console（Web 管理界面）。**学习/内网使用推荐固定版本**：
 > ```bash
 > docker pull minio/minio:RELEASE.2025-04-08T15-41-24Z
@@ -42,6 +43,7 @@ docker run -d --name minio \
 - `9000`：S3 API 端口（程序上传下载用）
 - `9001`：Web 管理控制台端口
 
+> [!TIP]
 > 生产环境务必修改默认用户名密码（密码至少 8 位），建议使用环境变量文件（`.env`）传递凭证，避免暴露在命令行。
 
 启动后访问 `http://服务器IP:9001` 即可登录。
@@ -92,8 +94,10 @@ docker run -d --name minio \
 - 关键数据桶开启**版本控制**和**对象锁定**，防止误删或篡改
 
 **纠删码基础**：分布式部署时 MinIO 使用纠删码（Erasure Code）代替多副本。典型配置：
+
 - 4 盘：`EC:2`（可坏 2 盘）
 - 8 盘及以上：`EC:4`（可坏 4 盘）
+
 存储利用率 = (N - M) / N，例如 8 盘 EC:4 利用率为 50%。
 
 ---
@@ -112,7 +116,8 @@ docker run -d --name minio \
 | **Object Locking（对象锁定）** | 开启后桶内对象可设置「禁止删除/修改」的保留期 | **必须在创建桶时决定**，不可事后开启。归档/审计类数据建议开启 |
 | **Quota（配额）** | 限制桶的最大存储容量（如 100GB） | 为每个换热站桶设置配额，避免单站占用过多空间 |
 
-> ⚠️ **注意**：Object Locking 一旦开启即**不可关闭**，且需同时启用 Versioning，请谨慎决策。
+> [!WARNING]
+> Object Locking 一旦开启即**不可关闭**，且需同时启用 Versioning，请谨慎决策。
 
 ### 4.2 版本控制（Versioning）
 
@@ -121,16 +126,19 @@ docker run -d --name minio \
 **Web 操作**：Bucket → Config → Versioning → Enable
 
 **命令行操作**：
+
 ```bash
 mc version enable myminio/heat-station-images
 ```
 
 **查看历史版本**：
+
 ```bash
 mc ls --versions myminio/heat-station-images/station1/snapshot.jpg
 ```
 
 **恢复历史版本**（下载特定版本并重新上传）：
+
 ```bash
 mc cp --version-id <版本ID> myminio/heat-station-images/station1/snapshot.jpg ./restored.jpg
 ```
@@ -140,11 +148,13 @@ mc cp --version-id <版本ID> myminio/heat-station-images/station1/snapshot.jpg 
 **适用场景**：合规审计数据、证据固化、关键配置文件防篡改。
 
 **创建支持锁定的桶**：
+
 ```bash
 mc mb --with-lock myminio/audit-logs
 ```
 
 **设置默认保留策略**（合规模式，保留 30 天）：
+
 ```bash
 mc retention set --default compliance 30d myminio/audit-logs
 ```
@@ -157,6 +167,7 @@ mc retention set --default compliance 30d myminio/audit-logs
 | **Governance（治理）** | 普通用户不可删，但拥有特殊权限的管理员可提前释放 | 企业内控、项目文档归档（需要灵活性） |
 
 **对单个对象设置 Legal Hold（法律保留）**：
+
 ```bash
 mc legalhold set myminio/audit-logs/2026-08-11-station1.log
 ```
@@ -168,11 +179,13 @@ mc legalhold set myminio/audit-logs/2026-08-11-station1.log
 **Web 操作**：Bucket → Config → Quota → 输入上限（如 `100GB`）
 
 **命令行设置**：
+
 ```bash
 mc admin bucket quota myminio/heat-station-images --quota 100GB
 ```
 
 **查看当前配额使用情况**：
+
 ```bash
 mc du myminio/heat-station-images
 ```
@@ -184,16 +197,19 @@ mc du myminio/heat-station-images
 **场景示例**：设备抓拍图片 30 天后自动删除。
 
 **命令行设置（30 天后自动删除）**：
+
 ```bash
 mc ilm rule add myminio/heat-station-images --expire-days 30
 ```
 
 **设置转换到冷存储**（若 MinIO 配置了冷热分层）：
+
 ```bash
 mc ilm rule add myminio/heat-station-images --transition-days 7 --transition-tier cold-tier
 ```
 
 **查看已有生命周期规则**：
+
 ```bash
 mc ilm rule list myminio/heat-station-images
 ```
@@ -201,11 +217,13 @@ mc ilm rule list myminio/heat-station-images
 ### 4.6 访问策略（Bucket Policy）
 
 在 Web 控制台 Bucket → Config → Policy 中，可快速设置：
+
 - **Private（私有）**：仅授权用户可读写（默认）
 - **Public（公开读）**：所有人可下载，但不可上传/删除
 - **Custom（自定义）**：粘贴 JSON 策略，精细控制读写权限
 
 **命令行设置公开读**：
+
 ```bash
 mc anonymous set download myminio/public-reports
 ```
@@ -219,6 +237,7 @@ mc anonymous set download myminio/public-reports
 `mc` 是官方命令行客户端，功能强大。
 
 **安装**（Linux）：
+
 ```bash
 wget https://dl.min.io/client/mc/release/linux-amd64/mc
 chmod +x mc
@@ -226,11 +245,13 @@ sudo mv mc /usr/local/bin/
 ```
 
 **配置别名连接服务器**：
+
 ```bash
 mc alias set myminio http://192.168.1.100:9000 minioadmin minioadmin
 ```
 
 **常用操作**：
+
 ```bash
 mc mb myminio/heat-station-images          # 创建桶
 mc cp ./snapshot.jpg myminio/heat-station-images/station1/20260101.jpg   # 上传
@@ -287,6 +308,7 @@ upload_url = client.presigned_put_object(
 ```
 
 **大文件分片上传**（超过 128MB 自动分片，可手动指定分片大小）：
+
 ```python
 client.fput_object(
     "heat-station-images",
@@ -297,6 +319,7 @@ client.fput_object(
 ```
 
 **自定义元数据**（标签）：
+
 ```python
 client.fput_object(
     "heat-station-images",
@@ -426,7 +449,8 @@ public class MinioExample {
 }
 ```
 
-> **说明**：
+> [!NOTE]
+>
 > - 预签名 URL 生成使用 `getPresignedObjectUrl`，支持 GET（下载）和 PUT（上传）。
 > - 大文件分片上传需要自行管理 `uploadId` 和 `Part` 列表，建议对于超大文件（> 5GB）采用此方式；若文件小于 128MB，直接使用 `uploadObject` 即可自动处理。
 > - 元数据通过 `userMetadata` 设置，注意键需以 `x-amz-meta-` 开头。
@@ -439,11 +463,13 @@ public class MinioExample {
 ### 6.1 创建专用 Access Key
 
 在 Web 控制台 → Access Keys → Create Access Key，为不同服务创建独立密钥：
+
 - `station-gateway`：只允许上传到 `heat-station-images`
 - `web-backend`：可读写所有桶
 - `report-reader`：只读 `public-reports`
 
 **命令行管理用户**：
+
 ```bash
 mc admin user add myminio station-gateway password123
 mc admin policy attach myminio readwrite --user station-gateway
@@ -470,6 +496,7 @@ mc admin user disable myminio station-gateway
 ```
 
 **精细策略**：限制某个用户只能访问特定前缀（例如 station1 只能操作自己的目录）：
+
 ```json
 {
   "Version": "2012-10-17",
@@ -574,6 +601,7 @@ server {
 ```
 
 同时设置环境变量让 MinIO 感知外部代理地址：
+
 ```yaml
 environment:
   - MINIO_SERVER_URL=https://minio-api.your-domain.com
@@ -581,6 +609,7 @@ environment:
 ```
 
 **自签名证书（测试/内网）**：
+
 ```bash
 openssl req -x509 -newkey rsa:4096 -keyout private.key -out public.crt -days 3650 -nodes -subj "/CN=minio.local"
 ```
@@ -594,6 +623,7 @@ MinIO 在换热站 IoT 场景中的核心价值是配合 EMQX 实现**轻量、�
 ### ❌ 不推荐方案：MQTT 承载图片 Base64
 
 将图片转为 Base64 通过 MQTT 发送会带来严重问题：
+
 - 数据膨胀（Base64 增加 33% 体积）
 - 占用 EMQX 大量内存，易导致丢包
 - 大消息增加 MQTT 代理负载，影响实时控制指令
@@ -601,11 +631,13 @@ MinIO 在换热站 IoT 场景中的核心价值是配合 EMQX 实现**轻量、�
 ### ✅ 推荐架构：预签名直传 + MQTT 通知
 
 设备流程：
+
 1. **申请上传链接**：设备（或边缘网关）先向后端服务发起 HTTP 请求，申请一个预签名上传 URL（有效期内可用）。
 2. **直传文件**：设备使用 HTTP PUT 方法将图片二进制流直接上传至 MinIO（不经过后端，不经过 EMQX）。
 3. **MQTT 通知**：上传成功后，设备向 EMQX 发送一条极小 JSON 报文，包含 `station_id`、`timestamp`、`object_name` 等元数据，后端订阅该 topic 后处理后续业务（如更新数据库、触发分析等）。
 
 **后端生成预签名 URL（Python 示例）**：
+
 ```python
 from minio import Minio
 from datetime import timedelta
@@ -620,12 +652,15 @@ upload_url = client.presigned_put_object(
 ```
 
 **设备端上传（使用 curl）**：
+
 ```bash
 curl -X PUT -T /path/to/image.jpg "<预签名URL>"
 ```
 
 **EMQX 规则引擎处理通知**：
+
 设备上传成功后发送 MQTT 消息：
+
 ```json
 {
   "station_id": "station001",
@@ -633,6 +668,7 @@ curl -X PUT -T /path/to/image.jpg "<预签名URL>"
   "object": "station1/2026-08-11T12:00:00.jpg"
 }
 ```
+
 EMQX 规则引擎可将该消息转发到后端 HTTP 服务或存入数据库，触发后续业务逻辑（如缩略图生成、告警分析）。
 
 ### 补充：MinIO 原生桶事件通知
@@ -658,6 +694,7 @@ mc event add myminio/heat-station-images \
 ### 9.1 健康检查
 
 MinIO 提供健康端点：
+
 ```bash
 curl http://localhost:9000/minio/health/live
 curl http://localhost:9000/minio/health/ready
@@ -666,6 +703,7 @@ curl http://localhost:9000/minio/health/ready
 ### 9.2 Prometheus 监控
 
 抓取配置（需认证）：
+
 ```yaml
 - job_name: minio
   metrics_path: /minio/v2/metrics/cluster
@@ -678,6 +716,7 @@ curl http://localhost:9000/minio/health/ready
 或使用 `mc admin prometheus generate myminio` 自动生成抓取配置。
 
 **关键指标**：
+
 - `minio_bucket_usage_total_bytes` - 桶已用容量
 - `minio_bucket_usage_object_total` - 桶对象总数
 - `minio_node_disk_free_bytes` / `minio_node_disk_total_bytes` - 磁盘剩余/总容量
@@ -690,6 +729,7 @@ curl http://localhost:9000/minio/health/ready
 ### 9.3 日志管理
 
 查看容器日志：
+
 ```bash
 docker logs -f minio
 ```
@@ -701,6 +741,7 @@ environment:
 ```
 
 配置审计日志 Webhook：
+
 ```bash
 mc admin config set myminio audit_webhook:1 endpoint="http://your-loki:3100/loki/api/v1/push"
 ```
@@ -708,12 +749,14 @@ mc admin config set myminio audit_webhook:1 endpoint="http://your-loki:3100/loki
 ### 9.4 备份与恢复
 
 **数据同步（mc mirror）**：
+
 ```bash
 mc mirror myminio/heat-station-images /backup/heat-station-images/
 mc mirror myminio/heat-station-images myminio-backup/heat-station-images
 ```
 
 **IAM 元数据备份**（用户、策略等）：
+
 ```bash
 mc admin cluster iam export myminio > minio-iam-backup.json
 mc admin cluster iam import myminio < minio-iam-backup.json
@@ -722,9 +765,11 @@ mc admin cluster iam import myminio < minio-iam-backup.json
 ### 9.5 扩容
 
 单机容量不足时可搭建分布式集群（至少 4 节点）。启动示例（4 节点）：
+
 ```bash
 docker run -d --name minio1 ... minio/minio:RELEASE.2025-04-08T15-41-24Z server http://minio{1...4}/data
 ```
+
 注意：新加节点数必须与现有节点数成倍数关系，以保证纠删码配置稳定。
 
 ### 9.6 故障排查常见问题
