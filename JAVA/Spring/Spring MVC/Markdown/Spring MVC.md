@@ -38,23 +38,23 @@ markmap:
 | **DispatcherServlet** | `DispatcherServlet` | 前端**总控**，协调其他组件，本身不干活 |
 | **HandlerMapping** | `HandlerMapping` | 根据请求（URL、方法等）**找到**对应的 Handler（处理器） |
 | **HandlerAdapter** | `HandlerAdapter` | **适配并执行** Handler，屏蔽不同类型的处理器差异 |
-| **Handler（处理器）** | `Object`（通常是我们写的`@Controller`方法封装） | 真正**执行业务逻辑**的地方 |
+| **Handler（处理器）** | `Object`（通常是我们写的 **`@Controller`方法封装**） | 真正**执行业务逻辑**的地方 |
 | **HandlerExceptionResolver** | `HandlerExceptionResolver` | **处理**执行过程中抛出的**异常**（视图与 REST 响应的异常统一处理） |
 
 ---
 
-![alt text](706F14D83E0F2E8CDFF4553D891DE3D5-1.png)
+![alt text](../Image/706F14D83E0F2E8CDFF4553D891DE3D5-1.png)
 
 > 关于视图解析器 `ViewResolver`：前后端分离中我们直接返回 JSON 数据，完全不需要它。只有在返回 JSP/模板页面时才用到，本文仅做概念提及
 
 ---
 
-![Spring MVC 请求处理流程](screen_2026-06-09_164120.png)
+![alt text](../Image/screen_2026-06-09_164120.png)
 > 此图为传统SpringMVc流程图
 
 ---
 
-### 2.2 ==**请求执行流程**==（重点，走读每一步）
+### 2.2 ==**请求执行流程**==
 
 以一次 `POST /api/users` 且携带 JSON 请求体为例：
 
@@ -630,7 +630,7 @@ public class LegacyController {
 
 ## 7. ==**拦截器**==
 
-![alt text](<屏幕截图 2026-06-10 155619-1.png>)
+![alt text](<../Image/屏幕截图 2026-06-10 155619-1.png>)
 
 ---
 
