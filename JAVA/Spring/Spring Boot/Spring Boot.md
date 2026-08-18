@@ -1,3 +1,8 @@
+---
+markmap:
+  initialExpandLevel: 2
+---
+
 # Spring Boot 后端开发核心知识框架（升级版 v4.1）
 
 > **版本说明**：基于 v3.0 全面优化，基于 Spring Boot 3.3.x + Java 21，最后更新 2026-07
