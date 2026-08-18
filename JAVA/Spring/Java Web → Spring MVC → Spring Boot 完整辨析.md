@@ -66,6 +66,8 @@ Spring Boot (Spring Framework + 自动配置)
 
 ### 3. Spring Boot（快速开发框架）
 
+[Spring Boot](<Spring Boot/Spring Boot.md>)
+
 - **核心构成**：Spring Framework + 自动配置 + Starter 依赖 + 内嵌容器 + Actuator
 - **特点**：
   - **约定优于配置**：自动推断并配置所需 Bean
@@ -126,7 +128,8 @@ Spring Boot (Spring Framework + 自动配置)
 | 适用场景 | 编码、安全校验、日志 | 权限细粒度控制、性能监控 |
 | Spring Boot 配置 | `@Bean` 或 `@WebFilter` + `@ServletComponentScan` | 实现 `HandlerInterceptor` + 注册 `InterceptorRegistry` |
 
-> **注意**：Filter 由 Servlet 容器管理，早于 Spring 容器启动，因此**Filter 中不能直接使用 `@Autowired`**。Spring Boot 中通过 `FilterRegistrationBean` 方式注册可解决此问题。
+> [!WARNING]
+> Filter 由 Servlet 容器管理，早于 Spring 容器启动，因此**Filter 中不能直接使用 `@Autowired`**。Spring Boot 中通过 `FilterRegistrationBean` 方式注册可解决此问题。
 
 ---
 

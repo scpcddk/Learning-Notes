@@ -225,8 +225,9 @@ public class RootConfig {
     // 也可以使用 @Bean 显式声明，或依赖 @ComponentScan 自动发现（只要不是 @Controller）
 }
 ```
-  
-- 排除 `@Controller` 是为了**职责分离**——根容器管后端服务（Service/Repository），Web容器管前端控制（Controller）。这样避免重复扫描、防止父容器反向依赖子容器，确保架构清晰、事务代理正常
+
+> [!TIP]
+> 排除 `@Controller` 是为了**职责分离**——根容器管后端服务（Service/Repository），Web容器管前端控制（Controller）。这样避免重复扫描、防止父容器反向依赖子容器，确保架构清晰、事务代理正常
 
 ---
 

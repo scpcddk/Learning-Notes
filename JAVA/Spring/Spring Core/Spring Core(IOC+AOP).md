@@ -34,7 +34,7 @@ markmap:
 | 适用场景 | 资源受限环境（如嵌入式设备） | **绝大多数企业级应用** |
 
 > [!TIP]
-> **面试一句话**：`ApplicationContext`是`BeanFactory`的**超集**，功能更完整，启动时预初始化，开发中几乎只用`ApplicationContext`
+> **面试一句话**：`ApplicationContext` 是 `BeanFactory`的**超集**，功能更完整，启动时预初始化，开发中几乎只用`ApplicationContext`
 
 ---
 
@@ -70,8 +70,8 @@ public class UserService { ... }
 ```
 
 - **适用场景**：
-  - ✅ **所有自己编写的 Service、DAO、Controller 组件**
-  - ✅ **绝大多数业务类**
+  - ✅ 所有自己编写的 **Service、DAO、Controller 组件**
+  - ✅ 绝大多数**业务类**
   - ✅ **无侵入、开发效率最高**
 
 > [!NOTE]
@@ -125,9 +125,9 @@ public class AppConfig {
 
 - **适用场景**：
   - ✅ **第三方 jar 包中的类**（如`DataSource`, `RestTemplate`, `RedisTemplate`）
-  - ✅ **需要调用静态工厂方法、建造者模式创建的对象**
-  - ✅ **需要复杂初始化（设置多个属性、条件判断）的 Bean**
-  - ✅ **需要动态决定是否注册 Bean 的条件注册**（配合 `@Conditional`）
+  - ✅ 需要调用**静态工厂方法、建造者模式**创建的对象
+  - ✅ 需要**复杂初始化**（设置多个属性、条件判断）的 Bean
+  - ✅ 需要**动态决定是否注册 Bean** 的条件注册（配合 `@Conditional`）
 
 > [!TIP]
 > 📌 **提示**：在 `SpringBoot` 中，很多第三方组件已通过`AutoConfiguration`自动配置，一般无需手动写`@Bean`。但当默认配置不满足时，**可以用 `@Bean` 覆盖默认 `Bean`**
@@ -148,30 +148,30 @@ public class AppConfig {
 | 🔥🔥 | `@Repository` | **DAO/Repository层**:封装数据库增删改查，转换异常 | `@Repository` |
 | 🔥🔥 | `@Controller` / `@RestController` | **Web层**:接收 HTTP 请求，调用 Service，返回响应 | `@RestController` |
 | 🔥 | `@Qualifier` | 配合`@Autowired`按**名称**注入 | `@Qualifier("userDaoImpl")` |
-| 🔥 | `@Value` | 注入配置值 | `@Value("${jdbc.url}")` |
+| 🔥 | `@Value` | 注入**配置值** | `@Value("${jdbc.url}")` |
 | 🔥 | `@Scope` | 指定**作用域**（`singleton` / `prototype`） | `@Scope("prototype")` |
 | 🔥 | `@PostConstruct` / `@PreDestroy` | 初始化/销毁回调 | `@PostConstruct void init(){}` |
 | 🔥 | `@Primary` | 声明同类型 Bean 的首选 | `@Primary` |
 | 🔥 | `@ConfigurationProperties` | 绑定配置前缀到类 | `@ConfigurationProperties(prefix = "app")` |
 | 🔥 | `@Resource` | JSR-250 标准，按**名称**注入 | `@Resource(name = "userDao")` |
 
-- 💡 **方式二`@Bean`中也支持`@Autowired`注入参数**，方法参数会自动从容器中获取
+- 💡 **方式二 `@Bean` 中也支持 `@Autowired` 注入参数**，方法参数会自动从容器中获取
 
 ---
 
-#### (1)**辅助理解**:`@Autowired`注入原理
+#### (1) **辅助理解**：`@Autowired`注入原理
 
 > [!NOTE]
 > `Spring` 在 `Bean` 创建的属性填充阶段，通过一个特殊的 `BeanPostProcessor` 扫描带有注解的字段/方法，利用反射和依赖查找规则，将匹配的 `Bean` 注入进去
 
 - **执行流程简化**
-  1. **时机**  
+  1. **时机**：
      Bean 实例化之后，调用`populateBean()`填充属性时触发
-  2. **处理器**  
+  2. **处理器**：
     `AutowiredAnnotationBeanPostProcessor`介入，它已由`Spring`自动注册
-  3. **缓存与扫描**  
+  3. **缓存与扫描**：
     首次处理某个类时，扫描所有`@Autowired`字段和方法，包装成`InjectionMetadata`缓存起来，避免重复解析
-  4. **逐个注入**  
+  4. **逐个注入**：
       - **字段注入**：解析出依赖对象，直接用`Field.set()`暴力赋值  
       - **方法注入**：解析出所有参数依赖，反射调用`Method.invoke()`传入
 
@@ -184,7 +184,7 @@ public class AppConfig {
   - `@Qualifier` 可在任何阶段参与限定，实现精确注入
   - 支持 `required=false`、`Optional`、集合/Map 注入
 
-- **特别之处**
+- **特别之处**：
   - **构造器注入**：发生在实例化阶段，更早，参数解析规则相同，但**无法解决循环依赖**(构造器注入要求在创建对象的同时就必须提供所有依赖)
   - **循环依赖**：字段和 setter 注入可利用三级缓存(先创建壳，后填充属性)**提前暴露半成品引用**来解决，构造器注入不行
 
@@ -201,10 +201,11 @@ public class AppConfig {
 | `@Resource` | JSR-250 (Java) | **按名称** → 按类型 | ❌ 无 `required`，找不到抛异常 |
 | `@Inject` | JSR-330 (Java) | 同 `@Autowired`（按类型） | ❌ 无 `required`，但支持 `Optional` |
 
+> [!TIP]
 > **开发建议**：Spring 项目用`@Autowired`；追求标准兼容性用`@Resource`（如需要与 Java EE 兼容）
 
-- **注入集合/Map + `@Order` 排序**  
-  - 当有多个同接口实现时，可直接注入`List<Interface>`或`Map<String, Interface>`（key 为 bean 名称）
+- **注入集合 / Map + `@Order` 排序**  
+  - 当有多个同接口实现时，可直接注入`List<Interface>` 或 `Map<String, Interface>`（key 为 bean 名称）
   - 配合 `@Order(1)` 可控制 List 中的顺序（或 `jakarta.annotation.Priority`），常用于策略模式组装
 
 ---
@@ -213,14 +214,14 @@ public class AppConfig {
 
 ### 1. Bean 生命周期（完整阶段，面试高频）
 
-- **简化流程**：
-
+> [!NOTE]
+> - **简化流程**：
 > 实例化 → 属性注入 → `BeanNameAware` / `ApplicationContextAware`  
 > → `BeanPostProcessor` 前置处理 → `@PostConstruct` / `InitializingBean`  
 > → 自定义 `init-method` → `BeanPostProcessor` 后置处理  
 > → **Bean 就绪** → 容器关闭时 `@PreDestroy` / `DisposableBean` / 自定义 `destroy-method`
-
-- **记忆关键**：**两个 PostProcessor 夹住初始化步骤**，销毁时也有回调
+>
+> - **记忆关键**：**两个 PostProcessor 夹住初始化步骤**，销毁时也有回调
 
 ---
 
@@ -243,6 +244,7 @@ Spring 通过**三级缓存**解决单例 Bean 的循环依赖（仅限字段注
 5. B 完成初始化 → 放入**一级缓存**
 6. A 继续注入 B（已完成）→ A 完成初始化 → 放入**一级缓存**
 
+> [!WARNING]
 > ⚠️ **构造器注入无法解决循环依赖**：因为构造器在实例化阶段就需要依赖，此时三级缓存还未放入
 > ⚠️ **prototype 作用域无法解决循环依赖**：Spring 不缓存 prototype Bean
 
@@ -259,6 +261,7 @@ Spring 通过**三级缓存**解决单例 Bean 的循环依赖（仅限字段注
 | `application` | **全局 ServletContext 一个实例** | 全局配置、共享缓存 |
 | `websocket` | **每个 WebSocket 会话一个实例** | WebSocket 场景 |
 
+> [!WARNING]
 > ⚠️ **prototype 的坑**：Spring 只负责创建，**不管理完整生命周期**（`@PreDestroy` 不会自动调用）
 > ⚠️ **单例注入 prototype**：需要在 `@Scope` 上加 `proxyMode = ScopedProxyMode.TARGET_CLASS`，否则单例中的 prototype 永远只会有一个实例
 
@@ -330,7 +333,7 @@ public class UserService {
 
 ### 2. 🔥 `@Profile`多环境配置
 
-`@Profile`是 Spring 提供的一个环境切换注解，用来指定某个 **Bean 或配置类在特定环境下才生效**，不同环境注册不同的 Bean
+`@Profile`是 Spring 提供的一个**环境切换注解**，用来指定某个 **Bean 或配置类在特定环境下才生效**，不同环境注册不同的 Bean
 
 ```java
 @Configuration
@@ -359,6 +362,7 @@ public class ProdConfig {
 - `spring.profiles.active=dev`（**配置文件**）(在`application.properties`或`application.yml`中设置)
 - `-Dspring.profiles.active=prod`（JVM 参数）
 
+> [!TIP]
 > **使用场景**：不同环境（开发/测试/生产）使用不同的数据源、缓存、中间件配置
 
 ---
@@ -395,7 +399,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 | `@ConditionalOnExpression` | **SpEL 表达式为 true** 时生效 |
 | `@ConditionalOnWebApplication` | **是 Web 应用**时生效 |
 
-> 示例：只有存在`DataSource`类时才加载数据源配置
+> **示例**：只有存在`DataSource`类时才加载数据源配置
 
 ---
 
@@ -431,7 +435,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 
 - **动态代理**：
   - **有接口** → **JDK 动态代理**
-    - **基于接口**，运行时生成实现相同接口的代理类($Proxy)，通过反射调用
+    - **基于接口**，运行时生成实现相同接口的代理类(`$Proxy`)，通过反射调用
     - **必须有接口**，代理对象和目标对象实现同一接口，不是继承关系
       - 目标类如果没有接口，JDK代理无法生成代理类
       - 代理对象**只能调用**接口中声明的方法，**不能调用**目标类的非接口方法
@@ -445,6 +449,7 @@ Spring Boot 自动配置的基础，自己写 Starter 时必用：
 - **通知（Advice）**：切面在连接点执行的动作
 - **切点（Pointcut）**：匹配连接点的表达式
 
+> [!TIP]
 > ⚠️ **记忆**：在**方法执行前后**插入代码，不侵入业务逻辑
 
 ---
@@ -1128,6 +1133,7 @@ public class StrictService {
 </build>
 ```
 
+> [!NOTE]
 > 📌 **说明**：`parent` 锁定 SpringBoot 版本；`spring-boot-starter-web` 已传递包含 `spring-context`、`spring-aop` 等；打包插件用于生成可执行 jar
 
 ---
