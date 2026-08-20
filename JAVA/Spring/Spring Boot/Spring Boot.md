@@ -1559,10 +1559,11 @@ public class DatabaseHealthIndicator implements HealthIndicator {
 
 ### 11.1 Spring Cache + Redis
 
-#### 核心原理
+#### 11.1.1 核心原理
+
 `@EnableCaching` 注册 `CacheInterceptor`（AOP 拦截器），方法调用时生成缓存 Key，通过 `RedisCacheManager` 存取数据。
 
-#### 典型代码模板
+#### 11.1.2 典型代码模板
 
 ```java
 @Configuration
@@ -1597,17 +1598,37 @@ public class UserServiceImpl implements UserService {
 }
 ```
 
-#### 面试高频问答
+#### 11.1.3 面试高频问答
 
 **Q：`@CachePut` 和 `@Cacheable` 的区别？缓存更新策略有哪些？**
+
 > 答：`@Cacheable` 先查缓存，命中则直接返回，不执行方法体；`@CachePut` 始终执行方法体，并将结果写入缓存（用于更新操作）。缓存更新策略：① **Cache Aside**（旁路缓存）：先更新 DB，再删缓存（最常用）；② **Read/Write Through**：读写都经过缓存层；③ **Write Behind**：先写缓存，异步刷盘。
 
 **Q：缓存穿透、击穿、雪崩有什么区别？怎么解决？**
+
 > 答：① **穿透**：查询不存在的 Key，每次都打到 DB。解决：缓存空值、布隆过滤器。② **击穿**：热点 Key 过期瞬间大量请求打到 DB。解决：互斥锁、逻辑过期。③ **雪崩**：大量 Key 同时过期。解决：随机 TTL、多级缓存。
 
 ---
 
 ### 11.2 SpringDoc OpenAPI 接口文档
+
+#### 11.2.1 Swagger
+
+**Swagger** 是一套用于 **RESTful API 的设计、构建、文档化和调试**的开源工具集。
+
+核心逻辑是 **“代码即文档”**：通过编写一个 YAML 或 JSON 格式的规范文件（遵循 **OpenAPI 规范**），精准描述 API 的地址、参数、请求体和返回数据。
+
+**亮点是：**
+
+- **生成交互式文档**：自动生成漂亮的网页文档（Swagger UI），不仅可读，还能直接在页面上**填写参数并点击“Try it out”发起真实请求**，相当于自带调试器。
+- **多语言代码生成**：可根据规范自动生成 Java、Python、JavaScript 等几十种语言的客户端调用代码，省去手写 HTTP 请求的麻烦。
+
+> [!TIP]
+> Swagger **让 API 的设计、文档、调试和调用全流程自动化**，大幅提升前后端协作效率。
+
+#### 11.2.2 模板代码
+
+- pom.xml:
 
 ```xml
 <dependency>
@@ -1617,37 +1638,111 @@ public class UserServiceImpl implements UserService {
 </dependency>
 ```
 
+- 配置 SpringDoc 生成 API 文档：
+
 ```java
+/**
+ * SpringDoc (OpenAPI 3) 配置类，用于生成 API 文档。
+ * 配置了文档的基本信息、安全认证方案（Bearer Token），
+ * 使得所有带有相应安全要求的接口在 Swagger UI 中显示锁图标。
+ */
 @Configuration
 public class SpringDocConfig {
+
+    /**
+     * 创建并配置自定义 OpenAPI 对象。
+     * @return 配置好的 OpenAPI 实例，包含 API 标题、版本、安全要求及安全组件。
+     */
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
+                // 设置 API 文档的标题和版本
                 .info(new Info().title("AI 助手 API").version("1.0.0"))
+                // 添加全局安全要求，所有接口默认需要 BearerAuth 认证（若未单独覆盖）
                 .addSecurityItem(new SecurityRequirement().addList("BearerAuth"))
+                // 配置安全组件，定义名为 "BearerAuth" 的 HTTP Bearer Token 认证方案（JWT 格式）
                 .components(new Components()
                         .addSecuritySchemes("BearerAuth", new SecurityScheme()
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")));
+                                .type(SecurityScheme.Type.HTTP)   // 认证类型为 HTTP
+                                .scheme("bearer")                // 使用 bearer 方案
+                                .bearerFormat("JWT")));         // Token 格式为 JWT
     }
 }
 
+/**
+ * AI 对话控制器，处理与 AI 助手的对话请求。
+ * 该控制器下的所有端点均被标记为 "AI对话" 分组。
+ */
 @Tag(name = "AI对话")
 @RestController
 public class ChatController {
+
+    /**
+     * 处理 POST 请求，接收用户对话消息并调用 AI 服务获取回复。
+     * 该方法在 OpenAPI 文档中描述为 "发送对话"。
+     *
+     * @param request 对话请求体，包含用户消息等字段，需通过 @Valid 校验。
+     * @return 统一响应格式，携带 AI 的回复数据（ChatResponse 对象）。
+     */
     @Operation(summary = "发送对话", description = "向 AI 发送消息并获取回复")
-    @PostMapping
-    public Result<ChatResponse> chat(@RequestBody @Valid @Parameter(description = "对话请求") ChatRequest request) {
+    @PostMapping  // 映射到根路径（若未指定具体路径，则对应类级别路径或默认根路径）
+    public Result<ChatResponse> chat(
+            @RequestBody @Valid @Parameter(description = "对话请求") ChatRequest request) {
+        // 调用业务服务处理对话，并封装成功结果返回
         return Result.ok(aiChatService.chat(request));
     }
 }
 ```
 
-#### 面试高频问答
+<details><summary>@Tag</summary>
+
+**一句话总结** ：`@Tag` 就是给 Controller **贴分类标签**，用于在 Swagger 页面上把一组接口归拢到同一个分组里。
+
+**核心用法**：
+```java
+@Tag(name = "AI对话")  // name = 页面显示的分组名
+@RestController
+public class ChatController { ... }
+```
+
+**作用对比**：
+
+- **不加**：页面分组名显示为 `chat-controller`（类名，不直观）
+- **加了**：页面分组名显示为 **`AI对话`**（清晰明了）
+
+**常用属性**（只用 `name` 就够了）：
+
+- `name`：分组名称（必填，唯一标识）
+- `description`：**分组描述**（选填，页面标题下方的小字说明）
+
+**进阶用法**：也可以加在方法上，覆盖类级别的分组，但最常用的是直接标注在 Controller 类上，把整个 Controller 的所有接口归为一组。
+
+> [!TIP]
+> **`@Tag(name = "你想叫的名字")`，加在类上，改的是 Swagger 页面左边的菜单分类名。**
+</details>
+
+<details><summary>@Operation</summary>
+
+**一句话总结**：`@Operation` 是加在**方法（接口）**上的，用于定义 Swagger 页面里**这个具体接口的标题和详细说明**。
+
+**与 `@Tag` 的区别（一个形象的类比）**：
+
+- **`@Tag`（类上）** = 给**文件夹**起名字（比如“AI对话”）。
+- **`@Operation`（方法上）** = 给文件夹里的**具体文件**写备注（比如这个接口叫什么、是干嘛的）。
+
+**核心属性（只用两个就够了）**：
+
+| 属性 | 作用 |
+| :--- | :--- |
+| **`summary`** | 接口的**简短标题**（显示在列表项上，概括接口功能）。 |
+| **`description`** | 接口的**详细描述**（点开接口后显示的说明文字）。 |
+</details>
+
+#### 11.2.3 面试高频问答
 
 **Q：生产环境中如何保护 Swagger UI？要不要完全关闭？**
-> 答：生产环境**必须加权限控制或完全关闭**。方案：① 通过 Spring Security 限制 `/swagger-ui/**` 和 `/v3/api-docs/**` 仅允许内网 IP 或特定角色访问；② 使用 `springdoc.swagger-ui.enabled=false` 完全关闭；③ 更安全的做法：将 API 文档生成到静态文件，通过独立文档站点发布，不暴露在生产服务上。
+
+> **答**：生产环境**必须加权限控制或完全关闭**。方案：① 通过 Spring Security 限制 `/swagger-ui/**` 和 `/v3/api-docs/**` 仅允许内网 IP 或特定角色访问；② 使用 `springdoc.swagger-ui.enabled=false` 完全关闭；③ 更安全的做法：将 API 文档生成到静态文件，通过独立文档站点发布，不暴露在生产服务上。
 
 ---
 
@@ -1688,10 +1783,11 @@ public class TraceIdFilter extends OncePerRequestFilter {
 
 ### 11.4 @Async 自定义线程池（★ v4.0 新增）
 
-#### 本章核心定位
+#### 11.4.1 本章核心定位
+
 Spring 默认线程池 `SimpleAsyncTaskExecutor` 每次创建新线程，高并发下会导致 OOM，生产环境**必须显式配置**。
 
-#### 典型代码模板
+#### 11.4.2 典型代码模板
 
 ```java
 @Configuration
@@ -1729,6 +1825,7 @@ public class MdcTaskDecorator implements TaskDecorator {
 ```
 
 **使用：**
+
 ```java
 @Async("taskExecutor")
 public CompletableFuture<String> asyncProcess(Long id) {
@@ -1740,10 +1837,11 @@ public CompletableFuture<String> asyncProcess(Long id) {
 
 ### 11.5 @Scheduled 分布式陷阱（★ v4.0 新增）
 
-#### 本章核心定位
+#### 11.5.1 本章核心定位
+
 单机 `@Scheduled` 在多实例部署时会重复执行，需要分布式锁或幂等设计。
 
-#### 典型代码模板
+#### 11.5.2 典型代码模板
 
 ```java
 // 方案1：ShedLock（推荐）
@@ -2300,3 +2398,10 @@ sequenceDiagram
 ---
 
 > **使用建议（v4.0 版）**：本笔记按知识框架组织，每节独立完整。**复习路径建议**：① 先通读"核心原理"建立认知；② 背诵"核心知识点清单"应对面试；③ 手敲"典型代码模板"形成肌肉记忆；④ 对照"避坑指南"检查项目代码；⑤ 最后通读"全栈贯通案例"理解组件协同。**v4.0 核心改进：全章节面试问答闭环、技术描述修正、Mermaid 时序图、避坑指南增加发现办法、新增 Jasypt/ShedLock/Security6/优雅停机等生产必备知识。**
+
+---
+
+[参考文档](https://www.itbaima.cn/zh-CN/document/0k66v5r6slsfuog4)
+[参考网课](https://www.bilibili.com/video/BV1xu4y1m7UP/?spm_id_from=333.1391.0.0&p=16&vd_source=e0c0ad2a316e90d4078b1131e8182407)
+
+---
