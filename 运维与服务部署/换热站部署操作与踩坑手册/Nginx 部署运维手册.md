@@ -86,6 +86,7 @@ server {
 **原因**：Nginx 容器无法访问宿主机的后端端口。通常是宿主机内网 IP 发生变化，导致 `proxy_pass` 中写死的旧 IP 失效。
 
 **排查步骤**：
+
 ```bash
 # 1. 确认后端端口监听正常
 ss -tlnp | grep 8080
@@ -93,10 +94,12 @@ ss -tlnp | grep 8080
 # 2. 测试 Nginx 容器能否访问宿主机后端
 docker exec docker-nginx-1 curl -s -o /dev/null -w "%{http_code}" http://172.27.119.137:8080/
 ```
+
 - 返回 `200`：IP 未变，只需重载 Nginx 配置。
 - 返回 `000` 或超时：IP 已变，需要更新配置。
 
 **解决方法**：
+
 ```bash
 # 获取当前宿主机内网 IP
 NEW_IP=$(ip addr show eth0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
@@ -111,8 +114,6 @@ docker exec docker-nginx-1 nginx -s reload
 
 **预防**：尽量使用 `127.0.0.1` 或 Docker 网关 `172.17.0.1`，但云环境网络复杂时宿主机真实 IP 更可靠。每次服务器重启后执行一次连通性检查。
 
----
-
 ### 3.2 403 Forbidden
 
 **现象**：访问 `/iot-api/` 或前端页面返回 403。
@@ -120,29 +121,36 @@ docker exec docker-nginx-1 nginx -s reload
 **常见原因及解决**：
 
 **原因 A：Spring Security 拦截根路径**
+
 前端可能会对 `/iot-api/` 做健康检查，后端 Spring Security 未放行根路径，返回 403，导致前端误判无权限。
 
 **解决**：在 Nginx 中精确匹配根路径，直接返回 200，不再转发给后端：
+
 ```nginx
 location = /iot-api/ {
     return 200 '{"status":"ok"}';
     add_header Content-Type application/json;
 }
 ```
+
 或者让后端在 `SecurityConfig` 中添加 `.requestMatchers("/api/").permitAll()`。
 
 **原因 B：静态文件权限不足**
+
 前端 `css`、`js` 目录权限为 `700`（`drwx------`），Nginx 进程（通常为 `nginx` 用户）无法读取。
 
 **解决**：
+
 ```bash
 chmod -R 755 /opt/iot-frontend/CloudPlatform/
 ```
 
 **原因 C：文件被锁定（`chattr +i`）**
+
 之前为了防止误覆盖，对某些文件设置了不可变属性，导致 Nginx 无法读取或配置更新失败。
 
 **解决**：
+
 ```bash
 # 检查文件属性
 lsattr /opt/nginx/conf.d/default.conf
@@ -151,8 +159,6 @@ lsattr /opt/nginx/conf.d/default.conf
 chattr -i /opt/nginx/conf.d/default.conf
 ```
 
----
-
 ### 3.3 404 Not Found
 
 **现象**：登录接口或前端页面返回 404。
@@ -160,23 +166,29 @@ chattr -i /opt/nginx/conf.d/default.conf
 **常见原因及解决**：
 
 **原因 A：前端 `baseURL` 配置错误**
+
 前端代码中 `baseURL` 写成了 `/api`，而 Nginx 只代理了 `/iot-api/`，导致请求未命中任何 location。
 
 **解决**：确保前端 `baseURL` 为 `/iot-api`，并在打包后验证：
+
 ```bash
 grep -o 'baseURL:"[^"]*"' /opt/iot-frontend/CloudPlatform/js/app.*.js
 ```
+
 必须输出 `baseURL:"/iot-api"`。
 
 **原因 B：Nginx 配置缺失路径**
+
 新增了 WebSocket 或流媒体等路径，但 Nginx 配置中没有相应的 location 块。
 
 **解决**：在 `/opt/nginx/conf.d/default.conf` 中添加对应的 location。
 
 **原因 C：前端 `index.html` 引用的 JS 文件不存在**
+
 多次部署后，`index.html` 中引用的 JS 文件名（如 `app.xxxxx.js`）与实际存在的文件不匹配，导致资源 404。
 
 **解决**：
+
 ```bash
 # 找到实际最新的 app JS 文件
 NEW_APP=$(ls -t /opt/iot-frontend/CloudPlatform/js/app.*.js | head -1 | xargs basename)
@@ -188,8 +200,6 @@ sed -i "s|app\.[0-9a-f]*\.js|$NEW_APP|g" /opt/iot-frontend/CloudPlatform/index.h
 docker exec docker-nginx-1 nginx -s reload
 ```
 
----
-
 ### 3.4 前端更新后页面不刷新
 
 **现象**：重新上传前端文件后，浏览器访问仍是旧页面，强制刷新、无痕模式均无效。
@@ -197,9 +207,11 @@ docker exec docker-nginx-1 nginx -s reload
 **常见原因及解决**：
 
 **原因 A：Nginx 容器只读挂载**
+
 容器以 `:ro` 方式挂载宿主机目录，宿主机文件更新后容器内未同步。
 
 **解决**：重建容器时去掉 `:ro`：
+
 ```bash
 docker rm -f docker-nginx-1
 docker run -d --name docker-nginx-1 \
@@ -211,13 +223,16 @@ docker run -d --name docker-nginx-1 \
 ```
 
 **原因 B：浏览器顽固缓存**
+
 即使服务器返回新文件，浏览器仍使用本地缓存。
 
 **解决**：
+
 1. 使用无痕模式
 2. `Ctrl+Shift+Del` 清除所有时间段的缓存和 Cookie
 3. 注销 Service Worker：`chrome://serviceworker-internals` → 找到站点 → Unregister
 4. 在 Nginx 中添加禁用 HTML 缓存的头：
+   
    ```nginx
    location ~* \.html$ {
        add_header Cache-Control "no-cache, no-store, must-revalidate";
@@ -226,9 +241,8 @@ docker run -d --name docker-nginx-1 \
    ```
 
 **原因 C：`index.html` 引用的 JS 文件不存在**
-同 3.3 原因 C，文件名不匹配导致加载旧缓存。
 
----
+同 3.3 原因 C，文件名不匹配导致加载旧缓存。
 
 ### 3.5 WebSocket 连接失败
 
@@ -237,7 +251,9 @@ docker run -d --name docker-nginx-1 \
 **原因**：Nginx 没有正确代理 WebSocket 升级请求，或者后端 Spring Security 拦截。
 
 **解决**：
+
 1. 在 Nginx 配置中添加 WebSocket 升级头：
+   
    ```nginx
    location /ws/ {
        proxy_pass http://172.27.119.137:8080/ws/;
@@ -248,9 +264,8 @@ docker run -d --name docker-nginx-1 \
        proxy_set_header X-Real-IP $remote_addr;
    }
    ```
-2. 后端 `SecurityConfig` 中放行 `/ws/**`。
 
----
+2. 后端 `SecurityConfig` 中放行 `/ws/**`
 
 ### 3.6 配置文件“Operation not permitted”
 
@@ -259,15 +274,16 @@ docker run -d --name docker-nginx-1 \
 **原因**：之前执行过 `chattr +i` 锁定文件，防止误覆盖。
 
 **解决**：
+
 ```bash
 chattr -i /opt/nginx/conf.d/default.conf
 ```
+
 修改完成后可重新锁定：
+
 ```bash
 chattr +i /opt/nginx/conf.d/default.conf
 ```
-
----
 
 ### 3.7 新增路径后 403
 
@@ -276,6 +292,7 @@ chattr +i /opt/nginx/conf.d/default.conf
 **原因**：Spring Security 拦截了未放行的路径。尤其是 Nginx 同时代理了 `/iot-api/` 和 `/api/` 时，两者可能产生路由混乱。
 
 **解决**：
+
 - 统一使用 `/iot-api/` 作为前端调用入口
 - 后端在 `SecurityConfig` 中明确放行需要的路径
 - 在 Nginx 中精确匹配根路径，避免将不需要的请求转发到后端
@@ -285,22 +302,26 @@ chattr +i /opt/nginx/conf.d/default.conf
 ## 4. 配置维护与更新规范
 
 ### 4.1 修改前备份
+
 ```bash
 cp /opt/nginx/conf.d/default.conf /opt/nginx/conf.d/default.conf.bak.$(date +%Y%m%d_%H%M%S)
 ```
 
 ### 4.2 修改后测试
+
 ```bash
 docker exec docker-nginx-1 nginx -t
 ```
 看到 `syntax is ok` 和 `test is successful` 后再重载。
 
 ### 4.3 重载配置
+
 ```bash
 docker exec docker-nginx-1 nginx -s reload
 ```
 
 ### 4.4 验证关键路径
+
 ```bash
 # 后端 API
 curl -I http://localhost/iot-api/
@@ -316,6 +337,7 @@ curl -I -H "Upgrade: websocket" -H "Connection: Upgrade" http://localhost/ws/eve
 ```
 
 ### 4.5 恢复备份
+
 ```bash
 cp /opt/nginx/conf.d/default.conf.bak.xxxxxx /opt/nginx/conf.d/default.conf
 docker exec docker-nginx-1 nginx -s reload

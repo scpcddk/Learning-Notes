@@ -1,4 +1,4 @@
-# EMQX + MinIO
+# EMQX + MinIO 部署手册
 
 ---
 

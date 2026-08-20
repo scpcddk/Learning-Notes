@@ -729,7 +729,7 @@ location /api/ {
 > [!TIP]
 > 若后端返回超大 JSON（如导出报表），可适当调大 `proxy_buffers` 或设 `proxy_max_temp_file_size 0` 避免磁盘 I/O 瓶颈。
 
-### 13.4 浏览器缓存 — 30 天秒开（新增）
+### 13.4 浏览器缓存 — 30 天秒开
 
 对静态资源设置强缓存，减少重复请求，大幅提升加载速度：
 
@@ -751,7 +751,7 @@ location ~* \.(jpg|png|css|js)$ {
 
 1. **查看 Nginx 错误日志**（第一步）  
    `tail -20 /var/log/nginx/error.log`  
-   关键词：`connect() failed (111: Connection refused)` 或 `upstream prematurely closed connection`
+   **关键词**：`connect() failed (111: Connection refused)` 或 `upstream prematurely closed connection`
 
 2. **识别典型错误特征**  
    - 连接被拒（Connection refused）→ 后端服务未启动、端口错误或防火墙拦截  
@@ -783,12 +783,14 @@ location ~* \.(jpg|png|css|js)$ {
 - **日志线索**：`error.log` 中出现 `upstream timed out`
 - **诊断后端瓶颈**：检查数据库慢 SQL、代码死循环、CPU/内存资源耗尽或容器限制
 - **应急方案**：临时调大超时  
+  
   ```nginx
   location /api/slow/ {
       proxy_pass http://backend/;
       proxy_read_timeout 120s;
   }
   ```
+
 - **长期根治**：优化业务逻辑与数据库索引，或增加缓存/限流
 
 **502 vs 504 对比**：
@@ -798,14 +800,16 @@ location ~* \.(jpg|png|css|js)$ {
 | 502 Bad Gateway | 连接失败 | 后端未启动、端口错误、网络阻断 | 后端不可达 |
 | 504 Gateway Timeout | 连接成功，但响应超时 | 后端处理太慢（慢 SQL、高负载） | 后端太慢 |
 
-### 13.7 故障排查：403 和 404（新增）
+### 13.7 故障排查：403 和 404
 
-#### 403 Forbidden（权限拒绝）
+#### 13.7.1 403 Forbidden（权限拒绝）
+
 - **文件自身权限不足** → `chmod 644 filename`
 - **上级目录权限不足**（缺少执行权限） → `chmod 755 dirname`
 - **SELinux 安全策略拦截** → 临时测试 `setenforce 0`（生产需配置策略）
 
-#### 404 Not Found（资源不存在）
+#### 13.7.2 404 Not Found（资源不存在）
+
 - **`root` / `alias` 路径配置错误** → 检查指令指向的根目录
 - **目标文件物理不存在** → `ls -la /path/to/file` 确认
 - **`location` 匹配规则冲突** → 检查正则优先级与顺序
@@ -823,9 +827,9 @@ cat /var/log/nginx/access.log | jq -r '[.request_time, .request, .upstream_respo
 
 若前者高而后者低，问题在客户端网络或响应体过大；若后者高，问题在后端。
 
-### 13.9 高并发连接数打满的处理（含 Worker 调优三件套）
+### 13.9 高并发连接数打满的处理 
 
-#### Worker 调优三件套（核心配置）
+#### 13.9.1 Worker 调优三件套（核心配置）
 
 ```nginx
 worker_processes auto;          # 自动匹配 CPU 物理核数，充分利用多核
@@ -833,24 +837,26 @@ worker_connections 10240;       # 单 worker 最大并发连接（默认 1024 �
 worker_cpu_affinity auto;       # 绑定 CPU 核心，减少上下文切换开销
 ```
 
-**理论并发公式**：  
+**理论并发公式**：
 `worker_processes × worker_connections / 2`  
 （除 2 是因为通常一个连接占用两个文件描述符，或考虑长连接比例）
 
-示例：4 核 × 10240 / 2 = 20,480 并发连接。
+> **示例**：4 核 × 10240 / 2 = 20,480 并发连接。
 
-#### 当 `Active connections` 接近上限时：
+#### 13.9.2 当 `Active connections` 接近上限时：
 
 **短期缓解**：
+
 - 调大 `worker_connections`（同步调大 `worker_rlimit_nofile` 和系统 `ulimit -n`）
 - 增加 `worker_processes`（建议等于 CPU 核数，过多反而上下文切换）
 
 **长期方案**：
+
 - 水平扩容后端，引入负载均衡
 - 使用 CDN 分担静态资源
 - 对热点接口启用 `proxy_cache` 或限流（第 12.4 节）
 
-### 13.10 性能调优自查清单（更新）
+### 13.10 性能调优自查清单
 
 | 检查项 | 推荐值 | 影响 |
 |--------|--------|------|
