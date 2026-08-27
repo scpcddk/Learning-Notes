@@ -686,11 +686,13 @@ CREATE TABLE `order` (
 );
 ```
 
-**权衡**  
+**权衡**
+
 - 三范式：数据一致性高，写入简单，但多表关联查询性能差。  
 - 反范式：查询快，但数据冗余，更新需维护一致性。
 
-**怎么选择？**  
+**怎么选择？**
+
 核心查询频繁且 JOIN 过多的字段（如订单列表展示用户昵称、商品标题），适合冗余；非核心或变化频繁的字段建议保留关联。
 
 ---
@@ -745,36 +747,151 @@ DELETE FROM user WHERE id = 1 LIMIT 1;
 
 ---
 
-##### 2.3.2 聚合函数与 GROUP BY 深度理解
+##### 2.3.2 聚合函数（Aggregate Functions）
 
-**SQL 逻辑执行顺序**:
+**核心作用**：对多行数据进行计算，返回单个汇总结果。
 
-```
-FROM → ON → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT
-```
-
-```sql
--- 统计每个用户的订单总额，过滤总额大于1000的
-SELECT user_id, SUM(amount) AS total_amount
-FROM `order`
-WHERE status = 'PAID'
-GROUP BY user_id
-HAVING SUM(amount) > 1000
-ORDER BY total_amount DESC
-LIMIT 10;
-```
-
-**底层机制**：
-
-- `GROUP BY` 没有合适索引时，MySQL 会创建临时表（`Using temporary`）并排序（`Using filesort`）。  
-- 如果 `GROUP BY` 字段命中索引，且顺序与索引一致，可能避免临时表。  
-- `ONLY_FULL_GROUP_BY` 模式下，`SELECT` 中的非聚合列必须出现在 `GROUP BY` 中。
-
-**优化 GROUP BY**：建立 `(user_id, status, amount)` 联合索引，让分组和聚合走索引覆盖。
+| 函数 | 语法示例 | 大白话作用 | **⚠️ 架构师致命陷阱** |
+| :--- | :--- | :--- | :--- |
+| **`COUNT()`** | `COUNT(*)` / `COUNT(列名)` | 统计**行数**。 | **`COUNT(*)` 和 `COUNT(列名)` 完全不同！** `COUNT(*)` 统计所有行（含 NULL）；`COUNT(列名)` 只统计该列非 NULL 的行数。面试常考：统计总数用 `COUNT(*)`（走二级索引最优）。 |
+| **`SUM()`** | `SUM(列名)` | 计算某列的**总和**。 | 自动忽略 NULL 值（若全为 NULL 则返回 NULL）。务必搭配 `IFNULL(SUM(amount), 0)` 处理，防止 Java 接受到 null 导致 NPE。 |
+| **`AVG()`** | `AVG(列名)` | 计算某列的**平均值**。 | 自动忽略 NULL 值（分母只计非 NULL 行数）。若需要把 NULL 当 0 算平均，必须手动 `SUM(列) / COUNT(*)`。 |
+| **`MAX()`** | `MAX(列名)` | 返回**最大值**。 | 对字符串列也能用（按字典序）。配合 `ORDER BY ... LIMIT 1` 走索引更快。 |
+| **`MIN()`** | `MIN(列名)` | 返回**最小值**。 | 同上。 |
+| **`GROUP_CONCAT()`** | `GROUP_CONCAT(列名)` | 将分组内的某列值**拼接成逗号分隔的字符串**。 | **默认最大长度只有 1024 字节！** 生产环境拼接长文本必须预先设置：`SET SESSION group_concat_max_len = 1000000;` |
 
 ---
 
-##### 2.3.3 多表 JOIN 执行机制与驱动表选择
+##### 2.3.3 GROUP BY —— 分组聚合
+
+**1. 命令结构**：
+
+```sql
+SELECT 列名1, 聚合函数(列名2)
+FROM 表名
+WHERE 条件
+GROUP BY 列名1;
+```
+
+**2. 大白话执行逻辑**：
+
+1. 先按 `WHERE` 条件过滤出符合条件的行。
+2. 再按 `GROUP BY` 指定的列对数据进行分组，把相同值的行归到一组。
+3. 然后对每组分别执行聚合函数（如 `COUNT`、`SUM`、`AVG`），每组返回一行结果。
+
+**3. 实战示例**：
+
+```sql
+-- 统计每个用户的订单总数
+SELECT user_id, COUNT(*) AS order_count
+FROM `t_order`
+WHERE status = 1
+GROUP BY user_id;
+```
+
+**4. 底层机制与优化**：
+
+- `GROUP BY` 没有合适索引时，MySQL 会创建临时表（`Using temporary`）并排序（`Using filesort`），大表场景下性能极差。
+- 如果 `GROUP BY` 字段命中索引，且顺序与索引一致，可避免临时表。
+- **优化策略**：建立 `(user_id, status, amount)` 联合索引，让分组和聚合走索引覆盖。
+
+---
+
+##### 2.3.4 HAVING —— 分组后的过滤
+
+**1. 命令结构**：
+
+```sql
+SELECT 列名1, 聚合函数(列名2)
+FROM 表名
+WHERE 条件
+GROUP BY 列名1
+HAVING 聚合函数(列名2) > 值;
+```
+
+**2. 大白话执行逻辑**：
+
+1. `WHERE`：在分组**前**过滤原始行（**不能使用**聚合函数）。
+2. `GROUP BY`：按指定列分组。
+3. `HAVING`：在分组**后**过滤分组结果（**可以使用聚合函数**）。
+
+> [!TIP]
+> **核心区别（面试必考）**：
+> 
+> - `WHERE` 在分组前执行，过滤的是**原始行**，**不能写**聚合函数。
+> - `HAVING` 在分组后执行，过滤的是**分组结果**，**可以写**聚合函数（如 `SUM(amount) > 1000`）。
+
+**3. 实战示例**：
+
+```sql
+-- 统计每个用户的订单总额，只保留总额大于1000的用户
+SELECT user_id, SUM(amount) AS total_amount
+FROM `t_order`
+WHERE status = 'PAID'
+GROUP BY user_id
+HAVING SUM(amount) > 1000;
+```
+
+---
+
+##### 2.3.5 完整执行顺序与实战（聚合 + 分组 + 过滤联动）
+
+**1. SQL 逻辑执行顺序**：
+
+```
+(8)  SELECT   (列名, 聚合函数)
+(1)  FROM     表名
+(2)  ON       JOIN 连接条件
+(3)  JOIN     关联表
+(4)  WHERE    行级过滤（分组前）
+(5)  GROUP BY 分组
+(6)  HAVING   分组级过滤（分组后）
+(7)  SELECT   计算表达式 / 别名
+(9)  DISTINCT 去重
+(10) ORDER BY 排序
+(11) LIMIT    截断
+```
+
+> [!IMPORTANT]
+> **记忆口诀**：`FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT`
+
+**2. 完整实战示例**：
+
+```sql
+SELECT 
+    user_id,
+    COUNT(*) AS order_total,
+    SUM(amount) AS total_amount,
+    AVG(amount) AS avg_amount,
+    GROUP_CONCAT(id ORDER BY create_time DESC) AS order_ids
+FROM `t_order`
+WHERE status = 1                                  -- ① WHERE：分组前过滤
+GROUP BY user_id                                  -- ② GROUP BY：分组
+HAVING COUNT(*) > 5 AND SUM(amount) > 1000       -- ③ HAVING：分组后过滤
+ORDER BY total_amount DESC                        -- ④ ORDER BY：排序
+LIMIT 20;                                         -- ⑤ LIMIT：截断
+```
+
+**3. 执行顺序拆解**：
+
+1. `WHERE status = 1`：先过滤出已支付订单。
+2. `GROUP BY user_id`：按用户分组。
+3. 聚合函数计算：每组分别算 `COUNT`、`SUM`、`AVG`、`GROUP_CONCAT`。
+4. `HAVING`：只保留下单超过5次且总金额>1000的分组。
+5. `ORDER BY`：按总金额降序排列。
+6. `LIMIT 20`：取前20名。
+
+**4. 🚨 架构师三大通用红线**：
+
+1. **聚合函数遇到 NULL**：`SUM/AVG/MAX/MIN` 都跳过 NULL；`COUNT(列名)` 跳过 NULL；`COUNT(*)` 不跳过。
+
+2. **SELECT 中既有聚合又有普通列**：必须带 `GROUP BY`，否则 `ONLY_FULL_GROUP_BY` 模式会报错。
+
+3. **索引利用**：`MAX/MIN` 在有索引的列上极快；`COUNT(*)` 尽量走二级索引；`GROUP BY` 字段尽量放在联合索引中。
+
+---
+
+##### 2.3.6 多表 JOIN 执行机制与驱动表选择
 
 **连接类型**：
 
@@ -805,7 +922,7 @@ WHERE o.status = 'PAID';
 
 ---
 
-##### 2.3.4 IN 运算符（成员判断运算符）
+##### 2.3.7 IN 运算符（成员判断运算符）
 
 `IN` 的核心逻辑很简单：**判断某一列的值，是否存在于一个指定的列表或子查询结果中**。
 
@@ -845,7 +962,7 @@ SELECT * FROM `t_user` WHERE `id` IN (SELECT `user_id` FROM `t_order` WHERE `amo
 
 ---
 
-##### 2.3.5 BETWEEN 范围判断运算符
+##### 2.3.8 BETWEEN 范围判断运算符
 
 `BETWEEN` 的核心逻辑很简单：**判断某一列的值，是否在某个闭区间内（包含两端边界）**。
 
@@ -899,7 +1016,7 @@ SELECT * FROM `t_order` WHERE `create_time` BETWEEN '2024-01-01' AND '2024-12-31
 
 ---
 
-##### 2.3.6 LIKE 运算符
+##### 2.3.9 LIKE 运算符
 
 `LIKE` 用于**模糊匹配字符串**，支持 `%`（任意多个字符）和 `_`（单个字符）两个通配符。
 
@@ -921,7 +1038,7 @@ SELECT * FROM `t_user` WHERE `name` LIKE '张_';   -- 只匹配"张三"（两个
 
 ---
 
-##### 2.3.7 REGEXP 运算符
+##### 2.3.10 REGEXP 运算符
 
 `REGEXP` 用于**基于正则表达式进行复杂的模式匹配**，是 `LIKE` 的超级加强版（支持 `.`、`*`、`[]`、`|` 等多种正则元字符）。
 
@@ -989,6 +1106,190 @@ SELECT * FROM `t_user` WHERE `name` REGEXP '[0-9]';
 
 > [!TIP]
 > **面试话术**：`REGEXP` 是功能强大的正则匹配工具，但线上环境慎用，因为无法走索引会导致全表扫描。仅在离线统计或临时排查时使用，核心业务的格式校验应交给应用层。👍
+
+---
+
+### 2.3.11  DISTINCT —— 去重查询
+
+**1. 作用**：
+
+去除查询结果中**所有选定列组合完全重复**的行，只保留一份。
+
+**2. 语法**：
+
+```sql
+SELECT DISTINCT 列名1, 列名2, ...
+FROM 表名
+WHERE 条件;
+```
+
+**3. 简单示例**：
+
+```sql
+-- 查询订单表中有哪些不同的用户ID（去掉重复的user_id）
+SELECT DISTINCT user_id FROM t_order;
+```
+如果 `t_order` 中有 5 条记录但只有 3 个不同的 `user_id`，结果返回 3 行。
+
+
+##### 2.3.12 UNION / UNION ALL
+
+**1. 作用**：
+
+将两个或多个 `SELECT` 查询的结果**纵向拼接**成一个结果集。
+
+**2. 语法**：
+
+```sql
+SELECT 列名1, 列名2 FROM 表1
+UNION [ALL]
+SELECT 列名1, 列名2 FROM 表2;
+```
+
+- **`UNION`**：默认会**去除重复行**（相当于合并后执行了 `DISTINCT`），代价较高。
+- **`UNION ALL`**：**保留所有行**（包括重复），不排序不去重，性能远高于 `UNION`。
+
+**3. 简单示例**：
+
+```sql
+-- 查询所有用户的ID，包括来自订单表的和来自会员表的（重复保留）
+SELECT user_id FROM t_order
+UNION ALL
+SELECT user_id FROM t_member;
+```
+
+如果两个表中都有 `user_id=1`，`UNION ALL` 会返回两条，而 `UNION` 只返回一条。
+
+**4. 🚨 架构师两大红线**
+
+| 关键字 | 致命陷阱 |
+| :--- | :--- |
+| **`DISTINCT`** | **🔴 对大字段（TEXT/BLOB）使用 `DISTINCT` 会生成巨大临时表，直接撑爆内存。** 只允许对离散小字段（如状态、ID）去重。替代方案：用 `GROUP BY` 实现相同效果（执行计划类似，但语义更清晰）。 |
+| **`UNION`** | **🔴 `UNION` 会触发排序去重，代价远高于 `UNION ALL`。** 除非业务**必须**合并后去重，否则一律用 `UNION ALL`（保留全部行，不排序）。两者结果集一致时才用 `UNION`，否则直接用 `UNION ALL` 保性能。 |
+| **`UNION ALL`** | ✅ **推荐写法**：不排序、不去重，直接拼接结果集，性能是 `UNION` 的数倍。 |
+
+> [!TIP]
+> `DISTINCT` 去重依赖全字段比较，字段越多越慢；`UNION` 默认自带 `DISTINCT` 全局去重，开销极大。
+>
+> **铁律**：能写 `UNION ALL` 绝不写 `UNION`；能用 `GROUP BY` 替代 `DISTINCT` 时优先考虑索引覆盖，避免临时表。👍
+
+##### 2.3.13 INTERSECT —— 交集查询
+
+**1. 作用**：
+
+返回**两个查询结果中共同存在的行**（即 A 有且 B 有的部分）。
+
+**2. 语法**（MySQL 8.0.31+）：
+
+```sql
+SELECT 列名1, 列名2 FROM 表1
+INTERSECT [ALL]
+SELECT 列名1, 列名2 FROM 表2;
+```
+
+- **`INTERSECT`**：默认去重，返回两结果集的共同行（每行只保留一份）。
+- **`INTERSECT ALL`**：不去重，返回共同行出现的**最小次数**（MySQL 8.0 支持）。
+
+**3. 简单示例**：
+
+```sql
+-- 查询既是VIP用户又有过下单记录的用户ID
+SELECT user_id FROM t_vip
+INTERSECT
+SELECT user_id FROM t_order;
+```
+如果 `t_vip` 中有 `(1,2,3)`，`t_order` 中有 `(2,3,4)`，结果返回 `(2,3)`。
+
+**4. MySQL 5.7 及之前版本的替代写法**：
+
+```sql
+-- 方式一：IN 子查询
+SELECT DISTINCT user_id FROM t_vip
+WHERE user_id IN (SELECT user_id FROM t_order);
+
+-- 方式二：EXISTS（大表性能更好）
+SELECT DISTINCT user_id FROM t_vip v
+WHERE EXISTS (SELECT 1 FROM t_order o WHERE o.user_id = v.user_id);
+
+-- 方式三：INNER JOIN（推荐）
+SELECT DISTINCT v.user_id
+FROM t_vip v
+INNER JOIN t_order o ON v.user_id = o.user_id;
+```
+
+> [!TIP]
+> `INNER JOIN` 方式最灵活，可同时带出两表其他字段，也是 8.0 之前最常用的交集实现方式。
+
+**5. 🚨 架构师红线**
+
+| 陷阱 | 说明 |
+| :--- | :--- |
+| **🔴 版本兼容性** | `INTERSECT` 是 **MySQL 8.0.31+** 才引入的语法。生产环境若存在 MySQL 5.7 实例，直接写 `INTERSECT` 会报语法错误。 |
+| **🔴 替代写法性能** | `IN` 子查询在子查询结果集大时性能差；`EXISTS` 适合外表小、内表大的场景；`INNER JOIN` 是最通用且索引利用率最高的方案。 |
+
+##### 2.3.14 EXCEPT —— 差集查询
+
+**1. 作用**：
+
+返回**第一个查询结果中存在，但第二个查询结果中不存在的行**（即 A 有而 B 没有的部分）。
+
+**2. 语法**（MySQL 8.0.31+）：
+
+```sql
+SELECT 列名1, 列名2 FROM 表1
+EXCEPT [ALL]
+SELECT 列名1, 列名2 FROM 表2;
+```
+
+- **`EXCEPT`**：默认去重，返回仅属于第一个结果集的行（每行只保留一份）。
+- **`EXCEPT ALL`**：不去重，返回第一个结果集中去除与第二个结果集共同行后的所有行，并保留重复次数（MySQL 8.0 支持）。
+
+**3. 简单示例**：
+
+```sql
+-- 查询是VIP用户但从未下过单的用户ID
+SELECT user_id FROM t_vip
+EXCEPT
+SELECT user_id FROM t_order;
+```
+如果 `t_vip` 中有 `(1,2,3,3)`，`t_order` 中有 `(2,3,4)`，`EXCEPT` 返回 `(1)`，`EXCEPT ALL` 返回 `(1,3)`（假设保留第一个集合中减去共同行的剩余）。
+
+**4. MySQL 5.7 及之前版本的替代写法**：
+
+```sql
+-- 方式一：NOT IN 子查询（注意 NULL 问题）
+SELECT DISTINCT user_id FROM t_vip
+WHERE user_id NOT IN (SELECT user_id FROM t_order WHERE user_id IS NOT NULL);
+
+-- 方式二：NOT EXISTS（推荐，无 NULL 陷阱）
+SELECT DISTINCT v.user_id FROM t_vip v
+WHERE NOT EXISTS (SELECT 1 FROM t_order o WHERE o.user_id = v.user_id);
+
+-- 方式三：LEFT JOIN + IS NULL（最通用）
+SELECT DISTINCT v.user_id
+FROM t_vip v
+LEFT JOIN t_order o ON v.user_id = o.user_id
+WHERE o.user_id IS NULL;
+```
+
+> [!TIP]
+> `NOT EXISTS` 和 `LEFT JOIN ... IS NULL` 是差集的标准替代写法，前者在 MySQL 5.6+ 优化器下通常性能极佳；`NOT IN` 需确保子查询无 NULL，否则结果可能为空。
+
+**5. 🚨 架构师红线**
+
+| 陷阱 | 说明 |
+| :--- | :--- |
+| **🔴 版本兼容性** | `EXCEPT` 同样是 **MySQL 8.0.31+** 才支持。若存在 5.7 或更早实例，必须使用替代写法。 |
+| **🔴 NULL 陷阱** | 使用 `NOT IN` 时，若子查询结果包含 `NULL`，整个比较会返回空集（因为 `NULL` 不可比）。**必须**加 `IS NOT NULL` 过滤或改用 `NOT EXISTS` / `LEFT JOIN`。 |
+| **🔴 性能考量** | `LEFT JOIN ... IS NULL` 在小表场景下优秀，但若关联列无索引可能退化为全表扫描；`NOT EXISTS` 通常能利用索引进行半连接优化，是最稳妥的选择。 |
+
+---
+
+##### 2.3.15 杂项
+
+**1. NULL 与 空字符串**
+
+`NULL` 使用 `is / is NOT` 来判断，`''`使用 `=` 来判断
 
 ---
 
