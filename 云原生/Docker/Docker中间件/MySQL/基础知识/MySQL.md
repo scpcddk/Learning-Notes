@@ -891,15 +891,30 @@ LIMIT 20;                                         -- ⑤ LIMIT：截断
 
 ---
 
-##### 2.3.6 多表 JOIN 执行机制与驱动表选择
+##### 2.3.6 表关联（JOIN）基础语法与执行机制
 
-**连接类型**：
+**1. 标准 JOIN 语法格式**
 
-- `INNER JOIN`：优化器可选择驱动表，通常选过滤后行数少的作为驱动表。  
-- `LEFT JOIN`：左表强制为驱动表，右表为被驱动表。  
-- `RIGHT JOIN`：右表为驱动表（建议改写为 LEFT JOIN）。
+```sql
+SELECT 表A.列名, 表B.列名
+FROM 表A
+[INNER | LEFT | RIGHT] JOIN 表B
+ON 表A.关联列 = 表B.关联列
+[WHERE 过滤条件];
+```
 
-**Nested-Loop Join（NLJ）**  
+> [!TIP]
+> **大白话执行逻辑**：先选一张表作为驱动表（外层循环），逐行取出，用关联列的值去被驱动表（内层循环）中匹配 `ON` 条件，匹配成功则拼接返回。
+
+**2. 连接类型**
+
+| 连接类型 | 驱动表规则 | 返回结果集 |
+|---------|-----------|-----------|
+| **INNER JOIN** | 优化器基于成本选择驱动表（通常选过滤后行数少、连接列有索引的表） | 仅返回两表**匹配成功**的记录，不匹配的丢弃 |
+| **LEFT JOIN** | 左表**强制**为驱动表，右表为被驱动表 | 返回左表**全部**记录 + 右表匹配字段；右表无匹配时补 `NULL` |
+| **RIGHT JOIN** | 右表强制为驱动表（建议统一改写为 `LEFT JOIN` 增强可读性） | 返回右表**全部**记录 + 左表匹配字段；左表无匹配时补 `NULL` |
+
+**3. Nested-Loop Join（NLJ）执行原理**
 
 ```
 for each row in 驱动表:
@@ -908,6 +923,8 @@ for each row in 驱动表:
 ```
 
 被驱动表的关联键必须有索引，否则全表扫描。
+
+**4. 实战示例**
 
 ```sql
 -- 查询订单及用户昵称，LEFT JOIN 左表为驱动表
@@ -918,7 +935,24 @@ WHERE o.status = 'PAID';
 -- 驱动表：o（左表），被驱动表：u，需在 u.id 有索引（主键索引即可）
 ```
 
+**5. EXPLAIN 关键信息**
+
 `EXPLAIN` 中 `rows` 小的通常是驱动表；`Using join buffer` 表示被驱动表无可用索引（需要优化）。MySQL 8.0 对连接算法进行过重构，目前仍以 Nested-Loop Join 为主，Hash Join 在特定场景下使用，不必深入展开。
+
+**6. 🚨 架构师红线**
+
+| 维度 | 核心规则 | 违反后果 |
+|------|----------|----------|
+| **逻辑红线（不丢数据）** | LEFT JOIN 中，**右表过滤条件必须放 `ON` 后**；放 `WHERE` 会直接丢弃左表无匹配的行（等同 INNER JOIN） | 数据丢失，业务报表算错，事故级 |
+| **性能红线（不崩库）** | **被驱动表（LEFT JOIN 即右表）的关联列必须有索引**；INNER JOIN 优化器选出的被驱动表同样必须有 | 全表扫描，大表并发直接打满 CPU，超时崩溃 |
+| **业务红线（不误判）** | LEFT/RIGHT JOIN 返回的 `NULL` 需区分是“无匹配”还是“原字段为空”；用 `IS NULL` 过滤前想清楚语义 | 业务逻辑错乱，对账永远对不平 |
+
+> [!NOTE]
+> **额外补充一条强制规范（方便你我他）**：
+> 代码中**禁止出现 `RIGHT JOIN`**，统一改写为 `LEFT JOIN`，避免优化器内部转换搞乱执行计划，也方便 Code Review 一眼看清驱动方向。
+
+> [!TIP]
+执行计划里看到 **`Using join buffer (Block Nested Loop)`** 或 **`Using where` 压在 JOIN 表上**，就是红线被踩了，必须立即回滚重写。
 
 ---
 
@@ -1393,6 +1427,9 @@ WHERE status = 1;
 
 -- 查看视图定义
 SHOW CREATE VIEW v_user_safe;
+
+-- 删除视图
+drop view 想要删除的视图名称
 ```
 
 ---
@@ -1437,9 +1474,108 @@ SHOW CREATE VIEW v_user_safe;
 
 ### 4. 索引基础
 
+##### 4.0 索引的创建与使用
+
+**1. 创建索引**
+
+**命令结构**：
+
+```sql
+-- 普通索引（允许重复值）
+CREATE INDEX 索引名 ON 表名 (列名1, 列名2, ...);
+
+-- 唯一索引（不允许重复值，加速查询+约束）
+CREATE UNIQUE INDEX 索引名 ON 表名 (列名);
+
+-- 主键索引（在建表时指定，或通过 ALTER 添加）
+ALTER TABLE 表名 ADD PRIMARY KEY (列名);
+
+-- 使用 ALTER TABLE 添加索引（通用写法，推荐）
+ALTER TABLE 表名 ADD INDEX 索引名 (列名1, 列名2, ...);
+ALTER TABLE 表名 ADD UNIQUE INDEX 索引名 (列名);
+```
+
+**实战示例**：
+
+```sql
+-- 为订单表的 user_id 列创建普通索引
+CREATE INDEX idx_user_id ON t_order (user_id);
+
+-- 为用户表的手机号创建唯一索引（防重复）
+CREATE UNIQUE INDEX uk_mobile ON t_user (mobile);
+
+-- 创建联合索引（查询条件同时带 user_id 和 status 时命中）
+CREATE INDEX idx_user_status ON t_order (user_id, status);
+```
+
+> [!TIP]
+> **大白话理解**：索引就像书的目录。`CREATE INDEX` 就是告诉 MySQL：“以后查 user_id 的时候，先翻这个目录，别一页页从头翻”。
+
+
+**2. 查看索引**
+
+```sql
+-- 查看某张表上所有的索引
+SHOW INDEX FROM t_order;
+
+-- 更直观的查看方式（表格形式展示）
+SHOW INDEX FROM t_order\G
+```
+
+**关键输出字段解读**：
+
+| 字段 | 含义 | 架构师关注点 |
+| :--- | :--- | :--- |
+| `Table` | 表名 | — |
+| `Non_unique` | 0=唯一索引，1=非唯一索引 | 唯一索引比普通索引查询略快 |
+| `Key_name` | 索引名称 | 命名是否规范（见下方红线） |
+| `Seq_in_index` | 在联合索引中的位置（从1开始） | 用于确认最左前缀顺序 |
+| `Column_name` | 索引列名 | — |
+| `Cardinality` | 索引中**不重复值的预估数量** | **值越大，索引区分度越好，走索引越有价值**。如果该值远小于表行数，优化器可能放弃该索引 |
+
+
+**3. 删除索引**
+
+```sql
+-- 语法
+DROP INDEX 索引名 ON 表名;
+
+-- 或使用 ALTER TABLE
+ALTER TABLE 表名 DROP INDEX 索引名;
+
+-- 删除主键索引（慎用）
+ALTER TABLE 表名 DROP PRIMARY KEY;
+```
+
+**实战示例**：
+
+```sql
+-- 删除冗余索引
+DROP INDEX idx_user_status ON t_order;
+```
+
+
+**4. 🚨 架构师命名规范与红线**
+
+- **命名规范（团队强制）**：
+  - 普通索引：`idx_表名_字段名`（如 `idx_order_user_id`）
+  - 唯一索引：`uk_表名_字段名`（如 `uk_user_mobile`）
+  - 联合索引：`idx_表名_字段1_字段2`（如 `idx_order_user_status`）
+  > **目的**：运维看 `SHOW INDEX` 一眼就知道索引归属和用途，不用再反查表结构。
+
+- **🔴 大表创建索引必须走工具（致命红线）**：
+  - 千万级数据直接执行 `CREATE INDEX` 或 `ALTER TABLE ADD INDEX`，会锁表并导致主从延迟雪崩。
+  - **铁律**：生产环境大表加索引，禁止直跑 DDL，必须使用 `pt-online-schema-change` 或 `gh-ost` 工具无锁变更（详见本手册第 25.5 节）。
+
+- **🔴 索引不是越多越好**：
+  - 每增加一个索引，`INSERT`/`UPDATE`/`DELETE` 都要多维护一棵 B+ 树，写入性能下降。
+  - 定期用 `pt-index-usage` 或 `sys.schema_unused_indexes` 清理从未使用的索引。
+
+---
+
 #### 4.1 索引作用与数据结构选择
 
-索引的作用：加速数据检索，类似于书的目录。
+**索引的作用**：**加速数据检索**，类似于书的目录。
 
 选择 B+ 树而非其他数据结构的原因：
 
