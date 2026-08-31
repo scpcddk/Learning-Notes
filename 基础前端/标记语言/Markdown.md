@@ -184,5 +184,21 @@ ___
 > [!CAUTION]
 > 这是危险提醒，强调必须谨慎。
 
----
+| 类型 | 常见别名 (Aliases) | 描述 |
+| :--- | :--- | :--- |
+| `note` | - | 基本的笔记或信息提示。 |
+| `info` | - | 提供一般性信息。 |
+| `tip` | `hint`, `important` | 提供小贴士或建议。 |
+| `important` | - | 强调重要内容。 |
+| `warning` | `caution`, `attention` | 发出警告。 |
+| `danger` | `error` | 表示危险或错误。 |
+| `abstract` | `summary`, `tldr` | 用于摘要或总结。 |
+| `todo` | - | 用于待办事项。 |
+| `success` | `check`, `done` | 表示成功或已完成。 |
+| `question` | `help`, `faq` | 用于问题或FAQ区域。 |
+| `failure` | `fail`, `missing` | 表示失败或缺失。 |
+| `bug` | - | 用于报告Bug。 |
+| `example` | - | 用于展示示例。 |
+| `quote` | `cite` | 用于引用。 |
 
+---
