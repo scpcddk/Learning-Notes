@@ -282,6 +282,20 @@ SELECT * FROM `t_user` WHERE `mobile` REGEXP '^13[89][0-9]{8}$';   -- 匹配138/
 
 ## 分组与聚合
 
+### ORDERED BY
+
+**语法**：
+`ORDER BY 排序列名 DESC(降序)/ASC(升序) `
+
+**事例**：
+
+```sql
+SELECT `id`, `amount` FROM `t_order` 
+WHERE `status` = 0 
+ORDER BY `id` DESC 
+LIMIT 20;
+```
+
 ### 聚合函数
 
 **语法**：
@@ -391,6 +405,7 @@ INNER JOIN t_order o ON v.user_id = o.user_id;
 ## 子查询
 
 **语法**：
+
 ```sql
 -- 子查询：嵌套在另一个SQL中的SELECT（用在WHERE / FROM / SELECT 子句中）
 WHERE 列名 = (SELECT ...);
@@ -407,6 +422,7 @@ WHERE amount = (SELECT MAX(amount) FROM t_order);
 ## 表关联（JOIN）
 
 **语法**：
+
 ```sql
 -- 标准JOIN语法
 SELECT 表A.列名, 表B.列名
@@ -417,7 +433,9 @@ WHERE 过滤条件;
 -- INNER JOIN：只返回匹配成功的行
 -- LEFT JOIN：返回左表全部 + 右表匹配字段（无匹配补NULL）
 ```
+
 **事例**：
+
 ```sql
 -- 查询订单及用户昵称
 SELECT o.id, u.nickname
@@ -435,6 +453,7 @@ WHERE o.status = 'PAID';
 ### 索引的创建
 
 **语法**：
+
 ```sql
 -- 普通索引
 CREATE INDEX 索引名 ON 表名 (列名);

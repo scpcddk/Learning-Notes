@@ -292,6 +292,7 @@ DELETE FROM `t_order` WHERE `status` = 0 LIMIT 100;
 
 > [!WARNING]
 > **🚨 架构师红线**：
+> 
 > - **生产环境 `DELETE` 必须带 `WHERE` + `LIMIT`**。`LIMIT` 能防止锁表、防止主从延迟雪崩，也能避免 `WHERE` 条件写错导致整个表被清空。
 > - **禁止用 `DELETE` 清全表**（`DELETE FROM t_order` 不走事务优化，会逐行加锁且记录 Undo，极其缓慢）。清全表必须用 `TRUNCATE TABLE t_order`（DDL，重置自增 ID，速度极快，但**不可回滚**，仅限测试环境）。
 
@@ -441,7 +442,8 @@ SELECT COUNT(*) FROM `t_order` WHERE `status` = 1;
 
 > [!WARNING]
 > **🚨 架构师红线**：
-> - **严禁使用 `SELECT *`**。必须手写字段名，理由：① 利用覆盖索引减少回表；② 避免 `TEXT/BLOB` 大字段拖垮 IO；③ 防止表结构变更导致应用报错。
+> 
+> - **严禁使用 `SELECT *`**。必须手写字段名，**理由**：① 利用覆盖索引减少回表；② 避免 `TEXT/BLOB` 大字段拖垮 IO；③ 防止表结构变更导致应用报错。
 > - **线上查询必须带 `LIMIT`**。即使是 `SELECT COUNT` 这种聚合，也要确保 `WHERE` 条件走索引，否则数据库会全表扫描拖垮 CPU。
 
 **总结（一句话记忆）**：
