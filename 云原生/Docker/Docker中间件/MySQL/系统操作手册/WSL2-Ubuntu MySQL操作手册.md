@@ -52,11 +52,11 @@ exit;
 ```
 
 > [!TIP]
-> 必须使用 `mysql_native_password`，否则 Java 连不上。
+> 必须使用 `mysql_native_password`，否则 Java 连不上
 
 ---
 
-## 四、MySQL 核心文件路径（网课讲的配置文件）
+## 四、MySQL 核心文件路径
 
 1. 主配置文件夹
 
@@ -82,7 +82,8 @@ exit;
 
 ## 五、`debian.cnf` 抢救登录法
 
-**使用场景**  
+**使用场景**：
+
 当你 `root` 密码乱改、锁住、`sudo mysql` 进不去时使用（正常情况不用，是修复手段）。
 
 1. 查看系统隐藏维护账号密码
