@@ -157,6 +157,8 @@ CREATE TABLE IF NOT EXISTS `t_order` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='订单表';
 ```
 
+- `AUTO_INCREMENT` 是一个自动增长属性，常用于为表中的主键列生成唯一的数字 ID。当插入新记录时，数据库会自动按顺序生成这个数字，无需你手动指定。
+
 **6. 查看表结构（验表结构 - 必做动作）**
 
 ```sql
@@ -1308,7 +1310,79 @@ WHERE o.user_id IS NULL;
 
 ---
 
-##### 2.3.14 杂项
+##### 2.3.14 CASE —— 条件分支表达式
+
+**1. 命令结构（两种写法）**：
+
+**写法一：简单 CASE（等值匹配）**
+```sql
+SELECT 
+    column,
+    CASE column_name
+        WHEN value1 THEN result1
+        WHEN value2 THEN result2
+        ELSE default_result
+    END AS alias
+FROM table;
+```
+
+**写法二：搜索 CASE（条件判断，最常用）**
+```sql
+SELECT 
+    column,
+    CASE 
+        WHEN condition1 THEN result1
+        WHEN condition2 THEN result2
+        ELSE default_result
+    END AS alias
+FROM table;
+```
+
+**2. 大白话执行逻辑**：
+
+1. 逐行读取数据。
+2. 从上到下依次判断 `WHEN` 条件。
+3. **命中第一个满足的条件**后，立即返回对应的 `THEN` 结果，**后面所有条件不再执行**。
+4. 若所有 `WHEN` 都不满足，返回 `ELSE` 指定的值；若无 `ELSE`，返回 `NULL`。
+
+> [!TIP]
+> **核心区别（面试必考）**：
+> 
+> - `CASE` 是**表达式**，不是语句，最终只能返回**一个标量值**（不能返回多列或多行）。
+> - `IF()` 只能处理**二选一**（类似三元运算符 `a ? b : c`），而 `CASE` 擅长**多分支**逻辑，且是标准 SQL 语法，移植性更好。
+> - `CASE` 可以用在 `SELECT`、`WHERE`、`ORDER BY`、`GROUP BY`、`HAVING`、`UPDATE` 等任何允许写表达式的地方。
+
+**3. 实战示例**：
+
+```sql
+-- 将订单金额分级，统计每级订单数量
+SELECT 
+    CASE 
+        WHEN amount >= 10000 THEN '大额订单'
+        WHEN amount >= 5000 THEN '中等订单'
+        WHEN amount >= 1000 THEN '小额订单'
+        ELSE '微型订单'
+    END AS order_level,
+    COUNT(*) AS order_count
+FROM `t_order`
+WHERE status = 'PAID'
+GROUP BY order_level;
+```
+
+**补充：在 UPDATE 中批量修改状态（不用多次查询）**
+```sql
+UPDATE `t_order`
+SET status = CASE 
+    WHEN amount >= 10000 THEN 'VIP'
+    WHEN amount >= 5000 THEN '高级'
+    ELSE '普通'
+END
+WHERE create_time > '2026-01-01';
+```
+
+---
+
+##### 2.3.15 杂项
 
 **1. NULL 与 空字符串**
 
