@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云原生 · AIOps 两年成长路线</title>
+  <!-- Font Awesome (免费图标库) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f8fafc;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      padding: 2rem 1.5rem;
+      color: #0b1c2f;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 2.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      padding: 2.5rem 2rem;
+    }
+
+    /* 标题区 */
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      border-bottom: 2px solid #eef2f6;
+      padding-bottom: 2rem;
+    }
+
+    .header h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(145deg, #0b2b44, #1e5f8e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: inline-block;
+    }
+
+    .header .sub {
+      font-size: 1.1rem;
+      color: #3a5a7a;
+      margin-top: 0.5rem;
+      border-top: 1px dashed #d0dce8;
+      padding-top: 0.5rem;
+      display: inline-block;
+    }
+
+    .header .sub i {
+      color: #2a7faa;
+      margin: 0 0.3rem;
+    }
+
+    .badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-top: 1.2rem;
+    }
+
+    .badge {
+      background: #e9f0f9;
+      padding: 0.35rem 1.2rem;
+      border-radius: 40px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #1b4a6b;
+      border: 1px solid #c3d9ec;
+    }
+
+    .badge i {
+      margin-right: 6px;
+      color: #1f6f9e;
+    }
+
+    /* 核心战略 */
+    .strategy-box {
+      background: #f0f6fe;
+      border-left: 6px solid #1f6f9e;
+      padding: 1.8rem 2rem;
+      border-radius: 1.5rem;
+      margin-bottom: 2.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .strategy-box .left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .strategy-box .left i {
+      font-size: 2.4rem;
+      color: #1f6f9e;
+    }
+
+    .strategy-box .left h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .strategy-box .quote {
+      background: white;
+      padding: 0.8rem 1.8rem;
+      border-radius: 60px;
+      font-weight: 500;
+      color: #0b2b44;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+      border: 1px solid #d6e5f5;
+    }
+
+    .strategy-box .quote i {
+      color: #e67e22;
+      margin-right: 6px;
+    }
+
+    .vs-block {
+      background: #e9eff6;
+      border-radius: 1rem;
+      padding: 1rem 1.8rem;
+      margin: 1.5rem 0 2rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      border: 1px solid #cfddee;
+    }
+
+    .vs-block .bad {
+      color: #b13e3e;
+    }
+
+    .vs-block .good {
+      color: #1b6e4a;
+    }
+
+    .vs-block span {
+      font-weight: 500;
+      font-size: 1rem;
+    }
+
+    .vs-block i {
+      margin-right: 6px;
+    }
+
+    /* 架构演进图（卡片风格） */
+    .arch-section {
+      margin: 3rem 0 2.5rem 0;
+    }
+
+    .arch-section h3 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.5rem;
+      color: #103a56;
+    }
+
+    .arch-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .arch-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.8rem 0.5rem;
+      padding: 0.6rem 1rem;
+      border-radius: 1rem;
+      background: #f9fcff;
+      border: 1px solid #e3edf7;
+      transition: all 0.1s ease;
+    }
+
+    .arch-row:hover {
+      background: #f0f7ff;
+      border-color: #b7d2ea;
+    }
+
+    .arch-label {
+      font-weight: 600;
+      color: #1a4a6b;
+      min-width: 110px;
+      font-size: 0.95rem;
+    }
+
+    .arch-label i {
+      width: 1.8rem;
+      color: #2a7faa;
+    }
+
+    .arch-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+    }
+
+    .arch-tag {
+      background: white;
+      padding: 0.2rem 1rem;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      border: 1px solid #d2e2f2;
+      color: #1a405a;
+      background: #f5faff;
+    }
+
+    .arch-tag.highlight {
+      background: #d6eaff;
+      border-color: #79b0db;
+      font-weight: 500;
+    }
+
+    .arrow-symbol {
+      color: #6593b9;
+      font-size: 1.2rem;
+      margin: 0 0.2rem;
+    }
+
+    /* 阶段卡片 */
+    .phase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.8rem;
+      margin: 2.5rem 0;
+    }
+
+    .phase-card {
+      background: white;
+      border-radius: 1.8rem;
+      padding: 1.5rem 1.5rem 1.8rem;
+      border: 1px solid #e7eef7;
+      box-shadow: 0 4px 12px rgba(0, 20, 40, 0.02);
+      transition: 0.2s;
+    }
+
+    .phase-card:hover {
+      border-color: #b8cfe3;
+      box-shadow: 0 8px 20px -8px rgba(26, 74, 107, 0.08);
+    }
+
+    .phase-number {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #3d7da3;
+      letter-spacing: 0.04em;
+      background: #e2edf9;
+      display: inline-block;
+      padding: 0.1rem 1rem;
+      border-radius: 20px;
+    }
+
+    .phase-card h4 {
+      font-size: 1.5rem;
+      margin: 0.6rem 0 0.2rem 0;
+      font-weight: 650;
+      color: #0a3149;
+    }
+
+    .phase-card .time {
+      font-size: 0.85rem;
+      color: #487494;
+      background: #f0f6fc;
+      display: inline-block;
+      padding: 0.1rem 1rem;
+      border-radius: 20px;
+      margin: 0.2rem 0 0.8rem 0;
+    }
+
+    .phase-card ul {
+      list-style: none;
+      margin-top: 0.6rem;
+    }
+
+    .phase-card ul li {
+      padding: 0.25rem 0;
+      border-bottom: 1px dashed #eaf0f6;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .phase-card ul li i {
+      color: #2a7faa;
+      font-size: 0.7rem;
+      width: 1.2rem;
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem 0.6rem;
+      margin: 0.8rem 0 0.2rem 0;
+    }
+
+    .tech-pills span {
+      background: #eef5fb;
+      border-radius: 30px;
+      padding: 0.1rem 0.9rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #1b4f72;
+      border: 1px solid #d7e4f1;
+    }
+
+    /* 贯穿能力 */
+    .foundation {
+      background: #f4f9ff;
+      border-radius: 2rem;
+      padding: 1.8rem 2rem;
+      margin: 2.5rem 0;
+      border: 1px solid #d2e2f5;
+    }
+
+    .foundation h3 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      color: #103a56;
+      margin-bottom: 1.2rem;
+    }
+
+    .foundation-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .foundation-item {
+      background: white;
+      padding: 1rem 1.2rem;
+      border-radius: 1.2rem;
+      border: 1px solid #e2edf9;
+    }
+
+    .foundation-item h5 {
+      font-size: 1rem;
+      margin-bottom: 0.4rem;
+      color: #0b314a;
+    }
+
+    .foundation-item p {
+      font-size: 0.85rem;
+      color: #2b5373;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem 0.6rem;
+    }
+
+    .foundation-item p code {
+      background: #ecf3fa;
+      padding: 0.1rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: #124263;
+    }
+
+    /* 最终成果 */
+    .result-box {
+      background: linear-gradient(145deg, #e4eff9, #f4faff);
+      border-radius: 2rem;
+      padding: 2rem 2.2rem;
+      margin: 2.5rem 0;
+      border: 1px solid #c2d9ee;
+    }
+
+    .result-box h3 {
+      font-size: 1.7rem;
+      font-weight: 650;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #0a3149;
+    }
+
+    .result-box .project-name {
+      background: #0b2b44;
+      color: white;
+      padding: 0.2rem 1.5rem;
+      border-radius: 60px;
+      font-weight: 500;
+      font-size: 1.1rem;
+      display: inline-block;
+      margin: 0.8rem 0 1rem 0;
+    }
+
+    .result-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1rem;
+      margin: 0.8rem 0;
+    }
+
+    .result-stack span {
+      background: white;
+      border-radius: 40px;
+      padding: 0.15rem 1.2rem;
+      border: 1px solid #b7cfe5;
+      font-size: 0.85rem;
+    }
+
+    .final-position {
+      background: #103a56;
+      color: white;
+      padding: 1.2rem 2rem;
+      border-radius: 1.8rem;
+      margin: 1.8rem 0 0.5rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .final-position .big {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    .final-position .big i {
+      margin-right: 10px;
+    }
+
+    .principle {
+      background: #edf3fa;
+      border-radius: 1.8rem;
+      padding: 1.8rem 2rem;
+      margin-top: 2.5rem;
+      border-left: 6px solid #1f6f9e;
+    }
+
+    .principle h4 {
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #0a2b41;
+    }
+
+    .principle ul {
+      margin-top: 0.8rem;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 2rem;
+    }
+
+    .principle ul li {
+      background: white;
+      padding: 0.4rem 1.2rem;
+      border-radius: 60px;
+      border: 1px solid #c7daea;
+      font-weight: 450;
+    }
+
+    .principle ul li i {
+      color: #1f6f9e;
+      margin-right: 8px;
+    }
+
+    .footnote {
+      text-align: center;
+      margin-top: 3rem;
+      border-top: 1px solid #dae6f2;
+      padding-top: 1.8rem;
+      color: #3c5e7c;
+      font-size: 0.95rem;
+      letter-spacing: 0.2px;
+    }
+
+    .footnote i {
+      color: #b13e3e;
+    }
+
+    /* 响应式 */
+    @media (max-width: 700px) {
+      .container {
+        padding: 1.5rem 1rem;
+      }
+      .header h1 {
+        font-size: 2rem;
+      }
+      .strategy-box {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .strategy-box .quote {
+        align-self: flex-start;
+      }
+      .phase-grid {
+        grid-template-columns: 1fr;
+      }
+      .foundation-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .final-position {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .foundation-grid {
+        grid-template-columns: 1fr;
+      }
+      .arch-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>☁️ 云原生 + AIOps 工程师</h1>
+    <div class="sub"><i class="fas fa-arrow-right"></i> 两年成长路线 · 最终版 <i class="fas fa-arrow-left"></i></div>
+    <div class="badge-container">
+      <span class="badge"><i class="fas fa-microchip"></i> 工业互联网主线</span>
+      <span class="badge"><i class="fas fa-rotate"></i> 系统持续演进</span>
+      <span class="badge"><i class="fas fa-brain"></i> AI 贯穿全程</span>
+      <span class="badge"><i class="fas fa-cubes"></i> 云原生工程</span>
+    </div>
+  </div>
+
+  <!-- 战略核心 -->
+  <div class="strategy-box">
+    <div class="left">
+      <i class="fas fa-bullseye"></i>
+      <h2>核心战略</h2>
+    </div>
+    <div class="quote">
+      <i class="fas fa-quote-left"></i> 以一个真实工业互联网项目为主线，让系统随着能力增长不断演进
+    </div>
+  </div>
+
+  <!-- 不要 vs 而是 -->
+  <div class="vs-block">
+    <span class="bad"><i class="fas fa-times-circle"></i> 学Spring Boot · Kafka · K8s · AI → 做四个Demo</span>
+    <span class="good"><i class="fas fa-check-circle"></i> 智慧换热站云平台 · 单体→微服务→云原生→AIOps</span>
+  </div>
+
+  <!-- 架构演进图（简化卡片流） -->
+  <div class="arch-section">
+    <h3><i class="fas fa-sitemap"></i> 总体架构演进</h3>
+    <div class="arch-grid">
+
+      <div class="arch-row">
+        <span class="arch-label"><i class="fas fa-robot"></i> 阶段4 · AIOps</span>
+        <span class="arch-tags">
+          <span class="arch-tag highlight">可观测性</span>
+          <span class="arch-tag highlight">AI异常检测</span>
+          <span class="arch-tag highlight">RCA根因</span>
+          <span class="arch-tag">Prometheus/Loki/OTel</span>
+          <span class="arch-tag">Prophet · LSTM · LLM Agent</span>
+        </span>
+      </div>
+
+      <div class="arch-row">
+        <span class="arch-label"><i class="fas fa-cloud"></i> 阶段3 · 云原生</span>
+        <span class="arch-tags">
+          <span class="arch-tag highlight">Kubernetes</span>
+          <span class="arch-tag highlight">CI/CD</span>
+          <span class="arch-tag">Docker</span>
+          <span class="arch-tag">HPA</span>
+          <span class="arch-tag">Ingress</span>
+          <span class="arch-tag">GitHub Actions</span>
+        </span>
+      </div>
+
+      <div class="arch-row">
+        <span class="arch-label"><i class="fas fa-microservices"></i> 阶段2 · 微服务</span>
+        <span class="arch-tags">
+          <span class="arch-tag highlight">Spring Cloud Alibaba</span>
+          <span class="arch-tag">Nacos · Gateway</span>
+          <span class="arch-tag">Sentinel · Kafka</span>
+          <span class="arch-tag">SkyWalking</span>
+        </span>
+      </div>
+
+      <div class="arch-row">
+        <span class="arch-label"><i class="fas fa-database"></i> 阶段1 · 业务闭环</span>
+        <span class="arch-tags">
+          <span class="arch-tag highlight">Spring Boot 3.x</span>
+          <span class="arch-tag">MySQL · Redis</span>
+          <span class="arch-tag">EMQX · MinIO</span>
+          <span class="arch-tag">Nginx · SRS</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底层贯穿能力 -->
+  <div class="foundation">
+    <h3><i class="fas fa-layer-group"></i> 底层贯穿能力 · 两年持续</h3>
+    <div class="foundation-grid">
+      <div class="foundation-item">
+        <h5><i class="fab fa-java"></i> Java 工程</h5>
+        <p><code>Java 17/21</code> <code>并发</code> <code>JVM</code> <code>GC</code> <code>Spring IOC/AOP</code></p>
+      </div>
+      <div class="foundation-item">
+        <h5><i class="fas fa-database"></i> 数据库</h5>
+        <p><code>MySQL 8.0</code> <code>InnoDB</code> <code>索引优化</code> <code>MVCC</code> <code>Redis</code></p>
+      </div>
+      <div class="foundation-item">
+        <h5><i class="fab fa-linux"></i> Linux & 工程</h5>
+        <p><code>Linux</code> <code>Shell</code> <code>Git</code> <code>Maven</code> <code>Docker</code> <code>TCP/IP</code></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 四阶段详细卡片 -->
+  <h3 style="font-size:1.8rem; font-weight:600; margin: 1rem 0 1.2rem 0; display:flex; gap:0.5rem; align-items:center; color:#103a56;"><i class="fas fa-arrow-trend-up"></i> 四阶段详细路线</h3>
+  <div class="phase-grid">
+
+    <div class="phase-card">
+      <div class="phase-number">阶段 1</div>
+      <h4>单体业务闭环</h4>
+      <div class="time"><i class="far fa-calendar-alt"></i> 2026.9 – 2027.1</div>
+      <ul>
+        <li><i class="fas fa-check-circle"></i> 智慧换热站管理平台</li>
+        <li><i class="fas fa-check-circle"></i> 设备管理 · 数据采集</li>
+        <li><i class="fas fa-check-circle"></i> 告警基础 · 视频接入</li>
+      </ul>
+      <div class="tech-pills">
+        <span>Spring Boot 3</span><span>MySQL</span><span>Redis</span><span>EMQX</span><span>MinIO</span>
+      </div>
+      <div style="margin-top:0.6rem; background:#f0f6fc; border-radius:30px; padding:0.2rem 1rem; display:inline-block; font-size:0.75rem;">
+        <i class="fas fa-brain"></i> AI副线：Python · Pandas · 异常检测
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-number">阶段 2</div>
+      <h4>微服务 & 分布式</h4>
+      <div class="time"><i class="far fa-calendar-alt"></i> 2027.2 – 2027.6</div>
+      <ul>
+        <li><i class="fas fa-check-circle"></i> 拆分 auth/device/media/alarm</li>
+        <li><i class="fas fa-check-circle"></i> Nacos · Gateway · OpenFeign</li>
+        <li><i class="fas fa-check-circle"></i> Sentinel · Kafka · SkyWalking</li>
+      </ul>
+      <div class="tech-pills">
+        <span>Spring Cloud Alibaba</span><span>Kafka</span><span>Redisson</span>
+      </div>
+      <div style="margin-top:0.6rem; background:#f0f6fc; border-radius:30px; padding:0.2rem 1rem; display:inline-block; font-size:0.75rem;">
+        <i class="fas fa-robot"></i> AI服务独立 (FastAPI)
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-number">阶段 3</div>
+      <h4>云原生化</h4>
+      <div class="time"><i class="far fa-calendar-alt"></i> 2027.9 – 2028.1</div>
+      <ul>
+        <li><i class="fas fa-check-circle"></i> Docker · K8s (Pod/Deployment/Service)</li>
+        <li><i class="fas fa-check-circle"></i> Ingress · ConfigMap · HPA</li>
+        <li><i class="fas fa-check-circle"></i> 有状态服务外置 (MySQL/Redis)</li>
+      </ul>
+      <div class="tech-pills">
+        <span>Kubernetes</span><span>Docker</span><span>GitHub Actions</span>
+      </div>
+      <div style="margin-top:0.6rem; background:#f0f6fc; border-radius:30px; padding:0.2rem 1rem; display:inline-block; font-size:0.75rem;">
+        <i class="fas fa-cloud"></i> AI服务容器化
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-number">阶段 4</div>
+      <h4>AIOps 智能运维</h4>
+      <div class="time"><i class="far fa-calendar-alt"></i> 2028.2 – 2028.5</div>
+      <ul>
+        <li><i class="fas fa-check-circle"></i> Metrics · Logs · Traces</li>
+        <li><i class="fas fa-check-circle"></i> Prometheus · Loki · OpenTelemetry</li>
+        <li><i class="fas fa-check-circle"></i> 异常检测 + LLM RCA 根因分析</li>
+      </ul>
+      <div class="tech-pills">
+        <span>Isolation Forest</span><span>Prophet</span><span>LLM Agent</span><span>RAG</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 同步升级 摘要 -->
+  <div style="background:#e8f1fa; border-radius:1.5rem; padding:1rem 1.8rem; margin: 0 0 2rem 0; display:flex; flex-wrap:wrap; align-items:center; gap:0.8rem 2rem;">
+    <span><i class="fas fa-brain" style="color:#1f6f9e;"></i> <strong>AI 贯穿同步</strong></span>
+    <span style="background:white; padding:0.1rem 1.2rem; border-radius:30px; border:1px solid #c7daea;">大二 80% 后端 · 20% AI</span>
+    <span style="background:white; padding:0.1rem 1.2rem; border-radius:30px; border:1px solid #c7daea;">大三 50% 云原生 · 50% AI</span>
+    <span><i class="fas fa-arrow-right"></i> 从异常检测 → 容器化 → AIOps</span>
+  </div>
+
+  <!-- 最终成果 + 定位 -->
+  <div class="result-box">
+    <h3><i class="fas fa-medal"></i> 最终两年成果</h3>
+    <div class="project-name"><i class="fas fa-industry"></i> 基于云原生与AIOps的智慧换热站智能运维平台</div>
+    <div class="result-stack">
+      <span>Java</span><span>Spring Boot</span><span>Spring Cloud Alibaba</span><span>MySQL</span><span>Redis</span>
+      <span>Kafka</span><span>Docker</span><span>Kubernetes</span><span>Prometheus</span><span>OpenTelemetry</span>
+      <span>Python</span><span>LLM Agent</span>
+    </div>
+
+    <div class="final-position">
+      <span class="big"><i class="fas fa-user-astronaut"></i> 校招定位</span>
+      <span style="font-weight:500; background:rgba(255,255,255,0.15); padding:0.2rem 1.5rem; border-radius:60px;">云原生Java工程师</span>
+      <span style="font-weight:500; background:rgba(255,255,255,0.15); padding:0.2rem 1.5rem; border-radius:60px;">工业互联网+AIOps工程师</span>
+    </div>
+    <div style="margin-top:0.8rem; display:flex; flex-wrap:wrap; gap:1rem;">
+      <span style="background:white; border-radius:40px; padding:0.2rem 1.5rem; border:1px solid #b7cfe5;"><i class="fas fa-check-circle" style="color:#1f6f9e;"></i> 非普通CRUD</span>
+      <span style="background:white; border-radius:40px; padding:0.2rem 1.5rem; border:1px solid #b7cfe5;"><i class="fas fa-check-circle" style="color:#1f6f9e;"></i> 非调API的AI应用</span>
+      <span style="background:white; border-radius:40px; padding:0.2rem 1.5rem; border:1px solid #b7cfe5; font-weight:500;">✅ 复合型工程能力</span>
+    </div>
+  </div>
+
+  <!-- 执行原则 -->
+  <div class="principle">
+    <h4><i class="fas fa-list-check"></i> 最终执行原则（最重要）</h4>
+    <ul>
+      <li><i class="fas fa-ban"></i> 不再扩展技术栈</li>
+      <li><i class="fas fa-project-diagram"></i> 所有学习服务「智慧换热站」项目</li>
+      <li><i class="fas fa-arrow-right"></i> AI提前布局，不抢主线</li>
+      <li><i class="fas fa-arrow-right"></i> 工业场景 + 后端 + 云原生 + AI</li>
+    </ul>
+    <div style="margin-top:0.8rem; background:#dce8f5; border-radius:60px; padding:0.2rem 1.8rem; display:inline-block; font-weight:500;">
+      <i class="fas fa-quote-right"></i> AI从“外挂”变成贯穿全程的能力线
+    </div>
+  </div>
+
+  <!-- 脚注 -->
+  <div class="footnote">
+    <i class="fas fa-asterisk" style="color:#1f6f9e;"></i> 最终形成：工业场景 · 后端系统 · 云原生平台 · AI智能运维  <i class="fas fa-asterisk" style="color:#1f6f9e;"></i>
+    <br><span style="font-size:0.85rem; color:#3f6d91;">企业真正需要的复合型工程能力</span>
+  </div>
+
+</div>
+</body>
+</html>

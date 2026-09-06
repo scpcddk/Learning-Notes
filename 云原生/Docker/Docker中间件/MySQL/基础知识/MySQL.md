@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS `t_order` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='订单表';
 ```
 
-- `AUTO_INCREMENT` 是一个自动增长属性，常用于为表中的主键列生成唯一的数字 ID。当插入新记录时，数据库会自动按顺序生成这个数字，无需你手动指定。
+- `AUTO_INCREMENT` 是一个自动增长属性，常用于为表中的主键列生成唯一的数字 ID。当插入新记录时，数据库会自动按顺序生成这个数字，无需你手动指定。`AUTO_INCREMENT` 的 ID 不保证连续。
 
 **6. 查看表结构（验表结构 - 必做动作）**
 
@@ -276,7 +276,6 @@ ON DUPLICATE KEY UPDATE
 --       如果 WHERE 条件命中了多行，会全部删除，务必确认条件！
 DELETE FROM `t_order` WHERE `id` = 1;
 
-
 -- ============================================
 -- 写法二：生产标准写法（WHERE + LIMIT 双保险）
 -- ============================================
@@ -310,7 +309,6 @@ DELETE FROM `t_order` WHERE `status` = 0 LIMIT 100;
 --       如果 WHERE 条件命中了多行，会全部更新，务必确认条件！
 UPDATE `t_order` SET `status` = 1 WHERE `id` = 2;
 
-
 -- ============================================
 -- 写法二：生产标准写法（WHERE + LIMIT 1 双保险）
 -- ============================================
@@ -324,7 +322,6 @@ UPDATE `t_order` SET `status` = 1 WHERE `id` = 2;
 -- ② 减少锁范围：只锁一行，锁占用时间极短，不影响并发。
 -- ③ 通过唯一键（如 id）更新时，加 LIMIT 1 是冗余但安全的职业习惯。
 UPDATE `t_order` SET `status` = 1 WHERE `id` = 2 LIMIT 1;
-
 
 -- ============================================
 -- 写法三：原子计算（无需先查再算，避免并发覆盖）
@@ -386,7 +383,6 @@ UPDATE `t_order` SET `status` = DEFAULT WHERE `id` = 2;
 -- ④ 表结构一变（加列），应用代码可能报错，埋下隐患。
 SELECT `id`, `user_id`, `amount` FROM `t_order` WHERE `user_id` = 1001;
 
-
 -- ============================================
 -- 写法二：查询 + 排序（生产务必加 LIMIT）
 -- ============================================
@@ -409,7 +405,6 @@ SELECT `id`, `amount` FROM `t_order`
 WHERE `status` = 0 
 ORDER BY `id` DESC 
 LIMIT 20;
-
 
 -- ============================================
 -- 写法三：统计查询（COUNT 优化要点）
@@ -893,6 +888,16 @@ ON 表A.关联列 = 表B.关联列
 
 > [!TIP]
 > **大白话执行逻辑**：先选一张表作为驱动表（外层循环），逐行取出，用关联列的值去被驱动表（内层循环）中匹配 `ON` 条件，匹配成功则拼接返回。
+
+**语法上，`WHERE` 永远是在所有 JOIN 完成后写**:
+
+```
+ON
+→ 决定“右表哪些数据可以参与匹配”
+
+WHERE
+→ 决定“最终哪些行留下”
+```
 
 **2. 连接类型**
 
@@ -1382,7 +1387,80 @@ WHERE create_time > '2026-01-01';
 
 ---
 
-##### 2.3.15 杂项
+##### 2.3.15 ROLLBACK
+
+误操作，在真实数据库里是非常危险的。
+如果修改操作处于**事务**中，可以使用：
+
+```sql
+ROLLBACK;
+```
+
+**撤销**事务中尚未提交的修改。
+
+而：
+
+```sql
+COMMIT;
+```
+
+**表示**：确认提交修改，让事务中的修改正式生效。
+
+可以先记成：
+
+```text
+BEGIN / START TRANSACTION
+        ↓
+      修改数据
+        ↓
+   ┌────┴────┐
+   ↓         ↓
+ROLLBACK   COMMIT
+撤销修改    确认修改
+```
+
+---
+
+##### 2.3.16 子查询速查表
+
+- **本质**：嵌套在 SQL 内部的查询（先算内层，再算外层）
+
+**1. 语法**
+
+| 位置 | 语法结构（通用模板 + 示例） | 关键要求 / 注意事项 |
+| :--- | :--- | :--- |
+| **WHERE**（过滤条件）(把子查询当成**一个值**) | **模板**：`WHERE 列名 比较运算符 (子查询)` <br> **示例**：`SELECT * FROM table1 WHERE column = (SELECT column FROM table2 WHERE condition);` <br> *（运算符也可为 `>`, `IN`, `EXISTS` 等）* | 子查询必须返回与运算符兼容的结果（标量或集合）；最常用。 |
+| **FROM**（派生表）(把子查询当成**一张临时表**) | **模板**：`FROM (子查询) AS 别名` <br> **示例**：`SELECT * FROM (SELECT column FROM table2) AS alias;` | **必须加别名**（`AS alias` 不可省略），否则数据库报错。 |
+| **SELECT**（标量子查询） | **模板**：`SELECT 列名, (子查询) AS 别名` <br> **示例**：`SELECT id, (SELECT column FROM table2 WHERE table2.id = table1.id) AS alias FROM table1;` | **子查询必须返回 1 行 1 列**（标量），通常需关联外层表。 |
+| **HAVING**（分组后过滤） | **模板**：`HAVING 聚合函数(列名) 比较运算符 (子查询)` <br> **示例**：`SELECT group_col, agg_func(col) FROM table1 GROUP BY group_col HAVING agg_func(col) > (SELECT agg_func(col) FROM table1);` | 子查询在 `GROUP BY` 之后执行，结果用于比较分组后的聚合值。 |
+
+> [!tip]
+> 外层能使用的列，**必须**是子查询“提供出来”的列
+
+**2. 返回什么（按数据）**
+
+- **标量**（1值） → 搭配 `=`、`>`。
+- **列**（1列多行） → 搭配 `IN`、`ANY`、`ALL`。
+- **表**（多列多行） → 放在 `FROM` 后。
+
+**3. 核心性能区分**
+
+- **非相关子查询**：先内后外，**只执行 1 次**（快）。
+- **相关子查询**：外层每行循环执行内层（慢），常用于 `EXISTS`。
+
+**4. 致命陷阱**
+
+- `NOT IN` + 子查询结果包含 **NULL** = 整个结果集为空！**建议用 `NOT EXISTS` 替代**。
+
+**5. 子查询 vs JOIN**
+
+- **用子查询**：做聚合计算对比（如查高于部门平均工资）。
+- **用 JOIN**：需同时查两张表的字段（优化器对 JOIN 优化更好）。
+- **复杂嵌套**：超过 3 层建议拆成 **CTE**（`WITH ... AS`），可读性最佳。
+
+---
+
+##### 2.3.17 杂项
 
 **1. NULL 与 空字符串**
 
@@ -1390,13 +1468,13 @@ WHERE create_time > '2026-01-01';
 
 **2. if**
 
-**语法：**
+- **语法：**
 
 `IF(条件, 条件成立时的结果, 条件不成立时的结果)`
 
 在 `IF()` 中，只有条件为 `TRUE` 才算“成立”；`FALSE` 和 `UNKNOWN` 都会走“不成立”的分支。
 
-**IF() 和 CASE 怎么选？**
+- **IF() 和 CASE 怎么选？**
 
 ```
 一个条件：
@@ -1408,19 +1486,19 @@ CASE WHEN
 
 **3. IFNULL**
 
-**语法：**
+- **语法：**
 
 `IFNULL(值, NULL时使用的值)`
 
 **4. COALESCE()**
 
-从左到右找，第一个不是 NULL 的值。
+从左到右找，第一个不是 `NULL` 的值。查询时**临时**把 `NULL` 显示成不同的默认值，并**没有修改数据**
 
-**语法：**
+- **语法：**
 
 `COALESCE(值1, 值2, 值3, ...)`
 
-**和 `IFNULL()` 对比**：
+- **和 `IFNULL()` 对比**：
 
 ```
 IFNULL()
@@ -1439,6 +1517,60 @@ TRUE
 FALSE
 UNKNOWN
 ```
+
+**6. EXISTS**
+
+- **语法：**
+
+```
+EXISTS → 判断“有没有”
+1 → 有
+0 → 没有
+```
+
+- **示例：**
+
+```sql
+select exists (
+select *
+from student
+where name = '张三'
+) as 是否存在;
+```
+
+`EXISTS` **只关心有没有符合条件的行，不关心这一行具体是什么数据**。
+
+所以这些写法在 EXISTS 中都可以：
+
+```sql
+SELECT 1
+
+SELECT *
+
+SELECT name
+```
+
+> [!tip]
+> 实际开发中经常写：`SELECT 1`
+> 因为表达得很清楚：我只是在判断“存在不存在”。
+
+- **`IN` 与 `EXISTS` 区别**：
+
+```
+IN      → 拿一个值去匹配一组值
+EXISTS  → 判断有没有符合条件的行
+```
+
+**7. 别名**
+
+```
+SELECT xxx AS xxx → 给列/表达式起别名
+
+FROM xxx AS xxx   → 给表/子查询起别名
+```
+
+> [!tip]
+> **内层可以引用外层；外层不能引用内层**(内层可以看到外层的表别名)
 
 ---
 
@@ -1468,7 +1600,21 @@ UNKNOWN
 
 ##### 2.5.1 窗口函数
 
-常用窗口函数：`ROW_NUMBER()`、`RANK()`、`DENSE_RANK()`、`SUM() OVER()`、`LAG()`、`LEAD()`。
+**常用窗口函数**：`ROW_NUMBER()`、`RANK()`、`DENSE_RANK()`、`SUM() OVER()`、`LAG` 以下是对六个常用窗口函数的对比表格：
+
+| 函数 | 用途 | 语法示例 | 说明 / 注意事项 |
+|------|------|----------|----------------|
+| `ROW_NUMBER()` | 为分区内的每一行分配一个**唯一**的连续整数序号（从1开始） | `ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC)` | 即使排序键值相同，序号也按行顺序唯一（随机或按物理顺序），不会并列。 |
+| `RANK()` | 排序时，相同值获得**相同排名**，但后续排名会**跳过**（如：1,1,3） | `RANK() OVER (PARTITION BY dept ORDER BY salary DESC)` | 适合需要“竞赛排名”的场景，并列后留空位。 |
+| `DENSE_RANK()` | 排序时，相同值获得**相同排名**，但后续排名**不跳过**（如：1,1,2） | `DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC)` | 适合需要紧凑排名的场景，并列后不空位。 |
+| `SUM() OVER()` | 计算分区内的**累计和**（或移动和），可指定窗口范围 | `SUM(salary) OVER (PARTITION BY dept ORDER BY hire_date ROWS UNBOUNDED PRECEDING)` | 默认从分区第一行到当前行（若带ORDER BY）；可自定义窗口帧（ROWS/RANGE）。 |
+| `AVG() OVER()` | 计算分区内的**移动平均**（或分组平均），可指定窗口范围 | `AVG(salary) OVER (PARTITION BY dept ORDER BY hire_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)` | 默认同SUM一样是累计平均（从第一行到当前行）；常用于**滑动平均**（如近3日平均）。不加ORDER BY则算**全组总平均**，每行相同。 |
+| `LAG()` | 访问当前行**之前**第N行的值（默认偏移1） | `LAG(salary, 1, 0) OVER (PARTITION BY dept ORDER BY hire_date)` | 用于对比上一行数据，第三个参数为默认值（当无前行时返回）。 |
+| `LEAD()` | 访问当前行**之后**第N行的值（默认偏移1） | `LEAD(salary, 1, 0) OVER (PARTITION BY dept ORDER BY hire_date)` | 用于对比下一行数据，同样可指定默认值。 |
+
+> [!tip]
+> **共性**：所有窗口函数都必须搭配 `OVER()` 子句，其中 `PARTITION BY` 用于分组，`ORDER BY` 用于排序（`SUM` 若用于累计则必须带 `ORDER BY`，`LAG/LEAD` 通常需要 `ORDER BY` 确定顺序）。  
+> **区别**：`ROW_NUMBER`、`RANK`、`DENSE_RANK` 是纯排名类；`SUM` 是聚合窗口；`LAG/LEAD` 是偏移访问类。
 
 ```sql
 -- 按部门分组，按工资降序排名，同时计算部门总工资
@@ -1481,7 +1627,35 @@ FROM employee;
 
 窗口函数不减少行数，而是在每行上计算聚合值，`PARTITION BY` 分组，`ORDER BY` 排序，常用于排名、累计、移动平均。
 
-##### 2.5.2 CTE（公用表表达式）
+---
+
+##### 2.5.2 `PARTITION BY` 和 `GROUP BY` 的区别
+
+核心区别就一句话：**`GROUP BY` 压缩行（多行变一行），`PARTITION BY` 保留行（一行都不少）。**
+
+| 对比维度 | **`GROUP BY`** | **`PARTITION BY`** |
+| :--- | :--- | :--- |
+| **结果集行数** | **变少**（每组只输出一条汇总记录） | **不变**（保留每一条原始明细记录） |
+| **搭配函数** | 搭配 `SUM()`、`AVG()`、`MAX()` 等**聚合函数** | 搭配 `RANK()`、`LAG()`、`SUM() OVER()` 等**窗口函数** |
+| **能否显示明细** | ❌ 不能，分组后只能看到汇总值，看不到组内每个人的名字 | ✅ 能，每一行旁边都带着汇总值（如“全班总分”附在每个学生后面） |
+| **典型场景** | “统计每个班级的总分”（结果只有 3 个班，就 3 行） | “查询每个学生的成绩，并附上他所在班级的总分”（结果还是 50 个学生，50 行） |
+
+**直观对比（数据示例）：**
+
+| 姓名 | 班级 | 分数 |
+| :--- | :--- | :--- |
+| 张三 | 一班 | 90 |
+| 李四 | 一班 | 80 |
+
+- 写 `GROUP BY 班级` → 结果 **1 行**：`一班 | 170`（张三和李四合成一行了）。
+- 写 `PARTITION BY 班级` → 结果 **2 行**：张三看得到自己班的 170，李四也看得到自己班的 170，但两人还是独立的两行。
+
+> [!tip]
+> **一句话记死：`GROUP BY` 是“榨汁”（水果变果汁，看不到果肉）；`PARTITION BY` 是“贴标签”（每个水果还在，只是贴上“来自某箱”的标签）。** 😊
+
+---
+
+##### 2.5.3 CTE（公用表表达式）
 
 ```sql
 -- 递归 CTE：生成 1~10 序列
@@ -1495,12 +1669,16 @@ SELECT * FROM seq;
 
 **作用**：简化复杂 SQL，递归处理树形结构（如组织架构、评论回复）。
 
-##### 2.5.3 原子 DDL 与即时加列
+---
+
+##### 2.5.4 原子 DDL 与即时加列
 
 - **原子 DDL**：DDL 操作要么全部成功，要么全部回滚，避免中途失败导致表损坏。
 - **即时加列**：`ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INSTANT;` 只修改元数据，秒级完成。
 
-##### 2.5.4 Clone 插件
+---
+
+##### 2.5.5 Clone 插件
 
 ```sql
 -- 安装 clone 插件
@@ -1512,6 +1690,20 @@ CLONE INSTANCE FROM 'user'@'host':3306 IDENTIFIED BY 'password';
 ```
 
 **定位**：Clone 插件适合快速实例克隆和搭建从库，物理备份方面 xtrabackup 仍是生产环境主流工具，两者定位不同。
+
+---
+
+##### 2.5.6 窗口帧（Window Frame）的物理行范围
+
+如果你**只写 `ORDER BY` 而不写 `ROWS BETWEEN...`**，很多数据库（如 MySQL、PostgreSQL）默认使用的是 **`RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`**（注意是 `RANGE` 不是 `ROWS`）。
+
+**区别极大：**
+
+- **`ROWS`**：严格按行号累加。第3行就是第1+2+3行。
+- **`RANGE`**：按**排序值**累加。如果排序键有重复值（如两个并列第2名），会把所有相同值的行**一起打包累加**，可能导致结果不是你预期的逐行累加。
+
+> [!tip]
+> **最佳实践**：要写“累计到当前行”，强烈建议**明确写成 `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`**，避免因重复值导致结果异常。😊
 
 ---
 
@@ -1754,7 +1946,11 @@ SELECT * FROM user WHERE mobile = '13800000000';
 
 #### 4.4 联合索引
 
+> [!important]
 > NOT > AND > OR
+
+> [!note]
+> 多个 AND / OR 都可以；混合使用时，最好加括号
 
 联合索引 `(a, b, c)` 会建立 `a` → `a,b` → `a,b,c` 三层索引。  
 以下查询能命中索引：
