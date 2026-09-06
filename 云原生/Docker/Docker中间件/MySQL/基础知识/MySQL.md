@@ -542,6 +542,90 @@ mysql -u root -p order_db < /backup/order_db.sql
 
 ---
 
+##### 2.0.6 主键与外键
+
+**1. 创建表时**（CREATE TABLE）
+
+| 约束类型 | 列级定义（写在字段后） | 表级定义（写在字段列表后） |
+| :--- | :--- | :--- |
+| **主键** | `id INT PRIMARY KEY` | `PRIMARY KEY (id, dept_id)` （联合主键） |
+| **外键** | `dept_id INT REFERENCES dept(id)` ⚠️ **（MySQL 会忽略该语法，不生效）** | `CONSTRAINT fk_name FOREIGN KEY (dept_id) REFERENCES dept(id)` **（必须使用此方式）** |
+
+**推荐表级定义示例：**
+
+```sql
+-- ============================
+-- 1. 部门表（父表 / 被引用表）
+-- ============================
+CREATE TABLE dept (
+    -- 主键列：唯一标识一个部门，不可为空且不可重复
+    id INT PRIMARY KEY,          
+    -- 部门名称（普通业务字段）
+    name VARCHAR(20)             
+) ENGINE=InnoDB;                 
+-- ⚠️ 关键注释：MySQL 必须使用 InnoDB 存储引擎，外键约束才会物理生效！
+-- 若使用 MyISAM 引擎，SQL 语法能通过但外键不生效（形同虚设）。
+
+
+-- ============================
+-- 2. 员工表（子表 / 引用表）
+-- ============================
+CREATE TABLE emp (
+    -- 主键列：唯一标识一名员工
+    id INT PRIMARY KEY,          
+    
+    -- 员工姓名
+    name VARCHAR(20),           
+    
+    -- 外键列：存储员工所属部门的 ID
+    -- 允许为 NULL（表示该员工尚未分配部门）
+    dept_id INT,                 
+    
+    -- ========================================
+    -- 外键约束定义（必须写在字段列表的末尾）
+    -- ========================================
+    CONSTRAINT fk_emp_dept        -- ① 约束名称（删除外键时必须使用此名称）
+    FOREIGN KEY (dept_id)         -- ② 指定本表的外键列
+    REFERENCES dept(id)           -- ③ 指向父表的哪一列（父表该列必须有主键或唯一约束）
+    -- （未写 ON DELETE/UPDATE 时，MySQL 默认行为是 RESTRICT，即拒绝删除/更新被引用的父表数据）
+    -- 可选级联规则（根据业务需求解除注释即可生效）：
+    -- ON DELETE CASCADE   -- 如果部门被删除，该部门下的所有员工记录自动删除
+    -- ON UPDATE CASCADE   -- 如果部门的 ID 发生变化，员工表中的 dept_id 自动跟随更新
+    -- ON DELETE SET NULL  -- 如果部门被删除，该部门下员工的 dept_id 自动置为 NULL
+) ENGINE=InnoDB;                 
+-- ⚠️ 关键注释：子表也必须使用 InnoDB，且 dept_id 与 dept(id) 的数据类型（INT）、
+-- 长度、字符集必须完全一致，否则创建外键会报错（Error 1215）。
+```
+
+**2. 修改表时**（ALTER TABLE）
+
+| 操作 | 语法 |
+| :--- | :--- |
+| **添加主键**（字段需提前为 NOT NULL） | `ALTER TABLE emp ADD PRIMARY KEY (id);` |
+| **删除主键** | `ALTER TABLE emp DROP PRIMARY KEY;` |
+| **添加外键** | `ALTER TABLE emp ADD CONSTRAINT fk_name FOREIGN KEY (dept_id) REFERENCES dept(id);` |
+| **删除外键** | `ALTER TABLE emp DROP FOREIGN KEY fk_name;` （注意：这里必须用约束名） |
+
+**3. 进阶语法**（级联操作）
+
+外键约束可附加 **ON DELETE** 和 **ON UPDATE** 规则，放在 `REFERENCES` 之后：
+
+```sql
+-- 示例：删除部门时，员工表的 dept_id 自动设为 NULL
+FOREIGN KEY (dept_id) REFERENCES dept(id) ON DELETE SET NULL;
+
+-- 示例：更新部门 ID 时，员工表的 dept_id 自动跟随更新
+FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
+```
+
+**4. ⚠️ 关键避坑点**（针对 MySQL）
+
+1. **外键必须引用主键或唯一键**（被引用的列必须有 `PRIMARY KEY` 或 `UNIQUE` 约束）。
+2. **外键列与被引用列的数据类型、长度、字符集必须完全一致**（例如 `INT` 不能对应 `BIGINT`）。
+3. MySQL **仅 InnoDB 引擎支持外键**，MyISAM 引擎会解析语法但不生效。
+
+---
+
 #### 2.1 常用数据类型选择原则
 
 ##### 2.1.0 MySQL 全数据类型速查总表（架构师完整版）
