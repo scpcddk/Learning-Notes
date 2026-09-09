@@ -1,10 +1,15 @@
+---
+markmap:
+  initialExpandLevel: 2
+---
+
 # MinIO 使用笔记（换热站项目 · Docker 部署）
 
 ---
 
 ## 1. MinIO 是什么，我们用它做什么
 
-MinIO 是一个开源的高性能对象存储服务，完全兼容 Amazon S3 API。可视为一套**私有对象存储服务器**，用于集中管理文件。
+MinIO 是一个开源的高性能**对象存储服务**，完全兼容 Amazon S3 API。可视为一套**私有对象存储服务器**，用于集中管理文件。
 
 **在换热站项目中的典型用途**：
 
@@ -16,6 +21,7 @@ MinIO 是一个开源的高性能对象存储服务，完全兼容 Amazon S3 API
 
 > [!TIP]
 > **版本选择**：MinIO 在 `RELEASE.2023-04-20` 后将许可证从 Apache 2.0 改为 AGPL v3，且较新版本（约 `RELEASE.2025-04-28` 后）的 Docker 镜像移除了内置 Console（Web 管理界面）。**学习/内网使用推荐固定版本**：
+>
 > ```bash
 > docker pull minio/minio:RELEASE.2025-04-08T15-41-24Z
 > ```
@@ -87,7 +93,7 @@ docker run -d --name minio \
 
 **换热站项目典型用法**：
 
-- 创建多个桶：`heat-station-images`（设备图片，私有）、`firmware`（固件，私有）、`public-reports`（报表，公开只读）
+- **创建多个桶**：`heat-station-images`（设备图片，私有）、`firmware`（固件，私有）、`public-reports`（报表，公开只读）
 - 为不同应用生成独立的 Access Key，授予最小权限
 - **通过预签名 URL 让边缘设备安全上传/下载，避免在设备上保存长期凭证**
 - 利用**生命周期管理**自动清理过期图片，控制存储成本
@@ -495,7 +501,7 @@ mc admin user disable myminio station-gateway
 }
 ```
 
-**精细策略**：限制某个用户只能访问特定前缀（例如 station1 只能操作自己的目录）：
+**精细策略**：限制某个用户只能访问特定前缀（例如 `station1` 只能操作自己的目录）：
 
 ```json
 {

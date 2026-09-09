@@ -71,7 +71,7 @@
 </dependencies>
 ```
 
-**2.添加minio相关配置（application.yml）**
+**2.添加minio相关配置**（application.yml）
 
 ```yaml
 spring:
@@ -90,7 +90,7 @@ knife4j:
   enable: true
 ```
 
-**3.创建配置类（不知道创建在哪里的看下面目录结构）**
+**3.创建配置类**（不知道创建在哪里的看下面目录结构）
 
 ```java
 @Configuration
@@ -140,7 +140,7 @@ public class MinioService {
 ## 1.上传文件
 
 ```java
-	/**
+    /**
      * 上传文件到MinIO
      * @param file 要上传的文件（Spring MultipartFile）
      * @return 文件在MinIO中的唯一标识（对象名称）
@@ -159,10 +159,10 @@ public class MinioService {
         // 3. 上传文件
         minioClient.putObject(
                 PutObjectArgs.builder()
-                        .bucket(minioConfig.getBucket())          // 存储桶名称
-                        .object(objectName)          // 对象名称（文件名）
+                        .bucket(minioConfig.getBucket())                    // 存储桶名称
+                        .object(objectName)                                 // 对象名称（文件名）
                         .stream(file.getInputStream(), file.getSize(), -1)  // 文件流和大小
-                        .contentType(file.getContentType())  // 文件类型
+                        .contentType(file.getContentType())                 // 文件类型
                         .build());
         return objectName;
         //返回结果：test/随机字符串.txt

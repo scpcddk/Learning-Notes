@@ -16,7 +16,7 @@ markmap:
 
 #### 1.1.1 本章核心定位
 
-Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的`@Import`与条件化装配，下游支撑所有 Starter 的零配置开箱即用
+Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Framework 的 `@Import` 与条件化装配，下游支撑所有 Starter 的零配置开箱即用
 
 #### 1.1.2 核心原理
 
@@ -197,6 +197,7 @@ resources/
 #### 2.1.4 **Maven 多环境与资源过滤完整配置**
 
 为了让 `application.yml` 中的 `@spring.profiles.active@` 占位符在打包时被正确替换，需在 `pom.xml` 中同时完成三件事：
+
 ① 定义默认环境属性
 ② 开启资源过滤
 ③ 声明多环境 Profile
