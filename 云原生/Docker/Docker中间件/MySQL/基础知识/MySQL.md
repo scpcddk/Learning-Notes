@@ -2617,6 +2617,10 @@ SHOW VARIABLES LIKE 'innodb_io_capacity';             -- IO 能力，影响刷�
 
 ### 10. Undo Log
 
+> [!note]
+> **Undo Log（回滚日志）** 可以简单理解为：
+> 保存修改之前的数据版本，用来支持回滚以及 MVCC 的历史版本读取。
+
 #### 10.1 回滚与 MVCC
 
 - 记录逻辑修改前的旧值，用于事务回滚和 MVCC。  
@@ -2656,6 +2660,7 @@ MVCC 要求事务能够读取到事务开始时的数据快照。如果事务 A 
 #### 10.3 长事务与 History List 排查
 
 **排查 SQL**：
+
 ```sql
 -- 查看当前运行的事务，关注 trx_started 时间
 SELECT * FROM information_schema.innodb_trx\G
@@ -2663,6 +2668,7 @@ SELECT * FROM information_schema.innodb_trx\G
 
 **线上问题：磁盘空间一直增长**  
 很多时候并非数据增长，而是长事务导致 Undo 无法 purge。处理：
+
 - 找到长事务，尽快提交或回滚。  
 - 应用层避免在事务中进行外部调用（RPC、MQ、文件 IO）。  
 - 设置 `max_execution_time` 或超时监控。
@@ -2721,10 +2727,13 @@ MySQL Master → Binlog dump → Canal Server（伪装从库）→ 解析 Binlog
 
 | 特性 | 定义 | 底层保障 |
 |------|------|----------|
-| 原子性 | 事务全部成功或全部失败 | Undo Log 回滚 |
-| 一致性 | 数据库状态从一个一致状态到另一个 | 原子性+隔离性+持久性共同保障 |
-| 隔离性 | 并发事务互不干扰 | MVCC + 锁 |
-| 持久性 | 提交后数据不会丢失 | Redo Log + Binlog |
+| **原子性** | 事务全部成功或全部失败 | Undo Log 回滚 |
+| **一致性** | 数据库状态从一个一致状态到另一个 | 原子性+隔离性+持久性共同保障 |
+| **隔离性** | 并发事务互不干扰 | MVCC + 锁 |
+| **持久性** | 提交后数据不会丢失 | Redo Log + Binlog |
+
+> [!note]
+> **MVCC = 多版本并发控制**，让多个事务读取数据时，可以看到适合自己事务视角的数据版本，从而减少读和写之间的相互阻塞。
 
 ---
 
@@ -2736,6 +2745,22 @@ MySQL Master → Binlog dump → Canal Server（伪装从库）→ 解析 Binlog
 | READ COMMITTED | 不可能 | 可能 | 可能 |
 | REPEATABLE READ（默认） | 不可能 | 不可能 | 可能（InnoDB 通过锁解决当前读幻读） |
 | SERIALIZABLE | 不可能 | 不可能 | 不可能 |
+
+```
+脏读
+↓
+读到未提交的数据
+
+不可重复读
+↓
+同一条数据
+前后两次读取结果不同
+
+幻读
+↓
+同一个范围
+前后两次查询，记录数量/集合发生变化
+```
 
 **RR 级别下如何解决幻读？**
 
@@ -2771,6 +2796,10 @@ MySQL Master → Binlog dump → Canal Server（伪装从库）→ 解析 Binlog
 ---
 
 #### 13.2 ReadView 结构
+
+> [!note]
+> **Read View** 可以先简单理解成：
+> 事务进行一致性读时，用来判断“哪些版本的数据对我可见”的一个视图/判断依据。
 
 ```
 ReadView {
@@ -2828,7 +2857,7 @@ RC 每次快照读生成新 ReadView，能看到已提交的修改；RR 事务�
 | Next-Key Lock | 记录 + 前置间隙（左开右闭） | 阻止插入和修改 |
 
 **RR 级别默认开启 Next-Key Lock**，可防止幻读。  
-示例：
+**示例**：
 
 ```sql
 -- 表 t(id)，索引 id，数据：1,5,10
