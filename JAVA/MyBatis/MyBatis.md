@@ -1,7 +1,7 @@
 # 《MyBatis 完整学习与开发速查笔记》
 
-> 适用环境：Java 17+、Spring Boot 3.x、MyBatis 3.x、mybatis-spring-boot-starter 3.x、MySQL 8.x。  
-> 标记说明：  
+> **适用环境**：Java 17+、Spring Boot 3.x、MyBatis 3.x、mybatis-spring-boot-starter 3.x、MySQL 8.x。  
+> **标记说明**：  
 > 【MyBatis 核心】= MyBatis 原生功能  
 > 【Spring Boot 整合】= MyBatis-Spring / Starter 提供  
 > 【第三方扩展】= PageHelper、MyBatis-Plus 等，不属于 MyBatis 核心  
@@ -13,7 +13,7 @@
 
 ## 1. MyBatis 是什么
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
 MyBatis 是一个**半自动 ORM 持久层框架**。它把 JDBC 中重复的：
 
@@ -27,9 +27,10 @@ MyBatis 是一个**半自动 ORM 持久层框架**。它把 JDBC 中重复的：
 
 封装起来，但 **SQL 仍然由开发者自己写**。
 
-一句话：
-
-> JDBC 是手动挡，Hibernate/JPA 是自动挡，MyBatis 是“SQL 自己写，映射框架帮你做”。
+> [!tip]
+> 
+> - JDBC 是手动挡，Hibernate/JPA 是自动挡，MyBatis 是“SQL 自己写，映射框架帮你做”。
+> - **MyBatis = Java ↔ SQL ↔ 数据库之间的桥梁**
 
 ### MyBatis 与 JDBC 的关系
 
@@ -44,6 +45,18 @@ MyBatis 是一个**半自动 ORM 持久层框架**。它把 JDBC 中重复的：
 
 MyBatis 底层仍然使用 JDBC，只是封装了流程。
 
+```
+JDBC
+= Java 直接操作数据库的底层 API
+= 自己处理很多细节
+
+MyBatis
+= 建立在 JDBC 之上的持久层框架
+= SQL 仍然可以自己写
+= MyBatis 帮你处理 JDBC 的大量重复工作
+= 特别是参数绑定 + 结果映射
+```
+
 ### MyBatis 与 Hibernate / JPA 的区别
 
 | 特性 | MyBatis | Hibernate / JPA |
@@ -57,7 +70,7 @@ MyBatis 底层仍然使用 JDBC，只是封装了流程。
 
 ### MyBatis 优缺点
 
-优点：
+**优点：**
 
 - SQL 可控，性能调优方便
 - 动态 SQL 强大
@@ -65,15 +78,15 @@ MyBatis 底层仍然使用 JDBC，只是封装了流程。
 - 与 Spring Boot 整合简单
 - 适合复杂查询、报表、多表关联
 
-缺点：
+**缺点：**
 
 - 需要手写 SQL
 - XML 较多时维护成本高
 - 数据库移植性弱
 - 简单 CRUD 也要写 Mapper
 
-适合：需要精细控制 SQL、复杂查询多的项目。  
-不适合：完全不想写 SQL、追求全自动 ORM 的项目。
+**适合**：需要精细控制 SQL、复杂查询多的项目。  
+**不适合**：完全不想写 SQL、追求全自动 ORM 的项目。
 
 ---
 
@@ -197,13 +210,17 @@ public interface StudentMapper {
 </mapper>
 ```
 
+> [!tip]
+> `Mapper.xml` 是 MyBatis 的 SQL 映射文件，**核心作用**：
+> **把 Mapper 接口的方法和具体 SQL 绑定起来，并定义参数怎么传、结果怎么映射成 Java 对象**。
+
 ### mybatis-config.xml
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>      // 这是 XML 1.0，使用 UTF-8 编码
 <!DOCTYPE configuration
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
-        "https://mybatis.org/dtd/mybatis-3-config.dtd">
+        "https://mybatis.org/dtd/mybatis-3-config.dtd">    //这个文件遵循 MyBatis Mapper XML 的格式规范
 <configuration>
     <environments default="development">
         <environment id="development">
@@ -246,7 +263,7 @@ try (SqlSession session = factory.openSession()) {
 
 Mapper 接口不需要写实现类，MyBatis 通过 JDK 动态代理生成 `MapperProxy`。
 
-对应关系：
+**对应关系：**
 
 ```text
 Mapper 接口全限定名 = XML namespace
@@ -255,7 +272,11 @@ Mapper 接口全限定名 = XML namespace
 返回值 = resultType / resultMap
 ```
 
-示例：
+> [!tip]
+> **`resultType`：决定“结果封装成什么 Java 类型”，而 MyBatis 再根据这个类型的属性和 SQL 返回的列进行结果映射**
+> **`resultMap`：手动告诉 MyBatis “这一列对应哪个属性”**
+
+**示例：**
 
 ```java
 Student selectById(Integer id);
@@ -267,7 +288,7 @@ Student selectById(Integer id);
 </select>
 ```
 
-对应关系：
+**对应关系：**
 
 ```text
 StudentMapper.selectById()
@@ -277,6 +298,10 @@ id="selectById"
 ```
 
 ### @Mapper 与 @MapperScan
+
+> [!tip]
+> **`@Mapper`告诉 MyBatis：这个接口是 Mapper，请为它创建代理对象**
+> **`@MapperScan`告诉 MyBatis：去这个包下面，把 Mapper 接口全部扫描出来**
 
 【Spring Boot 整合】
 
@@ -299,7 +324,33 @@ public class DemoApplication {
 }
 ```
 
-⚠️ 易混淆：`@Mapper` 加在单个接口上，`@MapperScan` 加在配置类或启动类上扫描包。
+> [!warning]
+> **易混淆：**`@Mapper` 加在单个接口上，`@MapperScan` 加在配置类或启动类上扫描包
+
+**整体链路：**
+
+```
+Spring Boot
+    │
+    │ @MapperScan
+    ↓
+发现 StudentMapper
+    │
+    ↓
+MyBatis 为 StudentMapper 创建代理
+    │
+    ↓
+namespace 找到 StudentMapper.xml
+    │
+    ↓
+id="selectAll"
+    │
+    ↓
+找到 SQL
+    │
+    ↓
+执行
+```
 
 ---
 
@@ -330,16 +381,21 @@ public class DemoApplication {
 </mapper>
 ```
 
-常用属性：
+**常用属性**：
 
 | 属性 | 作用 |
 |---|---|
+| `namespace` | 对应 Mapper 名 |
 | `id` | 对应 Mapper 方法名 |
 | `parameterType` | 参数类型，通常可省略 |
 | `resultType` | 自动映射结果类型 |
 | `resultMap` | 手动映射结果 |
 | `useGeneratedKeys` | 使用自增主键 |
 | `keyProperty` | 主键回填到哪个属性 |
+
+> [!note]
+> `Mapper` 与 `Mapper.xml` 文件名相同，只是我们开发时的约定和习惯。
+> **`namespace + id` 才是 MyBatis 用来定位 SQL 的关键。**
 
 ---
 
@@ -458,7 +514,7 @@ ORDER BY ${orderBy}
 
 【MyBatis 核心】
 
-自动映射：
+**自动映射**：
 
 ```xml
 <select id="selectById" resultType="com.example.entity.Student">
@@ -468,7 +524,7 @@ ORDER BY ${orderBy}
 
 字段名与属性名不一致时：
 
-- 开启驼峰映射：
+- **开启驼峰映射**：
 
 ```yaml
 mybatis:
@@ -478,7 +534,7 @@ mybatis:
 
 例如 `class_name` -> `className`。
 
-- 或使用别名：
+- **或使用别名**：
 
 ```sql
 SELECT class_name AS className FROM student
@@ -486,7 +542,7 @@ SELECT class_name AS className FROM student
 
 ## 11. resultMap
 
-复杂映射使用：
+**复杂映射使用**：
 
 ```xml
 <resultMap id="StudentResultMap" type="com.example.entity.Student">
@@ -501,7 +557,29 @@ SELECT class_name AS className FROM student
 </select>
 ```
 
-⚠️ 易混淆：`resultType` 适合简单自动映射；`resultMap` 适合字段不一致、一对一、一对多、多对多。
+> [!tip]
+> `resultType` 适合简单自动映射；`resultMap` 适合字段不一致、一对一、一对多、多对多。
+
+> [!note]
+> `property `代表：Java 对象的属性
+> `column` 代表：SQL 查询结果中的列名
+>
+> `<id>`：用于主键映射。
+> `<result>`：用于普通字段映射。
+
+```
+resultType
+    ↓
+指定结果对象类型
+    ↓
+主要依靠自动映射
+
+resultMap
+    ↓
+指定结果对象类型
++
+明确指定字段 → 属性的映射关系
+```
 
 ---
 
@@ -823,7 +901,7 @@ XML vs 注解：
 </dependency>
 ```
 
-三者关系：
+**三者关系**：
 
 ```text
 MyBatis：核心 SQL 映射框架
