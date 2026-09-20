@@ -452,22 +452,22 @@ Student select(@Param("name") String name, @Param("age") Integer age);
 
 ## 8. `#{}`
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
-`#{}` 是预编译参数占位符，底层变成 JDBC `?`。
+`#{}` 是预编译**参数占位符**(把 `{}` 内的值作为 SQL 参数传进去)，底层变成 JDBC `?`。
 
 ```xml
 WHERE id = #{id}
 ```
 
-等价于：
+**等价于**：
 
 ```java
 PreparedStatement ps = conn.prepareStatement("SELECT * FROM student WHERE id = ?");
 ps.setLong(1, id);
 ```
 
-优点：
+**优点**：
 
 - 防止 SQL 注入
 - 参数类型自动处理
@@ -475,7 +475,7 @@ ps.setLong(1, id);
 
 ## 9. `${}`
 
-`${}` 是字符串直接拼接。
+`${}` 是字符串直接拼接，直接替换 SQL 文本。
 
 ```xml
 ORDER BY ${orderBy}
@@ -512,7 +512,7 @@ ORDER BY ${orderBy}
 
 ## 10. resultType
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
 **自动映射**：
 
@@ -585,6 +585,37 @@ resultMap
 
 # 第八篇：CRUD
 
+> [!tip]
+> **Mapper 接口**：声明“我要做什么”
+> **Mapper.xml**：告诉 MyBatis “具体怎么做”
+
+**CRUD 全流程**：
+
+```
+Mapper 接口（如 UserMapper）
+    ↓
+声明 Java 方法，如 User selectById(Long id)
+    ↓
+Mapper.xml
+    ↓
+namespace = Mapper 接口全限定名
+id = 接口方法名
+    ↓
+两者共同组成 statement id：namespace + id
+    ↓
+编写具体 SQL
+    ↓
+#{参数} 进行参数绑定，生成预编译 SQL 占位符 ?
+    ↓
+MyBatis 通过 JDK 动态代理调用接口方法
+    ↓
+Executor / StatementHandler 执行 SQL
+    ↓
+ResultSetHandler 把结果映射成 Java 对象
+    ↓
+查询返回对象/List/Map；增删改返回 int 影响行数
+```
+
 ## 12. SELECT
 
 ```xml
@@ -607,7 +638,7 @@ resultMap
 </insert>
 ```
 
-主键回填：
+**主键回填**：
 
 ```java
 Student student = new Student();
@@ -616,7 +647,16 @@ studentMapper.insert(student);
 System.out.println(student.getId()); // 自增 id 已回填
 ```
 
-批量插入：
+- **`useGeneratedKeys` + `keyProperty` 的作用与价值**：
+  - **`AUTO_INCREMENT`**：MySQL 自动生成新的主键 ID。
+  - **`useGeneratedKeys="true"`**：让 MyBatis 获取这个自动生成的 ID。
+  - **`keyProperty="id"`**：把获取到的 ID 回填到 Java 对象的 `id` 属性。
+  - **核心价值**：
+    - **一次 INSERT 后，同时知道“插入是否成功/影响几行”和“刚插入的数据 ID 是多少”，方便后续代码继续使用这个 ID。**
+  - **注意**：
+    - **它不是用来自动查询或输出新数据的。**
+
+**批量插入**：
 
 ```xml
 <insert id="insertBatch">
