@@ -629,6 +629,20 @@ ResultSetHandler 把结果映射成 Java 对象
 </select>
 ```
 
+`CONCAT()` 是 MySQL 的**字符串拼接函数**：
+
+```
+CONCAT()
+   ↓
+拼接字符串
+
+CONCAT('%', #{name}, '%')
+   ↓
+给 name 前后加 %
+   ↓
+实现包含式模糊查询
+```
+
 ## 13. INSERT
 
 ```xml
@@ -699,7 +713,22 @@ System.out.println(student.getId()); // 自增 id 已回填
 
 # 第九篇：动态 SQL
 
+**根据传入的参数，动态决定 SQL 中哪些条件需要出现**
+
 ## 16. if
+
+```
+<if test="条件">
+    SQL
+</if>
+```
+
+**意思就是**：
+
+条件成立 → 加入里面的 SQL
+条件不成立 → 不加入里面的 SQL
+
+**例如：**
 
 ```xml
 <if test="name != null and name != ''">
@@ -708,6 +737,40 @@ System.out.println(student.getId()); // 自增 id 已回填
 ```
 
 ## 17. where
+
+**`<where>` 的作用：**
+
+1. **自动加 `WHERE`**
+   - 当里面有**条件成立**时，它会生成 `WHERE`。
+
+2. **自动去掉开头多余的 `AND` / `OR`**
+   ```xml
+   <where>
+       AND name = #{name}
+   </where>
+   ```
+   生成：
+   ```sql
+   WHERE name = ?
+   ```
+
+3. **没有条件时不生成 `WHERE`**
+   ```xml
+   <where>
+       <if test="name != null">
+           AND name = #{name}
+       </if>
+   </where>
+   ```
+   如果 `name` 为空，则不会生成：
+   ```sql
+   WHERE
+   ```
+
+> [!tip]
+> `<where>` 用来替代 SQL 中的 `WHERE`，能自动处理开头多余的 `AND` / `OR`，并且所有条件都不成立时不会生成空的 `WHERE`。
+
+**示例**：
 
 ```xml
 <select id="selectByCondition" resultType="Student">
@@ -723,17 +786,49 @@ System.out.println(student.getId()); // 自增 id 已回填
 </select>
 ```
 
-`<where>` 会自动去掉开头多余的 `AND` 或 `OR`。
-
 ## 18. trim
+
+`<trim>` 用于动态拼接 SQL，作用是：**加前后缀、去掉首尾多余字符**。
+
+**四个属性**：
+
+```xml
+<trim prefix="" suffix="" prefixOverrides="" suffixOverrides="">
+```
+
+- **`prefix`**：加前缀
+- **`suffix`**：加后缀
+- **`prefixOverrides`**：去掉开头匹配内容
+- **`suffixOverrides`**：去掉结尾匹配内容
+
+多个用 `|` 分隔，如 `AND |OR `。它只处理整个片段的最前和最后，不处理中间。
+
+**替代 `<where>`**：
 
 ```xml
 <trim prefix="WHERE" prefixOverrides="AND |OR ">
-    <if test="name != null">
-        AND name = #{name}
-    </if>
+    <if test="name != null">AND name = #{name}</if>
+    <if test="age != null">AND age = #{age}</if>
 </trim>
 ```
+
+**替代 `<set>`：**
+
+```xml
+<trim prefix="SET" suffixOverrides=",">
+    <if test="name != null">name = #{name},</if>
+    <if test="age != null">age = #{age},</if>
+</trim>
+```
+
+**关系**：
+
+- `<where>` ≈ `<trim prefix="WHERE" prefixOverrides="AND |OR ">`
+- `<set>` ≈ `<trim prefix="SET" suffixOverrides=",">`
+
+**注意**：
+
+内部为空时不会加 `prefix/suffix`；建议写 `AND |OR ` 带空格；更新时保证至少有一个字段，避免生成错误 SQL。
 
 ## 19. choose / when / otherwise
 
@@ -751,7 +846,17 @@ System.out.println(student.getId()); // 自增 id 已回填
 </choose>
 ```
 
-类似 Java `switch`，只命中一个分支。
+- `<choose>` + `<when>` + `<otherwise>` ≈ Java 的 `switch` / `case` / `default`
+- **小区别**：
+  - `switch` 通常是比较一个值
+  - `<choose>` 是依次判断条件是否成立
+
+| 标签            | 含义                  |
+| ------------- | ------------------- |
+| `<if>`        | 可以同时满足多个条件          |
+| `<choose>`    | 多个分支只选一个            |
+| `<when>`      | `<choose>` 中的条件分支   |
+| `<otherwise>` | 所有 `<when>` 都不满足时执行 |
 
 ## 20. set
 
@@ -770,6 +875,8 @@ System.out.println(student.getId()); // 自增 id 已回填
 `<set>` 会自动去掉最后多余的逗号。
 
 ## 21. foreach
+
+`<foreach>`：把 Java 集合中的元素一个一个取出来，拼成动态 SQL
 
 ```xml
 <delete id="deleteBatch">
@@ -1608,7 +1715,6 @@ mybatis:
 - MyBatis-Plus 是第三方增强，不是 MyBatis 原生功能。
 
 ---
----
 
 # 进阶篇
 
@@ -2167,7 +2273,6 @@ class StudentMapperTest {
 | N+1 查询 | 是否在循环中调用 Mapper；是否该用 JOIN + `collection` 嵌套结果映射 |
 | 慢 SQL 无法定位 | 是否配置了 SQL 审计拦截器；是否只对特定 Mapper 包开了 DEBUG 日志 |
 
----
 ---
 
 # 深度篇：源码级原理补充
