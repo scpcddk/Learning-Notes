@@ -918,6 +918,10 @@ WHERE s.id = #{id}
 
 ## 23. association 一对一
 
+> [!note]
+> `association` 是 MyBatis 中用于**一对一**关联映射的标签，它把关联查询结果组装成当前对象的一个属性对象
+> `association` 里的 **指定集合属性**(关联对象放到当前对象的哪个属性)，`javaType` **指定集合类型**(这个关联对象是什么 Java 类型)
+
 ```xml
 <resultMap id="StudentWithClass" type="Student">
     <id column="id" property="id"/>
@@ -931,6 +935,9 @@ WHERE s.id = #{id}
 
 ## 24. collection 一对多
 
+> [!note]
+> `collection` 是 MyBatis 中用于**一对多**关联映射的标签，它把查询结果中的多行/多个字段组装成当前对象的一个集合属性；`property` **指定集合属性**，`javaType` **指定集合类型**，`ofType` **指定集合元素类型**。
+
 ```xml
 <resultMap id="ClassWithStudents" type="Class">
     <id column="class_id" property="id"/>
@@ -941,6 +948,13 @@ WHERE s.id = #{id}
     </collection>
 </resultMap>
 ```
+
+> [!tip]
+> `association` = 当前对象包含**一个**关联对象；`collection` = 当前对象包含**一组**关联对象
+
+> [!note]
+> `association` / `collection` + `select` 实质：
+> **先执行主查询 → 从主查询结果中拿到某个字段的值 → 把这个值作为参数 → 再执行一个关联查询 → 把查询结果映射到对象里**
 
 ## 25. 多对多
 

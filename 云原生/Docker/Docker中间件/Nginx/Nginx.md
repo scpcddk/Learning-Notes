@@ -429,6 +429,14 @@ log_format json_combined escape=json '{'
 access_log /var/log/nginx/access.log json_combined;
 ```
 
+`access.log`记录：
+
+用户访问了什么，以及 Nginx 怎么处理了这个请求
+
+`error.log`记录：
+
+Nginx 自己遇到的错误
+
 ---
 
 ## 9. 注入全链路追踪 ID（为 AIOps 铺路）
