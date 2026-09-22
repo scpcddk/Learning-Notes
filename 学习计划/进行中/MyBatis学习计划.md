@@ -13,43 +13,43 @@
 
 ### 第 1 阶段：认识 MyBatis
 
-* [ ] MyBatis 是什么
-* [ ] MyBatis 解决什么问题
-* [ ] JDBC 与 MyBatis
-* [ ] MyBatis 整体执行流程
-* [ ] Mapper 是什么
-* [ ] Mapper XML 是什么
-* [ ] Mapper 接口与 XML 如何对应
-* [ ] 第一个 MyBatis 项目
+* [x] MyBatis 是什么
+* [x] MyBatis 解决什么问题
+* [x] JDBC 与 MyBatis
+* [x] MyBatis 整体执行流程
+* [x] Mapper 是什么
+* [x] Mapper XML 是什么
+* [x] Mapper 接口与 XML 如何对应
+* [x] 第一个 MyBatis 项目
 
 ### 第 2 阶段：CRUD
 
-* [ ] `select`
-* [ ] `insert`
-* [ ] `update`
-* [ ] `delete`
-* [ ] 单条查询
-* [ ] 多条查询
-* [ ] 主键回填
-* [ ] 自增主键
+* [x] `select`
+* [x] `insert`
+* [x] `update`
+* [x] `delete`
+* [x] 单条查询
+* [x] 多条查询
+* [x] 主键回填
+* [x] 自增主键
 
 ### 第 3 阶段：参数
 
-* [ ] 单参数
-* [ ] 多参数
-* [ ] `@Param`
+* [x] 单参数
+* [x] 多参数
+* [x] `@Param`
 * [ ] JavaBean 参数
-* [ ] `#{}`
-* [ ] `${}`
-* [ ] `#{}` 与 `${}` 的区别
+* [x] `#{}`
+* [x] `${}`
+* [x] `#{}` 与 `${}` 的区别
 * [ ] SQL 注入风险
 
 ### 第 4 阶段：结果映射
 
-* [ ] `resultType`
-* [ ] `resultMap`
-* [ ] 字段 → Java 属性
-* [ ] 驼峰映射
+* [x] `resultType`
+* [x] `resultMap`
+* [x] 字段 → Java 属性
+* [x] 驼峰映射
 * [ ] 多种结果映射方式
 * [ ] 常见映射错误
 
@@ -57,30 +57,30 @@
 
 这是 **MyBatis 最重要的部分之一**。
 
-* [ ] `<if>`
-* [ ] `<where>`
-* [ ] `<set>`
-* [ ] `<trim>`
-* [ ] `<choose>`
-* [ ] `<when>`
-* [ ] `<otherwise>`
-* [ ] `<foreach>`
-* [ ] 动态查询
-* [ ] 动态更新
-* [ ] `IN`
-* [ ] 批量删除
-* [ ] 批量插入
+* [x] `<if>`
+* [x] `<where>`
+* [x] `<set>`
+* [x] `<trim>`
+* [x] `<choose>`
+* [x] `<when>`
+* [x] `<otherwise>`
+* [x] `<foreach>`
+* [x] 动态查询
+* [x] 动态更新
+* [x] `IN`
+* [x] 批量删除
+* [x] 批量插入
 
 ### 第 6 阶段：多表映射
 
-* [ ] JOIN 与 MyBatis
-* [ ] `association`
-* [ ] 一对一
-* [ ] `collection`
-* [ ] 一对多
-* [ ] 多对多
-* [ ] 嵌套查询
-* [ ] 嵌套结果
+* [x] JOIN 与 MyBatis
+* [x] `association`
+* [x] 一对一
+* [x] `collection`
+* [x] 一对多
+* [x] 多对多
+* [x] 嵌套查询
+* [x] 嵌套结果
 
 ### 第 7 阶段：Spring Boot 整合
 
@@ -510,3 +510,5 @@ Java对象
 > MyBatis 源码 → Spring 源码 → 数据库底层
 
 这样安排比较符合你现在的实际情况：**MySQL 已经不是瓶颈，真正需要把“会看”转化成“会写”的，是 Java + Spring Boot + MyBatis 这一整条链。**
+
+---

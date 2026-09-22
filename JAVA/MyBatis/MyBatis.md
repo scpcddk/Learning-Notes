@@ -956,6 +956,28 @@ WHERE s.id = #{id}
 > `association` / `collection` + `select` 实质：
 > **先执行主查询 → 从主查询结果中拿到某个字段的值 → 把这个值作为参数 → 再执行一个关联查询 → 把查询结果映射到对象里**
 
+**`JOIN` + `resultMap`**:
+
+```
+一个 SQL
+    ↓
+一次查询
+    ↓
+resultMap 拆成对象结构
+```
+
+**`association`/`collection` + `select`(N+1 查询问题)**:
+
+```
+主 SQL
+  ↓
+得到关联字段
+  ↓
+再执行关联 SQL
+  ↓
+组装对象
+```
+
 ## 25. 多对多
 
 ```text
