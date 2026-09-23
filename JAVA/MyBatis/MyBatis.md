@@ -167,6 +167,11 @@ CREATE TABLE student (
 
 ### Java Bean
 
+**JavaBean 参数**：
+
+- 把多个相关参数封装到一个 Java 对象中，再把这个对象作为 Mapper 方法参数。
+- **适合**：参数比较多，而且这些参数属于同一个业务对象/查询条件。
+
 ```java
 package com.example.entity;
 
@@ -209,6 +214,9 @@ public interface StudentMapper {
 
 </mapper>
 ```
+
+> [!note]
+> `#{name}` 本质上是在按当前参数对象的属性名去取值，**关键**不是它长什么形式，而是 MyBatis 能不能找到对应的参数/属性。
 
 > [!tip]
 > `Mapper.xml` 是 MyBatis 的 SQL 映射文件，**核心作用**：
@@ -482,6 +490,10 @@ ORDER BY ${orderBy}
 ```
 
 如果 `orderBy = "id; DROP TABLE student"`，就会产生 SQL 注入风险。
+
+> [!note]
+> **`#{}` = 把内容当“参数值”处理；`${}` = 把内容当“SQL文本”直接拼进去**
+> 因此 `${}` 既可以传列名、表名，也可以传数字、字符串，只是不应该用它来处理普通的用户数据参数
 
 ### ⚠️ `#{}` 与 `${}` 对比
 
@@ -937,6 +949,20 @@ WHERE s.id = #{id}
 
 > [!note]
 > `collection` 是 MyBatis 中用于**一对多**关联映射的标签，它把查询结果中的多行/多个字段组装成当前对象的一个集合属性；`property` **指定集合属性**，`javaType` **指定集合类型**，`ofType` **指定集合元素类型**。
+
+```
+type
+↓
+整个 ResultMap 对应的对象
+
+javaType
+↓
+association 里面的那个对象
+
+ofType
+↓
+collection 里面每一个元素
+```
 
 ```xml
 <resultMap id="ClassWithStudents" type="Class">
