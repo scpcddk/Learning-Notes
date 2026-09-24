@@ -1093,9 +1093,9 @@ XML vs 注解：
 
 ## 26. Spring Boot 整合
 
-【Spring Boot 整合】
+【**Spring Boot 整合**】
 
-依赖：
+**依赖**：
 
 ```xml
 <dependency>
@@ -1132,6 +1132,21 @@ src/main/resources
 ├── mapper
 │   └── StudentMapper.xml
 └── application.yml
+```
+
+```
+Controller
+= Web 世界的入口
+→ 请求处理
+
+Service
+= 业务世界的核心
+→ 业务规则
+
+Mapper
+= 数据库访问
+→ 数据访问
+负责：“如果业务层决定要保存，那具体怎么通过 MyBatis 执行数据库操作？”
 ```
 
 ## 28. Mapper 注入

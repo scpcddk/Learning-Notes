@@ -84,15 +84,15 @@
 
 ### 第 7 阶段：Spring Boot 整合
 
-* [ ] MyBatis-Spring
-* [ ] MyBatis-Spring-Boot-Starter
-* [ ] `@Mapper`
-* [ ] `@MapperScan`
-* [ ] `application.yml`
-* [ ] Mapper 扫描
-* [ ] XML 加载
-* [ ] Service 调用 Mapper
-* [ ] Controller → Service → Mapper
+* [x] MyBatis-Spring
+* [x] MyBatis-Spring-Boot-Starter
+* [x] `@Mapper`
+* [x] `@MapperScan`
+* [x] `application.yml`
+* [x] Mapper 扫描
+* [x] XML 加载
+* [x] Service 调用 Mapper
+* [x] Controller → Service → Mapper
 
 ### 第 8 阶段：常见问题
 
