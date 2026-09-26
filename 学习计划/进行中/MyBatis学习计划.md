@@ -98,16 +98,16 @@
 
 自己能够排查：
 
-* [ ] Mapper 找不到
-* [ ] XML 找不到
-* [ ] namespace 错误
-* [ ] statement 找不到
-* [ ] 参数找不到
-* [ ] `@Param` 问题
-* [ ] resultType / resultMap 问题
-* [ ] 字段映射问题
-* [ ] 动态 SQL 问题
-* [ ] 数据库连接问题
+* [x] Mapper 找不到
+* [x] XML 找不到
+* [x] namespace 错误
+* [x] statement 找不到
+* [x] 参数找不到
+* [x] `@Param` 问题
+* [x] resultType / resultMap 问题
+* [x] 字段映射问题
+* [x] 动态 SQL 问题
+* [x] 数据库连接问题
 
 ---
 

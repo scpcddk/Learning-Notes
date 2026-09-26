@@ -1364,9 +1364,17 @@ public class StudentService {
 }
 ```
 
-关键点：
+```
+@Transactional
+→ 事务控制
+→ 通常放 Service
+→ 保证一组业务操作的原子性
+```
+
+**关键点**：
 
 - `@Transactional` 默认回滚 `RuntimeException` 和 `Error`
+  - `@Transactional`：把一组数据库操作放进同一个事务中，发生异常时可以回滚
 - 检查异常需 `rollbackFor = Exception.class`
 - 同一事务内通常复用同一个 SqlSession
 - try-catch 吞掉异常会导致不回滚
@@ -1471,6 +1479,14 @@ studentMapper.selectPage(page, null);
 ---
 
 # 第十九篇：常见问题与坑
+
+| 现象                        | 优先检查                    |
+| ------------------------- | ----------------------- |
+| `Invalid bound statement` | namespace / id / XML 加载 |
+| 参数找不到                     | `@Param` / `#{}`        |
+| 数据库连不上                    | datasource / MySQL      |
+| 查询成功但 Java 字段是 `null`     | resultMap / 驼峰映射        |
+| 事务没有回滚                    | `@Transactional` / 事务配置 |
 
 | 现象 | 原因 | 检查 | 解决 |
 |---|---|---|---|
