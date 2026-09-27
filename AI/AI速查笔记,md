@@ -75,6 +75,39 @@
 
 # 第 1 章 LLM 基础
 
+$$
+\begin{array}{c}
+\boxed{\text{文本}} \\
+\downarrow \text{Tokenizer} \\
+\boxed{\text{Token}} \\
+\downarrow \text{查词表} \\
+\boxed{\text{Token ID}} \\
+\downarrow \text{Embedding Lookup} \\
+\boxed{\text{Embedding 向量}} \\
+\downarrow \text{加入位置信息} \\
+\boxed{\text{带位置信息的 Embedding}} \\
+\downarrow \\
+\boxed{\text{重复 N 层 Transformer Block}} \\
+\downarrow \text{最终 LayerNorm} \\
+\boxed{\text{最终隐藏状态}} \\
+\downarrow \text{LM Head / 线性层} \\
+\boxed{\text{Logits}} \\
+\downarrow \text{Softmax} \\
+\boxed{\text{下一个 Token 的概率分布}} \\
+\downarrow \\
+\boxed{\text{Next Token Prediction}}
+\end{array}
+$$
+
+Transformer Block 内部：
+
+$$
+\begin{aligned}
+x &= x + \text{Attention}(\text{LN}(x)) \\
+x &= x + \text{FFN}(\text{LN}(x))
+\end{aligned}
+$$
+
 ## 1.1 LLM [核心必背]
 
 - **是什么**：Large Language Model，本质是根据上下文**预测**下一个 token 的概率模型。(它通过训练调整模型参数，把从大量数据中学习到的模式和关系“编码”进模型；生成回答时，根据输入的上下文和这些参数，不断预测下一个 Token)
@@ -86,7 +119,6 @@
 - **自测题**：LLM 的本质任务是什么？
 - **答案**：给定前文，预测下一个 token 的概率分布。
 - **反模式**：当事实数据库直接信任。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/，适用版本：deepseek-chat
 
 **训练阶段：**
 
@@ -152,7 +184,6 @@ Tokenizer 解码
 - **自测题**：为什么不能用字数精确替代 token？
 - **答案**：tokenizer 切分规则不同，中英文、符号差异大。
 - **反模式**：按字数估算成本。
-- **来源**：[2026-09 验证] https://platform.openai.com/tokenizer
 
 ```
 人类文本
@@ -181,6 +212,7 @@ Tokenizer.decode() 解码
 ```
 
 ## 1.3 Context Window [核心必背]
+
 - **是什么**：一次能看到的 token 上限。
 - **包含**：System、历史、用户输入、检索资料、工具结果、已生成内容。
 - **为什么**：超出要截断、摘要、检索。
@@ -189,9 +221,9 @@ Tokenizer.decode() 解码
 - **自测题**：窗口包含哪些内容？
 - **答案**：System、历史、用户输入、检索资料、工具结果、已生成内容。
 - **反模式**：无脑塞满上下文。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/，适用版本：deepseek-chat
 
 ## 1.4 Prompt [核心必背]
+
 - **是什么**：给模型的输入指令或上下文。
 - **为什么**：直接影响输出质量。
 - **怎么用**：角色、任务、上下文、约束、格式。见 3.1–3.8。
@@ -200,24 +232,26 @@ Tokenizer.decode() 解码
 - **自测题**：Prompt 是人和模型之间的什么？
 - **答案**：接口。
 - **反模式**：只写“帮我写个东西”。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/prompt-engineering
 
 ## 1.5 System / User / Assistant [核心必背]
+
 - **System**：身份、风格、边界。
 - **User**：用户输入。
 - **Assistant**：模型回复。
 - **怎么用**：组成 `messages` 数组。
 - **易错/关联**：模型无状态，历史由程序维护。见 2.8。
 - **最小例子**：
-```json
-[{"role":"system","content":"你是助手"},{"role":"user","content":"你好"}]
-```
+
+  ```json
+  [{"role":"system","content":"你是助手"},{"role":"user","content":"你好  "}]
+  ```
+
 - **自测题**：模型会自己记住上一轮吗？
 - **答案**：不会，历史由程序维护。
 - **反模式**：不维护历史却期待多轮。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/chat-completions
 
 ## 1.6 Temperature [核心必背]
+
 - **是什么**：控制输出随机性。
 - **机制**：缩放 logits，温度低分布尖锐，温度高分布平坦。
 - **为什么**：低稳定，高创意。
@@ -227,9 +261,9 @@ Tokenizer.decode() 解码
 - **自测题**：代码生成适合高温度吗？
 - **答案**：不适合，低温度更稳定。
 - **反模式**：所有任务同一温度。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/api/create-chat-completion
 
 ## 1.7 Top-p [工程必会]
+
 - **是什么**：核采样，累计概率 p 的最小集合。
 - **怎么用**：常与 Temperature 配合，非绝对二选一。
 - **易错/关联**：同时大幅调难归因。
@@ -237,9 +271,9 @@ Tokenizer.decode() 解码
 - **自测题**：Top-p 和 Top-k 区别？
 - **答案**：Top-k 固定候选数，Top-p 动态按概率累计。
 - **反模式**：两个参数同时乱调。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/api/create-chat-completion
 
 ## 1.8 Embedding [核心必背]
+
 - **是什么**：文本 → 向量。
 - **机制**：语义相近文本向量距离近。
 - **为什么**：用于检索、聚类、分类、去重、推荐、RAG。
@@ -249,9 +283,9 @@ Tokenizer.decode() 解码
 - **自测题**：Embedding 为什么能检索？
 - **答案**：语义相近的文本向量距离近，可比相似度。
 - **反模式**：不做归一化直接比欧氏距离。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/embeddings，适用版本：text-embedding-3
 
 ## 1.9 Inference [核心必背]
+
 - **是什么**：模型根据输入生成输出。
 - **机制**：训练学参数，推理用参数。
 - **怎么用**：API 调用即一次推理。
@@ -260,9 +294,9 @@ Tokenizer.decode() 解码
 - **自测题**：训练和推理区别？
 - **答案**：训练学参数，推理用参数生成输出。
 - **反模式**：混淆训练和推理优化。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/
 
 ## 1.10 Hallucination [核心必背]
+
 - **是什么**：幻觉，看似合理但不真实的内容。
 - **机制**：模型在预测 token，不是查数据库。
 - **怎么用**：RAG、工具、约束、引用、人工核验。
@@ -271,51 +305,55 @@ Tokenizer.decode() 解码
 - **自测题**：RAG 为什么缓解幻觉？
 - **答案**：提供外部事实依据，减少模型凭空生成。
 - **反模式**：不核验直接采用。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/prompt-engineering
 
 ## 1.11 Logits [核心必背]
+
 - **是什么**：模型最后一层未归一化分数。
 - **机制**：最后一层线性输出 `[B, L, vocab_size]`。
 - **公式**：softmax 前为 z，softmax 后为 p。
 - **怎么用**：温度、top-k、top-p 作用于它。
 - **易错/关联**：不是概率，不能当置信度。
 - **最小例子**：
-```python
-# 独立可运行
-# 安装：pip install torch
-# 预期输出：tensor([[0.6590, 0.2424, 0.0986]])
-import torch
-logits = torch.tensor([[2.0, 1.0, 0.1]])
-probs = torch.softmax(logits, dim=-1)
-print(probs)
-```
+
+  ```python
+  # 独立可运行
+  # 安装：pip install torch
+  # 预期输出：tensor([[0.6590, 0.2424, 0.0986]])
+  import torch
+  logits = torch.tensor([[2.0, 1.0, 0.1]])
+  probs = torch.softmax(logits, dim=-1)
+  print(probs)
+  ```
+
 - **自测题**：logits 能当置信度吗？
 - **答案**：不能，需 softmax 后才是概率。
 - **反模式**：展示 logits 当概率。
-- **来源**：[2026-09 验证] https://huggingface.co/docs/transformers/main/en/main_classes/output
 
 ## 1.12 Softmax [核心必背]
+
 - **是什么**：logits → 概率。
 - **机制**：指数归一化。
 - **公式**：\(p_i = e^{z_i/T} / \sum_j e^{z_j/T}\)。
 - **怎么用**：输出层、注意力权重。
 - **易错/关联**：温度低尖，温度高平。
 - **最小例子**：
-```python
-# 独立可运行
-# 安装：pip install torch
-# 预期输出：概率分布，和 = 1
-import torch
-z = torch.tensor([2.0, 1.0, 0.1])
-print(torch.softmax(z, dim=-1))
-print(torch.softmax(z / 0.5, dim=-1))  # 温度 0.5
-```
+
+  ```python
+  # 独立可运行
+  # 安装：pip install torch
+  # 预期输出：概率分布，和 = 1
+  import torch
+  z = torch.tensor([2.0, 1.0, 0.1])
+  print(torch.softmax(z, dim=-1))
+  print(torch.softmax(z / 0.5, dim=-1))  # 温度 0.5
+  ```
+
 - **自测题**：温度趋近 0 会怎样？
 - **答案**：分布趋近 one-hot，接近贪心。
 - **反模式**：先 softmax 再送 CrossEntropyLoss。
-- **来源**：[2026-09 验证] https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html，适用版本：PyTorch 2.x
 
 ## 1.13 KV Cache [核心必背]
+
 - **是什么**：缓存已生成 token 的 Key/Value。
 - **机制**：自回归每步只新生成 1 个 token，但注意力需要全部历史 K/V，缓存避免重复计算。
 - **公式**：`KV Cache ≈ 2 × B × L × num_layers × H_kv × d_head × dtype_bytes`。
@@ -332,9 +370,9 @@ for step in range(max_new_tokens):
 - **自测题**：GQA 为什么减少 KV Cache？
 - **答案**：分组共享 K/V，减少 H_kv。
 - **反模式**：忽略长上下文显存。
-- **来源**：[2026-09 验证] https://docs.vllm.ai/en/latest/，适用版本：vLLM 0.6+
 
 ## 1.14 CoT [核心必背]
+
 - **是什么**：让模型分步推理。
 - **机制**：显式输出中间步骤，增加推理计算。
 - **怎么用**：“逐步思考”或推理模型。
@@ -343,7 +381,6 @@ for step in range(max_new_tokens):
 - **自测题**：CoT 适合所有任务吗？
 - **答案**：不适合，简单任务浪费 token。
 - **反模式**：简单任务也长 CoT。
-- **来源**：[2026-09 验证] https://arxiv.org/abs/2201.11903，适用版本：论文
 
 ## 1.15 RoPE [面试高频]
 - **是什么**：旋转位置编码。
@@ -395,7 +432,7 @@ for step in range(max_new_tokens):
 
 **Embedding 提供“基础表示”，Attention 根据“上下文”动态建立关系**。
 
-- **是什么**：注意力机制。让模型在处理每个 token 时，根据相关性对其他 token 进行加权聚合。  
+- **是什么**：注意力机制。让模型在处理每个 token 时，根据相关性对其他 token 进行加权聚合。让不同 Token 之间**交换信息**。
 - **一句话**：Attention 是“动态加权求和”，权重由 Query 和 Key 的相似度决定。  
 - **为什么**：
   - 解决长距离依赖：RNN 逐步传递，Attention 可直接关注任意位置。
@@ -500,10 +537,232 @@ attn = torch.softmax(scores, dim=-1)
   - 把注意力权重当可靠解释。
   - 长上下文不优化注意力，导致 OOM。
   - 混淆 `B/H/L/D` 维度。
-- **来源**：
-  - [2026-09 验证] Attention Is All You Need：https://arxiv.org/abs/1706.03762
-  - [2026-09 验证] PyTorch scaled_dot_product_attention：https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html
-  - [2026-09 验证] FlashAttention：https://arxiv.org/abs/2205.14135
+
+### 1.22 Transformer [面试高频]
+
+- **是什么**：基于自注意力的序列建模架构，现代 LLM 的基础。(一种以 Attention 为核心、由多个组件组成的神经网络架构)  
+- **一句话**：用 Attention 替代 RNN，实现并行计算和长距离依赖建模。  
+- **为什么**：
+  - 并行：自注意力是矩阵运算，不依赖时间步串行。
+  - 长距离：任意两个 token 直接交互，路径长度 O(1)。
+  - 可扩展：堆叠 Block + 增大参数量，形成大模型。
+  - 通用：Encoder-only、Decoder-only、Encoder-Decoder 三种形态。
+- **怎么用**：
+  - **Encoder-only**：BERT 类，双向注意力，适合理解任务。
+  - **Decoder-only**：GPT 类，因果注意力，适合自回归生成，现代 LLM 主流。
+  - **Encoder-Decoder**：原始 Transformer、T5，适合翻译、摘要等序列到序列任务。
+- **核心结构**：
+  - 输入：Token Embedding + Positional Encoding。见 1.15。
+  - Block：
+    - Multi-Head Self-Attention。见 1.21。
+    - 残差连接 + LayerNorm。见 10.12、10.13。
+    - FFN：两层线性 + 激活。见 10.14。
+    - 残差连接 + LayerNorm。
+  - Decoder：因果掩码 + Cross-Attention（Encoder-Decoder 时）。
+  - 输出：线性层 + Softmax，得到下一个 token 概率。
+- **核心公式**：
+  - **Attention**：\(\text{softmax}(QK^T/\sqrt{d_k})V\)。见 1.21。
+  - **FFN**(Feed Forward Network：前馈神经网络)：\(\text{FFN}(x)=\max(0,xW_1+b_1)W_2+b_2\)。
+  - **Residual Connection**（残差连接）：\(x+\text{Sublayer}(x)\)。
+  - **LayerNorm**：对特征维度归一化。
+
+> [!tip]
+> 
+> 1. **Attention** → 根据上下文决定从哪些 Token 获取信息
+> 2. **FFN** → 对已经获得的信息进一步加工
+> 3. **Residual Connection** → 保留原始信息，同时加入新的加工结果
+> 4. **LayerNorm**：让向量的数值分布保持稳定，从而帮助 Transformer 更稳定地训练
+
+- **维度**：
+  - 输入：`[B, L, D]`。
+  - 多头：`H` 个头，`d_head = D / H`。
+  - Q/K/V：见 1.21。
+  - FFN 中间维度：通常 `4D`。
+  - 输出：`[B, L, D]`。
+- **常见变体**：
+  - Pre-LN vs Post-LN：Pre-LN 先归一化再子层，现代更稳。
+  - RMSNorm：LayerNorm 简化版。
+  - SwiGLU：FFN 激活变体。
+  - RoPE / ALiBi：位置编码变体。见 1.15。
+  - GQA / MQA：减少 KV Cache。见 1.16。
+  - MoE：稀疏专家。见 1.17。
+  - Flash Attention：高效注意力。见 1.24。
+- **复杂度**：
+  - 自注意力时间：\(O(L^2 D)\)。
+  - 自注意力显存：\(O(L^2)\)。
+  - FFN 时间：\(O(L D^2)\)。
+  - 长上下文瓶颈主要来自 \(L^2\)。
+- **易错/关联**：
+  - 忘记因果掩码，导致信息泄露。见 10.15。
+  - 忘记位置编码，模型无顺序感。见 1.15。
+  - 混淆 Encoder/Decoder 注意力方式。
+  - 混淆 Pre-LN / Post-LN。
+  - 维度不匹配：`B/L/D/H/d_head`。见 10.11。
+  - 与 KV Cache 强相关。见 1.13。
+  - 训练与推理行为不同。见 10.17。
+- **最小例子**：
+
+```python
+# 独立可运行
+# 安装：pip install torch
+# 运行：python transformer_block.py
+# 预期输出：torch.Size([2, 10, 64])
+import torch
+import torch.nn as nn
+
+class Block(nn.Module):
+    def __init__(self, d_model=64, nhead=4, dim_ff=256):
+        super().__init__()
+        self.attn = nn.MultiheadAttention(d_model, nhead, batch_first=True)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.ffn = nn.Sequential(
+            nn.Linear(d_model, dim_ff),
+            nn.ReLU(),
+            nn.Linear(dim_ff, d_model),
+        )
+        self.norm2 = nn.LayerNorm(d_model)
+
+    def forward(self, x):
+        L = x.size(1)
+        # 因果掩码：上三角为 True，表示禁止看未来 token
+        mask = torch.triu(torch.ones(L, L, device=x.device), diagonal=1).bool()
+        attn_out, _ = self.attn(x, x, x, attn_mask=mask)
+        x = self.norm1(x + attn_out)
+        x = self.norm2(x + self.ffn(x))
+        return x
+
+x = torch.randn(2, 10, 64)
+block = Block()
+out = block(x)
+print(out.shape)
+```
+
+- **自测题**：
+  1. Transformer 为什么能并行？
+     - **答案**：自注意力是矩阵运算，不依赖时间步串行。
+  2. Encoder-only、Decoder-only、Encoder-Decoder 区别？
+     - **答案**：Encoder-only 双向注意力；Decoder-only 因果注意力；Encoder-Decoder 编码器双向 + 解码器因果 + Cross-Attention。
+  3. 因果掩码作用？
+     - **答案**：防止自回归生成时看到未来 token。
+  4. Pre-LN 和 Post-LN 区别？
+     - **答案**：Pre-LN 先归一化再子层，训练更稳；Post-LN 先子层再归一化，原始 Transformer 用法。
+  5. FFN 作用？
+     - **答案**：把已经获得的信息进一步加工、变换，增加非线性表达能力，是 Transformer 主要参数来源。
+  6. 为什么需要位置编码？
+     - **答案**：自注意力本身无位置感，需注入顺序信息。
+  7. Transformer 复杂度？
+     - **答案**：自注意力 \(O(L^2 D)\)，FFN \(O(L D^2)\)。
+  8. Decoder-only 为什么适合 LLM？
+     - **答案**：自回归生成，预训练目标统一，易于扩展。
+- **反模式**：
+  - 忘记因果掩码，训练信息泄露。
+  - 忘记位置编码，模型无顺序感。
+  - 混淆 Encoder/Decoder 注意力方式。
+  - LayerNorm 位置放错，训练不稳定。
+  - 维度不匹配硬乘。
+  - 长上下文不优化注意力，导致 OOM。
+
+### 1.23 Next Token Prediction [面试高频]
+
+- **是什么**：语言模型的核心训练目标。给定前文 token 序列，预测下一个 token 的概率分布。  
+- **一句话**：LLM 的一切能力，都建立在“根据前文猜下一个 token”这个目标上。  
+- **为什么**：
+  - **自监督**：无需人工标注，任何文本都能构造训练样本。
+  - **统一**：对话、代码、翻译、总结、推理都可表示为 token 序列。
+  - **可扩展**：数据、参数、计算越大，效果通常越好。
+  - **涌现**：规模大到一定程度后，出现上下文学习、推理、指令遵循等能力。
+- **怎么用**：
+  - **预训练**：大规模无标注文本，学习 \(P(x_t \mid x_{<t})\)。
+  - **微调**：特定任务数据继续用同样目标训练。
+  - **推理**：自回归逐步生成，每步采样或贪心选下一个 token。
+  - **评估**：交叉熵、困惑度。
+- **核心公式**：
+  - 训练目标：最大化 \(\sum_t \log P(x_t \mid x_{<t})\)。
+  - 等价最小化交叉熵：
+    \[
+    L = -\sum_i y_i \log p_i
+    \]
+  - one-hot 标签下：
+    \[
+    L = -\log p_{\text{target}}
+    \]
+  - 困惑度：
+    \[
+    PPL = \exp(\text{平均交叉熵})
+    \]
+- **机制拆解**：
+  1. 输入 token 序列 \(x_1, x_2, \dots, x_{T-1}\)。
+  2. 模型输出每个位置对下一个 token 的 logits。
+  3. softmax 把 logits 转成概率分布。
+  4. 与真实下一个 token 计算交叉熵。
+  5. 反向传播更新参数。
+  6. 推理时自回归：把刚生成的 token 拼回输入，继续预测下一个。
+- **维度**：
+  - `input_ids`：`[B, L]`
+  - `logits`：`[B, L, vocab_size]`
+  - `labels`：`[B, L]`，通常为 `input_ids` 右移一位
+  - `loss`：标量
+- **训练与推理差异**：
+  - **训练**：并行计算所有位置，teacher forcing，用真实 token 作为前文。
+  - **推理**：自回归，每步只生成一个 token，用自己生成的历史。
+  - 训练损失低不代表推理好：曝光偏差、过拟合、分布差异。见 10.17。
+- **常见变体**：
+  - **自回归语言模型**：GPT 类，预测下一个 token。
+  - **掩码语言模型**：BERT 类，完形填空，不是 next token prediction。
+  - **序列到序列**：Encoder-Decoder，如 T5、原始 Transformer。
+  - **多模态 next token prediction**：文本、图像、音频 token 统一预测。
+- **易错/关联**：
+  - 混淆训练目标与推理过程。
+  - 混淆 next token prediction 与 masked language modeling。
+  - 忘记 labels 错位一位。
+  - 把困惑度当任务表现。
+  - 与 Token 1.2、Logits 1.11、Softmax 1.12、交叉熵 10.9、Attention 1.21、Transformer 1.22、KV Cache 1.13 强相关。
+- **最小例子**：
+
+```python
+# 需环境依赖：torch
+# 安装：pip install torch
+# 运行：python ntp.py
+# 预期输出：loss 标量，例如 tensor(2.3xxx)
+import torch
+import torch.nn as nn
+
+B, L, V = 2, 5, 10
+logits = torch.randn(B, L, V)          # 模型输出
+input_ids = torch.randint(0, V, (B, L))
+
+# 第 t 个位置的输出预测第 t+1 个 token
+shift_logits = logits[:, :-1, :].contiguous()   # [B, L-1, V]
+shift_labels = input_ids[:, 1:].contiguous()    # [B, L-1]
+
+loss = nn.CrossEntropyLoss()(
+    shift_logits.view(-1, V),
+    shift_labels.view(-1),
+)
+print(loss)
+```
+
+- **自测题**：
+  1. Next Token Prediction 的训练目标是什么？
+     - **答案**：给定前文，最大化下一个 token 的似然，等价最小化交叉熵。
+  2. 为什么说 LLM 本质是 next token prediction？
+     - **答案**：所有文本任务都可转化为 token 序列预测，模型学习 \(P(next \mid context)\)。
+  3. 训练和推理区别？
+     - **答案**：训练并行、teacher forcing；推理自回归、用生成历史。
+  4. 交叉熵和困惑度关系？
+     - **答案**：\(PPL = \exp(\text{平均交叉熵})\)。
+  5. 为什么 labels 要错位一位？
+     - **答案**：第 t 个位置的输出预测第 t+1 个 token。
+  6. BERT 是 next token prediction 吗？
+     - **答案**：不是，BERT 是掩码语言模型，完形填空。
+  7. 低困惑度等于回答更好吗？
+     - **答案**：不等于，任务表现需单独评估。
+- **反模式**：
+  - 忘记 labels 错位，模型学成复制输入。
+  - 把训练目标当推理过程。
+  - 只优化困惑度，忽略任务指标。
+  - 混淆自回归与掩码语言模型。
+  - 推理时忘记自回归拼接历史。
 
 ---
 
@@ -513,24 +772,25 @@ attn = torch.softmax(scores, dim=-1)
 - GET/POST/PUT/PATCH/DELETE。
 - 请求：URL、方法、头、体。响应：状态码、头、体。
 - **最小例子**：
-```http
-POST /v1/chat/completions
-Content-Type: application/json
-{"model":"deepseek-chat","messages":[{"role":"user","content":"hi"}]}
-```
+
+  ```http
+  POST /v1/chat/completions
+  Content-Type: application/json
+  {"model":"deepseek-chat","messages":[{"role":"user","content":"hi"}]}
+  ```
 - **自测题**：POST 和 GET 区别？
 - **答案**：POST 提交数据，GET 获取数据。
 - **反模式**：GET 传敏感数据。
-- **来源**：[2026-09 验证] https://developer.mozilla.org/en-US/docs/Web/HTTP
 
 ## 2.2 状态码 [核心必背]
+
 - 200 成功，400 请求错误，401 未认证，403 无权限，404 不存在，429 限流，500 服务端错误。
 - **自测题**：401 和 403 区别？
 - **答案**：401 未认证，403 无权限。
 - **反模式**：不区分状态码统一报错。
-- **来源**：[2026-09 验证] https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
 
 ## 2.3 Python 请求 API [核心必背]
+
 ```python
 # 需环境依赖：httpx；环境变量：DEEPSEEK_API_KEY
 # 安装：pip install httpx
@@ -545,38 +805,40 @@ r = httpx.post(
 )
 print(r.json()["choices"][0]["message"]["content"])
 ```
+
 - **自测题**：为什么要设 timeout？
 - **答案**：防止网络阻塞，控制延迟。
 - **反模式**：不处理异常。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/api/create-chat-completion
 
 ## 2.4 JSON [核心必背]
+
 - 对象、数组、字符串、数字、布尔、null。
 - **最小例子**：`json.loads('{"a":1}')`。
 - **自测题**：JSON 和 dict 区别？
 - **答案**：JSON 是文本格式，dict 是 Python 对象。
 - **反模式**：手动拼接 JSON。
-- **来源**：[2026-09 验证] https://docs.python.org/3/library/json.html，适用版本：Python 3.x
 
 ## 2.5 API Key [核心必背]
+
 ```python
 # 需环境依赖：环境变量 DEEPSEEK_API_KEY
 import os
 key = os.environ["DEEPSEEK_API_KEY"]
 ```
+
 - **自测题**：泄露风险？
 - **答案**：被盗用、产生费用。
 - **反模式**：硬编码、提交 Git。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/
 
 ## 2.6 LLM API 参数 [核心必背]
+
 - `model`、`messages`、`temperature`、`max_tokens`、`stream`、`top_p`、`stop`、`tools`。
 - **自测题**：`max_tokens` 限制什么？
 - **答案**：生成的最大 token 数。
 - **反模式**：不设导致费用失控。
-- **来源**：[2026-09 验证] https://api-docs.deepseek.com/api/create-chat-completion
 
 ## 2.7 错误处理 [工程必会]
+
 ```python
 # 伪代码
 for i in range(3):
@@ -585,38 +847,39 @@ for i in range(3):
     except RateLimitError:
         time.sleep(2 ** i)
 ```
+
 - **自测题**：429 怎么处理？
 - **答案**：指数退避重试。
 - **反模式**：无限重试。
-- **来源**：[2026-09 验证] https://www.python-httpx.org/exceptions/，适用版本：httpx 0.27+
 
 ## 2.8 多轮对话 [工程必会]
+
 - 历史按顺序放入 `messages`。见 1.5。
 - **自测题**：模型会记住吗？
 - **答案**：不会，历史由程序维护。
 - **反模式**：不裁剪历史导致超上下文。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/chat-completions
 
 ## 2.9 流式输出 [工程必会]
+
 - SSE 或分块传输，边生成边返回。
 - **自测题**：优点？
 - **答案**：首字延迟低，体验好。
 - **反模式**：不处理断流。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/api-reference/chat/streaming
 
 ## 2.10 Structured Output [工程必会]
+
 - 见 14.10 输出验证。
 - JSON mode、Schema、Function Calling、约束 + 校验。
 - **自测题**：为什么还要校验？
 - **答案**：模型可能不合规，需程序兜底。
 - **反模式**：直接信任模型 JSON。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/structured-outputs
 
 ---
 
 # 第 3 章 Prompt Engineering
 
 ## 3.1 Role [面试高频]
+
 - 设定角色。
 - **最小例子**：“你是资深 Python 工程师。”
 - **自测题**：Role 放哪？
@@ -624,6 +887,7 @@ for i in range(3):
 - **反模式**：角色和任务冲突。
 
 ## 3.2 Context [面试高频]
+
 - 背景信息。
 - **最小例子**：粘贴报错日志。
 - **自测题**：Context 不足会怎样？
@@ -631,6 +895,7 @@ for i in range(3):
 - **反模式**：只给问题不给背景。
 
 ## 3.3 Constraints [面试高频]
+
 - 限制输出。
 - **最小例子**：“只用标准库。”
 - **自测题**：约束冲突会怎样？
@@ -638,6 +903,7 @@ for i in range(3):
 - **反模式**：约束过多矛盾。
 
 ## 3.4 Examples [面试高频]
+
 - 输入输出样例。
 - **最小例子**：`1+1→2`。
 - **自测题**：示例差会怎样？
@@ -645,6 +911,7 @@ for i in range(3):
 - **反模式**：给错误示例。
 
 ## 3.5 Output Format [面试高频]
+
 - Markdown、JSON、YAML、代码块。
 - **最小例子**：“用 Markdown 表格返回。”
 - **自测题**：为什么指定格式？
@@ -652,20 +919,22 @@ for i in range(3):
 - **反模式**：格式模糊。
 
 ## 3.6 Few-shot [面试高频]
+
 - Zero/One/Few-shot。
 - **自测题**：适合什么任务？
 - **答案**：分类、格式模仿、边界清晰任务。
 - **反模式**：示例过多浪费上下文。
 
 ## 3.7 Prompt 调试 [工程必会]
+
 - 见 12.4 Prompt Evaluation。
 - 补充：控制变量、对比、记录、分析。
 - **自测题**：为什么控制变量？
 - **答案**：定位哪个因素影响输出。
 - **反模式**：一次改多个变量。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/prompt-engineering
 
 ## 3.8 CoT 提示 [面试高频]
+
 - 见 1.14 CoT。
 - **自测题**：适合所有任务吗？
 - **答案**：不适合，简单任务浪费。
@@ -676,27 +945,29 @@ for i in range(3):
 # 第 4 章 Embedding
 
 ## 4.1 文本向量化 [工程必会]
+
 - 见 1.8 Embedding。
 - 补充：余弦相似度公式见 17.7。
 - **自测题**：为什么用余弦？
 - **答案**：归一化后只看方向，不受长度影响。
 - **反模式**：不做归一化比欧氏距离。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/embeddings
 
 ## 4.2 用途 [工程必会]
+
 - 语义搜索、RAG、聚类、分类、去重、推荐。
 - **自测题**：为什么能去重？
 - **答案**：相似文本向量距离近。
 - **反模式**：所有任务只用 embedding。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/embeddings
 
 ## 4.3 模型选择 [工程必会]
+
 - 维度、语言、成本、速度、最大输入。
 - **自测题**：维度越高越好吗？
 - **答案**：不是，成本和边际收益需权衡。
 - **反模式**：只看维度。
 
 ## 4.4 语义缓存 [面试高频]
+
 - 相似问题命中缓存。
 - **自测题**：最大风险？
 - **答案**：阈值过松，把不同问题当同一问题。
@@ -707,79 +978,81 @@ for i in range(3):
 # 第 5 章 RAG
 
 ## 5.1 为什么需要 RAG [工程必会]
+
 - 知识截止、幻觉、私有数据、更新、引用、权限。
 - **自测题**：RAG 解决什么？
 - **答案**：让 LLM 使用外部知识。
 - **反模式**：所有问题靠模型内部知识。
-- **来源**：[2026-09 验证] https://docs.ragas.io/，适用版本：RAGAS 0.2+
 
 ## 5.2 RAG 基础流程 [核心必背]
+
 ```text
 文档 → 切分 → Embedding → 向量数据库 → 检索 → 相关内容 → LLM → 答案
 ```
+
 - **自测题**：哪一步最影响效果？
 - **答案**：检索质量，常被低估。
 - **反模式**：只优化 LLM。
-- **来源**：[2026-09 验证] https://docs.ragas.io/，适用版本：RAGAS 0.2+
 
 ## 5.3 文档 [工程必会]
+
 - 来源：PDF、Markdown、网页、数据库。
 - **自测题**：清洗为什么重要？
 - **答案**：页眉页脚、乱码、表格会干扰检索。
 - **反模式**：直接拿原始文本切分。
-- **来源**：[2026-09 验证] https://docs.ragas.io/
 
 ## 5.4 切分 / Chunk [工程必会]
+
 - 大小、重叠、语义。
 - **自测题**：chunk 过大问题？
 - **答案**：检索不精准，噪声多。
 - **反模式**：过大或过小。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/data_connection/document_transformers/，适用版本：LangChain 0.2+
 
 ## 5.5 Embedding [工程必会]
+
 - 见 1.8 Embedding。
 - RAG 场景补充：每个 chunk 转向量，选择合适 embedding 模型，注意维度、语言、成本。
 - **自测题**：embedding 和 LLM 可不同吗？
 - **答案**：可以，各自选最优。
 - **反模式**：忽略语言和成本。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/embeddings
 
 ## 5.6 向量数据库 [工程必会]
+
 - FAISS、Chroma、Milvus、Pinecone、Weaviate。
 - **自测题**：和关系数据库区别？
 - **答案**：存向量，支持相似度检索。
 - **反模式**：不设计元数据。
-- **来源**：[2026-09 验证] https://docs.trychroma.com/，适用版本：Chroma 0.5+
 
 ## 5.7 Similarity Search [工程必会]
+
 - 余弦、点积、欧氏，top-k。
 - **自测题**：top-k 越大越好？
 - **答案**：不是，噪声增加。
 - **反模式**：top-k 过大。
-- **来源**：[2026-09 验证] https://docs.trychroma.com/
 
 ## 5.8 Retrieval [工程必会]
+
 - 查询改写、混合检索、重排、元数据过滤。
 - **自测题**：检索质量怎么评估？
 - **答案**：召回率、精确率、MRR、NDCG。
 - **反模式**：不评估检索。
-- **来源**：[2026-09 验证] https://docs.ragas.io/
 
 ## 5.9 Context [工程必会]
+
 - 检索结果拼进 Prompt。
 - **自测题**：上下文太长会怎样？
 - **答案**：噪声干扰，成本增加。
 - **反模式**：全塞进去。
-- **来源**：[2026-09 验证] https://docs.ragas.io/
 
 ## 5.10 LLM 生成 [工程必会]
+
 - 根据问题和上下文回答，要求引用。
 - **自测题**：怎么减少幻觉？
 - **答案**：要求引用来源，忠实上下文。
 - **反模式**：不要求引用。
-- **来源**：[2026-09 验证] https://docs.ragas.io/
 
 ## 5.11 RAG 评估 [核心必背]
+
 - 检索：召回率、精确率、MRR、NDCG。
 - 生成：忠实度、相关性、完整性。
 - 系统：延迟、成本、稳定性。
@@ -792,80 +1065,86 @@ for i in range(3):
 - **自测题**：忠实度和相关性区别？
 - **答案**：忠实度看是否由上下文支持，相关性看是否回答用户问题。
 - **反模式**：只看生成不看检索。
-- **来源**：[2026-09 验证] https://docs.ragas.io/，适用版本：RAGAS 0.2+
 
 ## 5.12 查询改写 [工程必会]
+
 - 口语化、指代、多意图。
 - **自测题**：提升召回还是精度？
 - **答案**：主要提升召回。
 - **反模式**：改写后语义漂移。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/chains/，适用版本：LangChain 0.2+
 
 ## 5.13 HyDE [面试高频]
+
 - 生成假想答案再检索。
 - **自测题**：为什么可能提升？
 - **答案**：答案与文档语义更接近。
 - **反模式**：所有查询都 HyDE。
 
 ## 5.14 混合检索 [工程必会]
+
 - BM25 + 向量，RRF 融合。
 - **自测题**：为什么需要 BM25？
 - **答案**：关键词精确匹配，向量语义互补。
 - **反模式**：不去重。
-- **来源**：[2026-09 验证] https://docs.trychroma.com/
 
 ## 5.15 Rerank [工程必会]
+
 - Cross-Encoder 或 LLM 打分，取 top-n。
 - **自测题**：和向量检索区别？
 - **答案**：向量快但粗，rerank 精但慢。
 - **反模式**：召回 1000 条全 rerank。
-- **来源**：[2026-09 验证] https://docs.trychroma.com/
 
 ## 5.16 父子块 [面试高频]
+
 - 子块检索，父块给上下文。
 - **自测题**：解决什么问题？
 - **答案**：兼顾检索精度和上下文完整。
 - **反模式**：父块过大。
 
 ## 5.17 ANN / HNSW [面试高频]
+
 - 近似最近邻，HNSW 常用。
 - **自测题**：为什么不是精确搜索？
 - **答案**：精确太慢，ANN 牺牲少量精度换速度。
 - **反模式**：小数据也用复杂 ANN。
 
 ## 5.18 元数据设计 [工程必会]
+
 - 来源、时间、权限、类型。
 - **自测题**：元数据对 RAG 有什么用？
 - **答案**：过滤、权限、引用、增量更新。
 - **反模式**：不设计元数据。
-- **来源**：[2026-09 验证] https://docs.trychroma.com/
 
 ## 5.19 增量更新 [工程必会]
+
 - 只更新相关 chunk。
 - **自测题**：难点在哪？
 - **答案**：去重、删除、一致性。
 - **反模式**：全量重建。
 
 ## 5.20 评估数据集构建 [工程必会]
+
 - 问题-答案-相关文档三元组。
 - **自测题**：评估集能调参吗？
 - **答案**：验证集可调参，测试集不可。
 - **反模式**：测试集调参。
-- **来源**：[2026-09 验证] https://docs.ragas.io/
 
 ## 5.21 多跳检索 [面试高频]
+
 - 多轮检索。
 - **自测题**：适合哪类问题？
 - **答案**：需要多步查证的复杂问题。
 - **反模式**：简单问题也多跳。
 
 ## 5.22 图 RAG [用到再查]
+
 - 图结构组织实体关系。
 - **自测题**：适合什么场景？
 - **答案**：实体关系密集的知识。
 - **反模式**：盲目上图谱。
 
 ## 5.23 查询路由 [面试高频]
+
 - 按问题类型选检索源。
 - **自测题**：解决什么问题？
 - **答案**：不同问题走不同库或策略。
@@ -876,21 +1155,25 @@ for i in range(3):
 # 第 6 章 Tool Calling
 
 ## 6.1 基本流程 [核心必背]
+
 ```text
 用户 → LLM → 判断是否需要工具 → 调用工具 → 获得结果 → LLM → 最终回答
 ```
+
 - **最小例子**：
-```json
-{"tool":"calculator","arguments":{"expression":"2+3"}}
-```
+
+  ```json
+  {"tool":"calculator","arguments":{"expression":"2+3"}}
+  ```
 - **自测题**：模型怎么知道调用哪个工具？
 - **答案**：根据工具名称和描述判断。
 - **反模式**：工具描述模糊。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/function-calling
 
 ## 6.2 工具定义 [工程必会]
+
 - 名称、描述、参数 Schema、返回值。
 - **最小例子**：
+
 ```json
 {
   "name":"get_weather",
@@ -901,9 +1184,9 @@ for i in range(3):
 - **自测题**：描述为什么重要？
 - **答案**：模型据此判断是否调用、调哪个、传什么参数。
 - **反模式**：参数不校验。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/function-calling
 
 ## 6.3 关键点 [工程必会]
+
 - 描述清晰、参数校验、失败/超时/重试、权限最小化、日志。
 - **自测题**：为什么权限最小化？
 - **答案**：减少误用和攻击面。
@@ -914,143 +1197,149 @@ for i in range(3):
 # 第 7 章 Agent
 
 ## 7.1 Agent 是什么 [工程必会]
+
 - 感知、决策、行动、循环。
 - **自测题**：和单次 Tool Calling 区别？
 - **答案**：Agent 有目标、状态、记忆和循环。
 - **反模式**：简单任务也全自主。
-- **来源**：[2026-09 验证] https://arxiv.org/abs/2210.03629，适用版本：ReAct 论文
 
 ## 7.2 Workflow [工程必会]
+
 - 预定义流程，可控稳定。
 - **自测题**：什么时候用 Workflow 就够？
 - **答案**：步骤固定、可预测的任务。
 - **反模式**：简单任务也上 Agent。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/agents/，适用版本：LangChain 0.2+
 
 ## 7.3 Planning [工程必会]
+
 - 拆解复杂任务。
 - **自测题**：和 Workflow 区别？
 - **答案**：Planning 动态生成步骤，Workflow 预定义。
 - **反模式**：计划后不重规划。
-- **来源**：[2026-09 验证] https://arxiv.org/abs/2305.04091，适用版本：Plan-and-Solve 论文
 
 ## 7.4 Tool Use [工程必会]
+
 - 根据状态选工具。
 - **自测题**：工具选择由谁决定？
 - **答案**：模型根据状态和工具描述决定。
 - **反模式**：工具暴露过多。
-- **来源**：[2026-09 验证] https://platform.openai.com/docs/guides/function-calling
 
 ## 7.5 Memory [工程必会]
+
 - 短期：对话、状态。长期：向量库、偏好。
 - **自测题**：记忆越多越好吗？
 - **答案**：不是，噪声和隐私风险增加。
 - **反模式**：记忆无节制。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/memory/，适用版本：LangChain 0.2+
 
 ## 7.6 Reflection [面试高频]
+
 - 检查结果，调整。
 - **自测题**：和重试区别？
 - **答案**：Reflection 分析原因并调整策略，重试只是重复。
 - **反模式**：无限反思。
 
 ## 7.7 ReAct [工程必会]
+
 ```text
 Thought → Action → Observation → Thought → ...
 ```
+
 - **自测题**：核心思想？
 - **答案**：推理与行动交替。
 - **反模式**：不设终止条件。
-- **来源**：[2026-09 验证] https://arxiv.org/abs/2210.03629
 
 ## 7.8 Agent Loop [核心必背]
+
 ```text
 观察 → 思考 → 选择工具 → 执行 → 获得结果 → 继续判断 → 完成
 ```
+
 - **机制**：状态 + 工具调用 + 循环 + 终止条件。
 - **自测题**：为什么需要终止条件？
 - **答案**：防止无限循环和费用爆炸。
 - **反模式**：无限循环。
-- **来源**：[2026-09 验证] https://arxiv.org/abs/2210.03629
 
 ## 7.9 Multi-Agent [面试高频]
+
 - 分工、辩论、评审、流水线。
 - **自测题**：多 Agent 一定更好吗？
 - **答案**：不一定，增加成本、延迟、不确定性。
 - **反模式**：盲目多 Agent。
 
 ## 7.10 状态机 [工程必会]
+
 - `INIT → PLAN → ACT → CHECK → DONE`。
 - **自测题**：比自由循环优势？
 - **答案**：可控、可调试、可终止。
 - **反模式**：完全自由循环。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/agents/
 
 ## 7.11 Plan-and-Execute [工程必会]
+
 - 先规划再执行，可重规划。
 - **自测题**：和 ReAct 区别？
 - **答案**：Plan-and-Execute 先全局规划，ReAct 边走边想。
 - **反模式**：计划后从不重规划。
-- **来源**：[2026-09 验证] https://arxiv.org/abs/2305.04091
 
 ## 7.12 Reflexion [面试高频]
+
 - 失败后反思入记忆。
 - **自测题**：和普通重试区别？
 - **答案**：Reflexion 记录失败原因，下次改进。
 - **反模式**：无限反思。
 
 ## 7.13 预算控制 [核心必背]
+
 - `max_steps`、`max_tokens`、超时。
 - **机制**：限制资源上限，防止失控。
 - **自测题**：为什么必须设预算？
 - **答案**：防止无限循环和费用失控。
 - **反模式**：没有预算。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/agents/
 
 ## 7.14 循环终止 [核心必背]
+
 - 任务完成、最大步数、超时、无进展。
 - **机制**：多条件同时检测，任一满足即停止。
 - **自测题**：至少包含哪几类？
 - **答案**：完成检测、步数上限、超时、无进展检测。
 - **反模式**：只靠模型说“完成了”。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/agents/
 
 ## 7.15 沙箱 [核心必背]
+
 - 隔离执行环境，容器、权限、网络限制。
 - **机制**：进程隔离 + 文件系统隔离 + 网络隔离。
 - **自测题**：为什么执行代码要沙箱？
 - **答案**：防止恶意或错误代码影响宿主机。
 - **反模式**：宿主机执行模型代码。
-- **来源**：[2026-09 验证] https://docs.docker.com/，适用版本：Docker 24+
 
 ## 7.16 Human-in-the-loop [核心必背]
+
 - 关键步骤人工确认。
 - **机制**：高风险操作前暂停，等待人工审批。
 - **自测题**：哪些场景必须 HITL？
 - **答案**：高风险操作，如转账、删库、发邮件。
 - **反模式**：高风险全自动。
-- **来源**：[2026-09 验证] https://python.langchain.com/docs/modules/agents/
 
 ## 7.17 护栏 [核心必背]
+
 - 输入过滤、工具白名单、输出校验、权限最小化。
 - **机制**：规则层 + 检查层，不是隔离环境。
 - **自测题**：和沙箱区别？
 - **答案**：护栏是规则和检查，沙箱是隔离环境。
 - **反模式**：只靠 System Prompt。
-- **来源**：[2026-09 验证] https://owasp.org/www-project-top-10-for-large-language-model-applications/，适用版本：OWASP 2025
 
 ## 7.18 Agent 可观测性 [工程必会]
+
 - 日志、trace、指标、工具调用、状态。
 - **自测题**：最该记录什么？
 - **答案**：每步工具调用、参数、结果、token、成本。
 - **反模式**：不记录步骤。
-- **来源**：[2026-09 验证] https://langfuse.com/docs，适用版本：Langfuse 2.x
 
 ---
 
 # 第 8 章 机器学习
 
 ## 8.1 NumPy [工程必会]
+
 ```python
 # 独立可运行
 # 安装：pip install numpy
@@ -1060,11 +1349,13 @@ a = np.array([[1,2],[3,4]])
 b = np.array([[5,6],[7,8]])
 print(a @ b)
 ```
+
 - **自测题**：广播作用？
 - **答案**：不同形状数组自动扩展运算。
 - **反模式**：Python 循环替代向量化。
 
 ## 8.2 Pandas [工程必会]
+
 ```python
 # 需环境依赖：data.csv（列：city, sales）
 # 安装：pip install pandas
@@ -1074,11 +1365,13 @@ import pandas as pd
 df = pd.read_csv("data.csv")
 print(df.groupby("city")["sales"].sum())
 ```
+
 - **自测题**：`groupby` 作用？
 - **答案**：分组聚合。
 - **反模式**：不处理缺失值。
 
 ## 8.3 Matplotlib [K]
+
 ```python
 # 需环境依赖：matplotlib；无 GUI 环境需设置 Agg 后端
 # 安装：pip install matplotlib
@@ -1090,11 +1383,13 @@ import matplotlib.pyplot as plt
 plt.plot([1,2,3],[4,5,6])
 plt.savefig("fig.png")
 ```
+
 - **自测题**：箱线图能看什么？
 - **答案**：分布、中位数、异常值。
 - **反模式**：不做可视化直接建模。
 
 ## 8.4 Scikit-learn [工程必会]
+
 ```python
 # 需环境依赖：X_train, y_train, X_test, y_test（shape: [n_samples, n_features]）
 # 安装：pip install scikit-learn
@@ -1104,65 +1399,76 @@ model = LinearRegression()
 model.fit(X_train, y_train)
 print(model.score(X_test, y_test))
 ```
+
 - **自测题**：`fit` 和 `predict` 区别？
 - **答案**：fit 训练，predict 预测。
 - **反模式**：测试集调参。
 
 ## 8.5 数据预处理 [面试高频]
+
 - 缺失值、异常值、归一化/标准化、编码、划分。
 - **自测题**：归一化和标准化区别？
 - **答案**：归一化缩放到 [0,1]，标准化均值 0 方差 1。
 - **反模式**：不处理缺失值。
 
 ## 8.6 特征工程 [面试高频]
+
 - 选择、提取、组合、分箱、编码。
 - **自测题**：为什么重要？
 - **答案**：特征质量常比模型选择更重要。
 - **反模式**：只调模型不调特征。
 
 ## 8.7 训练/验证/测试集 [面试高频]
+
 - 训练训练，验证调参，测试最终评估。
 - **自测题**：测试集能调参吗？
 - **答案**：不能，验证集可以。
 - **反模式**：测试集调参。
 
 ## 8.8 回归 [面试高频]
+
 - MSE、RMSE、MAE、R²。
 - **自测题**：RMSE 和 MAE 区别？
 - **答案**：RMSE 对大误差更敏感。
 - **反模式**：分类用回归指标。
 
 ## 8.9 分类 [面试高频]
+
 - 准确率、精确率、召回率、F1、AUC。
 - **自测题**：精确率和召回率权衡？
 - **答案**：提高一个常降低另一个。
 - **反模式**：只看准确率。
 
 ## 8.10 聚类 [面试高频]
+
 - K-Means、DBSCAN、层次聚类。轮廓系数。
 - **自测题**：聚类和分类区别？
 - **答案**：聚类无标签，分类有标签。
 - **反模式**：无标签用分类指标。
 
 ## 8.11 决策树 [面试高频]
+
 - 条件分支，可解释，易过拟合。
 - **自测题**：为什么易过拟合？
 - **答案**：树太深记住训练数据。
 - **反模式**：不剪枝。
 
 ## 8.12 集成学习 [面试高频]
+
 - Bagging、Boosting、Stacking。
 - **自测题**：Bagging 和 Boosting 区别？
 - **答案**：Bagging 并行降方差，Boosting 串行降偏差。
 - **反模式**：单模型硬调。
 
 ## 8.13 过拟合 [面试高频]
+
 - 训练好验证差。
 - **自测题**：怎么判断？
 - **答案**：训练指标远好于验证指标。
 - **反模式**：只看训练指标。
 
 ## 8.14 正则化 [面试高频]
+
 - L1、L2、Dropout、早停。
 - **自测题**：L1 和 L2 区别？
 - **答案**：L1 稀疏，L2 权重衰减。
@@ -1173,6 +1479,7 @@ print(model.score(X_test, y_test))
 # 第 9 章 数学
 
 ## 9.1 导数 [面试高频]
+
 - \(f'(x)\) 变化率。
 - **最小例子**：\(f(x)=x^2\)，\(f'(x)=2x\)。
 - **自测题**：导数为 0 意味着什么？
@@ -1180,6 +1487,7 @@ print(model.score(X_test, y_test))
 - **反模式**：不会求导硬推。
 
 ## 9.2 偏导数 [面试高频]
+
 - 多变量对某一变量求导。
 - **最小例子**：\(f(x,y)=x^2+y^2\)，\(\partial f/\partial x=2x\)。
 - **自测题**：偏导和全导区别？
@@ -1187,6 +1495,7 @@ print(model.score(X_test, y_test))
 - **反模式**：混淆变量。
 
 ## 9.3 梯度 [面试高频]
+
 - 偏导组成的向量，指向增长最快方向。
 - **最小例子**：\(\nabla f=(2x,2y)\)。
 - **自测题**：梯度方向指向哪？
@@ -1194,48 +1503,56 @@ print(model.score(X_test, y_test))
 - **反模式**：忘记负号。
 
 ## 9.4 链式法则 [面试高频]
+
 - \(dy/dx=f'(g(x))g'(x)\)。
 - **自测题**：在反向传播中的作用？
 - **答案**：逐层计算梯度。
 - **反模式**：硬背代码。
 
 ## 9.5 矩阵乘法 [面试高频]
+
 - `(2,3) @ (3,4) = (2,4)`。
 - **自测题**：维度要求？
 - **答案**：前列等于后行。
 - **反模式**：维度不匹配硬乘。
 
 ## 9.6 特征值 / 特征向量 [面试高频]
+
 - \(Av=\lambda v\)。
 - **自测题**：特征值代表什么？
 - **答案**：变换中方向不变向量对应的缩放。
 - **反模式**：不会算硬用。
 
 ## 9.7 条件概率 [面试高频]
+
 - \(P(A|B)\)。
 - **自测题**：和联合概率区别？
 - **答案**：条件概率是给定 B 下 A 的概率。
 - **反模式**：混淆因果。
 
 ## 9.8 贝叶斯 [面试高频]
+
 - \(P(A|B)=P(B|A)P(A)/P(B)\)。
 - **自测题**：先验和后验区别？
 - **答案**：先验是观测前，后验是观测后。
 - **反模式**：忽略先验。
 
 ## 9.9 期望 [面试高频]
+
 - \(E[X]=\sum x p(x)\)。
 - **自测题**：和均值区别？
 - **答案**：期望是理论值，均值是样本值。
 - **反模式**：混淆样本均值和期望。
 
 ## 9.10 方差 [面试高频]
+
 - \(Var(X)=E[(X-E[X])^2]\)。
 - **自测题**：和标准差关系？
 - **答案**：标准差是方差平方根。
 - **反模式**：只看均值不看方差。
 
 ## 9.11 最大似然 [面试高频]
+
 - 找让数据出现概率最大的参数。
 - **自测题**：和贝叶斯区别？
 - **答案**：MLE 不带先验，贝叶斯带先验。
@@ -1246,56 +1563,66 @@ print(model.score(X_test, y_test))
 # 第 10 章 深度学习
 
 ## 10.1 神经网络 [面试高频]
+
 - 线性变换 + 激活。
 - **自测题**：为什么需要激活？
 - **答案**：引入非线性。
 - **反模式**：全线性层。
 
 ## 10.2 激活函数 [面试高频]
+
 - Sigmoid、Tanh、ReLU、Softmax。
 - **自测题**：ReLU 为什么常用？
 - **答案**：简单、高效、缓解梯度消失。
 - **反模式**：深层用 Sigmoid。
 
 ## 10.3 Loss [面试高频]
+
 - 回归 MSE，分类交叉熵。
 - **自测题**：分类为什么用交叉熵？
 - **答案**：衡量概率分布差异，梯度好。
 - **反模式**：回归用交叉熵。
 
 ## 10.4 Forward / Backward [面试高频]
+
 - 前向得输出，反向算梯度。
 - **自测题**：反向核心是什么？
 - **答案**：链式法则。
 - **反模式**：忘记清零梯度。
 
 ## 10.5 梯度下降 [面试高频]
+
 - \(w := w - \eta \nabla L\)。
 - **自测题**：学习率太大或太小？
 - **答案**：太大震荡不收敛，太小收敛慢。
 - **反模式**：学习率固定不变。
 
 ## 10.6 Optimizer [面试高频]
+
 - SGD、Momentum、RMSProp、Adam。
 - **自测题**：Adam 为什么常用？
 - **答案**：自适应学习率，收敛快。
 - **反模式**：所有任务同一优化器。
 
 ## 10.7 Batch / Epoch [面试高频]
+
 - Batch 一次样本数，Epoch 完整遍历一次。
 - **自测题**：Batch 大小影响什么？
 - **答案**：稳定性、显存、泛化。
 - **反模式**：Batch 过大爆显存。
 
 ## 10.8 网络结构 [面试高频]
+
 - CNN 图像，RNN 序列，Transformer LLM。
 - **自测题**：CNN 和 RNN 适用场景？
 - **答案**：CNN 图像，RNN 序列。
 - **反模式**：图像用 RNN。
 
 ## 10.9 交叉熵 [面试高频]
+
 - \(L=-\sum y_i \log p_i\)。
 - **机制**：预测概率与真实标签的负对数似然。
+
 ```python
 # 需环境依赖：torch；logits shape [N,C]，labels shape [N]
 # 安装：pip install torch
@@ -1306,17 +1633,20 @@ labels = torch.tensor([0, 1, 2, 1])
 loss = nn.CrossEntropyLoss()(logits, labels)
 print(loss.item())
 ```
+
 - **自测题**：输入 logits 还是概率？
 - **答案**：logits。
 - **反模式**：先 softmax 再送。
 
 ## 10.10 KL 散度 [面试高频]
+
 - 非对称。
 - **自测题**：是对称距离吗？
 - **答案**：不是。
 - **反模式**：当欧氏距离。
 
 ## 10.11 矩阵维度 [面试高频]
+
 - Q `[B,H,L,d_k]`，K `[B,H_kv,L,d_k]`，V `[B,H_kv,L,d_v]`。
 - QK^T `[B,H,L,L]`（广播 H_kv → H）。
 - 输出 `[B,H,L,d_v]`。
@@ -1326,36 +1656,42 @@ print(loss.item())
 - **反模式**：不打印 shape。
 
 ## 10.12 残差连接 [面试高频]
+
 - \(x+F(x)\)。
 - **自测题**：为什么让网络更深？
 - **答案**：缓解梯度消失，便于优化。
 - **反模式**：维度不一致相加。
 
 ## 10.13 LayerNorm [面试高频]
+
 - 特征维度归一化。
 - **自测题**：和 BatchNorm 区别？
 - **答案**：LayerNorm 对特征，BatchNorm 对 batch。
 - **反模式**：搞混 Pre-LN/Post-LN。
 
 ## 10.14 FFN [面试高频]
+
 - 两层线性 + 激活。
 - **自测题**：为什么先升维？
 - **答案**：增加非线性表达能力。
 - **反模式**：忽略参数量。
 
 ## 10.15 因果掩码 [面试高频]
+
 - 下三角，防止看未来。
 - **自测题**：没有会怎样？
 - **答案**：信息泄露，训练无效。
 - **反模式**：训练推理掩码不一致。
 
 ## 10.16 位置编码 [面试高频]
+
 - 正弦、可学习、RoPE、ALiBi。
 - **自测题**：为什么需要？
 - **答案**：Transformer 本身无位置感。
 - **反模式**：以为能无限外推。
 
 ## 10.17 训练与推理差异 [面试高频]
+
 - 训练并行、dropout 开；推理自回归、KV Cache、dropout 关。
 - **自测题**：训练损失低不代表推理好？
 - **答案**：过拟合、分布差异、推理行为不同。
@@ -1366,6 +1702,7 @@ print(loss.item())
 # 第 11 章 LLM 深入
 
 ## 11.1 Tokenization [面试高频]
+
 - 见 1.2 Token。
 - BPE、WordPiece、SentencePiece。
 - **自测题**：为什么不用字符级？
@@ -1373,67 +1710,79 @@ print(loss.item())
 - **反模式**：忽略 tokenizer 差异。
 
 ## 11.2 Pre-training [面试高频]
+
 - 预测下一个 token。
 - **自测题**：目标是什么？
 - **答案**：学习语言规律和世界知识。
 - **反模式**：以为预训练直接可用。
 
 ## 11.3 Fine-tuning [面试高频]
+
 - 特定任务继续训练。
 - **自测题**：和预训练区别？
 - **答案**：预训练通用，微调特定。
 - **反模式**：小数据全量微调。
 
 ## 11.4 Instruction Tuning [面试高频]
+
 - 让模型遵循指令。
 - **自测题**：解决什么？
 - **答案**：让模型学会按指令回答。
 - **反模式**：指令数据质量差。
 
 ## 11.5 RLHF [面试高频]
+
 - SFT → 奖励模型 → RL。
 - **自测题**：目标是什么？
 - **答案**：有用、诚实、无害。
 - **反模式**：忽略对齐成本。
 
 ## 11.6 LoRA [面试高频]
+
 - 冻结原模型，训练低秩矩阵。
 - **机制**：W' = W + BA，rank << min(d_in, d_out)。
 - **最小代码**：
+
 ```python
 # 伪代码
 from peft import LoraConfig, get_peft_model
 config = LoraConfig(r=8, lora_alpha=16, target_modules=["q_proj","v_proj"])
 model = get_peft_model(base_model, config)
 ```
+
 - **失败模式**：秩太小欠拟合，秩太大失去意义。
 - **自测题**：LoRA 为什么省显存？
 - **答案**：只训练少量参数。
 - **反模式**：秩设太大。
 
 ## 11.7 PEFT [面试高频]
+
 - LoRA、Prefix Tuning、Adapter。
 - **自测题**：适合什么场景？
 - **答案**：显存有限、任务特定。
 - **反模式**：所有任务全量微调。
 
 ## 11.8 Quantization [面试高频]
+
 - FP16 → INT8 → INT4。
 - **机制**：降低数值精度，压缩权重和激活。
 - **公式**：dtype_bytes：FP16=2，INT8=1，INT4≈0.5（理论值）。
 - **最小代码**：
+
 ```python
 # 伪代码
 from transformers import BitsAndBytesConfig
 bnb = BitsAndBytesConfig(load_in_4bit=True)
 model = AutoModelForCausalLM.from_pretrained(name, quantization_config=bnb)
 ```
+
 - **失败模式**：精度下降、输出退化、兼容性问题。
 - **自测题**：量化代价是什么？
 - **答案**：可能损失精度。
 - **反模式**：量化后不评估。
 
 ## 11.9 Inference 优化 [面试高频]
+
 - 见 1.13 KV Cache。
 - 补充：批处理、量化、蒸馏。
 - **自测题**：批处理为什么提吞吐？
@@ -1445,33 +1794,35 @@ model = AutoModelForCausalLM.from_pretrained(name, quantization_config=bnb)
 # 第 12 章 AI Engineering
 
 ## 12.1 LLM Serving [工程必会]
+
 - vLLM、TGI、Triton、Ollama。
 - **自测题**：Serving 和直接调 API 区别？
 - **答案**：Serving 自部署，可控成本、数据、延迟。
 - **反模式**：生产直接用脚本。
-- **来源**：[2026-09 验证] https://docs.vllm.ai/en/latest/，适用版本：vLLM 0.6+
 
 ## 12.2 推理优化 [工程必会]
+
 - 批处理、KV Cache、量化、蒸馏、缓存、并行。
 - **自测题**：吞吐和延迟怎么权衡？
 - **答案**：批处理提吞吐但增延迟。
 - **反模式**：只追吞吐。
-- **来源**：[2026-09 验证] https://docs.vllm.ai/en/latest/
 
 ## 12.3 GPU 基础 [K]
+
 - 显存、算力、带宽、CUDA。
 - **自测题**：显存和算力哪个先瓶颈？
 - **答案**：看模型和 batch，通常显存先。
 - **反模式**：不看显存直接跑。
 
 ## 12.4 Prompt Evaluation [工程必会]
+
 - 准确率、格式合规率、稳定性。
 - **自测题**：为什么需要固定集？
 - **答案**：可比、可回归。
 - **反模式**：只手动试几条。
-- **来源**：[2026-09 验证] https://docs.ragas.io/，适用版本：RAGAS 0.2+
 
 ## 12.5 RAG Evaluation [工程必会]
+
 - 见 5.11 RAG 评估。
 - **自测题**：忠实度和相关性区别？
 - **答案**：忠实度看是否由上下文支持，相关性看是否回答用户问题。
@@ -2369,59 +2720,5 @@ E[X] = \sum x p(x), \quad Var(X) = E[(X-E[X])^2]
 - Markdown / Obsidian：双链 + 检索。
 - Anki：自测题 + 答案。
 - Notion：团队共享。
-
----
-
-# 第 21 章 核心必背 30 项速查
-
-> **只有以下 30 项标 [核心必背]，其余按第 0.1 章优先级定义。**
-
-| # | 知识点 | 章节 |
-|---|---|---|
-| 1 | LLM | 1.1 |
-| 2 | Token | 1.2 |
-| 3 | Context Window | 1.3 |
-| 4 | Prompt | 1.4 |
-| 5 | System/User/Assistant | 1.5 |
-| 6 | Temperature | 1.6 |
-| 7 | Embedding | 1.8 |
-| 8 | Inference | 1.9 |
-| 9 | Hallucination | 1.10 |
-| 10 | Logits | 1.11 |
-| 11 | Softmax | 1.12 |
-| 12 | KV Cache | 1.13 |
-| 13 | CoT | 1.14 |
-| 14 | HTTP/API | 2.1 |
-| 15 | 状态码 | 2.2 |
-| 16 | Python 请求 API | 2.3 |
-| 17 | JSON | 2.4 |
-| 18 | API Key | 2.5 |
-| 19 | LLM API 参数 | 2.6 |
-| 20 | RAG 基础流程 | 5.2 |
-| 21 | RAG 评估 | 5.11 |
-| 22 | Tool Calling 基本流程 | 6.1 |
-| 23 | Agent Loop | 7.8 |
-| 24 | 预算控制 | 7.13 |
-| 25 | 循环终止 | 7.14 |
-| 26 | 沙箱 | 7.15 |
-| 27 | HITL | 7.16 |
-| 28 | 护栏 | 7.17 |
-| 29 | 提示注入 | 14.2 |
-| 30 | 输出验证 | 14.10 |
-
----
-
-# 第 22 章 v5 自检清单
-
-| # | 问题 | 修正项 | 状态 |
-|---|---|---|---|
-| 1 | 优先级标签失效 | 只保留 30 项 [核心必背] | ✅ |
-| 2 | 来源 URL 未覆盖 | 核心 + 工程条目补全 | ✅ |
-| 3 | 交叉引用未落实 | 主卡唯一，副本写“见 X.X” | ✅ |
-| 4 | 代码标注不准确 | 逐条修正 | ✅ |
-| 5 | 自测索引称“全量” | 改名“高频 60 题” | ✅ |
-| 6 | 案例仍伪代码 | 16.1 给可运行 repo | ✅ |
-| 7 | 深度偏名词解释 | 核心条目补机制/公式/代码/失败/评估 | ✅ |
-| 8 | 公式小问题 | INT4 注明、成本细化、GQA 维度 | ✅ |
 
 ---
