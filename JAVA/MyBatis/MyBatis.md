@@ -1170,6 +1170,22 @@ public class StudentService {
 为什么能注入？  
 因为 `@MapperScan` 或 `@Mapper` 让 MyBatis 为接口生成代理对象，并注册到 Spring 容器。
 
+```
+StudentService 接口
+    ↓ 规定业务方法：List<Student> listStudents();
+StudentServiceImpl
+    ↓ 自己写实现，通常注入 StudentMapper
+    ↓ return studentMapper.selectAll();
+StudentMapper 接口
+    ↓ 只声明：List<Student> selectAll();
+MyBatis + StudentMapper.xml
+    ↓ MyBatis 用动态代理生成 Mapper 实现
+    ↓ 根据 namespace + id 找到 SQL
+    ↓ 执行 SQL，把结果集映射成 Student
+    ↓ 装进 List<Student>
+返回给 ServiceImpl
+```
+
 ---
 
 # 第十三篇：MyBatis 核心组件
@@ -1394,6 +1410,9 @@ public class StudentService {
 </select>
 ```
 
+- `#{offset}`：从第几条开始
+- `#{size}`：查询多少条
+
 【第三方扩展】PageHelper：
 
 ```java
@@ -1408,6 +1427,8 @@ PageInfo<Student> pageInfo = new PageInfo<>(list);
 Page<Student> page = new Page<>(pageNum, pageSize);
 studentMapper.selectPage(page, null);
 ```
+
+- `offset` = (`pageNum` - 1) * `pageSize`
 
 ---
 
