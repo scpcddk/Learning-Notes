@@ -135,17 +135,17 @@ Transformer 不采用“一次学完”的方式。
 * [x] Transformer
 * [x] FFN
 * [x] Residual Connection
-* [ ] LayerNorm
-* [ ] Next Token Prediction
+* [x] LayerNorm
+* [x] Next Token Prediction
 
 这一遍：
 
-* [ ] 理解各组件是什么
-* [ ] 理解各组件之间的关系
-* [ ] 能画出基本流程
-* [ ] 能用自己的话解释
-* [ ] 能完成简单计算
-* [ ] 不要求深入复杂数学推导
+* [x] 理解各组件是什么
+* [x] 理解各组件之间的关系
+* [x] 能画出基本流程
+* [x] 能用自己的话解释
+* [x] 能完成简单计算
+* [x] 不要求深入复杂数学推导
 
 ---
 
@@ -213,20 +213,20 @@ PyTorch
 * [x] 理解 LLM 是什么
 * [x] 理解 Large Language Model 的含义
 * [x] 理解模型与数据库的区别
-* [ ] 理解模型参数是什么
-* [ ] 理解模型知识如何通过参数表达
-* [ ] 理解训练与推理的区别
-* [ ] 理解 Inference 是什么
+* [x] 理解模型参数是什么
+* [x] 理解模型知识如何通过参数表达
+* [x] 理解训练与推理的区别
+* [x] 理解 Inference 是什么
 
 ---
 
 ## 2. Token
 
 * [x] 理解 Token 是什么
-* [ ] 理解 Token 与字符的区别
+* [x] 理解 Token 与字符的区别
 * [x] 理解 Token 与单词的区别
-* [ ] 理解 Tokenizer
-* [ ] 理解 Vocabulary
+* [x] 理解 Tokenizer
+* [x] 理解 Vocabulary
 * [x] 理解 Token ID
 
 核心认知：
@@ -238,7 +238,7 @@ PyTorch
 ## 3. Token ID
 
 * [x] 理解 Token ID 是什么
-* [ ] 理解为什么需要 Token ID
+* [x] 理解为什么需要 Token ID
 * [x] 理解 Token 与 Token ID 的关系
 * [x] 理解 Token ID 与 Embedding 的关系
 * [x] 理解 Token ID 数字大小没有语义距离
@@ -277,10 +277,10 @@ Vector
 ## 5. Attention
 
 * [x] 理解为什么需要 Attention
-* [ ] 理解 Context
+* [x] 理解 Context
 * [x] 理解 Token 与 Token 的上下文关系
-* [ ] 理解 Self-Attention
-* [ ] 理解 Attention 根据上下文动态计算关系
+* [x] 理解 Self-Attention
+* [x] 理解 Attention 根据上下文动态计算关系
 
 核心认知：
 
@@ -301,14 +301,14 @@ Vector
 
 ## 7. Attention 基本计算
 
-* [ ] 理解 Q 与 K 的匹配
-* [ ] 理解 Dot Product
-* [ ] 理解匹配分数
-* [ ] 理解 Softmax
-* [ ] 理解 Attention Weight
-* [ ] 理解 Weight × V
-* [ ] 理解加权求和
-* [ ] 能手算简单 Attention
+* [x] 理解 Q 与 K 的匹配
+* [x] 理解 Dot Product
+* [x] 理解匹配分数
+* [x] 理解 Softmax
+* [x] 理解 Attention Weight
+* [x] 理解 Weight × V
+* [x] 理解加权求和
+* [x] 能手算简单 Attention
 
 核心流程：
 
@@ -342,8 +342,8 @@ Weight × V
 * [x] 理解 Transformer ≠ Attention
 * [x] 理解 Transformer 是一种神经网络架构
 * [x] 理解 Attention 是 Transformer 的核心组件之一
-* [ ] 理解 Transformer Layer
-* [ ] 理解多个 Transformer Layer 可以堆叠
+* [x] 理解 Transformer Layer
+* [x] 理解多个 Transformer Layer 可以堆叠
 
 ---
 
@@ -383,8 +383,8 @@ Output = X + F(X)
 
 * [x] 理解 Layer Normalization 是什么
 * [x] 理解为什么需要归一化
-* [ ] 理解 LayerNorm 对表示进行规范化
-* [ ] 理解它与网络训练稳定性的关系
+* [x] 理解 LayerNorm 对表示进行规范化
+* [x] 理解它与网络训练稳定性的关系
 * [x] 第一遍暂不要求深入公式
 
 ---
@@ -396,7 +396,7 @@ Output = X + F(X)
 * [x] 理解模型会根据已有上下文预测下一个 Token
 * [x] 理解输出的是下一个 Token 的概率分布
 * [x] 理解选择 Token 后继续预测
-* [ ] 理解自回归生成
+* [x] 理解自回归生成
 
 核心流程：
 
@@ -418,16 +418,16 @@ Transformer
 
 ## 阶段 0 实践任务
 
-* [ ] 能用自己的话解释 LLM
-* [ ] 能解释 Token / Token ID / Embedding 的区别
-* [ ] 能解释 Embedding 与 Attention 的区别
-* [ ] 能解释 Q / K / V
-* [ ] 能手算简单 Attention
-* [ ] 能解释 Transformer 与 Attention 的关系
-* [ ] 能解释 FFN
-* [ ] 能解释 Residual Connection
-* [ ] 能解释 LayerNorm 的基本作用
-* [ ] 能完整描述一次简单的 Next Token Prediction 流程
+* [x] 能用自己的话解释 LLM
+* [x] 能解释 Token / Token ID / Embedding 的区别
+* [x] 能解释 Embedding 与 Attention 的区别
+* [x] 能解释 Q / K / V
+* [x] 能手算简单 Attention
+* [x] 能解释 Transformer 与 Attention 的关系
+* [x] 能解释 FFN
+* [x] 能解释 Residual Connection
+* [x] 能解释 LayerNorm 的基本作用
+* [x] 能完整描述一次简单的 Next Token Prediction 流程
 
 ### 阶段完成标准
 

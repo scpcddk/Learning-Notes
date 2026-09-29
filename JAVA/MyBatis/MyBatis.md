@@ -92,7 +92,7 @@ MyBatis
 
 ## 2. MyBatis 整体工作流程
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
 ```text
 Java 调用 Mapper 接口
@@ -118,7 +118,7 @@ resultType / resultMap 映射
 Java 对象
 ```
 
-核心组件关系：
+**核心组件关系**：
 
 | 组件 | 职责 |
 |---|---|
@@ -267,7 +267,7 @@ try (SqlSession session = factory.openSession()) {
 
 ## 4. Mapper 接口
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
 Mapper 接口不需要写实现类，MyBatis 通过 JDK 动态代理生成 `MapperProxy`。
 
@@ -311,7 +311,7 @@ id="selectById"
 > **`@Mapper`告诉 MyBatis：这个接口是 Mapper，请为它创建代理对象**
 > **`@MapperScan`告诉 MyBatis：去这个包下面，把 Mapper 接口全部扫描出来**
 
-【Spring Boot 整合】
+【**Spring Boot 整合**】
 
 ```java
 @Mapper
@@ -320,7 +320,7 @@ public interface StudentMapper {
 }
 ```
 
-或在启动类：
+**或在启动类**：
 
 ```java
 @SpringBootApplication
@@ -366,7 +366,7 @@ id="selectAll"
 
 ## 5. Mapper XML
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
 ```xml
 <mapper namespace="com.example.mapper.StudentMapper">
@@ -681,6 +681,11 @@ System.out.println(student.getId()); // 自增 id 已回填
     - **一次 INSERT 后，同时知道“插入是否成功/影响几行”和“刚插入的数据 ID 是多少”，方便后续代码继续使用这个 ID。**
   - **注意**：
     - **它不是用来自动查询或输出新数据的。**
+  - **执行过程是**：
+     1. MyBatis 执行 INSERT。
+     2. MySQL 根据自增主键机制生成 ID。
+     3. JDBC 获取数据库生成的主键。
+     4. MyBatis 根据 keyProperty="id"，将主键写入传入的 Java 对象的 id 属性。 
 
 **批量插入**：
 
@@ -1038,7 +1043,7 @@ Student_Course
 
 # 第十一篇：注解方式
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
 ```java
 @Mapper
@@ -1059,7 +1064,7 @@ public interface StudentMapper {
 }
 ```
 
-`@Results`：
+**`@Results`**：
 
 ```java
 @Results(id = "studentMap", value = {
@@ -1072,13 +1077,13 @@ public interface StudentMapper {
 Student selectWithClass(Long id);
 ```
 
-一对多：
+**一对多**：
 
 ```java
 @Many(select = "com.example.mapper.StudentMapper.selectByClassId")
 ```
 
-XML vs 注解：
+**XML vs 注解**：
 
 | 场景 | 推荐 |
 |---|---|

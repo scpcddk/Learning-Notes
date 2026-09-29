@@ -119,8 +119,10 @@ $$
 - **自测题**：LLM 的本质任务是什么？
 - **答案**：给定前文，预测下一个 token 的概率分布。
 - **反模式**：当事实数据库直接信任。
+- **模型参数**：训练学到的、决定模型行为的数值，推理时固定不变。
+  - 模型知识如何通过参数表达：训练通过调整参数，让模型逐渐学会数据中的规律；推理则利用已经学到的规律处理新的输入。
 
-**训练阶段：**
+**训练阶段**(让模型学会规律)：
 
 ```
 训练数据
@@ -146,7 +148,7 @@ Token ID 序列
 得到训练好的模型参数
 ```
 
-**推理 / 生成阶段**:
+**推理 / 生成阶段**(使用已经学会的能力):
 
 ```
 输入问题
@@ -180,6 +182,9 @@ Tokenizer 解码
 - **为什么**：计费、上下文、速度按 token 算。
 - **怎么用**：估算成本、控制 `max_tokens`。
 - **易错/关联**：中文一字可能多 token。见 11.1 Tokenization。
+- **Tokenizer**：负责把人类输入的文本切分成模型能够处理的 Token
+- **TokenID**：Token 在词表中的编号。只是编号，**不代表语义**。
+- **Vocabulary**：模型能够识别的所有 Token 以及它们对应 ID 的集合
 - **最小例子**：`hello` 可能 1 token，“你好”可能 2 token。
 - **自测题**：为什么不能用字数精确替代 token？
 - **答案**：tokenizer 切分规则不同，中英文、符号差异大。
@@ -439,10 +444,14 @@ for step in range(max_new_tokens):
   - 支持并行计算：不像 RNN 必须按时间步串行。
   - 权重动态：不同上下文关注不同位置。
 - **怎么用**：
-  - Self-Attention：Q、K、V 都来自同一序列。
-  - Cross-Attention：Q 来自解码器，K、V 来自编码器或外部信息。
-  - Multi-Head Attention：多组 Q/K/V 并行，捕捉不同关系。
-  - Causal Attention：加因果掩码，防止看未来 token。见 10.15。
+  - **Contex**：模型在处理当前 Token 或生成当前内容时，可以利用的相关输入信息和已有内容。
+    - Context = 可利用的信息范围
+    - Attention = 在这些信息中建立/分配关注关系
+    - Context Window = 模型一次能够处理的上下文 Token 数量上限
+  - **Self-Attention**：Q、K、V 都来自同一序列。同一个输入序列内部的 Token 互相计算相关性，按相关性加权聚合信息，从而让每个 Token 根据上下文更新自己的表示。
+  - **Cross-Attention**：Q 来自解码器，K、V 来自编码器或外部信息。
+  - **Multi-Head Attention**：多组 Q/K/V 并行，捕捉不同关系。
+  - **Causal Attention**：加因果掩码，防止看未来 token。见 10.15。
 - **核心公式**：
 
 \[
@@ -466,13 +475,17 @@ for step in range(max_new_tokens):
   - \(QK^T\)：`[B, H, L, L]`，需广播 `H_kv → H`
   - 输出：`[B, H, L, d_v]`
   - GQA/MQA 下 `H_kv < H`。见 1.16。
+
+> [!note]
+> Dot Product = 对应位置相乘，再全部相加，用一个数字表示两个向量的匹配程度。
+
 - **常见变体**：
-  - Self-Attention：同一序列内部注意力。
-  - Cross-Attention：跨序列注意力。
-  - Multi-Head Attention：多子空间并行。
-  - GQA / MQA：减少 KV 头数，降低 KV Cache。见 1.13、1.16。
-  - Flash Attention：分块计算，减少显存 IO。见 1.24。
-  - 滑动窗口注意力：只看局部窗口。见 1.25。
+  - **Self-Attention**：同一序列内部注意力。
+  - **Cross-Attention**：跨序列注意力。
+  - **Multi-Head Attention**：多子空间并行。
+  - **GQA / MQA**：减少 KV 头数，降低 KV Cache。见 1.13、1.16。
+  - **Flash Attention**：分块计算，减少显存 IO。见 1.24。
+  - **滑动窗口注意力**：只看局部窗口。见 1.25。
 - **复杂度**：
   - 时间：\(O(L^2 d)\)。
   - 注意力矩阵显存：\(O(L^2)\)。
@@ -565,6 +578,8 @@ attn = torch.softmax(scores, dim=-1)
   - **FFN**(Feed Forward Network：前馈神经网络)：\(\text{FFN}(x)=\max(0,xW_1+b_1)W_2+b_2\)。
   - **Residual Connection**（残差连接）：\(x+\text{Sublayer}(x)\)。
   - **LayerNorm**：对特征维度归一化。
+    - 对每个 Token 的表示向量，在特征维度上做归一化，使数值分布更稳定，再送入后续计算。
+    - 每个 Token **独立地**，在自己的特征维度上进行归一化，而不是把整个句子的所有数字混在一起做一次归一化
 
 > [!tip]
 > 
@@ -717,6 +732,20 @@ print(out.shape)
   - 忘记 labels 错位一位。
   - 把困惑度当任务表现。
   - 与 Token 1.2、Logits 1.11、Softmax 1.12、交叉熵 10.9、Attention 1.21、Transformer 1.22、KV Cache 1.13 强相关。
+- **自回归生成**：模型根据已有上下文，逐个预测下一个 token，并把刚生成的结果追加回上下文，作为下一步输入，循环直到结束。
+  - **公式**：
+  \[
+  P(x_1,\dots,x_T)=\prod_{t=1}^{T}P(x_t \mid x_{<t})
+  \]
+  - **流程**：
+  \[
+  \text{上下文} \rightarrow \text{预测下一个 token} \rightarrow \text{追加到上下文} \rightarrow \text{再预测} \rightarrow \cdots
+  \]
+  - **一句话**：
+  \[
+  \boxed{\text{用自己刚生成的结果，作为下一步预测的输入。}}
+  \]
+  - **特点**：串行生成、依赖前文、误差会累积，实际推理常用 KV Cache 加速。
 - **最小例子**：
 
 ```python
