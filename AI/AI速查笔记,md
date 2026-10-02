@@ -10,69 +10,6 @@
 
 ---
 
-# 第 0 章 使用说明与维护
-
-## 0.1 优先级定义
-
-| 层级 | 数量 | 用途 |
-|---|---|---|
-| **核心必背 30** | 30 项 | 面试前必看，项目必用 |
-| **工程必会** | 约 60 项 | 上生产必须会 |
-| **面试高频** | 约 40 项 | 面试常问，知道即可 |
-| **[K] 知道即可** | 其余 | 理解概念，排查够用 |
-| **[R] 用到再查** | 特定场景 | 偏框架、部署、小众 |
-
-**核心必背 30 项清单见第 21 章。只有第 21 章的 30 项标 [核心必背]，其余按上表降级。**
-
-## 0.2 代码三级标注
-
-| 标注 | 含义 | 要求 |
-|---|---|---|
-| `# 独立可运行` | 复制即可跑 | 含 import、依赖、运行命令、预期输出 |
-| `# 需环境依赖` | 需密钥、数据、服务 | 标注所需环境变量/文件/数据 shape |
-| `# 伪代码` | 示意，不可直接跑 | 标注“示意” |
-
-## 0.3 来源标注模板
-
-```text
-[2026-09 验证] 来源：<URL>，适用版本：<版本>
-```
-
-## 0.4 交叉引用规则
-
-主卡唯一，其他章节只写“见 X.X”。
-
-**主卡清单**：
-
-| 知识点 | 主卡 | 副本位置 |
-|---|---|---|
-| Token | 1.2 | 11.1 |
-| Context Window | 1.3 | 2.8 |
-| Embedding | 1.8 | 4.1、5.5 |
-| CoT | 1.14 | 3.8 |
-| KV Cache | 1.13 | 11.9 |
-| RAG 评估 | 5.11 | 12.5 |
-| Agent 可观测性 | 7.18 | 12.7 |
-| Prompt 评估 | 12.4 | 3.7 |
-| 成本归因 | 12.21 | 16.3 |
-| 提示注入 | 14.2 | 14.4、14.5 |
-| 输出验证 | 14.10 | 2.10 |
-
-## 0.5 维护清单
-
-- **CHANGELOG**：记录版本、日期、变更。
-- **废弃标记**：`[已废弃]` + 替代条目。
-- **版本号**：v5.0 / 2026-09。
-- **来源可信度**：A 官方 > B 论文 > C 博客。
-
-## 0.6 发布形态
-
-- Markdown / Obsidian：双链 + 检索。
-- Anki：自测题 + 答案。
-- Notion：团队共享。
-
----
-
 # 第 1 章 LLM 基础
 
 $$
@@ -465,7 +402,7 @@ for step in range(max_new_tokens):
   2. K：每个 token 能提供什么索引。
   3. V：每个 token 实际携带的信息。
   4. \(QK^T\)：计算相关性分数。
-  5. 除以 \(\sqrt{d_k}\)：防止点积过大，softmax 饱和，梯度消失。
+  5. 除以 \(\sqrt{d_k}\)：防止点积过大，softmax 饱和，梯度消失。Q、K 的维度 \(d_k\) 增大时，点积中参与**相乘并累加的项更多**，Q·K 的数值尺度可能变大；除以 \(\sqrt{d_k}\) 可以把分数的尺度控制在更合适的范围，避免 Softmax 过于极端。
   6. softmax：转成注意力权重。
   7. 加权求和 V：得到输出表示。
 - **维度**：
@@ -566,6 +503,7 @@ attn = torch.softmax(scores, dim=-1)
   - **Encoder-Decoder**：原始 Transformer、T5，适合翻译、摘要等序列到序列任务。
 - **核心结构**：
   - 输入：Token Embedding + Positional Encoding。见 1.15。
+    - Position 提供 Token 的位置信息，让模型知道 Token 的顺序。
   - Block：
     - Multi-Head Self-Attention。见 1.21。
     - 残差连接 + LayerNorm。见 10.12、10.13。
@@ -676,6 +614,8 @@ print(out.shape)
   - LayerNorm 位置放错，训练不稳定。
   - 维度不匹配硬乘。
   - 长上下文不优化注意力，导致 OOM。
+
+---
 
 ### 1.23 Next Token Prediction [面试高频]
 
@@ -797,76 +737,225 @@ print(loss)
 
 # 第 2 章 Python + LLM API
 
+> **本章定位**：从“理解 LLM”进入“实际调用 LLM”。  
+> **主链**：  
+> `Python → messages → JSON Body → Headers/API Key → POST → LLM API → 推理 → Response JSON/Stream → 解析 → 业务逻辑`  
+> **优先级**：核心必背 7 项，工程必会 9 项。
+
+---
+
 ## 2.1 HTTP / API [核心必背]
-- GET/POST/PUT/PATCH/DELETE。
-- 请求：URL、方法、头、体。响应：状态码、头、体。
+
+- **是什么**：API 是程序与程序之间约定好的调用接口；HTTP 是 Web 服务之间通信的常见协议。
+  - Python SDK：对 HTTP API 调用过程的 Python 封装，让你不用自己手写底层 HTTP 请求。
+- **机制**：Client → Request(Method/URL/Headers/Body) → Server → Response(Status/Headers/Body)。
+- **为什么**：应用不需要自己加载模型、管理 GPU、实现 Transformer，而是通过 API 获得模型能力。
+- **怎么用**：LLM API 常用 `POST /v1/chat/completions`，`Content-Type: application/json`，`Authorization: Bearer <key>`。
+- **易错/关联**：API ≠ 模型；HTTP ≠ LLM；POST 常用于提交数据，但具体语义由 API 设计决定。见 1.1、2.2。
 - **最小例子**：
 
-  ```http
-  POST /v1/chat/completions
-  Content-Type: application/json
-  {"model":"deepseek-chat","messages":[{"role":"user","content":"hi"}]}
-  ```
+```http
+POST /v1/chat/completions
+Content-Type: application/json
+Authorization: Bearer <key>
+
+{"model":"<model>","messages":[{"role":"user","content":"hi"}]}
+```
+
 - **自测题**：POST 和 GET 区别？
-- **答案**：POST 提交数据，GET 获取数据。
+- **答案**：POST 通常提交数据，GET 通常获取数据；具体语义由 API 设计决定。
 - **反模式**：GET 传敏感数据。
 
-## 2.2 状态码 [核心必背]
+---
 
-- 200 成功，400 请求错误，401 未认证，403 无权限，404 不存在，429 限流，500 服务端错误。
+## 2.2 Request / Response [核心必背]
+
+- **是什么**：HTTP 通信的请求与响应结构。
+- **机制**：
+  - **Request**：客户端发给服务端的请求。
+    - **URL**：指定请求发送到哪里，定位 API 服务入口。
+    - **Method**：指定请求的操作类型。
+    - **Headers**：携带认证、内容类型等附加信息。
+    - **Body**：携带请求真正要提交的数据，通常是 JSON 参数。
+  - **Response**：服务端返回给客户端的结果。
+    - Status Code：表示请求处理结果。
+    - Headers：携带响应附加信息。
+    - Body：携带服务端返回的数据。
+- **为什么**：调用 LLM API 本质就是构造 Request，发送，接收 Response。
+- **怎么用**：Python 中 `httpx.post(url, headers=..., json=...)` 构造 Request；`response.status_code`、`response.headers`、`response.json()` 读取 Response。
+- **易错/关联**：混淆 Request 和 Response；只关注 Body，忽略 Headers 和状态码；忘记 Response Body 需要反序列化。见 2.4、2.5、2.8。
+- **最小例子**：
+
+```http
+POST /v1/chat/completions
+Content-Type: application/json
+Authorization: Bearer <key>
+
+{"model":"<model>","messages":[{"role":"user","content":"hi"}]}
+```
+
+- **自测题**：Request 和 Response 分别包含哪些部分？
+- **答案**：Request：URL、Method、Headers、Body；Response：Status Code、Headers、Body。
+- **反模式**：只关注 Body，忽略 Headers 和状态码。
+
+---
+
+## 2.3 状态码 [核心必背]
+
+- **是什么**：HTTP Response 中的状态码，表示请求结果。
+- **机制**：2xx 成功；4xx 客户端请求有问题；5xx 服务端出现问题。
+- **怎么用**：200 成功；400 请求错误；401 未认证；403 无权限；404 不存在；429 限流；500 服务端错误；503 服务暂时不可用。
+- **易错/关联**：401 和 403 不同；429 要退避重试；不要不区分状态码统一报错。见 2.8。
+- **最小例子**：
+
+```python
+# 伪代码
+response.raise_for_status()
+```
+
 - **自测题**：401 和 403 区别？
 - **答案**：401 未认证，403 无权限。
 - **反模式**：不区分状态码统一报错。
 
-## 2.3 Python 请求 API [核心必背]
+---
+
+## 2.4 Python 请求 API [核心必背]
+
+- **是什么**：用 Python HTTP 客户端调用 LLM API。
+- **机制**：构造 **URL、Method、Headers、Body**，发送 POST，接收 Response，解析 JSON。
+- **怎么用**：使用 `httpx` 或 `requests`；设置 `timeout`；调用 `raise_for_status()`；解析 `response.json()`。
+- **易错/关联**：不处理异常；不设 timeout；只复制 `result["choices"][0]["message"]["content"]` 不理解嵌套结构。见 2.8、2.14。
+- **最小例子**：
 
 ```python
-# 需环境依赖：httpx；环境变量：DEEPSEEK_API_KEY
+# 需环境依赖：httpx；环境变量：LLM_API_KEY
 # 安装：pip install httpx
-# 运行：python script.py
-# 预期输出：模型返回的文本
+# 运行前替换 <api-host> 和 <model>
+# 预期输出：模型返回文本
 import os, httpx
+
 r = httpx.post(
-    "https://api.deepseek.com/chat/completions",
-    headers={"Authorization": f"Bearer {os.environ['DEEPSEEK_API_KEY']}"},
-    json={"model": "deepseek-chat", "messages": [{"role": "user", "content": "hi"}]},
-    timeout=30,
+    "https://<api-host>/v1/chat/completions",
+    headers={
+        "Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "model": "<model>",
+        "messages": [{"role": "user", "content": "hi"}],
+    },
+    timeout=30.0,
 )
+r.raise_for_status()
 print(r.json()["choices"][0]["message"]["content"])
 ```
 
 - **自测题**：为什么要设 timeout？
-- **答案**：防止网络阻塞，控制延迟。
+- **答案**：防止网络阻塞，控制延迟和资源占用。
 - **反模式**：不处理异常。
 
-## 2.4 JSON [核心必背]
+---
 
-- 对象、数组、字符串、数字、布尔、null。
-- **最小例子**：`json.loads('{"a":1}')`。
-- **自测题**：JSON 和 dict 区别？
-- **答案**：JSON 是文本格式，dict 是 Python 对象。
-- **反模式**：手动拼接 JSON。
+## 2.5 JSON [核心必背]
 
-## 2.5 API Key [核心必背]
+- **是什么**：JavaScript Object Notation，一种常见数据交换格式。
+- **机制**：JSON object → Python dict；JSON array → list；JSON string → str；JSON number → int/float；true/false → True/False；null → None。
+- **怎么用**：`json.loads()` 把 JSON 文本转 Python 对象；`response.json()` 把 JSON 响应转 Python 数据结构。
+- **易错/关联**：JSON 是文本格式，dict 是 Python 对象；API Response ≠ 最终字符串。见 2.4、2.7。
+- **序列化 / 反序列化**：
+  - **序列化**：把 Python 对象（dict、list 等）转换成 JSON 字符串或字节流，以便通过 HTTP 发送。
+    - **示例**：`json.dumps({"a": 1})` → `'{"a": 1}'`
+    - **在 `httpx` 中使用 `json=` 参数时，会自动序列化**。
+    ```
+    Python
+    ↓ dumps
+    JSON字符串
+    ```
+  - **反序列化**：把接收到的 JSON 字符串或响应体转换成 Python 对象。
+    - **示例**：`json.loads('{"a": 1}')` → `{"a": 1}`
+    - **`response.json()` 会自动反序列化。**
+    ```
+    JSON字符串
+    ↓ loads
+    Python对象
+    ``` 
+  - **为什么**：跨语言、跨系统数据交换；HTTP Body 传输需要序列化；接收 Response 需要反序列化。
+  - **易错**：手动拼接 JSON 字符串；忘记反序列化直接当 dict 用；序列化时遇到不可序列化对象（如 datetime）。
+- **最小例子**：
 
 ```python
-# 需环境依赖：环境变量 DEEPSEEK_API_KEY
-import os
-key = os.environ["DEEPSEEK_API_KEY"]
+# 独立可运行
+import json
+
+# 序列化
+s = json.dumps({"a": 1})
+print(s)          # '{"a": 1}'
+
+# 反序列化
+d = json.loads('{"a": 1}')
+print(d)          # {'a': 1}
 ```
 
-- **自测题**：泄露风险？
+- **自测题**：
+  1. JSON 和 dict 区别？
+     - **答案**：JSON 是文本格式，dict 是 Python 对象。
+  2. 序列化和反序列化分别是什么？
+     - **答案**：序列化是 Python 对象 → JSON 字符串；反序列化是 JSON 字符串 → Python 对象。
+- **反模式**：手动拼接 JSON；直接信任未校验的 JSON。
+
+---
+
+## 2.6 API Key [核心必背]
+
+- **是什么**：用于识别和认证 API 调用者的凭证。
+- **机制**：服务端验证 Key，决定允许或拒绝请求。
+- **怎么用**：环境变量、`.env`、Secret 管理系统；`os.getenv("LLM_API_KEY")`。
+- **易错/关联**：硬编码、提交 Git、打印日志、放前端。见 2.15。
+- **最小例子**：
+
+```python
+# 需环境依赖：环境变量 LLM_API_KEY
+import os
+key = os.environ["LLM_API_KEY"]
+```
+
+- **自测题**：API Key 泄露风险？
 - **答案**：被盗用、产生费用。
 - **反模式**：硬编码、提交 Git。
 
-## 2.6 LLM API 参数 [核心必背]
+---
 
-- `model`、`messages`、`temperature`、`max_tokens`、`stream`、`top_p`、`stop`、`tools`。
+## 2.7 LLM API 参数 [核心必背]
+
+- **是什么**：控制模型调用的参数。
+- **机制**：`model` 选模型；`messages` 输入对话；`temperature` / `top_p` 控制采样；`max_tokens` / `max_output_tokens` 限制生成长度；`stream` 控制流式；`stop` 停止词；`tools` 工具。
+- **怎么用**：事实、代码任务低温度；创意任务高温度；必须设置生成上限。
+- **易错/关联**：不同 API 参数名不同；temperature 不是聪明程度；不设 `max_tokens` 可能费用失控。见 1.6、1.7。
+- **最小例子**：
+
+```json
+{
+  "model": "<model>",
+  "messages": [{"role": "user", "content": "hi"}],
+  "temperature": 0,
+  "max_tokens": 256,
+  "stream": false
+}
+```
+
 - **自测题**：`max_tokens` 限制什么？
 - **答案**：生成的最大 token 数。
-- **反模式**：不设导致费用失控。
+- **反模式**：所有任务同一温度；不设上限。
 
-## 2.7 错误处理 [工程必会]
+---
+
+## 2.8 错误处理 [工程必会]
+
+- **是什么**：处理网络、认证、参数、限流、服务端错误。
+- **机制**：判断错误类型 → 决定重试、降级或报错。
+- **怎么用**：`raise_for_status()`；捕获 `httpx.TimeoutException`、`httpx.HTTPStatusError`、`httpx.RequestError`；429 指数退避，优先参考 `Retry-After`。
+- **易错/关联**：无限重试；401/403 盲目重试；400 不检查参数。见 2.3、2.14。
+- **最小例子**：
 
 ```python
 # 伪代码
@@ -878,30 +967,187 @@ for i in range(3):
 ```
 
 - **自测题**：429 怎么处理？
-- **答案**：指数退避重试。
+- **答案**：指数退避重试，优先参考 `Retry-After`。
 - **反模式**：无限重试。
 
-## 2.8 多轮对话 [工程必会]
+---
 
-- 历史按顺序放入 `messages`。见 1.5。
-- **自测题**：模型会记住吗？
+## 2.9 多轮对话 [工程必会]
+
+- **是什么**：程序维护对话历史，每次把历史一起发给模型。
+- **机制**：User → Assistant → User → Assistant……模型本身无状态。
+- **怎么用**：`messages = [system, user, assistant, user, ...]`；注意截断、摘要、历史压缩、RAG、Context 管理。见 1.3、1.5。
+- **易错/关联**：模型不会自己记住上一轮；历史越长 token 越多；不裁剪会超上下文。
+- **最小例子**：
+
+```python
+# 伪代码
+messages = [{"role": "system", "content": "你是助手"}]
+messages.append({"role": "user", "content": user_input})
+answer = chat(messages)
+messages.append({"role": "assistant", "content": answer})
+```
+
+- **自测题**：模型会自己记住上一轮吗？
 - **答案**：不会，历史由程序维护。
-- **反模式**：不裁剪历史导致超上下文。
+- **反模式**：不维护历史却期待多轮；不裁剪历史。
 
-## 2.9 流式输出 [工程必会]
+---
 
-- SSE 或分块传输，边生成边返回。
-- **自测题**：优点？
+## 2.10 流式输出 [工程必会]
+
+- **是什么**：模型生成过程中逐步返回增量结果。
+- **机制**：SSE 或分块传输；常见概念：Chunk、Delta、Event。
+- **怎么用**：`stream=True`；`httpx.stream`；逐行解析事件和 JSON；`print(chunk, end="", flush=True)`。
+- **易错/关联**：不同服务格式不同；不是完整生成后切片；不处理断流。见 2.7。
+- **最小例子**：
+
+```python
+# 伪代码
+with httpx.stream("POST", url, headers=headers, json=data, timeout=30.0) as r:
+    for line in r.iter_lines():
+        if line:
+            print(line)
+```
+
+- **自测题**：流式输出优点？
 - **答案**：首字延迟低，体验好。
-- **反模式**：不处理断流。
+- **反模式**：不处理断流；把每行都当最终文本。
 
-## 2.10 Structured Output [工程必会]
+---
 
-- 见 14.10 输出验证。
-- JSON mode、Schema、Function Calling、约束 + 校验。
+## 2.11 Structured Output [工程必会]
+
+- **是什么**：让模型按照指定数据结构输出结果。
+- **机制**：JSON Mode 保证合法 JSON；Schema Structured Output 进一步约束字段、类型、必填。
+- **怎么用**：JSON mode / Schema / Function Calling / 约束 + 校验；程序端必须做 Schema 和类型校验。见 14.10。
+- **易错/关联**：JSON Mode ≠ Schema；合法 JSON ≠ 符合业务结构；直接信任模型 JSON。
+- **最小例子**：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {"type": "string"},
+    "age": {"type": "integer"}
+  },
+  "required": ["name", "age"]
+}
+```
+
 - **自测题**：为什么还要校验？
 - **答案**：模型可能不合规，需程序兜底。
 - **反模式**：直接信任模型 JSON。
+
+---
+
+## 2.12 Tool Calling / Function Calling [工程必会]
+
+- **是什么**：让模型生成结构化的工具调用请求，由程序真正执行工具。
+- **机制**：用户问题 → 模型决定调用工具并生成参数 → 程序执行工具 → 结果回传模型 → 模型生成最终回答。
+- **怎么用**：定义 tools schema；解析 `tool_calls`；执行本地或远程函数；把结果作为 tool message 回传。
+- **易错/关联**：模型不直接运行 Python 函数；需要权限隔离和参数校验。见 14.10。
+- **最小例子**：
+
+```json
+{
+  "name": "get_weather",
+  "arguments": {"city": "北京"}
+}
+```
+
+- **自测题**：谁执行工具？
+- **答案**：程序执行，模型只生成调用请求。
+- **反模式**：把 Tool Call 当成已执行。
+
+---
+
+## 2.13 API 调用封装 [工程必会]
+
+- **是什么**：把调用逻辑封装成函数或类。
+- **为什么**：更换 API 地址、模型、Header、参数、错误处理时只改一处。
+- **怎么用**：`chat(messages)`；集中处理认证、超时、重试、解析。
+- **易错/关联**：所有代码写在 `main()`；到处复制粘贴调用代码。见 2.4、2.8。
+- **最小例子**：
+
+```python
+# 需环境依赖：httpx；环境变量：LLM_API_KEY
+def chat(messages):
+    # 构造 headers、data、httpx.post
+    # response.raise_for_status()
+    # return response.json()["choices"][0]["message"]["content"]
+    ...
+```
+
+- **自测题**：为什么要封装？
+- **答案**：降低耦合，方便替换和统一错误处理。
+- **反模式**：到处复制粘贴调用代码。
+
+---
+
+## 2.14 Timeout [工程必会]
+
+- **是什么**：请求超时时间。
+- **为什么**：避免程序无限等待，控制延迟和资源占用。
+- **怎么用**：`timeout=30.0`；可进一步区分 connect、read、write、pool timeout。
+- **易错/关联**：不设 timeout；超时后无限重试。见 2.8。
+- **最小例子**：
+
+```python
+# 伪代码
+httpx.post(url, headers=headers, json=data, timeout=30.0)
+```
+
+- **自测题**：为什么必须设 timeout？
+- **答案**：防止网络阻塞，控制延迟。
+- **反模式**：无限等待。
+
+---
+
+## 2.15 安全原则 [工程必会]
+
+- **是什么**：API Key 与调用链安全。
+- **怎么用**：密钥放环境变量或 Secret 管理；`.env` 加入 `.gitignore`；不打印 Key；不把私密 Key 放前端；浏览器 → 你的后端 → LLM API。
+- **易错/关联**：硬编码、提交 Git、前端暴露。见 2.6。
+- **自测题**：前端能直接放私密 API Key 吗？
+- **答案**：不能，应走自己的后端代理。
+- **反模式**：`api_key = "sk-xxxx"` 写死。
+
+---
+
+## 2.16 完整链路与架构 [工程必会]
+
+- **是什么**：第二章全链路。
+- **机制**：
+
+```text
+Python App
+ ↓
+messages
+ ↓
+JSON Body
+ ↓
+Headers / API Key
+ ↓
+POST
+ ↓
+LLM API
+ ↓
+模型推理
+ ↓
+Response JSON / Stream
+ ↓
+Python 解析
+ ↓
+业务逻辑
+```
+
+- **怎么用**：项目递进：Hello LLM → 单轮问答 → CLI 多轮 → Streaming Chat → 错误处理 → Structured Output → Tool Calling。
+- **易错/关联**：API ≠ 模型；HTTP ≠ LLM；JSON ≠ dict；Response ≠ 最终字符串；多轮不是永久记忆；Streaming 不是切片；JSON Mode ≠ Schema；Tool Calling ≠ 模型直接执行。
+- **最小例子**：见 2.4、2.9、2.10、2.11、2.12。
+- **自测题**：完整调用链是什么？
+- **答案**：Python → HTTP Request → LLM API → 推理 → Response → JSON/Stream → 解析 → 业务。
+- **反模式**：只会背参数，不会串链路。
 
 ---
 

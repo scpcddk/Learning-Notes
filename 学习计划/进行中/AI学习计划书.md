@@ -45,7 +45,7 @@ Production AI
 
 最终希望具备：
 
-* [ ] 理解 AI / LLM 基本原理
+* [x] 理解 AI / LLM 基本原理
 * [ ] 能够使用 LLM
 * [ ] 能够调用 LLM API
 * [ ] 能够使用 Python 开发 AI 程序
@@ -163,7 +163,7 @@ PyTorch
 
 之后重新深入：
 
-* [ ] Self-Attention
+* [x] Self-Attention
 * [ ] Multi-Head Attention
 * [ ] Positional Encoding
 * [ ] RoPE
@@ -457,9 +457,9 @@ hello
 
 ## 1. HTTP / API 基础
 
-* [ ] HTTP 基础
-* [ ] Request
-* [ ] Response
+* [x] HTTP 基础
+* [x] Request
+* [x] Response
 * [ ] URL
 * [ ] Endpoint
 * [ ] HTTP Method
