@@ -32,7 +32,7 @@ MyBatis 是一个**半自动 ORM 持久层框架**。它把 JDBC 中重复的：
 > - JDBC 是手动挡，Hibernate/JPA 是自动挡，MyBatis 是“SQL 自己写，映射框架帮你做”。
 > - **MyBatis = Java ↔ SQL ↔ 数据库之间的桥梁**
 
-### MyBatis 与 JDBC 的关系
+### 1.1 MyBatis 与 JDBC 的关系
 
 | 对比项 | JDBC | MyBatis |
 |---|---|---|
@@ -57,7 +57,7 @@ MyBatis
 = 特别是参数绑定 + 结果映射
 ```
 
-### MyBatis 与 Hibernate / JPA 的区别
+### 1.2 MyBatis 与 Hibernate / JPA 的区别
 
 | 特性 | MyBatis | Hibernate / JPA |
 |---|---|---|
@@ -68,7 +68,7 @@ MyBatis
 | 数据库移植 | 依赖 SQL | 较好 |
 | 典型场景 | 互联网、复杂查询 | 业务模型稳定、CRUD 多 |
 
-### MyBatis 优缺点
+### 1.3 MyBatis 优缺点
 
 **优点：**
 
@@ -137,7 +137,7 @@ Java 对象
 
 ## 3. 最小 MyBatis 项目
 
-### Maven 依赖
+### 1.4 Maven 依赖
 
 ```xml
 <dependencies>
@@ -154,7 +154,7 @@ Java 对象
 </dependencies>
 ```
 
-### 数据库表
+### 1.5 数据库表
 
 ```sql
 CREATE TABLE student (
@@ -165,7 +165,7 @@ CREATE TABLE student (
 );
 ```
 
-### Java Bean
+### 1.6 Java Bean
 
 **JavaBean 参数**：
 
@@ -185,7 +185,7 @@ public class Student {
 }
 ```
 
-### Mapper 接口
+### 1.7 Mapper 接口
 
 ```java
 package com.example.mapper;
@@ -197,7 +197,7 @@ public interface StudentMapper {
 }
 ```
 
-### Mapper XML
+### 1.8 Mapper XML
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -222,7 +222,7 @@ public interface StudentMapper {
 > `Mapper.xml` 是 MyBatis 的 SQL 映射文件，**核心作用**：
 > **把 Mapper 接口的方法和具体 SQL 绑定起来，并定义参数怎么传、结果怎么映射成 Java 对象**。
 
-### mybatis-config.xml
+### 1.9 mybatis-config.xml
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>      // 这是 XML 1.0，使用 UTF-8 编码
@@ -248,7 +248,7 @@ public interface StudentMapper {
 </configuration>
 ```
 
-### 测试
+### 1.10 测试
 
 ```java
 InputStream in = Resources.getResourceAsStream("mybatis-config.xml");
@@ -305,7 +305,7 @@ namespace="com.example.mapper.StudentMapper"
 id="selectById"
 ```
 
-### @Mapper 与 @MapperScan
+### 4.1 @Mapper 与 @MapperScan
 
 > [!tip]
 > **`@Mapper`告诉 MyBatis：这个接口是 Mapper，请为它创建代理对象**
@@ -495,7 +495,7 @@ ORDER BY ${orderBy}
 > **`#{}` = 把内容当“参数值”处理；`${}` = 把内容当“SQL文本”直接拼进去**
 > 因此 `${}` 既可以传列名、表名，也可以传数字、字符串，只是不应该用它来处理普通的用户数据参数
 
-### ⚠️ `#{}` 与 `${}` 对比
+### 9.1 ⚠️ `#{}` 与 `${}` 对比
 
 | 对比项 | `#{}` | `${}` |
 |---|---|---|
@@ -1123,6 +1123,13 @@ MyBatis-Spring：让 MyBatis 接入 Spring 事务、Bean 管理
 MyBatis-Spring-Boot-Starter：Spring Boot 自动配置
 ```
 
+### 26.1 Spring 如何管理 MyBatis 组件生命周期
+
+- SqlSessionFactory：启动时创建，应用级单例。
+- SqlSession：不直接注入，由 SqlSessionTemplate 代理获取。
+- Mapper：启动时生成代理，注册为 Spring Bean。
+- 事务：Spring 管理，不需要手动 commit / rollback / close。
+
 ## 27. Spring Boot 项目结构
 
 ```text
@@ -1197,18 +1204,279 @@ MyBatis + StudentMapper.xml
 
 ## 29. SqlSessionFactory
 
-- 是什么：创建 `SqlSession` 的工厂
-- 负责什么：加载配置、保存 `Configuration`
-- 什么时候接触：框架初始化
-- 实际项目：一般不直接操作
-- 源码关系：`SqlSessionFactoryBuilder` -> `SqlSessionFactory`
+### 29.1 是什么
+
+- 创建 `SqlSession` 的工厂。
+- MyBatis 应用级入口对象之一。
+- 可以理解为：负责生产 `SqlSession` 的地方。
+
+### 29.2 核心职责
+
+- 加载 MyBatis 配置，保存 `Configuration`。
+- 根据 MyBatis 配置创建会话。
+- 为会话提供数据库连接、执行器等运行所需的基础设施。
+- 作为应用访问 MyBatis 的入口之一。
+
+### 29.3 什么时候接触
+
+- 框架初始化 / 应用启动时构建一次。
+- 应用运行期间重复使用。
+- 通常是应用级共享对象。
+
+### 29.4 源码关系与默认实现
+
+```text
+SqlSessionFactoryBuilder -> SqlSessionFactory
+```
+
+- 默认实现：`DefaultSqlSessionFactory`。
+- 核心字段：`Configuration`。
+- `SqlSessionFactoryBuilder` 的作用：
+  - 读取 XML / 配置。
+  - 构建 `Configuration`。
+  - 创建 `SqlSessionFactory`。
+  - 构建完成后一般就可以丢弃。
+
+### 29.5 Configuration 里有什么
+
+- 环境配置。
+- 数据源。
+- 事务工厂。
+- Mapper 注册表。
+- 映射语句。
+- 类型处理器。
+- 拦截器。
+- 缓存配置等。
+
+### 29.6 常用 API
+
+```java
+SqlSession openSession();
+SqlSession openSession(boolean autoCommit);
+SqlSession openSession(ExecutorType execType);
+SqlSession openSession(ExecutorType execType, boolean autoCommit);
+SqlSession openSession(TransactionIsolationLevel level);
+```
+
+### 29.7 生命周期与线程安全
+
+- 生命周期：应用启动构建一次，长期复用。(因为 `SqlSessionFactory` 的主要职责是：**根据配置创建 `SqlSession`**,这些配置在应用启动后通常不会频繁变化,所以没有必要每个请求都重新创建 Factory)
+- 线程安全：通常线程安全。
+- 原因：它主要持有只读的 `Configuration`，本身不保存会话级可变状态。
+- 创建 `SqlSession` 时，再创建独立的 `Executor`、`Transaction` 等对象。
+
+### 29.8 Spring / Spring Boot 中
+
+- 通常由 `SqlSessionFactoryBean` 创建。
+- Spring Boot 中由 `MybatisAutoConfiguration` 自动配置。
+- 通常由 MyBatis-Spring 自动配置创建并管理 `SqlSessionFactory`。
+- 一般不需要手动创建它。
+- 一般不需要手动 `new SqlSessionFactoryBuilder()`。
+
+### 29.9 与 SqlSession 的关系
+
+```text
+SqlSessionFactory
+   |
+   | openSession()
+   v
+SqlSession A     SqlSession B     SqlSession C ...
+```
+
+- 一个工厂可以创建多个独立会话。
+- 工厂是负责生产的地方。
+- 会话是工厂生产出来的具体工作单元。
+- `SqlSessionFactory` 通常应用级共享，长期复用。
+- `SqlSession` 按会话创建和管理，用完关闭。
+- 不同会话有各自的会话状态和一级缓存。
+
+### 29.10 常见坑
+
+- 误以为每次操作都要新建 `SqlSessionFactory`。
+- 误以为 `SqlSessionFactory` 不能共享。
+- Spring 项目中手动 `new SqlSessionFactoryBuilder()`，绕开自动配置。
+- 把 `SqlSessionFactory` 和 `SqlSession` 混为一谈。
+
+### 29.11 面试追问
+
+- 为什么 `SqlSessionFactory` 通常线程安全？
+  - 因为它主要持有 `Configuration`，本身不保存会话级可变状态。
+- `SqlSessionFactoryBuilder` 的作用？
+  - 读取 XML / 配置，构建 `Configuration`，再创建 `SqlSessionFactory`。
+- `Configuration` 里有什么？
+  - 环境、数据源、事务工厂、Mapper 注册表、映射语句、类型处理器、拦截器、缓存配置等。
+- `SqlSessionFactory` 和 `SqlSession` 谁共享？
+  - 工厂共享，会话不共享。
+
+---
 
 ## 30. SqlSession
 
-- 是什么：一次数据库会话
-- 负责什么：执行 SQL、获取 Mapper、提交/回滚
-- 什么时候接触：非 Spring 项目手动使用
-- Spring 项目：由 `SqlSessionTemplate` 管理
+### 30.1 是什么
+
+- MyBatis 提供的核心操作接口。
+- 代表一次数据库会话。
+- 负责执行映射语句、获取 Mapper，以及管理会话级别的提交、回滚和关闭等操作。
+- 默认实现：`DefaultSqlSession`。
+
+### 30.2 核心职责
+
+- 执行 SQL 映射语句。
+- 获取 Mapper 接口的代理对象。
+- 管理当前会话的事务操作。
+- 管理当前会话的一级缓存。
+- 关闭会话，释放相关资源。
+
+### 30.3 源码链路
+
+```text
+SqlSession -> Executor -> StatementHandler -> ParameterHandler / ResultSetHandler -> TypeHandler
+```
+
+### 30.4 注意
+
+- `SqlSession` 不是数据库连接本身。
+- 它底层通过执行器等组件使用 JDBC 连接执行 SQL。
+- 不同会话有各自的会话状态和一级缓存。
+- 不能随意交给多个线程共享。
+
+### 30.5 生命周期与线程安全
+
+- 生命周期：请求级 / 事务级 / 方法级，用完必须关闭。
+- 线程安全：不是线程安全的。
+- 原因：它持有 `Executor`、`Transaction`、一级缓存等会话级可变状态。
+
+**MyBatis 的基本使用原则是**：
+
+- 一个 SqlSession 对应一个独立的使用上下文
+  - 不要把同一个 SqlSession 保存为全局共享对象。
+  - 不要让多个线程同时使用同一个 SqlSession。
+  - 使用完毕后应正确关闭会话，释放相关资源。
+
+### 30.6 常用 API
+
+```java
+<T> T selectOne(String statement);
+<T> List<T> selectList(String statement);
+int insert(String statement);
+int update(String statement);
+int delete(String statement);
+<T> T getMapper(Class<T> type);
+void commit();
+void rollback();
+void close();
+```
+
+### 30.7 一级缓存
+
+- 范围：同一个 `SqlSession` 内。
+- 底层：`Executor` 中的 `localCache`。
+- 清空时机：
+  - 执行 `update` / `insert` / `delete`。
+  - `commit` / `rollback`。
+  - 手动清空。
+- 配置：
+  - `localCacheScope=SESSION`：默认，会话级缓存。
+  - `localCacheScope=STATEMENT`：语句级缓存，每次查询后清空。
+- 常见现象：
+  - 同一个 `SqlSession` 内，外部修改并提交后，再次查询可能仍返回旧值。
+  - 解决：换 `SqlSession`、执行更新、提交回滚，或设置为 `STATEMENT`。
+
+### 30.8 手动使用模板
+
+```java
+try (SqlSession session = sqlSessionFactory.openSession()) {
+    try {
+        UserMapper mapper = session.getMapper(UserMapper.class);
+        User user = mapper.selectById(1L);
+        // 写操作后提交
+        session.commit();
+    } catch (Exception e) {
+        session.rollback();
+        throw e;
+    }
+}
+```
+
+### 30.9 BATCH 模式注意
+
+```java
+try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
+    UserMapper mapper = session.getMapper(UserMapper.class);
+    mapper.insert(user1);
+    mapper.insert(user2);
+    session.flushStatements();
+    session.commit();
+}
+```
+
+### 30.10 Spring 项目中
+
+- 非 Spring 项目：手动使用 `SqlSession`。
+- Spring 项目：由 `SqlSessionTemplate` 管理。
+- `SqlSessionTemplate` 是什么：
+  - MyBatis-Spring 提供的线程安全 `SqlSession` 代理。
+  - 替代直接使用 `SqlSession`，可单例注入。
+- 内部机制：
+  - 每次调用时，通过 `SqlSessionUtils` 获取当前事务相关的 `SqlSession`。
+  - 有 Spring 事务时，加入当前事务。
+  - 无 Spring 事务时，创建新 `SqlSession`，执行后自动提交或回滚并关闭。
+- 为什么 Spring 项目不直接注入 `SqlSession`：
+  - `SqlSession` 非线程安全，生命周期短，不能作为单例 Bean 随意共享。
+
+### 30.11 Mapper 接口为什么能直接注入
+
+- `@MapperScan` 会扫描 Mapper 接口。
+- 为每个接口注册 `MapperFactoryBean`。
+- `MapperFactoryBean` 最终通过 `SqlSessionTemplate.getMapper()` 生成代理对象。
+- 调用 Mapper 方法时，实际走的是 MyBatis 的 `MapperProxy`。
+
+### 30.12 Spring 事务和 MyBatis 事务
+
+- Spring 项目中，事务通常由 `DataSourceTransactionManager` 管理。
+- MyBatis 的 `SqlSession` 会与 Spring 事务同步。
+- 不需要手动 `commit` / `rollback` / `close`。
+- 手动 `openSession()` 可能绕过 Spring 事务管理，导致连接不一致。
+
+### 30.13 与 SqlSessionFactory 对比表
+
+| 对象 | 定位 | 核心职责 | 生命周期 | 线程安全 | Spring 中 |
+|---|---|---|---|---|---|
+| `SqlSessionFactory` | 会话工厂 | 加载配置、保存 `Configuration`、创建 `SqlSession` | 应用启动构建一次，长期复用 | 通常安全 | 由 MyBatis-Spring 自动配置管理 |
+| `SqlSession` | 数据库会话 | 执行 SQL、获取 Mapper、事务、一级缓存、关闭资源 | 按会话创建，用完关闭 | 不安全 | 由 `SqlSessionTemplate` 代理管理 |
+
+### 30.14 常见坑
+
+- 同一个 `SqlSession` 多线程共享，导致状态错乱。
+- 一级缓存导致同一会话内查询结果不刷新。
+- 非 Spring 项目忘记 `commit`，写操作未生效。
+- 非 Spring 项目忘记 `close`，导致连接资源泄漏。
+- Spring 项目中手动 `openSession()`，可能绕过事务。
+- `ExecutorType.BATCH` 下忘记 `flushStatements()`，数据未及时执行。
+- 误以为 `SqlSession` 就是 `Connection`。
+- 误以为 `SqlSessionFactory` 每次操作都要新建。
+
+### 30.15 面试追问
+
+- 为什么 `SqlSession` 线程不安全？
+  - 它持有 `Executor`、`Transaction`、一级缓存等会话级可变状态。
+- `SqlSession` 和 `Connection` 是一回事吗？
+  - 不是。`SqlSession` 是 MyBatis 会话抽象，底层才使用 JDBC `Connection`。
+- `SqlSession` 一级缓存和二级缓存的区别？
+  - 一级缓存是 `SqlSession` 级，默认开启。
+  - 二级缓存是 `namespace` 级，需要显式配置。
+- 为什么 Spring 项目不直接注入 `SqlSession`？
+  - 因为 `SqlSession` 非线程安全，Spring 用 `SqlSessionTemplate` 代理管理。
+
+### 30.16 记忆口诀
+
+- 工厂长期共享，会话一次一用。
+- 工厂负责创建，会话负责执行。
+- 会话不是连接，底层才用 JDBC。
+- 一级缓存会话内，二级缓存 namespace。
+- Spring 用 `SqlSessionTemplate`，不直接共享 `SqlSession`。
+
+---
 
 ## 31. Executor
 
@@ -1232,6 +1500,113 @@ MyBatis + StudentMapper.xml
 ## 34. TypeHandler
 
 见第十四篇。
+
+---
+
+## 35. 生命周期与线程安全
+
+> 生命周期决定作用域，作用域决定是否共享，是否共享决定线程安全。
+
+### 35.1 生命周期
+
+- **是什么**：一个对象从创建出来，到使用，再到最终销毁/释放资源的整个过程。
+
+| 组件 | 生命周期 / 作用域 | 创建时机 | 销毁 / 关闭 | Spring 中谁管理 |
+|---|---|---|---|---|
+| `SqlSessionFactory` | 应用级，通常单例；多数据源可多个 | 应用启动时，`SqlSessionFactoryBean` 构建 | 随应用/容器关闭，无显式 `close` | `MybatisAutoConfiguration` / `SqlSessionFactoryBean` |
+| `SqlSessionTemplate` | Spring 单例 / 应用级 | 自动配置时 | 随容器关闭 | `MybatisAutoConfiguration` |
+| `SqlSession` | 事务级 / 方法级 | `openSession()` 或 `SqlSessionTemplate` 内部获取 | 事务/方法结束关闭或归还 | `SqlSessionTemplate` / `SqlSessionUtils` / `TransactionSynchronizationManager` |
+| `Executor` | 随 `SqlSession` | 创建 `SqlSession` 时 | 随 `SqlSession` 关闭 | MyBatis 内部 |
+| `MappedStatement` | 应用级，初始化后不变 | 解析 XML / 注解时 | 无显式销毁，随应用结束 | `Configuration` 持有 |
+| `Configuration` | 应用级 | 启动构建 `SqlSessionFactory` 时 | 无显式销毁，随应用结束 | `SqlSessionFactory` 持有；自动配置创建 |
+| `TypeHandler` | 应用级 | 注册时 | 无显式销毁，随应用结束 | `TypeHandlerRegistry` |
+| `MapperProxy` | 随 Mapper Bean，通常 Spring 单例 | 启动扫描 Mapper 时 | 随容器关闭 | `MapperFactoryBean` / `MapperProxyFactory` |
+| `MapperFactoryBean` | Spring 单例 / 应用级 | 扫描 Mapper 时 | 随容器关闭 | Spring |
+| `MapperProxyFactory` | 应用级 | 注册 Mapper 时 | 无显式销毁 | `MapperRegistry` |
+| `MapperMethod` | 应用级，方法级缓存 | 首次调用 Mapper 方法时 | 无显式销毁 | `MapperProxy.methodCache` |
+| `MapperRegistry` | 应用级 | 启动解析 Mapper 时 | 无显式销毁 | `Configuration` |
+| `Environment` | 应用级 | 启动构建时 | 无显式销毁 | `Configuration` |
+| `DataSource` | 应用级 | 启动时 | 随容器关闭 | Spring / 连接池 |
+| `Connection` | 事务级 / 方法级 | 需要时从 `DataSource` 获取 | 事务/方法结束归还 | `SpringManagedTransaction` / 连接池 |
+| `SpringManagedTransaction` | 随 `SqlSession` | 创建 `SqlSession` 时 | 随 `SqlSession` 关闭 | MyBatis-Spring |
+| 一级缓存 | `SqlSession` 级 | `SqlSession` 创建时 | `SqlSession` 关闭 | `BaseExecutor` |
+| 二级缓存 | 命名空间级 / 应用级 | 启动解析缓存配置时 | 随应用结束 | `CachingExecutor` / `Configuration` |
+| `BoundSql` | 方法级 | 每次执行动态 SQL 时 | 方法结束 | `SqlSource` |
+| `StatementHandler` | 方法级 | `Executor` 执行时 | 方法结束 | `Executor` |
+| `ParameterHandler` | 方法级 | 执行时 | 方法结束 | `StatementHandler` |
+| `ResultSetHandler` | 方法级 | 执行时 | 方法结束 | `StatementHandler` |
+| `Interceptor` | 应用级 | 启动加载时 | 无显式销毁 | `InterceptorChain` |
+| `TransactionSynchronizationManager` | Spring 内部 / 应用级 | Spring 启动时 | 随应用结束 | Spring |
+| `SqlSessionHolder` | 事务级 | 事务中获取 `SqlSession` 时 | 事务结束 | Spring |
+
+> [!tip]
+> **`@Autowired` 注入的 `studentMapper` 不是 `SqlSession`，而是 MyBatis-Spring 注册到 Spring 容器里的一个 Mapper 代理对象。这个代理默认是单例，生命周期跟 Spring 容器一致；而 `SqlSession` 是短命的，通常是方法级/事务级。**
+
+### 35.2 线程安全
+
+#### 35.2.1 判断原则
+
+- **应用级 + 只读 / 无状态** → 通常线程安全。
+- **会话级 / 方法级 + 持有 `Connection`、事务、一级缓存** → 通常线程不安全。
+- **Spring 注入的 Mapper** → 安全，因为底层走 `SqlSessionTemplate`。
+- **手动 `sqlSession.getMapper()` 得到的 Mapper** → 不安全，因为它绑定当前 `SqlSession`。
+- **`SqlSessionTemplate`** → 安全；**`SqlSession`** → 不安全。
+- **自定义 `TypeHandler` / `Interceptor`** → 无状态才安全。
+
+#### 35.2.2 线程安全总览
+
+| 组件 | 线程安全 | 原因 | 正确用法 |
+|---|---|---|---|
+| `SqlSessionFactory` | ✅ 安全 | 主要持有只读 `Configuration`，不保存会话级可变状态 | 应用级单例，长期共享 |
+| `SqlSessionTemplate` | ✅ 安全 | 单例代理，内部通过 `ThreadLocal` / `SqlSessionUtils` 获取当前线程的 `SqlSession` | Spring 中单例注入 |
+| Spring 注入的 `MapperProxy` | ✅ 安全 | 底层走 `SqlSessionTemplate` | 构造器注入 Mapper |
+| 手动 `sqlSession.getMapper()` 得到的 Mapper | ❌ 不安全 | 绑定当前 `SqlSession` | 不要跨线程共享 |
+| `SqlSession` / `DefaultSqlSession` | ❌ 不安全 | 持有 `Executor`、`Transaction`、`Connection`、一级缓存等可变状态 | 一次请求/事务一个，用完关闭 |
+| `Executor` | ❌ 不安全 | 随 `SqlSession`，内部有 `localCache` | 不共享 |
+| `Connection` | ❌ 不安全 | JDBC 连接本身非线程安全 | 由连接池/事务管理，不跨线程 |
+| 一级缓存 | ❌ 不安全 | `PerpetualCache` 底层是 `HashMap`，属于 `SqlSession` 级 | 随 `SqlSession`，Spring 下线程绑定 |
+| 二级缓存 | ✅ 通常安全 | 默认有 `SynchronizedCache` 装饰 | 注意事务提交后写入和跨 namespace 一致性 |
+| `Configuration` | ✅ 初始化后安全 / ❌ 运行期修改不安全 | 启动后基本只读 | 不要运行期动态改配置 |
+| `MappedStatement` | ✅ 安全 | 初始化后不变 | 只读 |
+| `TypeHandler` | ✅ 无状态安全 / ❌ 有状态不安全 | 单例注册，可能被多线程调用 | 不要放可变成员变量 |
+| `Interceptor` | ✅ 无状态安全 / ❌ 有状态不安全 | 通常是单例 Bean | 不要保存请求级状态 |
+| `DataSource` | ✅ 安全 | 连接池通常线程安全 | 单例 |
+| `SpringManagedTransaction` | ❌ 不安全 | 绑定 `Connection` / `SqlSession` | 随 `SqlSession` |
+| `TransactionSynchronizationManager` | ✅ 安全 | Spring 内部基于 `ThreadLocal` | Spring 管理 |
+| `SqlSessionHolder` | ✅ 安全 | 线程绑定 | Spring 事务内复用 |
+| `BoundSql` / `StatementHandler` / `ParameterHandler` / `ResultSetHandler` | ❌ 不安全 | 方法级临时对象 | 不共享 |
+
+#### 35.2.3 Spring 项目中的结论
+
+- 可以安全单例注入：`SqlSessionFactory`、`SqlSessionTemplate`、Mapper 接口。
+- 不要单例注入：`SqlSession`、`Executor`、`Connection`。
+- Spring 注入的 Mapper 是安全的，因为它底层走 `SqlSessionTemplate`。
+- 手动 `sqlSession.getMapper()` 得到的 Mapper 不安全，因为它绑定当前 `SqlSession`。
+- Spring 项目不要手动 `openSession()`，否则可能绕过事务和线程绑定机制。
+- `SqlSessionTemplate` 的线程安全原理见「深度篇五：SqlSessionTemplate 线程安全原理」。
+
+> [!tip]
+> Mapper 为什么可以被两个请求同时使用:
+> 
+> **Spring 管理的是 Mapper 代理对象；Mapper 代理本身不会长期持有一个供所有线程共享的 SqlSession，而是由 MyBatis-Spring 协调当前调用所需的 SqlSession。**
+
+#### 35.2.4 常见坑
+
+| 现象 | 原因 | 解决 |
+|---|---|---|
+| 多线程状态错乱 | 多线程共享 `SqlSession` | 不要共享，交给 `SqlSessionTemplate` |
+| 事务不生效 | 手动 `openSession()` 绕过 Spring | 用 `SqlSessionTemplate` / `@Transactional` |
+| 连接泄漏 | `SqlSession` 没关闭 | try-with-resources 或交给 Spring |
+| 一级缓存脏读 | `SqlSession` 生命周期过长 | 缩短会话，或 `local-cache-scope: statement` |
+| 拦截器串数据 | 拦截器里存了请求级状态 | 拦截器保持无状态 |
+| TypeHandler 并发异常 | 自定义 TypeHandler 有可变字段 | 保持无状态 |
+
+#### 35.2.5 记忆口诀
+
+- 工厂安全，模板安全，Mapper 注入安全。
+- 会话不安全，执行器不安全，连接不安全。
+- 配置映射只读安全，插件处理器无状态才安全。
+- 手动 getMapper 跟 SqlSession 走，不要跨线程。
 
 ---
 
@@ -1309,7 +1684,7 @@ mybatis:
 
 # 第十五篇：MyBatis 缓存
 
-## 35. 一级缓存
+## 36. 一级缓存
 
 【MyBatis 核心】
 
@@ -1325,7 +1700,7 @@ mybatis:
 
 Spring 中无事务时，每次 Mapper 调用可能新 SqlSession，一级缓存不一定命中。
 
-## 36. 二级缓存
+## 37. 二级缓存
 
 【MyBatis 核心】
 
@@ -1385,17 +1760,16 @@ public class StudentService {
 }
 ```
 
-```
-@Transactional
-→ 事务控制
-→ 通常放 Service
-→ 保证一组业务操作的原子性
-```
+> [!important]
+> @Transactional
+> → 事务控制
+> → 通常放 Service
+> → 保证一组业务操作的**原子性**
 
 **关键点**：
 
 - `@Transactional` 默认回滚 `RuntimeException` 和 `Error`
-  - `@Transactional`：把一组数据库操作放进同一个事务中，发生异常时可以回滚
+  - `@Transactional`：把一组数据库操作放进同一个事务中，**发生异常时可以回滚**
 - 检查异常需 `rollbackFor = Exception.class`
 - 同一事务内通常复用同一个 SqlSession
 - try-catch 吞掉异常会导致不回滚
@@ -1405,7 +1779,7 @@ public class StudentService {
 
 # 第十七篇：分页
 
-【MyBatis 核心】手动分页：
+【**MyBatis 核心**】手动分页：
 
 ```xml
 <select id="selectPage" resultType="Student">
@@ -1527,6 +1901,27 @@ studentMapper.selectPage(page, null);
 | 主键拿不到 | 未配置回填 | insert 标签 | `useGeneratedKeys=true`、`keyProperty` |
 | 事务不回滚 | 异常被吞/检查异常 | `@Transactional` | `rollbackFor=Exception.class` |
 | 查询执行两次 | 一级缓存/嵌套查询 | 日志 | 用 join 或二级缓存 |
+
+### 生命周期相关坑
+
+| 现象 | 原因 | 解决 |
+|---|---|---|
+| 连接泄漏 | `SqlSession` 没关闭 | try-with-resources 或交给 Spring |
+| 事务不生效 | 手动 `openSession()` 绕过 Spring | 用 `SqlSessionTemplate` / `@Transactional` |
+| 一级缓存脏读 | `SqlSession` 生命周期过长 | 缩短会话，或 `local-cache-scope: statement` |
+| 重复创建工厂 | 每次操作都 `new SqlSessionFactoryBuilder()` | 交给 Spring 单例管理 |
+| 多线程状态错乱 | 多线程共享 `SqlSession` | 不要共享，交给 `SqlSessionTemplate` |
+
+### 线程安全相关坑
+
+| 现象 | 原因 | 解决 |
+|---|---|---|
+| 多线程状态错乱 | 多线程共享 `SqlSession` | 不要共享，交给 `SqlSessionTemplate` |
+| 事务不生效 | 手动 `openSession()` 绕过 Spring | 用 `SqlSessionTemplate` / `@Transactional` |
+| 连接泄漏 | `SqlSession` 没关闭 | try-with-resources 或交给 Spring |
+| 一级缓存脏读 | `SqlSession` 生命周期过长 | 缩短会话，或 `local-cache-scope: statement` |
+| 拦截器串数据 | 拦截器里存了请求级状态 | 拦截器保持无状态 |
+| TypeHandler 并发异常 | 自定义 TypeHandler 有可变字段 | 保持无状态 |
 
 ---
 
@@ -1652,6 +2047,10 @@ studentMapper.selectByCondition(...)
 - `Executor`
 - `MappedStatement`
 - `Plugin`、`Interceptor`
+- 生命周期
+- 线程安全
+- SqlSessionTemplate 线程安全原理
+- MapperProxy 为什么能安全注入
 
 ### Level 4：暂时了解
 

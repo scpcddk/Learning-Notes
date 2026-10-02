@@ -163,9 +163,9 @@
 
 这部分是为了达到你的 **B 水平**。
 
-* [ ] `SqlSessionFactory`
-* [ ] `SqlSession`
-* [ ] MyBatis 生命周期
+* [x] `SqlSessionFactory`
+* [x] `SqlSession`
+* [x] MyBatis 生命周期
 * [ ] 一级缓存
 * [ ] 二级缓存
 * [ ] TypeHandler
@@ -178,6 +178,14 @@
 * [ ] 常见设计问题
 
 这里不要求源码级理解。
+
+| B 阶段（当前目标） | C 阶段（以后深入） |
+| :--- | :--- |
+| 理解 SqlSessionFactory 和 SqlSession 的作用 | 研究它们的源码实现 |
+| 理解一级缓存的作用与失效条件 | Debug 缓存源码 |
+| 理解 TypeHandler 的用途 | 分析类型处理的内部调用链 |
+| 理解事务与 Spring 事务的关系 | 深入事务管理器和底层实现 |
+| 理解插件能拦截什么 | 阅读代理与拦截器源码 |
 
 ---
 

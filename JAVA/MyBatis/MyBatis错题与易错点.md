@@ -773,3 +773,98 @@ Unknown column
 首先就是 SQL 引用了不存在的列。
 
 ---
+
+## 27. Mapper 代理可以共享 ≠ SqlSession 可以共享
+
+❌ 容易混淆：
+
+> `studentMapper` 可以被多个请求使用，所以它内部的 `SqlSession` 也可以被多个请求共享。
+
+✅ 正确理解：
+
+Spring 通常管理的是 **Mapper 代理对象**。多个请求可以调用同一个 Mapper 代理，但这不意味着它们共享同一个 SqlSession。
+
+```text
+请求 A ──→ Mapper代理 ──→ 当前调用对应的 SqlSession
+请求 B ──→ Mapper代理 ──→ 当前调用对应的 SqlSession
+```
+
+**核心：**
+
+```text
+Mapper代理
+→ 通常可以被多个请求使用
+
+SqlSession
+→ 不能简单地跨线程共享
+```
+
+---
+
+## 28. `SqlSession` 不是线程安全的，不要用 MySQL 锁解决
+
+❌ 容易产生的误解：
+
+> 多个线程同时使用一个 SqlSession，是数据库并发问题，所以应该使用 MySQL 锁解决。
+
+✅ 正确理解：
+
+这是两个不同层次的问题：
+
+```text
+Java / MyBatis 对象层
+        ↓
+多个线程是否共享同一个 SqlSession
+        ↓
+线程安全问题
+```
+
+而：
+
+```text
+数据库层
+        ↓
+多个事务并发访问数据库数据
+        ↓
+行锁 / 表锁 / MVCC / 隔离级别
+```
+
+因此：
+
+> **SqlSession 的线程安全问题首先通过正确的对象生命周期和线程隔离来解决，而不是依靠 MySQL 锁。**
+
+---
+
+## 29. Spring 管理 Mapper ≠ “Spring 管理所以天然线程安全”
+
+❌ 容易产生的误解：
+
+> Mapper 是 Spring Bean，所以 Mapper 的所有底层对象都天然线程安全。
+
+✅ 正确理解：
+
+关键不只是“Spring 管理”，而是 **Mapper 代理不会简单地永久持有一个供所有线程共享的 SqlSession**。
+
+MyBatis-Spring 会协调 SqlSession 与当前调用、事务上下文。
+
+```text
+Spring管理 Mapper代理
+        ↓
+Mapper代理执行数据库操作
+        ↓
+MyBatis-Spring协调 SqlSession
+        ↓
+执行 SQL
+```
+
+**易错点：**
+
+不要把：
+
+> Spring 管理
+
+直接等同于：
+
+> 内部所有对象都是线程安全的。
+
+---
