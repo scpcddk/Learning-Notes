@@ -166,8 +166,8 @@
 * [x] `SqlSessionFactory`
 * [x] `SqlSession`
 * [x] MyBatis 生命周期
-* [ ] 一级缓存
-* [ ] 二级缓存
+* [x] 一级缓存
+* [x] 二级缓存
 * [ ] TypeHandler
 * [ ] 自定义 TypeHandler
 * [ ] MyBatis 事务

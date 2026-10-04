@@ -1606,7 +1606,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 工厂安全，模板安全，Mapper 注入安全。
 - 会话不安全，执行器不安全，连接不安全。
 - 配置映射只读安全，插件处理器无状态才安全。
-- 手动 getMapper 跟 SqlSession 走，不要跨线程。
+- 手动 `getMapper` 跟 `SqlSession` 走，不要跨线程。
 
 ---
 
@@ -1686,51 +1686,202 @@ mybatis:
 
 ## 36. 一级缓存
 
-【MyBatis 核心】
+【**MyBatis 核心**】
 
-- 级别：`SqlSession`
-- 默认：开启
-- 命中：同一个 SqlSession 执行相同 SQL、相同参数
+- **级别**：`SqlSession`
+  ```
+  同一个 SqlSession
+    ↓
+  共享自己的一级缓存
+  
+  不同 SqlSession
+      ↓
+  各自拥有自己的一级缓存
+  ```
+
+- **默认**：开启
+  - `localCacheScope`：一级缓存作用域，默认 `SESSION`
+    - `SESSION`：同一个 SqlSession 内共享，可跨多条查询命中
+    - `STATEMENT`：每次查询结束后清空 `localCache`，只在当前语句内有效，跨语句不命中
+    - 配置：`mybatis.configuration.local-cache-scope=STATEMENT`
+    - 效果：即使同一个 SqlSession、相同 CacheKey，跨语句也不命中，接近关闭一级缓存
+- **命中**：同一个 SqlSession 执行相同 SQL、相同参数
+  - 底层用 `CacheKey` 判断，不是直接比较 SQL 字符串
+  - `CacheKey` 主要组成：
+    - `MappedStatement.id`（namespace + statementId）
+    - `RowBounds.offset` / `RowBounds.limit`
+    - `BoundSql.sql`（最终 SQL，带 `?`）
+    - 非 `OUT` 参数的实际值（按顺序）
+    - `Environment.id`
+  - 因此 statementId、最终 SQL、参数值/顺序、分页、Environment 不同都会不命中
+  - `SqlSession` 不参与 `CacheKey`，但一级缓存是每个 `SqlSession` 私有的，所以不同 `SqlSession` 不共享
+  - 失效时通常直接清空整个 `localCache`，不是按 `CacheKey` 删除
+  - **一级缓存命中 = 同一个 SqlSession 的 localCache 中存在 equals 的 CacheKey**。
 - 失效：
   - 不同 SqlSession
   - 执行 insert/update/delete
   - commit/rollback
   - `flushCache=true`
   - 手动清空
+  - `localCacheScope=STATEMENT`
 
 Spring 中无事务时，每次 Mapper 调用可能新 SqlSession，一级缓存不一定命中。
+
+> [!tip]
+> **核心规则**：
+> 同一个 `SqlSession` + 相同查询 → 可能命中一级缓存。
+> 执行增删改 → **默认清空**一级缓存。(增删改可能影响多个缓存查询结果，因此 MyBatis 默认清空当前 `SqlSession` 的整个一级缓存，避免继续使用可能过期的结果。)
+
+**同一个事务中的多次 Mapper 查询，可以使用同一个事务关联的 SqlSession，因此可能命中一级缓存**：
+
+```
+@Transactional
+  ↓
+Spring 开启事务，绑定事务同步信息/Connection
+  ↓
+mapper.selectById(1)
+  ↓
+MyBatis-Spring 拦截，发现当前有 Spring 事务
+  ↓
+获取/创建事务相关的 SqlSession，并绑定到当前事务
+  ↓
+执行 selectById(1)，查库，结果放入该 SqlSession 的一级缓存
+  ↓
+mapper.selectById(1)
+  ↓
+仍然使用同一个事务绑定的 SqlSession
+  ↓
+相同 statement + 相同参数 + 相同 RowBounds，且期间没有清缓存
+  ↓
+命中一级缓存，不再查数据库
+```
+
+---
 
 ## 37. 二级缓存
 
 【MyBatis 核心】
 
-- 级别：`namespace`
-- 默认：关闭
-- 开启：
+- **级别**：`namespace`
+- **默认**：关闭
+- **作用范围**：跨 `SqlSession`
+- **隔离性**：不同 `namespace` 默认隔离
+- **适合使用的情况**：
+  - 读多写少
+  - 数据变化不频繁
+  - 对实时性要求不高
 
-```xml
-<cache/>
-```
+> [!warning]
+> 
+> - **MyBatis 二级缓存只能可靠地感知经过 MyBatis 自己执行的缓存相关操作，无法自动感知外部程序直接修改数据库。**
+> - **数据被多个系统/程序频繁修改时，要谨慎使用 MyBatis 二级缓存。**
 
-或：
+- **开启方式**
+  - 全局 `cacheEnabled` 默认 `true`，但 namespace 仍需配 `<cache/>` 才启用二级缓存
+  - 配置：
+    ```xml
+    <cache/>
+    ```
+    或：
+    ```xml
+    <cache eviction="LRU"
+           flushInterval="60000"
+           size="512"
+           readOnly="true"/>
+    ```
+    | 配置 | 解决什么问题 |
+    | --------------- | ------------------- |
+    | `eviction` | **缓存满了，优先淘汰谁** |
+    | `flushInterval` | **多久自动清空一次** |
+    | `size` | **最多保存多少个缓存对象** |
+    | `readOnly` | **返回的缓存对象是否允许被直接共享/修改** |
+  - 默认属性：
+    - `eviction="LRU"`
+      - Least Recently Used，**最近最少使用的缓存对象优先被淘汰**：距离上一次使用的时间最长的数据，优先淘汰。
+      - **其他常见淘汰策略**：
+        - FIFO：First In First Out，先进来的先淘汰。
+        - SOFT：使用软引用，让 JVM 根据内存情况决定回收。
+        - WEAK：使用弱引用，更容易被 JVM 回收。
+    - `flushInterval=null`
+      - **缓存隔一段时间主动全部清空，下次使用时重新从数据库获取数据**
+      - **只负责**“什么时候清空”
+      - **不负责**“去哪里获取新数据” 
+    - `size=1024`
+      - 缓存内部最多保存指定数量的**缓存条目**
+      - **缓存条目**：一个 Key(一般是CacheKey) 和它对应的缓存 Value 组成一个缓存条目
+    - `readOnly=false`
+      - 从二级缓存拿出来的对象，多个调用方之间应该怎么处理
+  - 默认 `readOnly=false` 时，实体需实现 `Serializable`
 
-```xml
-<cache eviction="LRU"
-       flushInterval="60000"
-       size="512"
-       readOnly="true"/>
-```
+- **查询与写入流程**
+  - 查询顺序：
+    ```text
+    二级缓存 → 一级缓存 → 数据库
+    ```
+  - 写入时机：
+    - 查询结果先入事务缓存
+    - **commit 后才写入二级缓存**
+    - rollback 不写入
+    ```text
+    Session A
+      ↓
+    执行查询（启用二级缓存）
+      ↓
+    CachingExecutor 检查二级缓存（namespace 级别，跨 Session 共享）
+      ↓ 未命中
+    BaseExecutor 检查一级缓存（当前 SqlSession 级别）
+      ↓ 未命中
+    查数据库
+      ↓
+    结果放入一级缓存 localCache（立即）
+      ↓
+    同时放入 TransactionalCache.entriesToAddOnCommit（暂存）
+      ↓
+    Session A commit
+      ↓
+    TransactionalCache flush 到 delegate（真正的二级缓存）
+    ```
 
-实体需实现 `Serializable`。
+- **TransactionalCache（事务缓存）**
+  - 位置：`org.apache.ibatis.cache.decorators.TransactionalCache`
+  - 由 `CachingExecutor` 内部的 `TransactionalCacheManager` 管理
+  - 每个二级 `Cache` 对应一个 `TransactionalCache`，包装真正的 `delegate` 缓存
+  - 核心字段：
+    - `delegate`：真正的二级缓存（如 `PerpetualCache`）
+    - `entriesToAddOnCommit`：本次事务待提交的缓存项
+    - `entriesMissedInCache`：本次查询未命中的 key
+  - 核心方法：
+    - `getObject`：直接读 `delegate`（已提交的二级缓存数据）
+    - `putObject`：不直接写 `delegate`，放入 `entriesToAddOnCommit`
+    - `commit`：把 `entriesToAddOnCommit` 刷入 `delegate`
+    - `rollback`：清空 `entriesToAddOnCommit`，不写入
+  - **意义**：保证二级缓存只在 **commit 后** 对其他 `SqlSession` 可见，避免脏读
 
-注意：
+- **命中与失效**
+  - 命中：
+    - 同一 `namespace`
+    - `CacheKey` 相同
+    - 二级缓存也用 `CacheKey`，组成同一级缓存
+    - 但 Cache 按 `namespace` 隔离
+  - 失效 / 不走缓存：
+    - `insert/update/delete` 默认 `flushCache=true`，清空当前 namespace 二级缓存
+    - `<select useCache="false">` 不走二级缓存
+    - 不同 `namespace` 默认隔离
+    - `<cache-ref namespace="..."/>` 可共享其他 namespace 缓存
 
-- 跨 SqlSession
-- 不同 namespace 隔离
-- 更新会清空当前 namespace 缓存
-- 分布式环境需 Redis 等集中缓存
+- **readOnly 对比**
 
-⚠️ 易混淆：MyBatis 缓存是应用层缓存，MySQL Buffer Pool 是数据库层缓存，不是一回事。
+  | readOnly | 是否序列化 | 返回结果 | 安全性 | 性能 |
+  |---|---|---|---|---|
+  | `false`（默认） | 需要，实体实现 `Serializable` | **副本**(为调用方提供可独立修改的对象) | 安全 | 较低 |
+  | `true` | 不需要 | 同一实例 | 不安全 | 高 |
+
+- **注意事项**
+  - 更新会清空当前 `namespace` 缓存
+  - 多表关联、写多、分布式场景慎用
+  - 分布式环境需 Redis 等集中式二级缓存
+
+- ⚠️ **易混淆**：MyBatis 缓存是应用层缓存，MySQL Buffer Pool 是数据库层缓存，不是一回事。
 
 ---
 
