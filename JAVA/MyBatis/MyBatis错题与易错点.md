@@ -889,3 +889,121 @@ MyBatis-Spring协调 SqlSession
 > **Session 隔离 ≠ 数据隔离；对象线程安全 ≠ 数据库并发安全。**
 
 ---
+
+### 31. MyBatis 二级缓存无法自动感知外部数据库修改
+
+* 易错理解： 只要数据库记录发生变化，MyBatis 就会自动清理对应缓存。
+
+* 正确理解： 其他程序、服务或 SQL 脚本直接修改数据库时，MyBatis 无法自动感知，二级缓存可能继续保留旧数据，导致缓存与数据库不一致。
+
+* 记忆关键： MyBatis 自身的缓存失效机制，不等于数据库级别的缓存一致性保障。
+
+---
+
+### 32. TypeHandler 与 Mapper XML 在执行链路中的职责不要混淆
+
+❌ **易错理解：**
+
+在查询结果转换过程中，把：
+
+```text
+数据库
+→ Mapper XML
+→ TypeHandler
+→ Java 对象
+```
+
+看成一条直接转换链路。
+
+✅ **正确理解：**
+
+Mapper XML 与 TypeHandler 处于不同职责阶段。
+
+**Mapper XML：**
+
+```text
+定义 SQL
+↓
+MyBatis 得到 SQL
+↓
+JDBC 执行
+```
+
+**TypeHandler：**
+
+```text
+SQL 参数写入：
+Java 类型 → JDBC 类型
+
+查询结果读取：
+JDBC 类型 → Java 类型
+```
+
+例如查询：
+
+```text
+Mapper XML
+    ↓
+SELECT id, name, gender FROM student
+    ↓
+JDBC 执行
+    ↓
+MySQL 返回 ResultSet
+    ↓
+TypeHandler
+    ↓
+"M" → Gender.MALE
+    ↓
+Student.gender
+```
+
+**核心记忆：**
+
+```text
+Mapper XML
+→ 定义 SQL
+
+TypeHandler
+→ 处理 Java ↔ JDBC 类型转换
+```
+
+不要把 Mapper XML 放进 TypeHandler 的“数据类型转换链”中。
+
+### 补充：`#{}` 也不要理解成字符串替换
+
+今天已经重新确认：
+
+❌
+
+```text
+#{age}
+→ 替换成 18
+→ WHERE age = 18
+```
+
+✅
+
+```text
+#{age}
+→ WHERE age = ?
+→ TypeHandler 处理 Java 参数
+→ PreparedStatement.setInt(..., 18)
+→ JDBC 执行
+```
+
+因此：
+
+```text
+#{}
+→ 参数占位 / 参数绑定
+
+TypeHandler
+→ Java ↔ JDBC 类型转换
+
+Mapper XML
+→ 定义 SQL
+```
+
+**`TypeHandler` 不负责把 `#{age}` 替换成 `18`，而是负责把 Java 参数按照对应的 JDBC 类型设置到 `PreparedStatement` 的 `?` 参数中**
+
+---

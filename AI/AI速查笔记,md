@@ -832,7 +832,7 @@ response.raise_for_status()
 # 安装：pip install httpx
 # 运行前替换 <api-host> 和 <model>
 # 预期输出：模型返回文本
-import os, httpx
+import os, httpx //导入 Python 的 HTTPX 库
 
 r = httpx.post(
     "https://<api-host>/v1/chat/completions",
@@ -927,25 +927,62 @@ key = os.environ["LLM_API_KEY"]
 
 ## 2.7 LLM API 参数 [核心必背]
 
-- **是什么**：控制模型调用的参数。
-- **机制**：`model` 选模型；`messages` 输入对话；`temperature` / `top_p` 控制采样；`max_tokens` / `max_output_tokens` 限制生成长度；`stream` 控制流式；`stop` 停止词；`tools` 工具。
-- **怎么用**：事实、代码任务低温度；创意任务高温度；必须设置生成上限。
-- **易错/关联**：不同 API 参数名不同；temperature 不是聪明程度；不设 `max_tokens` 可能费用失控。见 1.6、1.7。
-- **最小例子**：
+| 参数 | 作用 | 注意 |
+|---|---|---|
+| `model` | 选模型 | 决定能力、价格、上下文 |
+| `messages` / `input` | 输入对话 | 常见角色：`system`、`user`、`assistant`、`tool` |
+| `temperature` / `top_p` | 控制采样 | 低=稳定，高=随机；别同时大改 |
+| `max_tokens` / `max_output_tokens` | 限制生成长度 | 只限输出，不限输入；不设可能费用失控 |
+| `stream` | 流式返回 | 要自己拼接分片 |
+| `stop` | 停止词 | 不同 API 名称不同 |
+| `tools` | 工具调用 | 配 JSON Schema，通常用低温度 |
+
+> [!note]
+> 
+> - system    → 系统指令 / 应用设定
+> - user      → 用户
+> - assistant → 模型之前生成的回复
+
+**怎么用**：
+
+- 事实、代码、抽取、工具：低温 `0~0.3`
+- 创意、文案、头脑风暴：高温 `0.7~1.1`
+- 必须设置输出上限
+- 结构化输出用 `response_format`，工具调用用清晰 schema
+
+**易错**：
+
+- 不同 API 参数名不同，如 `max_tokens` / `max_completion_tokens` / `max_output_tokens`
+- `temperature` 不是聪明程度
+- `max_tokens` 限制输出，不限制输入
+- 流式下 JSON、工具调用可能分片，要拼完整再解析
+
+**最小例子**：
 
 ```json
 {
-  "model": "<model>",
-  "messages": [{"role": "user", "content": "hi"}],
-  "temperature": 0,
-  "max_tokens": 256,
-  "stream": false
+  "model": "<model>",          // 使用哪个模型
+  "messages": [                // 对话消息列表
+    {
+      "role": "user",          // 消息角色：用户
+      "content": "hi"          // 消息内容
+    }
+  ],
+  "temperature": 0,            // 采样温度：0 最稳定
+  "max_tokens": 256,           // 最多生成 256 个 token
+  "stream": false              // 非流式返回
 }
 ```
 
-- **自测题**：`max_tokens` 限制什么？
-- **答案**：生成的最大 token 数。
-- **反模式**：所有任务同一温度；不设上限。
+**自测题**：`max_tokens` 限制什么？  
+**答案**：模型生成的最大 token 数。
+
+**反模式**：
+
+- 所有任务同一温度
+- 不设生成上限
+- 把 `temperature` 当聪明程度
+- 同时乱调 `temperature` 和 `top_p`
 
 ---
 

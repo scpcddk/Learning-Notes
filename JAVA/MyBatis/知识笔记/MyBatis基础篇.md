@@ -1519,7 +1519,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 | `Executor` | 随 `SqlSession` | 创建 `SqlSession` 时 | 随 `SqlSession` 关闭 | MyBatis 内部 |
 | `MappedStatement` | 应用级，初始化后不变 | 解析 XML / 注解时 | 无显式销毁，随应用结束 | `Configuration` 持有 |
 | `Configuration` | 应用级 | 启动构建 `SqlSessionFactory` 时 | 无显式销毁，随应用结束 | `SqlSessionFactory` 持有；自动配置创建 |
-| `TypeHandler` | 应用级 | 注册时 | 无显式销毁，随应用结束 | `TypeHandlerRegistry` |
+| `TypeHandler` | 应用级 | 注册时 | 无显式销毁，随应用结束 | `TypeHandlerRegistry`：`TypeHandler` 的“登记表” |
 | `MapperProxy` | 随 Mapper Bean，通常 Spring 单例 | 启动扫描 Mapper 时 | 随容器关闭 | `MapperFactoryBean` / `MapperProxyFactory` |
 | `MapperFactoryBean` | Spring 单例 / 应用级 | 扫描 Mapper 时 | 随容器关闭 | Spring |
 | `MapperProxyFactory` | 应用级 | 注册 Mapper 时 | 无显式销毁 | `MapperRegistry` |
@@ -1612,11 +1612,21 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 
 # 第十四篇：TypeHandler
 
-【MyBatis 核心】
+### TypeHandler基础
 
-TypeHandler 负责 Java 类型 ↔ JDBC 类型转换。
+【**MyBatis 核心**】
 
-常见：
+**TypeHandler 负责 Java 类型 ↔ JDBC 类型转换**
+
+```
+查询：
+数据库 → JDBC → TypeHandler → Java
+
+写入：
+Java → TypeHandler → JDBC → 数据库
+```
+
+**常见**：
 
 - `StringTypeHandler`
 - `IntegerTypeHandler`
@@ -1624,61 +1634,214 @@ TypeHandler 负责 Java 类型 ↔ JDBC 类型转换。
 - `BooleanTypeHandler`
 - `DateTypeHandler`
 
-自定义示例：List<String> 转 JSON 字符串。
+**显式TypeHandler**：
+
+```xml
+#{参数名, javaType=Java类型, jdbcType=JDBC类型, typeHandler=TypeHandler全类名}
+```
+
+- `参数名`：Java 属性名 / 参数名  
+- `javaType`：Java 类型，如 `java.lang.Integer`  
+- `jdbcType`：JDBC 类型，如 `INTEGER`、`VARCHAR`  
+- `typeHandler`：处理器全类名，可选，用于强制指定  
+
+> [!tip]
+> `javaType` / `jdbcType` 不是“开启 TypeHandler”，而是帮助 MyBatis 更明确地确定参数的 JDBC 类型和 TypeHandler。
+> **参数为 `null` 时，Java 端没有具体值可以帮助确定 JDBC 类型，所以显式指定 `jdbcType` 可以帮助 MyBatis/JDBC 正确处理这个 NULL 参数**
+
+### 自定义TypeHandler
+
+**核心写法：**
+
+```Java
+public class XxxTypeHandler extends BaseTypeHandler<T> {
+    // Java -> JDBC，非空时调用
+    @Override
+    public void setNonNullParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {}
+
+    // Nullable = 允许为空（null）
+    // 查询结果可能是 null，也可能是正常值，TypeHandler 都要能够处理
+
+    // JDBC -> Java，按列名
+    @Override
+    public T getNullableResult(ResultSet rs, String columnName) throws SQLException {}
+
+    // JDBC -> Java，按列下标
+    @Override
+    public T getNullableResult(ResultSet rs, int columnIndex) throws SQLException {}
+
+    // JDBC -> Java，存储过程
+    @Override
+    public T getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {}
+}
+```
+
+**自定义示例**：List<String> 转 JSON 字符串。
 
 ```java
-@MappedTypes(List.class)
-@MappedJdbcTypes(JdbcType.VARCHAR)
+/**
+ * 用于将 Java 的 {@code List<String>} 类型与数据库的 VARCHAR 类型相互转换的 MyBatis TypeHandler。
+ * 该处理器使用 Jackson 将 List 序列化为 JSON 字符串存储到数据库，
+ * 并在读取时从 JSON 字符串反序列化为 List。
+ */
+@MappedTypes(List.class)                // 指定该 TypeHandler 处理的 Java 类型为 List
+@MappedJdbcTypes(JdbcType.VARCHAR)      // 指定该 TypeHandler 处理的 JDBC 类型为 VARCHAR
 public class StringListTypeHandler extends BaseTypeHandler<List<String>> {
 
+    /**
+     * Jackson 的 ObjectMapper 实例，用于 JSON 序列化与反序列化。
+     * 由于 ObjectMapper 是线程安全的，因此使用 static final 共享一个实例。
+     */
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * 将非空的 List<String> 参数设置到 PreparedStatement 中。
+     * 这里将 List 序列化为 JSON 字符串，并以 VARCHAR 类型写入。
+     * @param ps         PreparedStatement 对象
+     * @param i          参数索引（从 1 开始）
+     * @param parameter  要设置的参数值，非空 List<String>
+     * @param jdbcType   参数的 JDBC 类型
+     * @throws SQLException 如果序列化失败或设置参数出错
+     */
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i,
                                     List<String> parameter, JdbcType jdbcType)
             throws SQLException {
         try {
+            // 将 List 转换为 JSON 字符串并设置到 PreparedStatement
             ps.setString(i, MAPPER.writeValueAsString(parameter));
         } catch (JsonProcessingException e) {
+            // 将 Jackson 异常包装为 SQLException 抛出
             throw new SQLException(e);
         }
     }
 
+    /**
+     * 根据列名从 ResultSet 中获取可空的结果，并解析为 List<String>。
+     * @param rs         ResultSet 对象
+     * @param columnName 列名
+     * @return 解析后的 List<String>，如果数据库值为 null 则返回 null
+     * @throws SQLException 如果读取或解析出错
+     */
     @Override
     public List<String> getNullableResult(ResultSet rs, String columnName)
             throws SQLException {
         return parse(rs.getString(columnName));
     }
 
+    /**
+     * 根据列索引从 ResultSet 中获取可空的结果，并解析为 List<String>。
+     * @param rs          ResultSet 对象
+     * @param columnIndex 列索引（从 1 开始）
+     * @return 解析后的 List<String>，如果数据库值为 null 则返回 null
+     * @throws SQLException 如果读取或解析出错
+     */
     @Override
     public List<String> getNullableResult(ResultSet rs, int columnIndex)
             throws SQLException {
         return parse(rs.getString(columnIndex));
     }
 
+    /**
+     * 从 CallableStatement 中根据列索引获取可空的结果，并解析为 List<String>。
+     * @param cs          CallableStatement 对象
+     * @param columnIndex 列索引（从 1 开始）
+     * @return 解析后的 List<String>，如果数据库值为 null 则返回 null
+     * @throws SQLException 如果读取或解析出错
+     */
     @Override
     public List<String> getNullableResult(CallableStatement cs, int columnIndex)
             throws SQLException {
         return parse(cs.getString(columnIndex));
     }
 
+    /**
+     * 将 JSON 字符串解析为 List<String>。
+     * @param json 待解析的 JSON 字符串，可能为 null
+     * @return 解析后的 List<String>，如果 json 为 null 则返回 null
+     * @throws SQLException 如果解析失败
+     */
     private List<String> parse(String json) throws SQLException {
-        if (json == null) return null;
+        if (json == null) {
+            return null;
+        }
         try {
+            // 使用 TypeReference 保留泛型信息，将 JSON 反序列化为 List<String>
             return MAPPER.readValue(json, new TypeReference<List<String>>() {});
         } catch (JsonProcessingException e) {
+            // 将 Jackson 异常包装为 SQLException 抛出
             throw new SQLException(e);
         }
     }
 }
 ```
 
-注册：
+**四种注册方式**：
+
+**1. XML 全局注册**
+
+```xml
+<typeHandlers>
+    <typeHandler handler="com.xx.StringListTypeHandler" javaType="java.util.List"/>
+    <typeHandler handler="com.xx.StringListTypeHandler" javaType="java.util.List" jdbcType="VARCHAR"/>
+    <package name="com.xx.handler"/>  <!-- 类必须加 @MappedTypes -->
+</typeHandlers>
+```
+
+**2. Spring Boot 包扫描**
 
 ```yaml
 mybatis:
-  type-handlers-package: com.example.demo.handler
+  type-handlers-package: com.xx.handler
+# MyBatis-Plus 用 mybatis-plus.type-handlers-package
 ```
+
+负责让 MyBatis 找到并注册这些 TypeHandler
+
+**3. Java Config**
+
+```java
+configuration.getTypeHandlerRegistry().register(StringListTypeHandler.class);
+configuration.getTypeHandlerRegistry().register(List.class, JdbcType.VARCHAR, new StringListTypeHandler());
+```
+
+**4. 字段级指定**（优先级最高）
+
+```xml
+<!-- 查询 -->
+<result column="tags" property="tags" typeHandler="com.xx.StringListTypeHandler"/>
+<!-- 插入/更新 -->
+#{tags, typeHandler=com.xx.StringListTypeHandler}
+```
+
+```java
+// MyBatis-Plus
+@TableName(autoResultMap = true)   // 必须加，否则查询不生效
+public class User {
+    @TableField(typeHandler = StringListTypeHandler.class)
+    private List<String> tags;
+}
+```
+
+**覆盖规则**：
+
+1. 同 `(javaType, jdbcType)` 组合，后注册覆盖先注册。
+2. **字段级 > 全局注册 > 内置默认**。
+3. 覆盖内置 `StringTypeHandler`：注册时指定 `javaType=String` 且**不带 jdbcType**（内置在 `(String, null)` 位置）。
+4. 泛型陷阱：`List<String>` 和 `List<Integer>` 会互相覆盖（都注册到 `List.class`）。
+
+**注意事项**：
+
+- 查询时 `ResultSet` 的列名和下标方法都要重写。
+- 自动注册依赖 `@MappedTypes` / `@MappedJdbcTypes`，泛型擦除下 `List.class` 太宽泛，生产建议字段级指定或自定义包装类型。
+  - `@MappedTypes`：告诉 MyBatis：这个 TypeHandler 对应哪个 Java 类型。
+  - `@MappedJdbcTypes`：告诉 MyBatis：这个 TypeHandler 对应哪个 JDBC 类型。
+- `JdbcType` 一般可忽略，但 Oracle 等数据库可能需要明确指定。
+- 转换异常建议抛出 `RuntimeException` 或 `SQLException`，便于定位。
+- MyBatis-Plus 中记得配置 `type-handlers-package`，否则 `@TableField(typeHandler = ...)` 可能不生效。
+
+> [!tip]
+> 继承 `BaseTypeHandler<T>`，重写 4 个方法，注册后通过字段指定或自动匹配，即可完成自定义类型转换。
 
 ---
 
@@ -2382,1042 +2545,5 @@ mybatis:
 - 事务交给 Spring `@Transactional`，不要手动 `commit/rollback`。
 - MyBatis 缓存是应用层缓存，不要和 MySQL Buffer Pool 混淆。
 - MyBatis-Plus 是第三方增强，不是 MyBatis 原生功能。
-
----
-
-# 进阶篇
-
-> 以下内容针对评价中提到的“原理深度偏浅”“批量与性能建议不足”“进阶主题未覆盖”等方向进行补充。所有内容仍以 **Java 17+、Spring Boot 3.x、MyBatis 3.5.x、mybatis-spring-boot-starter 3.x、MySQL 8.x** 为基准。
-
----
-
-# 补充篇一：版本兼容性与依赖管理
-
-## 1.1 mybatis-spring-boot-starter 版本矩阵
-
-根据官方仓库的说明，各版本要求如下：
-
-| Starter 版本 | MyBatis | MyBatis-Spring | Spring Boot | Java |
-|---|---|---|---|---|
-| 4.0.x | 3.5 | 4.0 | 4.0 | 17+ |
-| 3.0.x | 3.5 | 3.0 | 3.2 – 3.5 | 17+ |
-| 2.3.x | 3.5 | 2.1 | 2.5 – 2.7 | 8+ |
-
-> ⚠️ 版本兼容性以官方兼容矩阵为准，生产项目建议通过父工程或 BOM 统一管理版本，避免在子模块中写死过旧版本。Spring Boot 3.x 必须使用 starter 3.x，底层要求 Java 17 和 Jakarta EE 9+。
-
-## 1.2 MyBatis-Plus 与 Spring Boot 3.x 的版本匹配
-
-从 Spring Boot 3.x 开始，推荐使用 MyBatis 3.5.x 系列。MyBatis-Plus 3.5.x 是与 Spring Boot 3.x 系列兼容的最佳选择。在实际项目中，需确保 MyBatis-Plus 依赖的 MyBatis 版本与 mybatis-spring-boot-starter 引入的 MyBatis 版本一致，否则可能报 `NoSuchMethodError`。
-
-## 1.3 各进阶功能所需额外依赖
-
-| 功能 | 需额外引入的依赖 | 说明 |
-|---|---|---|
-| Redis 二级缓存 | `org.mybatis.caches:mybatis-redis` | 兼容 MyBatis 3.4+ |
-| `@MybatisTest` 切片测试 | `org.mybatis.spring.boot:mybatis-spring-boot-starter-test` | 提供 `mybatis-spring-boot-test-autoconfigure` |
-| ShardingSphere 分库分表 | `org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter` | 5.x 版本，支持 JDK17 |
-| dynamic-datasource | `com.baomidou:dynamic-datasource-spring-boot-starter` | 提供 `@DS` 注解切换数据源 |
-
----
-
-# 补充篇二：参数传递的精确边界
-
-上一轮评价指出“单参数时 `#{}` 内名称可以任意”需要限定前提。精确结论如下：
-
-| 参数类型 | `#{}` 内如何写 | 示例 |
-|---|---|---|
-| 单个简单类型（String、Integer、Long 等） | 任意名称，MyBatis 忽略 | `selectById(Long id)` → `#{anything}` |
-| 单个对象（POJO / Map） | 必须写属性名或 Map key | `selectByStudent(Student s)` → `#{name}`、`#{age}` |
-| 多参数（无 `@Param`） | `arg0/arg1`、`param1/param2`，或开启 `-parameters` 后用真实参数名 | `#{param1}`、`#{param2}` |
-| 多参数（有 `@Param`） | 使用 `@Param` 指定的名称 | `@Param("name")` → `#{name}` |
-
-核心原则：**多参数一律加 `@Param`**，不依赖编译器行为和隐式命名规则。
-
----
-
-# 补充篇三：Executor 三种类型源码级区别
-
-## 3.1 三种 Executor 对比
-
-| 类型 | 触发方式 | Statement 策略 | 适用场景 |
-|---|---|---|---|
-| `SIMPLE`（默认） | `openSession()` | 每次执行新建 PreparedStatement，用完关闭 | 常规查询 |
-| `REUSE` | `openSession(ExecutorType.REUSE)` | 以 SQL 为 key 缓存 Statement，复用同一 SQL 的 Statement | 同一 SQL 反复执行 |
-| `BATCH` | `openSession(ExecutorType.BATCH)` | 攒批，调用 JDBC `addBatch`，直到 commit 或触发查询才批量执行 | 大批量写操作 |
-
-## 3.2 执行器在调用链中的位置
-
-```text
-MapperProxy.invoke()
-  → SqlSession.selectOne/insert/update
-    → CachingExecutor.query/update   （二级缓存包装层）
-      → SimpleExecutor / ReuseExecutor / BatchExecutor
-        → StatementHandler
-          → ParameterHandler + JDBC PreparedStatement
-```
-
-`CachingExecutor` 是所有 Executor 的外层包装，负责二级缓存查询和写入，内部委托给真正的 Executor。
-
----
-
-# 补充篇四：MyBatis 插件（Interceptor）机制
-
-## 4.1 可拦截的四大组件
-
-| 拦截目标 | 接口 | 典型用途 |
-|---|---|---|
-| Executor | `org.apache.ibatis.executor.Executor` | 分页、读写分离、SQL 重写、执行时间统计 |
-| StatementHandler | `org.apache.ibatis.executor.statement.StatementHandler` | SQL 改写、参数加工 |
-| ParameterHandler | `org.apache.ibatis.executor.parameter.ParameterHandler` | 参数加密、参数校验 |
-| ResultSetHandler | `org.apache.ibatis.executor.resultset.ResultSetHandler` | 结果集脱敏、字段填充 |
-
-## 4.2 自定义 SQL 执行时间统计拦截器
-
-```java
-@Intercepts({
-    @Signature(type = Executor.class, method = "update",
-               args = {MappedStatement.class, Object.class}),
-    @Signature(type = Executor.class, method = "query",
-               args = {MappedStatement.class, Object.class,
-                       org.apache.ibatis.session.RowBounds.class,
-                       org.apache.ibatis.session.ResultHandler.class})
-})
-public class SqlExecuteTimeInterceptor implements Interceptor {
-
-    @Override
-    public Object intercept(Invocation invocation) throws Throwable {
-        long start = System.currentTimeMillis();
-        try {
-            return invocation.proceed();
-        } finally {
-            long elapsed = System.currentTimeMillis() - start;
-            MappedStatement ms = (MappedStatement) invocation.getArgs()[0];
-            if (elapsed > 500) { // 慢 SQL 阈值
-                System.err.println("慢 SQL [" + ms.getId() + "] 耗时 " + elapsed + "ms");
-            }
-        }
-    }
-
-    @Override
-    public Object plugin(Object target) {
-        return Plugin.wrap(target, this);
-    }
-
-    @Override
-    public void setProperties(Properties properties) {
-        // 可从配置读取阈值
-    }
-}
-```
-
-注册方式（Spring Boot）：
-
-```java
-@Configuration
-public class MyBatisPluginConfig {
-
-    @Bean
-    public SqlExecuteTimeInterceptor sqlExecuteTimeInterceptor() {
-        return new SqlExecuteTimeInterceptor();
-    }
-}
-```
-
-MyBatis 的插件基于 JDK 动态代理实现：`Plugin.wrap(target, interceptor)` 为目标对象生成代理，调用链经过 `InterceptorChain` 时依次执行 `intercept()`。`@Intercepts` 中的 `@Signature` 精确指定拦截哪个类的哪个方法。
-
----
-
-# 补充篇五：批量操作性能优化
-
-## 5.1 两种批量插入方式对比
-
-| 方式 | 原理 | 优点 | 缺点 |
-|---|---|---|---|
-| `<foreach>` 拼多值 INSERT | 一条 SQL 插入多行 | 简单，无额外配置 | 数据量大时 SQL 极长，受 `max_allowed_packet` 限制 |
-| `ExecutorType.BATCH` | 攒批，JDBC `addBatch` | 分批可控，内存友好 | 需手动管理 SqlSession 和分批提交 |
-
-```java
-// ExecutorType.BATCH 方式
-try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
-    StudentMapper mapper = session.getMapper(StudentMapper.class);
-    int batchSize = 500;
-    for (int i = 0; i < list.size(); i++) {
-        mapper.insert(list.get(i));
-        if ((i + 1) % batchSize == 0) {
-            session.flushStatements();
-        }
-    }
-    session.commit();
-}
-```
-
-## 5.2 关键性能参数
-
-在 JDBC URL 中添加：
-
-```text
-jdbc:mysql://localhost:3306/db?rewriteBatchedStatements=true
-```
-
-`rewriteBatchedStatements=true` 让 MySQL 驱动将多条 INSERT 合并为一条高效的多值 INSERT。不配这个参数时，`ExecutorType.BATCH` 的性能通常远低于理论值，可能差一个数量级。配合 `ExecutorType.BATCH` 使用效果最明显。
-
-## 5.3 大批量写入的推荐策略
-
-```text
-数据量 < 1000 条：  <foreach> 多值 INSERT 即可
-数据量 1000 – 1万： ExecutorType.BATCH + rewriteBatchedStatements=true，分批 flush
-数据量 > 1万：      生成 CSV 后 LOAD DATA INFILE，或分片写入
-```
-
-同时注意：增大 MySQL `max_allowed_packet`；批量插入期间可临时关闭非必要索引，插入后重建；设置 `flushCache=true` 避免一级缓存干扰。
-
----
-
-# 补充篇六：缓存生产实践深化
-
-## 6.1 二级缓存一致性挑战
-
-MyBatis 二级缓存以 **Mapper namespace** 为单位。当多表关联查询时，跨 namespace 更新会导致脏读：
-
-```text
-OrderMapper 缓存了包含用户信息的订单
-UserMapper 更新了用户信息
-→ OrderMapper 缓存不会自动失效 → 脏读
-```
-
-解决方案：使用 `<cache-ref>` 让关联 Mapper 共享缓存刷新：
-
-```xml
-<!-- OrderMapper.xml -->
-<cache/>
-<cache-ref namespace="com.example.mapper.UserMapper"/>
-```
-
-这样 UserMapper 的任何写操作都会同时刷新 OrderMapper 的缓存。但需注意：`cache-ref` 共享缓存虽然能解决跨 namespace 脏读，也会让缓存依赖更复杂，需谨慎使用。
-
-## 6.2 分布式场景：Redis 二级缓存
-
-MyBatis 原生二级缓存基于 JVM 本地内存，集群环境下各节点缓存不共享。集成 Redis 需要额外引入依赖：
-
-```xml
-<dependency>
-    <groupId>org.mybatis.caches</groupId>
-    <artifactId>mybatis-redis</artifactId>
-    <version>1.0.0-beta2</version>
-</dependency>
-```
-
-然后在 Mapper 上配置：
-
-```java
-@CacheNamespace(implementation = RedisCache.class)
-public interface IUserMapper { ... }
-```
-
-同时需要在 `resources` 根目录添加 `redis.properties` 配置文件：
-
-```properties
-host=localhost
-port=6379
-password=
-database=0
-```
-
-实体类必须实现 `Serializable`。Redis 缓存使所有节点共享同一缓存区域，解决分布式一致性问题。
-
-## 6.3 缓存副作用防控
-
-| 风险 | 场景 | 对策 |
-|---|---|---|
-| 长会话脏读 | 一级缓存中 SqlSession 生命周期过长 | 设置 `local-cache-scope: statement` |
-| 批量处理读到过期数据 | 循环中重复查询相同数据 | `@Options(flushCache = TRUE)` |
-| 缓存击穿 | 热点 key 失效瞬间大量请求打到数据库 | 互斥锁重建缓存 |
-| 缓存雪崩 | 大量 key 同时过期 | 过期时间加随机偏移 |
-
-```yaml
-mybatis:
-  configuration:
-    local-cache-scope: statement   # 每次查询后清空一级缓存
-```
-
-## 6.4 生产环境建议
-
-**不要盲目开启二级缓存。** 数据更新频繁、多表关联复杂、分布式环境下，二级缓存带来的不一致风险往往大于收益。如果确实需要缓存，优先考虑在 Service 层使用 Spring Cache + Redis，控制粒度更精细，与业务逻辑耦合更清晰。
-
----
-
-# 补充篇七：事务生产细节
-
-## 7.1 传播行为速查
-
-| 传播行为 | 含义 | 典型场景 |
-|---|---|---|
-| `REQUIRED`（默认） | 有事务加入，无则新建 | 绝大多数业务方法 |
-| `REQUIRES_NEW` | 总是新建事务，挂起当前 | 日志记录、审计 |
-| `NESTED` | 嵌套事务，可独立回滚 | 批量操作中单条失败不影响其他 |
-| `SUPPORTS` | 有则加入，无则非事务执行 | 只读查询 |
-| `NOT_SUPPORTED` | 非事务执行，挂起当前 | 耗时操作不占用事务 |
-
-> ⚠️ `NESTED` 传播行为依赖 JDBC savepoint，不是所有数据库/驱动都支持，使用前需确认数据库兼容性。
-
-## 7.2 隔离级别与只读事务
-
-```java
-@Transactional(
-    isolation = Isolation.READ_COMMITTED,
-    readOnly = true,
-    timeout = 30
-)
-public Student getById(Long id) {
-    return studentMapper.selectById(id);
-}
-```
-
-`readOnly = true` 对 MySQL InnoDB 本身不改变读行为，但可作为语义提示，且某些连接池会据此优化。生产环境一般使用数据库默认隔离级别（MySQL 为 `REPEATABLE READ`）。
-
-## 7.3 自调用失效与解决方案
-
-```java
-@Service
-public class OrderService {
-
-    public void createOrder() {
-        this.deductStock();  // ❌ 自调用，@Transactional 失效
-    }
-
-    @Transactional
-    public void deductStock() { ... }
-}
-```
-
-原因：Spring AOP 代理只拦截外部调用。解决方案：注入自身代理、拆分为独立 Service、或使用 `AopContext.currentProxy()`。
-
----
-
-# 补充篇八：延迟加载与 N+1 问题
-
-## 8.1 延迟加载配置
-
-```yaml
-mybatis:
-  configuration:
-    lazy-loading-enabled: true
-    aggressive-lazy-loading: false   # 必须关闭，否则延迟加载形同虚设
-```
-
-`aggressiveLazyLoading=true`（旧版默认）会在调用任意方法时加载所有延迟属性；设为 `false` 后，只有真正调用关联属性的 getter 时才触发加载。
-
-## 8.2 N+1 问题
-
-```text
-1 次查询班级列表
-+ N 次查询每个班级的学生列表
-= N+1 次查询
-```
-
-解决方案：
-
-| 方案 | 做法 | 效果 |
-|---|---|---|
-| JOIN + resultMap | 用 `<collection>` 嵌套结果映射，一次 JOIN 查出所有数据 | 彻底消除 N+1 |
-| 批量查询 | 先查主表，再用 `IN` 批量查关联表 | 从 N+1 降到 2 次 |
-| `fetchType="eager"` | 关联数据确定常用时立即加载 | 减少触发次数，但可能浪费 |
-
-推荐：**关联数据确定需要时用 JOIN 嵌套结果映射**；关联数据可能不需要时用延迟加载 + 批量查询兜底。
-
----
-
-# 补充篇九：多数据源与动态数据源
-
-## 9.1 非 MyBatis-Plus 方案
-
-Spring Boot 原生多数据源需要：
-
-```text
-1. 禁用 DataSourceAutoConfiguration
-2. 手动配置多个 DataSource Bean
-3. 为每个数据源配置独立的 SqlSessionFactory 和 MapperScan
-4. 通过 @Qualifier 注入对应数据源
-```
-
-```java
-@Configuration
-@MapperScan(basePackages = "com.example.mapper.primary",
-            sqlSessionFactoryRef = "primarySqlSessionFactory")
-public class PrimaryDataSourceConfig { ... }
-
-@Configuration
-@MapperScan(basePackages = "com.example.mapper.secondary",
-            sqlSessionFactoryRef = "secondarySqlSessionFactory")
-public class SecondaryDataSourceConfig { ... }
-```
-
-## 9.2 dynamic-datasource（第三方扩展）
-
-Baomidou 的 `dynamic-datasource-spring-boot-starter` 提供注解切换：
-
-```java
-@Service
-public class UserService {
-
-    @DS("master")
-    public void write(User user) { ... }
-
-    @DS("slave")
-    public User read(Long id) { ... }
-}
-```
-
-```yaml
-spring:
-  datasource:
-    dynamic:
-      primary: master
-      datasource:
-        master:
-          url: jdbc:mysql://master-host:3306/db
-        slave:
-          url: jdbc:mysql://slave-host:3306/db
-```
-
-支持数据源分组、读写分离、`@DS` 方法级/类级切换、方法级优先级高于类级。
-
-## 9.3 读写分离实现
-
-基于 `dynamic-datasource` 的读写分离方案：
-
-```text
-1. 配置 master 和 slave 数据源
-2. 写操作使用 @DS("master")，读操作使用 @DS("slave")
-3. 或使用 AOP 切面根据方法前缀（select/query/get vs insert/update/delete）自动路由
-4. 在事务中强制走主库，确保“写后立即读”能读到最新数据
-```
-
-> ⚠️ 读写分离下，“写后立即读”可能因主从复制延迟而读不到最新数据。解决方案：在事务中强制走主库，或使用 `@DS("master")` 显式指定。
-
----
-
-# 补充篇十：SQL 审计与监控
-
-## 10.1 基于 Interceptor 的 SQL 审计
-
-```java
-@Intercepts({
-    @Signature(type = Executor.class, method = "query",
-               args = {MappedStatement.class, Object.class,
-                       RowBounds.class, ResultHandler.class}),
-    @Signature(type = Executor.class, method = "update",
-               args = {MappedStatement.class, Object.class})
-})
-public class SqlAuditInterceptor implements Interceptor {
-
-    private static final Logger log = LoggerFactory.getLogger(SqlAuditInterceptor.class);
-
-    @Override
-    public Object intercept(Invocation invocation) throws Throwable {
-        MappedStatement ms = (MappedStatement) invocation.getArgs()[0];
-        Object parameter = invocation.getArgs().length > 1 ? invocation.getArgs()[1] : null;
-        long start = System.currentTimeMillis();
-        try {
-            return invocation.proceed();
-        } finally {
-            long cost = System.currentTimeMillis() - start;
-            log.info("SQL_AUDIT | id={} | cost={}ms | param={}",
-                     ms.getId(), cost, parameter);
-        }
-    }
-}
-```
-
-拦截器可在 `intercept` 中获取 SQL 语句、参数信息、执行时间等关键数据，实现日志审计。
-
-## 10.2 生产配置提醒
-
-开发阶段可临时使用：
-
-```yaml
-mybatis:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-```
-
-**生产环境不要使用 `StdOutImpl`**，应使用 SLF4J 桥接，通过日志框架控制级别和输出目标：
-
-```yaml
-logging:
-  level:
-    com.example.mapper: DEBUG   # 只对指定 Mapper 包开 SQL 日志
-```
-
-生产环境建议：禁止在配置中硬编码数据库账号密码，应通过环境变量或配置中心动态注入，防止敏感信息泄露到代码仓库。
-
-## 10.3 MyBatis 语句超时控制
-
-MyBatis 提供了 `defaultStatementTimeout` 全局配置和 Mapper 级别的 `timeout` 属性，精准控制单条 SQL 的最大执行时长：
-
-```yaml
-mybatis:
-  configuration:
-    default-statement-timeout: 30   # 单位：秒
-```
-
-```xml
-<select id="selectLargeData" timeout="10">
-    ...
-</select>
-```
-
-> ⚠️ `socketTimeout` 必须大于 MyBatis 语句超时、事务超时，避免上层提前终止而网络层还未触发。
-
----
-
-# 补充篇十一：测试方案
-
-## 11.1 分层测试策略
-
-| 层次 | 测试内容 | 工具 |
-|---|---|---|
-| Mapper 接口测试 | 接口与 XML 映射是否正确 | `@MybatisTest`（切片测试） |
-| SQL 映射测试 | 动态 SQL 分支是否覆盖 | `@MybatisTest` + H2 |
-| 数据库集成测试 | SQL 在真实 MySQL 上的行为 | `@SpringBootTest` + Testcontainers |
-
-## 11.2 @MybatisTest 切片测试
-
-需要引入依赖：
-
-```xml
-<dependency>
-    <groupId>org.mybatis.spring.boot</groupId>
-    <artifactId>mybatis-spring-boot-starter-test</artifactId>
-    <version>3.0.3</version>
-    <scope>test</scope>
-</dependency>
-```
-
-```java
-@MybatisTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class StudentMapperTest {
-
-    @Autowired
-    private StudentMapper studentMapper;
-
-    @Test
-    void selectById_shouldReturnStudent() {
-        Student student = studentMapper.selectById(1L);
-        assertThat(student).isNotNull();
-        assertThat(student.getName()).isEqualTo("Tom");
-    }
-}
-```
-
-`@MybatisTest` 只加载 MyBatis 相关配置，不启动整个 Spring 上下文，速度远快于 `@SpringBootTest`。默认情况下，它配置 MyBatis 组件、Mapper 接口和内存数据库，且测试基于事务并在结尾回滚。
-
----
-
-# 补充篇十二：ExecutorType.BATCH 与 `<foreach>` 的选型决策
-
-| 维度 | `<foreach>` 多值 INSERT | `ExecutorType.BATCH` |
-|---|---|---|
-| SQL 长度 | 随数据量线性增长 | 恒定 |
-| 内存占用 | 需一次性构建完整 SQL | 流式，内存友好 |
-| 网络交互 | 1 次 | 分批 N 次（可控） |
-| 主键回填 | 支持 | 支持（需 `useGeneratedKeys`） |
-| 配置复杂度 | 零 | 需管理 SqlSession |
-| MySQL 优化 | 依赖 `max_allowed_packet` | 依赖 `rewriteBatchedStatements` |
-| 推荐数据量 | < 1000 | 1000 – 1万 |
-
----
-
-# 补充篇十三：常见生产问题速查
-
-| 问题 | 优先检查 |
-|---|---|
-| 批量插入慢 | `rewriteBatchedStatements=true` 是否配置；是否用了 `ExecutorType.BATCH`；是否分批 flush |
-| 内存暴增 | `aggressiveLazyLoading` 是否误开；是否在循环中触发延迟加载 |
-| 缓存脏读 | 二级缓存是否跨 namespace；是否用 `<cache-ref>`；是否需要改用 Redis |
-| 多数据源切换失败 | `@DS` 是否生效；方法级注解是否被类级覆盖；是否在自调用中 |
-| 插件不生效 | `@Intercepts` 签名是否匹配；是否注册为 Spring Bean |
-| Spring Boot 3 升级报错 | starter 是否升级到 3.x；是否使用 Jakarta 命名空间 |
-| N+1 查询 | 是否在循环中调用 Mapper；是否该用 JOIN + `collection` 嵌套结果映射 |
-| 慢 SQL 无法定位 | 是否配置了 SQL 审计拦截器；是否只对特定 Mapper 包开了 DEBUG 日志 |
-
----
-
-# 深度篇：源码级原理补充
-
-> 以下内容针对评价中“源码深度仍有限”的反馈，补充 MyBatis 核心组件的源码级调用流程。目标是理解“为什么能工作”，而非逐行分析源码。
-
----
-
-# 深度篇一：MapperProxy 源码调用流程
-
-## 1.1 getMapper 的调用链
-
-调用 `sqlSession.getMapper(StudentMapper.class)` 时，源码流程如下：
-
-```text
-SqlSession.getMapper(Class<T> type)
-  → Configuration.getMapper(type, this)
-    → MapperRegistry.getMapper(type, sqlSession)
-      → knownMappers.get(type)        // 获取 MapperProxyFactory
-        → mapperProxyFactory.newInstance(sqlSession)
-          → MapperProxy 实例（JDK 动态代理）
-```
-
-`MapperRegistry` 内部维护了一个 `Map<Class<?>, MapperProxyFactory<?>> knownMappers`，在 MyBatis 初始化时，通过 `XMLConfigBuilder.parseConfiguration()` 解析 `<mappers>` 节点，将 Mapper 接口和对应的 `MapperProxyFactory` 注册进去。
-
-## 1.2 MapperProxy.invoke() 的执行逻辑
-
-`MapperProxy` 实现了 `InvocationHandler` 接口，核心方法 `invoke()` 的关键逻辑：
-
-```java
-public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-    // 1. 如果方法是 Object 的默认方法（如 toString、equals），直接执行
-    if (Object.class.equals(method.getDeclaringClass())) {
-        return method.invoke(this, args);
-    }
-    // 2. 获取或创建 MapperMethod 缓存
-    MapperMethod mapperMethod = cachedMapperMethod(method);
-    // 3. 执行 MapperMethod
-    return mapperMethod.execute(sqlSession, args);
-}
-```
-
-`MapperMethod` 是核心执行类，内部持有 `SqlCommand`（封装了 `namespace + id`）和 `MethodSignature`（封装了方法参数、返回值等信息）。`MapperMethod.execute()` 根据方法返回类型和 SQL 命令类型，最终调用 `sqlSession.selectOne()`、`sqlSession.insert()` 等方法。
-
-## 1.3 Mapper 接口与 XML 的绑定时机
-
-Mapper 接口与 XML 的绑定发生在 MyBatis 初始化阶段：
-
-```text
-SqlSessionFactoryBuilder.build(InputStream)
-  → XMLConfigBuilder.parse()
-    → XMLConfigBuilder.parseConfiguration()
-      → mapperElement(XNode)           // 解析 <mappers> 节点
-        → XMLMapperBuilder.parse()
-          → XMLMapperBuilder.configurationElement()
-            → XMLMapperBuilder.bindMapperForNamespace()
-              → MapperRegistry.addMapper(type)
-                → knownMappers.put(type, new MapperProxyFactory<>(type))
-```
-
-`XMLMapperBuilder.bindMapperForNamespace()` 的关键逻辑是：如果 `namespace` 对应的接口存在且尚未注册，则将其注册到 `MapperRegistry` 中。同时，`XMLStatementBuilder` 解析每个 `<select>`、`<insert>` 等标签，生成 `MappedStatement` 对象，存入 `Configuration.mappedStatements`。
-
----
-
-# 深度篇二：Configuration 解析 XML 的过程
-
-## 2.1 解析入口
-
-MyBatis 通过 `XMLConfigBuilder` 解析全局配置文件，通过 `XMLMapperBuilder` 解析 Mapper XML 文件：
-
-```text
-XMLConfigBuilder.parse()
-  → Configuration 实例创建
-  → parseConfiguration(XNode root)
-    → propertiesElement()          // <properties>
-    → settingsAsProperties()       // <settings>
-    → typeAliasesElement()         // <typeAliases>
-    → pluginsElement()             // <plugins>
-    → objectFactoryElement()       // <objectFactory>
-    → environmentsElement()        // <environments>
-    → typeHandlerElement()         // <typeHandlers>
-    → mapperElement()              // <mappers>
-```
-
-## 2.2 Mapper XML 的解析过程
-
-`XMLMapperBuilder.configurationElement()` 解析 `<mapper>` 节点的核心流程：
-
-```text
-<mapper namespace="...">
-  → cacheElement()                 // <cache> 二级缓存
-  → cacheRefElement()              // <cache-ref>
-  → resultMapElements()            // <resultMap>
-  → sqlElement()                   // <sql> 可复用片段
-  → buildStatementFromContext()    // <select>/<insert>/<update>/<delete>
-    → XMLStatementBuilder.parseStatementNode()
-      → MappedStatement 构建
-        → Configuration.addMappedStatement()
-```
-
-每个 `<select>` 标签最终被解析为一个 `MappedStatement` 对象，存入 `Configuration.mappedStatements`（一个 `StrictMap<String, MappedStatement>`，key 为 `namespace + "." + id`）。
-
-## 2.3 Configuration 的核心数据结构
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `mappedStatements` | `Map<String, MappedStatement>` | 所有 SQL 映射，key = namespace + id |
-| `resultMaps` | `Map<String, ResultMap>` | 所有结果映射 |
-| `parameterMaps` | `Map<String, ParameterMap>` | 所有参数映射 |
-| `caches` | `Map<String, Cache>` | 所有二级缓存 |
-| `interceptorChain` | `InterceptorChain` | 插件链 |
-| `typeHandlerRegistry` | `TypeHandlerRegistry` | 类型处理器注册表 |
-| `languageRegistry` | `LanguageDriverRegistry` | 语言驱动注册表 |
-
----
-
-# 深度篇三：一级缓存与二级缓存源码
-
-## 3.1 一级缓存：PerpetualCache
-
-一级缓存实现在 `BaseExecutor` 中，使用 `PerpetualCache` 作为底层存储。`PerpetualCache` 的默认实现极其简单，内部就是一个 `HashMap`：
-
-```java
-public class PerpetualCache implements Cache {
-    private final String id;
-    private final Map<Object, Object> cache = new HashMap<>();
-    // putObject / getObject / removeObject 直接委托给 HashMap
-}
-```
-
-`BaseExecutor.query()` 中一级缓存的查询逻辑：
-
-```java
-public <E> List<E> query(MappedStatement ms, Object parameter, ...) {
-    if (queryStack == 0 && ms.isFlushCacheRequired()) {
-        clearLocalCache();  // flushCache = true 时清空
-    }
-    List<E> list;
-    try {
-        queryStack++;
-        list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
-        if (list != null) {
-            handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
-        } else {
-            list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
-        }
-    } finally {
-        queryStack--;
-    }
-    return list;
-}
-```
-
-## 3.2 二级缓存：CachingExecutor 与 TransactionalCacheManager
-
-二级缓存通过 `CachingExecutor` 装饰 `BaseExecutor` 实现。`CachingExecutor` 内部持有 `TransactionalCacheManager`，管理事务提交/回滚时的缓存写入：
-
-```java
-public class CachingExecutor implements Executor {
-    private final Executor delegate;
-    private final TransactionalCacheManager tcm = new TransactionalCacheManager();
-
-    public <E> List<E> query(MappedStatement ms, Object parameter, ...) {
-        Cache cache = ms.getCache();
-        if (cache != null) {
-            flushCacheIfRequired(ms);
-            if (ms.isUseCache() && resultHandler == null) {
-                List<E> list = (List<E>) tcm.getObject(cache, key);
-                if (list == null) {
-                    list = delegate.query(ms, parameter, rowBounds, resultHandler, key, boundSql);
-                    tcm.putObject(cache, key, list);
-                }
-                return list;
-            }
-        }
-        return delegate.query(ms, parameter, rowBounds, resultHandler, key, boundSql);
-    }
-}
-```
-
-`TransactionalCacheManager` 内部维护 `Map<Cache, TransactionalCache>`，`TransactionalCache` 的核心机制是：查询结果先暂存在 `entriesToAddOnCommit` 中，只有事务提交时才批量写入真正的二级缓存；如果事务回滚，则清空暂存区。
-
-## 3.3 二级缓存的装饰器链
-
-二级缓存默认使用 `PerpetualCache`，但可以通过装饰器叠加功能：
-
-```text
-PerpetualCache（基础 HashMap）
-  → LruCache（LRU 淘汰策略）
-    → SerializedCache（序列化/反序列化）
-      → LoggingCache（日志统计）
-        → SynchronizedCache（线程安全）
-```
-
-装饰顺序由 `<cache>` 标签的 `eviction` 属性决定，默认是 `LRU`。
-
----
-
-# 深度篇四：Plugin 代理链与 InterceptorChain 源码
-
-## 4.1 Plugin.wrap 的代理逻辑
-
-`Plugin` 类实现了 `InvocationHandler`，`wrap()` 方法的核心逻辑：
-
-```java
-public static Object wrap(Object target, Interceptor interceptor) {
-    Map<Class<?>, Set<Method>> signatureMap = getSignatureMap(interceptor);
-    Class<?> type = target.getClass();
-    Class<?>[] interfaces = getAllInterfaces(type, signatureMap);
-    if (interfaces.length > 0) {
-        return Proxy.newProxyInstance(
-            type.getClassLoader(),
-            interfaces,
-            new Plugin(target, interceptor, signatureMap));
-    }
-    return target;
-}
-```
-
-`getSignatureMap()` 解析 `@Intercepts` 和 `@Signature` 注解，得到“需要拦截的类 -> 需要拦截的方法集合”的映射。`getAllInterfaces()` 过滤出目标对象实现的、且在签名映射中存在的接口。
-
-## 4.2 InterceptorChain.pluginAll()
-
-`InterceptorChain` 维护一个 `List<Interceptor>`，在创建 Executor、StatementHandler 等核心组件时，依次应用所有拦截器：
-
-```java
-public Object pluginAll(Object target) {
-    for (Interceptor interceptor : interceptors) {
-        target = interceptor.plugin(target);
-    }
-    return target;
-}
-```
-
-因此，如果有三个拦截器，最终的代理链是：
-
-```text
-Interceptor3(Interceptor2(Interceptor1(目标对象)))
-```
-
-调用时先经过 Interceptor3，再经过 Interceptor2，再经过 Interceptor1，最后到达目标对象。这就是 MyBatis 插件的“洋葱式”责任链。
-
-## 4.3 插件在 Configuration 中的注册
-
-插件在 `Configuration` 初始化时通过 `interceptorChain.addInterceptor()` 注册。在 Spring Boot 中，任何实现了 `Interceptor` 接口的 Spring Bean 会被 `MybatisAutoConfiguration` 自动注册到 `Configuration` 中。
-
----
-
-# 深度篇五：SqlSessionTemplate 线程安全原理
-
-## 5.1 DefaultSqlSession 为什么线程不安全
-
-`DefaultSqlSession` 线程不安全的原因有两个：
-
-1. **Connection 不是线程安全的**：`DefaultSqlSession` 持有 `Executor`，`Executor` 持有 `Transaction`（通常是 `JdbcTransaction`），`JdbcTransaction` 持有 `Connection`。如果多个线程共享同一个 `SqlSession`，它们将使用同一个 `Connection`，导致事务混乱。
-2. **一级缓存使用 HashMap**：`BaseExecutor` 中的 `localCache` 是 `PerpetualCache`，底层是 `HashMap`，不是线程安全的。
-
-## 5.2 SqlSessionTemplate 的 ThreadLocal 机制
-
-`SqlSessionTemplate` 通过 JDK 动态代理和 `ThreadLocal` 实现线程安全：
-
-```java
-public class SqlSessionTemplate implements SqlSession {
-    private final SqlSessionFactory sqlSessionFactory;
-    private final ExecutorType executorType;
-    private final SqlSession sqlSessionProxy;
-
-    public SqlSessionTemplate(SqlSessionFactory sqlSessionFactory, ...) {
-        this.sqlSessionProxy = (SqlSession) newProxyInstance(
-            SqlSessionFactory.class.getClassLoader(),
-            new Class[] { SqlSession.class },
-            new SqlSessionInterceptor());
-    }
-
-    private class SqlSessionInterceptor implements InvocationHandler {
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            SqlSession sqlSession = getSqlSession(sqlSessionFactory, executorType, exceptionTranslator);
-            try {
-                Object result = method.invoke(sqlSession, args);
-                if (!isSqlSessionTransactional(sqlSession, sqlSessionFactory)) {
-                    sqlSession.commit(true);
-                }
-                return result;
-            } catch (Throwable t) {
-                // 异常时回滚
-                throw t;
-            } finally {
-                if (sqlSession != null) {
-                    closeSqlSession(sqlSession, sqlSessionFactory);
-                }
-            }
-        }
-    }
-}
-```
-
-关键点：
-
-- `SqlSessionTemplate` 本身是单例，但每次方法调用都通过 `SqlSessionInterceptor` 获取一个 `SqlSession`。
-- `getSqlSession()` 内部使用 `TransactionSynchronizationManager` 的 `ThreadLocal<Map<Object, Object>>` 保存每个线程对应的 `SqlSession`，确保同一线程内复用同一个 `SqlSession`，不同线程之间互不干扰。
-- 如果当前线程已在 Spring 事务中，`isSqlSessionTransactional()` 返回 `true`，不会自动提交，由 Spring 事务管理器统一提交/回滚。
-
----
-
-# 深度篇六：MyBatis-Plus 高级用法
-
-【第三方扩展】
-
-## 6.1 LambdaQueryWrapper 类型安全查询
-
-`LambdaQueryWrapper` 是 MyBatis-Plus 提供的类型安全条件构造器，通过方法引用指定字段，编译期即可校验字段是否存在：
-
-```java
-@Service
-public class StudentService {
-
-    private final StudentMapper studentMapper;
-
-    public StudentService(StudentMapper studentMapper) {
-        this.studentMapper = studentMapper;
-    }
-
-    public List<Student> query(StudentQuery query) {
-        LambdaQueryWrapper<Student> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(query.getName()), Student::getName, query.getName())
-               .eq(query.getAge() != null, Student::getAge, query.getAge())
-               .ge(query.getMinScore() != null, Student::getScore, query.getMinScore())
-               .orderByDesc(Student::getScore);
-        return studentMapper.selectList(wrapper);
-    }
-}
-```
-
-相比 `QueryWrapper` 的字符串字段名，`LambdaQueryWrapper` 避免了硬编码字段名，重构时更安全。
-
-## 6.2 代码生成器 FastAutoGenerator
-
-MyBatis-Plus 3.5.1+ 推荐使用 `FastAutoGenerator` 替代旧的 `AutoGenerator`：
-
-```java
-public class CodeGenerator {
-    public static void main(String[] args) {
-        FastAutoGenerator.create(
-                "jdbc:mysql://localhost:3306/order_db",
-                "root", "123456")
-            .globalConfig(builder -> builder
-                .author("dev")
-                .outputDir(System.getProperty("user.dir") + "/src/main/java")
-                .disableOpenDir())
-            .packageConfig(builder -> builder
-                .parent("com.example")
-                .moduleName("order")
-                .entity("entity")
-                .mapper("mapper")
-                .service("service")
-                .controller("controller"))
-            .strategyConfig(builder -> builder
-                .addInclude("order", "order_item")
-                .addTablePrefix("t_", "order_")
-                .entityBuilder()
-                    .enableLombok()
-                    .logicDeleteColumnName("deleted")
-                .controllerBuilder()
-                    .enableRestStyle())
-            .execute();
-    }
-}
-```
-
-## 6.3 公共字段自动填充
-
-通过 `MetaObjectHandler` 实现创建时间、更新时间的自动填充：
-
-```java
-@Component
-public class MyMetaObjectHandler implements MetaObjectHandler {
-
-    @Override
-    public void insertFill(MetaObject metaObject) {
-        this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
-    }
-
-    @Override
-    public void updateFill(MetaObject metaObject) {
-        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
-    }
-}
-```
-
-实体类字段标注：
-
-```java
-@TableField(fill = FieldFill.INSERT)
-private LocalDateTime createTime;
-
-@TableField(fill = FieldFill.INSERT_UPDATE)
-private LocalDateTime updateTime;
-```
-
----
-
-# 深度篇七：分库分表实践（ShardingSphere）
-
-【第三方扩展】
-
-## 7.1 ShardingSphere-JDBC 与 MyBatis 的协同
-
-ShardingSphere-JDBC 是一个 JDBC 驱动层解决方案，嵌入应用内部，无需额外部署。它拦截 SQL 并进行分库分表的路由、改写和结果归并，对业务代码几乎无侵入。MyBatis-Plus 负责 ORM 和单表操作增强，ShardingSphere-JDBC 负责 SQL 路由，两者是协同工作的关系。
-
-## 7.2 核心依赖
-
-```xml
-<!-- ShardingSphere-JDBC -->
-<dependency>
-    <groupId>org.apache.shardingsphere</groupId>
-    <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
-    <version>5.3.2</version>
-</dependency>
-<!-- MyBatis-Plus -->
-<dependency>
-    <groupId>com.baomidou</groupId>
-    <artifactId>mybatis-plus-boot-starter</artifactId>
-    <version>3.5.3.1</version>
-</dependency>
-```
-
-## 7.3 分片配置示例
-
-以电商订单系统为例：日均订单 100 万，按 `order_id` 哈希取模分 2 个库，每个库分 16 张表：
-
-```yaml
-spring:
-  shardingsphere:
-    datasource:
-      names: order_db_0, order_db_1
-      order_db_0:
-        type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbc-url: jdbc:mysql://localhost:3306/order_db_0
-        username: root
-        password: 123456
-      order_db_1:
-        type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbc-url: jdbc:mysql://localhost:3306/order_db_1
-        username: root
-        password: 123456
-    rules:
-      sharding:
-        tables:
-          order:
-            actual-data-nodes: order_db_${0..1}.order_${0..15}
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: db-hash-mod
-            table-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: table-hash-mod
-        sharding-algorithms:
-          db-hash-mod:
-            type: HASH_MOD
-            props:
-              sharding-count: 2
-          table-hash-mod:
-            type: HASH_MOD
-            props:
-              sharding-count: 16
-```
-
-## 7.4 常见坑
-
-- **绑定表**：订单表和订单项表使用相同的分片规则时，需配置为绑定表，避免笛卡尔积关联。
-- **广播表**：字典表等小表可配置为广播表，在所有库中冗余存储。
-- **分布式主键**：ShardingSphere 集成雪花算法，配置机器标识确保不同节点生成的 ID 不重复。
 
 ---

@@ -257,7 +257,7 @@ Softmax
 
 ---
 
-### 12. Position ≠ Context
+## 12. Position ≠ Context
 
 ❌ **错误理解：**
 
@@ -293,5 +293,57 @@ Position 帮助模型区分：
 ```
 
 然后 Attention 才能结合这些信息进行关系计算。
+
+---
+
+
+## 错题13：HTTP / POST / `httpx.post()` 层级混淆
+
+**易错理解：**
+把 `HTTP`、`POST`、`httpx.post()` 看成同一个层面的东西。
+
+**正确区分：**
+
+| 名称             | 是什么                   | 所属层次            |
+| -------------- | --------------------- | --------------- |
+| `HTTP`         | 应用层通信协议               | 协议              |
+| `POST`         | HTTP 定义的请求方法          | HTTP 协议中的概念     |
+| `httpx.post()` | Python HTTPX 库提供的调用方法 | Python 实现 / 工具层 |
+
+三者关系可以记成：
+
+```text
+HTTP
+ ↓
+规定通信规则
+ ↓
+POST
+ ↓
+HTTP 协议定义的一种请求方法
+ ↓
+httpx.post()
+ ↓
+Python 程序调用 HTTPX 来实际发起 POST 请求
+```
+
+例如：
+
+```python
+httpx.post(
+    url,
+    headers=headers,
+    json=data
+)
+```
+
+这里：
+
+* `POST` → **真正的 HTTP Method**
+* `httpx.post()` → **Python 中调用 POST 请求的方式**
+* HTTP → **底层遵循的应用层通信协议**
+
+### 一句话记忆
+
+> **HTTP = 规则，POST = 规则中的请求方法，`httpx.post()` = Python 调用这个方法的工具。**
 
 ---
