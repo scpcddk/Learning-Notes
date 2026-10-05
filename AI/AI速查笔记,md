@@ -747,7 +747,8 @@ print(loss)
 ## 2.1 HTTP / API [核心必背]
 
 - **是什么**：API 是程序与程序之间约定好的调用接口；HTTP 是 Web 服务之间通信的常见协议。
-  - Python SDK：对 HTTP API 调用过程的 Python 封装，让你不用自己手写底层 HTTP 请求。
+  - **Python SDK**：对 HTTP API 调用过程的 Python 封装，让你不用自己手写底层 HTTP 请求。
+  - **Endpoint**：API 提供某个具体功能的访问入口（URL 是完整地址，Endpoint 是 API 中具体功能的访问入口。）
 - **机制**：Client → Request(Method/URL/Headers/Body) → Server → Response(Status/Headers/Body)。
 - **为什么**：应用不需要自己加载模型、管理 GPU、实现 Transformer，而是通过 API 获得模型能力。
 - **怎么用**：LLM API 常用 `POST /v1/chat/completions`，`Content-Type: application/json`，`Authorization: Bearer <key>`。

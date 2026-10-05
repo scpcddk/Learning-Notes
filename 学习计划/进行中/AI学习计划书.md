@@ -445,115 +445,203 @@ Transformer
 
 ```text
 DeepSeek API
- ↓
+    ↓
 hello
 ```
 
-升级成：
+升级为：
 
-> **能够独立使用 Python 调用 LLM API，并完成小型 AI 程序。**
+> **能够独立使用 Python 调用 LLM API，并完成基础 AI 程序。**
 
 ---
 
-## 1. HTTP / API 基础
+# 1. HTTP / API 基础
 
+* [x] API 基础
 * [x] HTTP 基础
-* [x] Request
-* [x] Response
-* [ ] URL
-* [ ] Endpoint
-* [ ] HTTP Method
-* [ ] GET
-* [ ] POST
-* [ ] Header
-* [ ] Body
-* [ ] Status Code
-* [ ] JSON
+* [x] Request / Response
+* [x] URL
+* [x] Endpoint
+* [x] HTTP Method
+* [x] GET / POST
+* [x] Header
+* [x] Body
+* [x] Status Code
+* [x] JSON
+* [x] HTTPX
+* [ ] HTTPX 发送 GET / POST
 
 ---
 
-## 2. Python 调用 API
+# 2. Python 调用 LLM API
 
-* [ ] 使用 Python 发送 HTTP 请求
+* [ ] 使用 HTTPX 发送请求
 * [ ] 设置 Request Header
 * [ ] 构造 Request Body
+* [ ] 配置 `model`
+* [ ] 配置 `messages`
 * [ ] 发送 API 请求
 * [ ] 接收 Response
 * [ ] 解析 JSON
-* [ ] 提取模型输出
+* [ ] 从嵌套 JSON 提取模型输出
+* [ ] 封装成 Python 函数
+* [ ] 完成第一次独立 API 调用
 
 ---
 
-## 3. API Key
+# 3. API Key 与安全
 
 * [ ] 理解 API Key
-* [ ] 理解为什么需要 API Key
+* [ ] 理解认证 / 授权基本概念
 * [ ] 环境变量
 * [ ] Python 读取环境变量
-* [ ] 避免把 Key 写入代码
-* [ ] 避免将 Key 提交到 Git
-* [ ] 基础 API 安全意识
+* [ ] 不把 Key 写入代码
+* [ ] `.gitignore`
+* [ ] 避免 Key 提交 Git
+* [ ] 基础 Secret 安全意识
 
 ---
 
-## 4. LLM API 参数
+# 4. LLM API 参数
 
-* [ ] model
-* [ ] messages
-* [ ] system
-* [ ] user
-* [ ] assistant
-* [ ] temperature
-* [ ] max output / token limits
-* [ ] 理解基本参数对输出的影响
+* [x] `model`
+* [x] `messages`
+* [x] `system`
+* [x] `user`
+* [x] `assistant`
+* [ ] `temperature`
+* [ ] 输出 Token 限制
+* [ ] 理解常用参数对输出的影响
 
 ---
 
-## 5. 多轮对话
+# 5. 多轮对话
 
-* [ ] 理解多轮对话
+* [x] 理解 `messages`
+* [x] 理解 `system / user / assistant`
+* [x] 理解对话历史
+* [x] 理解 Context
+* [x] 理解 Context Window
 * [ ] 保存对话历史
 * [ ] 将历史消息发送给模型
-* [ ] 理解 Context
-* [ ] 理解上下文长度限制
+* [ ] 实现多轮聊天
+* [ ] 处理过长的历史消息
+
+核心流程：
+
+```text
+用户输入
+ ↓
+加入 messages
+ ↓
+发送给模型
+ ↓
+获得回答
+ ↓
+加入 assistant 消息
+ ↓
+继续下一轮
+```
 
 ---
 
-## 6. 流式输出
+# 6. Streaming
 
 * [ ] 理解 Streaming
-* [ ] 理解普通响应与流式响应
-* [ ] 理解为什么聊天界面可以逐步显示
+* [ ] 普通响应 vs 流式响应
+* [ ] 理解逐步显示的原理
+* [ ] Chunk / Delta / Event
 * [ ] Python 处理流式响应
-* [ ] 完成 CLI 流式聊天
+* [ ] 实现 CLI 流式输出
 
 ---
 
-## 阶段 1 实践项目
+# 7. 错误处理
+
+* [ ] HTTP 错误
+* [ ] API 错误
+* [ ] 网络异常
+* [ ] Timeout
+* [ ] 429 限流
+* [ ] 基础重试
+* [ ] 给用户友好的错误提示
+
+---
+
+# 8. AI 程序基础工程化
+
+* [ ] API 调用函数封装
+* [ ] 配置与代码分离
+* [ ] 基础日志
+* [ ] 基础异常处理
+* [ ] 简单项目结构
+* [ ] Git 基础安全
+
+---
+
+# 9. 阶段实践项目
+
+### 基础练习
 
 * [ ] `hello`
 * [ ] Python 简单问答程序
+* [ ] JSON API 调用练习
+* [ ] API 调用函数
+
+### 综合练习
+
 * [ ] CLI AI Chat
 * [ ] 多轮聊天
-* [ ] 流式输出
+* [ ] Streaming
 * [ ] 错误处理
 * [ ] 基础日志
 
-最终项目：
+### 最终项目
 
 > **Python CLI AI Chat**
 
-### 阶段完成标准
+要求：
 
-能够：
+```text
+Python
+ ↓
+API Key
+ ↓
+LLM API
+ ↓
+JSON
+ ↓
+模型回答
+ ↓
+多轮 Context
+ ↓
+Streaming
+ ↓
+错误处理
+```
 
-* [ ] 独立创建 Python 项目
+---
+
+# 10. 阶段完成标准
+
+能够独立：
+
+* [ ] 创建 Python AI 项目
 * [ ] 配置 API Key
-* [ ] 调用 LLM API
-* [ ] 解析 JSON
+* [ ] 使用 HTTPX / SDK 调用 LLM API
+* [ ] 理解 Request / Response
+* [ ] 构造 JSON 请求
+* [ ] 解析 JSON Response
+* [ ] 提取模型输出
+* [ ] 理解并使用常见 LLM 参数
 * [ ] 实现多轮对话
-* [ ] 实现流式输出
-* [ ] 处理基本错误
+* [ ] 实现 Streaming
+* [ ] 处理基本 API 错误
+* [ ] 完成一个可运行的 CLI AI Chat
+
+**完成后进入：**
+
+> **阶段 2：Structured Output + AI 应用基础**
 
 ---
 
