@@ -2050,11 +2050,239 @@ mapper.selectById(1)
 
 # 第十六篇：事务
 
+## 整体概览
+
+```Mermaid
+flowchart LR
+    %% ============ Spring 侧 ============
+    subgraph S["🌱 Spring 侧"]
+        direction TB
+        A(["@Transactional"]):::entry
+        B["Spring 事务管理器<br/><small>DataSourceTransactionManager</small>"]:::spring
+        A --> B
+    end
+
+    %% ============ MyBatis 侧 ============
+    subgraph M["🦅 MyBatis 侧"]
+        direction TB
+        D(["Mapper"]):::entry
+        E["SqlSession"]:::mybatis
+        F["Executor"]:::mybatis
+        G["Transaction<br/><small>JdbcTransaction / SpringManagedTransaction</small>"]:::mybatis
+        D --> E --> F --> G
+    end
+
+    %% ============ 汇合 ============
+    B --> C{{"Connection<br/>autoCommit = false<br/>绑定当前线程"}}:::core
+    G --> C
+    C ==> DB[("MySQL 事务<br/>InnoDB")]:::db
+
+    %% ============ 样式 ============
+    classDef entry     fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D47A1,rx:20,ry:20;
+    classDef spring    fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20;
+    classDef mybatis   fill:#FFF3E0,stroke:#FB8C00,stroke-width:2px,color:#E65100;
+    classDef core      fill:#FCE4EC,stroke:#D81B60,stroke-width:3px,color:#880E4F;
+    classDef db        fill:#EDE7F6,stroke:#5E35B1,stroke-width:2px,color:#311B92;
+
+    style S fill:#F1F8E9,stroke:#AED581,stroke-dasharray:5 5,color:#33691E
+    style M fill:#FFF8E1,stroke:#FFD54F,stroke-dasharray:5 5,color:#E65100
+    linkStyle default stroke:#90A4AE,stroke-width:1.5px
+```
+
+> [!note]
+> 
+> - **Spring 的事务资源绑定与当前线程上下文密切相关，底层常见实现会涉及 ThreadLocal**
+> - **Spring 事务上下文让同一事务中的数据库操作能够找到并使用事务关联的资源**
+> - **同一个 Spring 事务中的 Mapper 调用，通常会参与同一个事务关联的 SqlSession 和 Connection**
+
+> [!note]
+> **真正承载数据库事务状态的是 JDBC Connection。**
+> **MyBatis 的 Transaction 是对事务/Connection 的抽象和管理**。
+> **Spring 的事务管理器则负责更高层次地协调整个事务**。
+
+**完整流程**：
+
+```mermaid
+flowchart TB
+    %% ============ 阶段一：开启事务 ============
+    subgraph P1["🚀 阶段一 · 开启事务"]
+        direction TB
+        A(["① Controller 调用 Service"]):::entry
+        B["② Spring 事务代理拦截"]:::spring
+        C["③ 开启事务"]:::spring
+        D["④ 获取 Connection"]:::spring
+        E["⑤ 设置事务状态<br/><small>典型为 autoCommit = false</small>"]:::spring
+        F["⑥ Connection 与当前事务线程关联<br/><small>ThreadLocal 绑定</small>"]:::core
+        A --> B --> C --> D --> E --> F
+    end
+
+    %% ============ 阶段二：执行业务 ============
+    subgraph P2["⚙️ 阶段二 · 执行业务"]
+        direction TB
+        G["⑦ Mapper 调用"]:::mybatis
+        H["⑧ MyBatis 获取当前事务环境中的<br/>SqlSession / Connection"]:::mybatis
+        I(["⑨ decreaseA()"]):::biz
+        J(["⑩ increaseB()"]):::biz
+        G --> H --> I --> J
+    end
+
+    %% ============ 阶段三：提交事务 ============
+    subgraph P3["✅ 阶段三 · 提交事务"]
+        direction TB
+        K(["⑪ Service 正常结束"]):::entry
+        L["⑫ Spring TransactionManager<br/>commit()"]:::spring
+        M[("⑬ MySQL 提交事务<br/>InnoDB")]:::db
+        K --> L --> M
+    end
+
+    F ==> G
+    J ==> K
+
+    %% ============ 样式 ============
+    classDef entry   fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D47A1,rx:20,ry:20;
+    classDef spring  fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20;
+    classDef mybatis fill:#FFF3E0,stroke:#FB8C00,stroke-width:2px,color:#E65100;
+    classDef biz     fill:#FFFDE7,stroke:#FDD835,stroke-width:2px,color:#F57F17;
+    classDef core    fill:#FCE4EC,stroke:#D81B60,stroke-width:3px,color:#880E4F;
+    classDef db      fill:#EDE7F6,stroke:#5E35B1,stroke-width:3px,color:#311B92;
+
+    style P1 fill:#F1F8E9,stroke:#AED581,stroke-dasharray:6 4,color:#33691E
+    style P2 fill:#FFF8E1,stroke:#FFD54F,stroke-dasharray:6 4,color:#E65100
+    style P3 fill:#EDE7F6,stroke:#B39DDB,stroke-dasharray:6 4,color:#311B92
+
+    linkStyle default stroke:#90A4AE,stroke-width:1.5px
+```
+
+**若 ⑨ 或 ⑩ 抛异常**：
+
+```text
+⑪ Service 异常结束
+   ↓
+⑫ TransactionManager rollback()
+   ↓
+⑬ MySQL 回滚事务（undo log 撤销 ⑨、⑩）
+```
+
+---
+
+## Connection
+
+**Connection = 应用程序与数据库之间的一次“会话连接”**。  
+在 JDBC 中就是 `java.sql.Connection`，你通过它执行 SQL、管理事务。
+
+**核心作用：**
+
+- 创建 `Statement` / `PreparedStatement` 执行 SQL
+- 管理事务：`setAutoCommit()`、`commit()`、`rollback()`
+- 获取数据库元信息：`getMetaData()`
+- 关闭连接：`close()`
+
+**与 autoCommit 的关系：**
+
+- `autoCommit` 是 **Connection 的一个属性**
+- 每个 Connection 独立维护自己的 autoCommit 状态
+- 默认一般是 `true`
+- `conn.setAutoCommit(false)` 后，必须手动 `commit()` 或 `rollback()`
+- 连接池归还连接前，通常要恢复 `autoCommit = true`，避免污染下一个使用者
+
+**生命周期：**
+
+1. 获取连接  
+   `DriverManager.getConnection(...)` 或从连接池 `dataSource.getConnection()`
+2. 使用连接执行 SQL
+3. 关闭连接  
+   `conn.close()`  
+   如果是连接池，**不是真的断开，而是归还给池**
+    ```
+    Connection A
+         ↓
+    事务结束
+         ↓
+    归还连接池
+         ↓
+    以后可能再次被其他请求使用
+    ```
+
+> [!warning]
+> 事务生命周期 ≠ Connection 对象生命周期 ≠ Connection 池生命周期。
+
+**连接池：**
+
+- 物理连接创建昂贵，所以用池复用
+- 常见：HikariCP、Druid、DBCP
+- 配置项：最大连接数、超时、空闲回收
+- 长事务会占着连接，可能导致连接池耗尽
+
+**示例：**
+
+```java
+try (Connection conn = dataSource.getConnection()) {
+    conn.setAutoCommit(false);
+
+    try (PreparedStatement ps = conn.prepareStatement("update ...")) {
+        ps.executeUpdate();
+        conn.commit();
+    } catch (SQLException e) {
+        conn.rollback();
+        throw e;
+    }
+}
+```
+
+**注意：**
+
+- Connection 通常不是线程安全的，不要多线程共享
+- 用完必须关闭，推荐 `try-with-resources`
+- 关闭顺序：`ResultSet` → `Statement` → `Connection`
+
+一句话：**Connection 是 JDBC 中与数据库的一次会话，负责执行 SQL 和管理事务；autoCommit 只是它的一个事务开关。**
+
+---
+
+## autoCommit
+
+**autoCommit = 数据库连接的“自动提交开关”**，决定每条 SQL 是否立即生效。
+
+| 设置 | 行为 |
+|---|---|
+| `autoCommit = true`（默认） | 每条 SQL 单独成一个事务，执行完自动提交。无法把多条 SQL 一起回滚。 |
+| `autoCommit = false` | 开启手动事务。多条 SQL 属于同一事务，必须显式 `commit()` 才生效，或 `rollback()` 撤销。 |
+
+**JDBC 示例：**
+```java
+conn.setAutoCommit(false);
+try {
+    stmt.executeUpdate("update account set money = money - 100 where id = 1");
+    stmt.executeUpdate("update account set money = money + 100 where id = 2");
+    conn.commit(); // 一起成功
+} catch (Exception e) {
+    conn.rollback(); // 一起失败
+} finally {
+    conn.setAutoCommit(true); // 连接池中尤其要恢复
+}
+```
+
+**关键点：**
+- 默认通常是 `true`。
+- 只有 `autoCommit = false` 时，`commit/rollback` 才有意义。
+- 开了手动事务却忘记提交，会形成长事务，导致锁等待、连接占用。
+- DDL（如 `CREATE/ALTER/DROP`）很多数据库会隐式提交，事务中慎用。
+- Spring 的 `@Transactional` 底层就是临时把 `autoCommit` 设为 `false`，方法结束再提交或回滚。
+
+一句话：**autoCommit=true：每条 SQL 自动提交；autoCommit=false：自己控制事务，最后 commit 或 rollback。**
+
+---
+
+## `@Transactional`
+
+> [!note]
+> `@Transactional` 就是让 Spring 用 AOP 代理在方法调用前后画一条**事务边界线**。线内共用同一个 Connection，正常一起提交，异常一起回滚；线外是否独立，由传播行为决定。
+
 【Spring Boot 整合】
 
 MyBatis 自身通过 `SqlSession.commit()` / `rollback()` 管理事务。
 
-Spring 整合后，通常由 Spring 管理：
+Spring 整合后，通常**由 Spring 管理**：
 
 ```java
 @Service

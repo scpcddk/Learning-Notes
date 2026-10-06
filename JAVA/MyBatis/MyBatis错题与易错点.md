@@ -1007,3 +1007,68 @@ Mapper XML
 **`TypeHandler` 不负责把 `#{age}` 替换成 `18`，而是负责把 Java 参数按照对应的 JDBC 类型设置到 `PreparedStatement` 的 `?` 参数中**
 
 ---
+
+# MyBatis 错题 31
+
+## 31. `rollback()` ≠ SQL 没有执行
+
+❌ **易错理解：**
+
+```java
+setAutoCommit(false);
+
+updateA();
+updateB();
+
+rollback();
+```
+
+认为：
+
+> `updateA()` 和 `updateB()` 都不会执行。
+
+✅ **正确理解：**
+
+```text
+updateA()
+    ↓
+SQL 已经执行
+
+updateB()
+    ↓
+SQL 已经执行
+
+rollback()
+    ↓
+回滚当前事务中尚未提交的修改
+```
+
+### 核心记忆
+
+```text
+SQL 执行 ≠ 事务提交
+```
+
+`autoCommit=false` 的含义不是“不执行 SQL”，而是：
+
+> SQL 仍然执行，但不会在每条 SQL 执行后自动提交。
+
+因此：
+
+```text
+执行 SQL
+    ↓
+产生数据库修改
+    ↓
+尚未提交
+    ↓
+rollback()
+    ↓
+撤销修改
+```
+
+**一句话记忆：**
+
+> `rollback()` 回滚的是**已执行但尚未提交的事务修改**，不是让 SQL 从未执行过。
+
+---

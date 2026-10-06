@@ -170,8 +170,8 @@
 * [x] 二级缓存
 * [x] TypeHandler
 * [x] 自定义 TypeHandler
-* [ ] MyBatis 事务
-* [ ] Spring `@Transactional`
+* [x] MyBatis 事务
+* [x] Spring `@Transactional`
 * [x] 分页
 * [ ] MyBatis 插件基本概念
 * [ ] 常见性能问题
