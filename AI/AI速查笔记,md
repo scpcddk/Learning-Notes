@@ -197,6 +197,8 @@ Tokenizer.decode() 解码
 - **是什么**：控制输出随机性。
 - **机制**：缩放 logits，温度低分布尖锐，温度高分布平坦。
 - **为什么**：低稳定，高创意。
+  - 低 temperature → 更稳定、更倾向选择概率最高的结果
+  - 高 temperature → 更随机、更容易产生不同表达
 - **怎么用**：事实/代码低，创意高。
 - **易错/关联**：不是聪明程度。
 - **最小例子**：`temperature=0` 接近贪心；`temperature=0.8` 更发散。
@@ -381,7 +383,7 @@ for step in range(max_new_tokens):
   - 支持并行计算：不像 RNN 必须按时间步串行。
   - 权重动态：不同上下文关注不同位置。
 - **怎么用**：
-  - **Contex**：模型在处理当前 Token 或生成当前内容时，可以利用的相关输入信息和已有内容。
+  - **Context**：模型在处理当前 Token 或生成当前内容时，可以利用的相关输入信息和已有内容。
     - Context = 可利用的信息范围
     - Attention = 在这些信息中建立/分配关注关系
     - Context Window = 模型一次能够处理的上下文 Token 数量上限
@@ -752,6 +754,11 @@ print(loss)
 - **机制**：Client → Request(Method/URL/Headers/Body) → Server → Response(Status/Headers/Body)。
 - **为什么**：应用不需要自己加载模型、管理 GPU、实现 Transformer，而是通过 API 获得模型能力。
 - **怎么用**：LLM API 常用 `POST /v1/chat/completions`，`Content-Type: application/json`，`Authorization: Bearer <key>`。
+  ```
+  Authorization
+      ↓
+  Bearer + 空格 + API Key
+  ```
 - **易错/关联**：API ≠ 模型；HTTP ≠ LLM；POST 常用于提交数据，但具体语义由 API 设计决定。见 1.1、2.2。
 - **最小例子**：
 
@@ -771,6 +778,22 @@ Authorization: Bearer <key>
 
 ## 2.2 Request / Response [核心必背]
 
+**全流程：**
+
+```
+准备 URL / Method / Headers / Body
+        ↓
+httpx.post(url, headers=..., json=...)
+        ↓
+得到 response
+        ↓
+检查 response.status_code
+        ↓
+result = response.json()   # 反序列化
+        ↓
+answer = result["choices"][0]["message"]["content"]
+```
+
 - **是什么**：HTTP 通信的请求与响应结构。
 - **机制**：
   - **Request**：客户端发给服务端的请求。
@@ -785,19 +808,47 @@ Authorization: Bearer <key>
 - **为什么**：调用 LLM API 本质就是构造 Request，发送，接收 Response。
 - **怎么用**：Python 中 `httpx.post(url, headers=..., json=...)` 构造 Request；`response.status_code`、`response.headers`、`response.json()` 读取 Response。
 - **易错/关联**：混淆 Request 和 Response；只关注 Body，忽略 Headers 和状态码；忘记 Response Body 需要反序列化。见 2.4、2.5、2.8。
-- **最小例子**：
-
-```http
-POST /v1/chat/completions
-Content-Type: application/json
-Authorization: Bearer <key>
-
-{"model":"<model>","messages":[{"role":"user","content":"hi"}]}
-```
-
 - **自测题**：Request 和 Response 分别包含哪些部分？
 - **答案**：Request：URL、Method、Headers、Body；Response：Status Code、Headers、Body。
 - **反模式**：只关注 Body，忽略 Headers 和状态码。
+
+### LLM Response Body 常见格式
+
+以 OpenAI 兼容接口为例：
+
+```python
+result = {
+    "id": "chatcmpl-xxx",
+    "object": "chat.completion",
+    "model": "gpt-4o-mini",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "你好！..."
+            },
+            "finish_reason": "stop"
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 20,
+        "total_tokens": 30
+    }
+}
+```
+
+**取回答路径**：
+
+```python
+result["choices"][0]["message"]["content"]
+```
+
+> [!tip]
+> 
+> - **请求**时我们使用：`"messages": [...]`
+> - **响应**时返回的是：`"choices": [...]`
 
 ---
 
@@ -826,6 +877,31 @@ response.raise_for_status()
 - **机制**：构造 **URL、Method、Headers、Body**，发送 POST，接收 Response，解析 JSON。
 - **怎么用**：使用 `httpx` 或 `requests`；设置 `timeout`；调用 `raise_for_status()`；解析 `response.json()`。
 - **易错/关联**：不处理异常；不设 timeout；只复制 `result["choices"][0]["message"]["content"]` 不理解嵌套结构。见 2.8、2.14。
+  - **嵌套 JSON** 就是在 JSON 的对象或数组内部再包含对象或数组，从而形成多层键值结构的数据表示。
+
+```
+url
+→ API Endpoint
+
+headers
+→ 身份认证 + 数据格式
+
+data
+→ 请求 Body
+
+model
+→ 使用哪个模型
+
+messages
+→ 给模型的消息
+
+httpx.post()
+→ 发送 POST 请求
+
+response
+→ 服务器返回的 Response
+```
+
 - **最小例子**：
 
 ```python
@@ -839,6 +915,7 @@ r = httpx.post(
     "https://<api-host>/v1/chat/completions",
     headers={
         "Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
+        // f 是 Python 的 f-string（格式化字符串） 的标记。作用是：把变量的值直接插入字符串中。
         "Content-Type": "application/json",
     },
     json={

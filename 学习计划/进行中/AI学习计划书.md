@@ -469,23 +469,23 @@ hello
 * [x] Status Code
 * [x] JSON
 * [x] HTTPX
-* [ ] HTTPX 发送 GET / POST
+* [x] HTTPX 发送 GET / POST
 
 ---
 
 # 2. Python 调用 LLM API
 
-* [ ] 使用 HTTPX 发送请求
-* [ ] 设置 Request Header
-* [ ] 构造 Request Body
-* [ ] 配置 `model`
-* [ ] 配置 `messages`
-* [ ] 发送 API 请求
-* [ ] 接收 Response
+* [x] 使用 HTTPX 发送请求
+* [x] 设置 Request Header
+* [x] 构造 Request Body
+* [x] 配置 `model`
+* [x] 配置 `messages`
+* [x] 发送 API 请求
+* [x] 接收 Response
 * [ ] 解析 JSON
-* [ ] 从嵌套 JSON 提取模型输出
-* [ ] 封装成 Python 函数
-* [ ] 完成第一次独立 API 调用
+* [x] 从嵌套 JSON 提取模型输出
+* [x] 封装成 Python 函数
+* [x] 完成第一次独立 API 调用
 
 ---
 
@@ -522,9 +522,9 @@ hello
 * [x] 理解对话历史
 * [x] 理解 Context
 * [x] 理解 Context Window
-* [ ] 保存对话历史
-* [ ] 将历史消息发送给模型
-* [ ] 实现多轮聊天
+* [x] 保存对话历史
+* [x] 将历史消息发送给模型
+* [x] 实现多轮聊天
 * [ ] 处理过长的历史消息
 
 核心流程：
@@ -570,7 +570,7 @@ hello
 
 # 8. AI 程序基础工程化
 
-* [ ] API 调用函数封装
+* [x] API 调用函数封装
 * [ ] 配置与代码分离
 * [ ] 基础日志
 * [ ] 基础异常处理
@@ -583,15 +583,15 @@ hello
 
 ### 基础练习
 
-* [ ] `hello`
-* [ ] Python 简单问答程序
-* [ ] JSON API 调用练习
-* [ ] API 调用函数
+* [x] `hello`
+* [x] Python 简单问答程序
+* [x] JSON API 调用练习
+* [x] API 调用函数
 
 ### 综合练习
 
-* [ ] CLI AI Chat
-* [ ] 多轮聊天
+* [x] CLI AI Chat
+* [x] 多轮聊天
 * [ ] Streaming
 * [ ] 错误处理
 * [ ] 基础日志
@@ -626,13 +626,13 @@ Streaming
 
 能够独立：
 
-* [ ] 创建 Python AI 项目
-* [ ] 配置 API Key
-* [ ] 使用 HTTPX / SDK 调用 LLM API
-* [ ] 理解 Request / Response
-* [ ] 构造 JSON 请求
-* [ ] 解析 JSON Response
-* [ ] 提取模型输出
+* [x] 创建 Python AI 项目
+* [x] 配置 API Key
+* [x] 使用 HTTPX / SDK 调用 LLM API
+* [x] 理解 Request / Response
+* [x] 构造 JSON 请求
+* [x] 解析 JSON Response
+* [x] 提取模型输出
 * [ ] 理解并使用常见 LLM 参数
 * [ ] 实现多轮对话
 * [ ] 实现 Streaming
