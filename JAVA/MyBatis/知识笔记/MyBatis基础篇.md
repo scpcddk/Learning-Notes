@@ -1369,16 +1369,16 @@ void close();
 
 ### 30.7 一级缓存
 
-- 范围：同一个 `SqlSession` 内。
-- 底层：`Executor` 中的 `localCache`。
-- 清空时机：
+- **范围**：同一个 `SqlSession` 内。
+- **底层**：`Executor` 中的 `localCache`。
+- **清空时机**：
   - 执行 `update` / `insert` / `delete`。
   - `commit` / `rollback`。
   - 手动清空。
-- 配置：
+- **配置**：
   - `localCacheScope=SESSION`：默认，会话级缓存。
   - `localCacheScope=STATEMENT`：语句级缓存，每次查询后清空。
-- 常见现象：
+- **常见现象**：
   - 同一个 `SqlSession` 内，外部修改并提交后，再次查询可能仍返回旧值。
   - 解决：换 `SqlSession`、执行更新、提交回滚，或设置为 `STATEMENT`。
 
@@ -1414,10 +1414,10 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 
 - 非 Spring 项目：手动使用 `SqlSession`。
 - Spring 项目：由 `SqlSessionTemplate` 管理。
-- `SqlSessionTemplate` 是什么：
+- **`SqlSessionTemplate` 是什么**：
   - MyBatis-Spring 提供的线程安全 `SqlSession` 代理。
   - 替代直接使用 `SqlSession`，可单例注入。
-- 内部机制：
+- **内部机制**：
   - 每次调用时，通过 `SqlSessionUtils` 获取当前事务相关的 `SqlSession`。
   - 有 Spring 事务时，加入当前事务。
   - 无 Spring 事务时，创建新 `SqlSession`，执行后自动提交或回滚并关闭。
@@ -2050,7 +2050,7 @@ mapper.selectById(1)
 
 # 第十六篇：事务
 
-## 整体概览
+## (一) 整体概览
 
 ```Mermaid
 flowchart LR
@@ -2089,16 +2089,20 @@ flowchart LR
     linkStyle default stroke:#90A4AE,stroke-width:1.5px
 ```
 
+> [!tip]
+> **Spring 开启事务后，会把事务相关的 Connection 与当前线程的事务上下文关联起来；同一事务中的 MyBatis 操作可以通过这个上下文找到并使用这个 Connection，因此多个 Mapper 操作通常参与同一个事务。**
+
 > [!note]
-> 
+>
 > - **Spring 的事务资源绑定与当前线程上下文密切相关，底层常见实现会涉及 ThreadLocal**
 > - **Spring 事务上下文让同一事务中的数据库操作能够找到并使用事务关联的资源**
 > - **同一个 Spring 事务中的 Mapper 调用，通常会参与同一个事务关联的 SqlSession 和 Connection**
 
 > [!note]
-> **真正承载数据库事务状态的是 JDBC Connection。**
-> **MyBatis 的 Transaction 是对事务/Connection 的抽象和管理**。
-> **Spring 的事务管理器则负责更高层次地协调整个事务**。
+>
+> - **真正承载数据库事务状态的是 JDBC Connection。**
+> - **MyBatis 的 Transaction 是对 事务/Connection 的抽象和管理**。
+> - **Spring 的事务管理器则负责更高层次地协调整个事务**。
 
 **完整流程**：
 
@@ -2165,7 +2169,7 @@ flowchart TB
 
 ---
 
-## Connection
+## (二) Connection
 
 **Connection = 应用程序与数据库之间的一次“会话连接”**。  
 在 JDBC 中就是 `java.sql.Connection`，你通过它执行 SQL、管理事务。
@@ -2180,17 +2184,17 @@ flowchart TB
 **与 autoCommit 的关系：**
 
 - `autoCommit` 是 **Connection 的一个属性**
-- 每个 Connection 独立维护自己的 autoCommit 状态
+- 每个 Connection 独立维护自己的 `autoCommit` 状态
 - 默认一般是 `true`
 - `conn.setAutoCommit(false)` 后，必须手动 `commit()` 或 `rollback()`
 - 连接池归还连接前，通常要恢复 `autoCommit = true`，避免污染下一个使用者
 
 **生命周期：**
 
-1. 获取连接  
+1. 获取连接： 
    `DriverManager.getConnection(...)` 或从连接池 `dataSource.getConnection()`
 2. 使用连接执行 SQL
-3. 关闭连接  
+3. 关闭连接：
    `conn.close()`  
    如果是连接池，**不是真的断开，而是归还给池**
     ```
@@ -2239,7 +2243,7 @@ try (Connection conn = dataSource.getConnection()) {
 
 ---
 
-## autoCommit
+## (三) autoCommit
 
 **autoCommit = 数据库连接的“自动提交开关”**，决定每条 SQL 是否立即生效。
 
@@ -2249,6 +2253,7 @@ try (Connection conn = dataSource.getConnection()) {
 | `autoCommit = false` | 开启手动事务。多条 SQL 属于同一事务，必须显式 `commit()` 才生效，或 `rollback()` 撤销。 |
 
 **JDBC 示例：**
+
 ```java
 conn.setAutoCommit(false);
 try {
@@ -2263,6 +2268,7 @@ try {
 ```
 
 **关键点：**
+
 - 默认通常是 `true`。
 - 只有 `autoCommit = false` 时，`commit/rollback` 才有意义。
 - 开了手动事务却忘记提交，会形成长事务，导致锁等待、连接占用。
@@ -2273,12 +2279,12 @@ try {
 
 ---
 
-## `@Transactional`
+## (四) `@Transactional`
 
 > [!note]
 > `@Transactional` 就是让 Spring 用 AOP 代理在方法调用前后画一条**事务边界线**。线内共用同一个 Connection，正常一起提交，异常一起回滚；线外是否独立，由传播行为决定。
 
-【Spring Boot 整合】
+【**Spring Boot 整合**】
 
 MyBatis 自身通过 `SqlSession.commit()` / `rollback()` 管理事务。
 
@@ -2316,6 +2322,287 @@ public class StudentService {
 - 同一事务内通常复用同一个 SqlSession
 - try-catch 吞掉异常会导致不回滚
 - 自调用会导致代理失效
+
+`@Transactional` 的回滚规则
+`@Transactional` 常见失效场景
+
+---
+
+## (五) MyBatis Transaction 与 JDBC Connection 的关系
+
+> [!important]
+> **JDBC Connection 是物理事务载体，MyBatis Transaction 是 MyBatis 对事务的抽象；在 Spring 集成后，MyBatis Transaction 变成适配器，连接和提交/回滚都交给 Spring 管。**
+
+- **原生 MyBatis**:
+  - **一个 MyBatis Transaction 通常对应一个 JDBC Connection，并由它控制该连接的事务边界。**
+- **MyBatis-Spring**:
+  - **MyBatis Transaction 只是适配器，真正的 Connection 和事务边界由 Spring 控制。**
+
+**对比**:
+
+| 维度 | 原生 MyBatis | MyBatis-Spring |
+|---|---|---|
+| Transaction 实现 | `JdbcTransaction` / `ManagedTransaction` | `SpringManagedTransaction` |
+| Connection 来源 | 自己从 DataSource 获取 | 从 Spring 事务上下文获取 |
+| 提交/回滚 | MyBatis 自己调 | Spring 事务管理器调 |
+| 连接复用 | 一般一个 SqlSession 一个连接 | 同一 Spring 事务内多个 Mapper 复用同一连接 |
+| 关闭连接 | MyBatis 关 | Spring 事务结束后统一清理 |
+
+**核心关系图**:
+
+```mermaid
+flowchart LR
+    subgraph 原生 MyBatis
+        SS1[SqlSession] --> TX1[JdbcTransaction]
+        TX1 -->|getConnection / commit / rollback / close| CONN1[JDBC Connection]
+    end
+
+    subgraph MyBatis-Spring
+        SS2[SqlSession] --> TX2[SpringManagedTransaction]
+        TX2 -->|DataSourceUtils 获取| TSM[TransactionSynchronizationManager]
+        TSM -->|绑定/复用| CONN2[JDBC Connection]
+        TM[Spring PlatformTransactionManager] -->|commit / rollback| CONN2
+    end
+```
+
+**总结：**
+
+- **JDBC Connection**：真正执行 SQL 和数据库事务的物理连接。
+- **MyBatis Transaction**：MyBatis 层的事务抽象，负责“拿到连接”和“决定何时提交/回滚”。
+- **原生 MyBatis**：Transaction 管 Connection。
+- **MyBatis-Spring**：Spring 管 Connection 和事务，MyBatis Transaction 只负责适配获取。
+
+---
+
+## (六) TransactionSynchronizationManager
+
+**`TransactionSynchronizationManager` 是 Spring 用于 ==管理当前线程事务上下文中事务资源及事务同步信息== 的核心工具。它将当前事务的资源（如 Connection）与当前线程关联，使同一事务中的组件能够获取和复用正确的事务资源。**
+
+**核心功能**：
+
+- **资源绑定**：`bindResource / getResource / unbindResource`  
+  保证同一事务中多个 DAO 用同一个连接。
+- **事务同步**：`isSynchronizationActive / registerSynchronization`  
+  在事务提交、回滚前后执行自定义逻辑。
+- **事务状态**：`isActualTransactionActive / getCurrentTransactionName / isCurrentTransactionReadOnly` 等。
+
+**典型用法：事务提交后发消息**
+
+```java
+if (TransactionSynchronizationManager.isSynchronizationActive()) {
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sendMessage(); // 事务成功提交后再执行
+            }
+        }
+    );
+}
+```
+
+**注意**：
+
+- 注册前先判断 `isSynchronizationActive()`，否则可能抛异常。
+- 它基于 `ThreadLocal`，**不跨线程传播**。
+- 手动 `bindResource` 后必须 `unbindResource`，防止资源泄漏。
+- 更推荐用 `@TransactionalEventListener(phase = AFTER_COMMIT)` 替代手写同步器。
+
+**初略理解：**
+
+```
+DataSource
+→ 提供 Connection
+
+Spring 事务管理器
+→ 开启 / 提交 / 回滚事务
+
+TransactionSynchronizationManager
+→ 管理当前事务上下文中的资源关联
+
+MyBatis-Spring
+→ 让 MyBatis 使用 Spring 管理的事务资源
+```
+
+**深入理解**：
+
+```mermaid
+flowchart TD
+    DS[DataSource] -->|提供 Connection| CONN[Connection]
+
+    TM[Spring 事务管理器] -->|开启 / 提交 / 回滚| TX[事务边界]
+    TM -->|通过 DataSourceUtils 获取连接并绑定| TSM[TransactionSynchronizationManager]
+
+    TSM -->|线程级资源关联| CONN
+
+    MS[MyBatis-Spring] -->|适配| TM
+    MS -->|通过 SpringManagedTransaction 复用| TSM
+    MS -->|执行 SQL| CONN
+```
+
+---
+
+## (七) `ThreadLocal` 与事务资源关联机制
+
+> [!important]
+> **核心一句话：**  
+> `ThreadLocal` 为每个线程保存一份独立的事务资源映射，让同一线程内的多个 DAO / Mapper 复用同一个 `Connection`，不同线程互不干扰。
+
+**`TransactionSynchronizationManager` 里存了什么**：
+
+它内部主要靠几个 `ThreadLocal`：
+
+| ThreadLocal | 作用 |
+|---|---|
+| `ThreadLocal<Map<Object, Object>> resources` | 存事务资源，Key 通常是 `DataSource`，Value 是 `ConnectionHolder` |
+| `ThreadLocal<Set<TransactionSynchronization>> synchronizations` | 存事务同步回调 |
+| `ThreadLocal<String> currentTransactionName` | 当前事务名 |
+| `ThreadLocal<Boolean> currentTransactionReadOnly` | 是否只读 |
+| `ThreadLocal<Integer> currentTransactionIsolationLevel` | 隔离级别 |
+| `ThreadLocal<Boolean> actualTransactionActive` | 是否有真实事务 |
+
+最关键的是 `resources`：**它决定了当前线程用哪个数据库连接。**
+
+**绑定、复用、解绑流程：**
+
+```text
+事务开启
+  ↓
+事务管理器从 DataSource 获取 Connection
+  ↓
+包装成 ConnectionHolder
+  ↓
+TransactionSynchronizationManager.bindResource(dataSource, connectionHolder)
+  ↓
+存入当前线程的 ThreadLocal<Map>
+  ↓
+DAO / Mapper 调用 DataSourceUtils.getConnection(dataSource)
+  ↓
+先查当前线程 ThreadLocal 是否已有绑定连接
+  ↓
+有 → 直接复用
+无 → 重新从 DataSource 获取
+  ↓
+事务提交 / 回滚
+  ↓
+TransactionSynchronizationManager.unbindResource(dataSource)
+  ↓
+清理 ThreadLocal，关闭连接并归还连接池
+```
+
+**为什么能保证同一事务同一 Connection：**
+
+因为整个事务期间：
+
+- 事务管理器只绑定一次 `ConnectionHolder`；
+- 后续所有 `DataSourceUtils.getConnection()` 都从当前线程的 `ThreadLocal` 里拿；
+- MyBatis-Spring 的 `SpringManagedTransaction` 也是走 `DataSourceUtils`；
+- 所以多个 Mapper、多个 DAO 最终拿到的是同一个 `Connection`。
+
+**为什么线程池下必须清理：**
+
+线程池中的线程会被复用。  
+如果事务结束后不 `unbindResource`，旧 `ConnectionHolder` 会残留在 `ThreadLocal` 中，导致：
+
+- 下一个请求误用旧连接；
+- 连接无法归还连接池；
+- 内存泄漏或连接池耗尽。
+
+所以 Spring 在事务完成后一定会触发 `afterCompletion`，清理 `ThreadLocal`。
+
+> [!warning]
+> `ThreadLocal` 不跨线程：
+> 父线程开启事务，子线程默认拿不到这个事务资源。  
+> 异步、线程池、`CompletableFuture` 等场景下，需要手动传递事务上下文，或者避免在子线程中直接参与同一事务。
+
+> [!important]
+**`ThreadLocal` 是存储介质，`TransactionSynchronizationManager` 是管理入口，`ConnectionHolder` 是绑定对象，事务管理器负责绑定与解绑。**  
+它们一起实现了：**同一线程、同一事务、同一 Connection。**
+
+---
+
+### ==**功能总结**==：
+
+- **ThreadLocal**：解决**线程隔离**问题，让每个线程有自己独立的事务资源副本，互不干扰。  
+- **TransactionSynchronizationManager**：**管理当前线程事务上下文中的事务资源和同步信息，使事务资源能够与当前线程关联**。
+- **SqlSessionTemplate**：是 Spring 与 MyBatis 之间的协作层，负责让 Mapper 调用正确地使用和管理与当前事务关联的 `SqlSession`
+
+> [!important]
+> 
+> - **ThreadLocal 负责提供线程隔离的本地存储**
+> - **TransactionSynchronizationManager 负责管理当前线程的事务上下文及事务资源关联**
+> - **SqlSessionTemplate 负责将 MyBatis 的 SqlSession 接入 Spring 的事务管理，使 Mapper 能够使用当前事务对应的 SqlSession**
+
+---
+
+## (八) `SqlSessionTemplate`
+
+> [!important]
+`SqlSessionTemplate` 是 MyBatis-Spring 提供的**线程安全的 `SqlSession` 实现**，是 Mapper 调用 MyBatis 的入口代理，负责让 MyBatis 正确接入 Spring 事务。
+
+**解决什么问题：**
+
+1. **`SqlSession` 线程不安全**，不能多线程共享。
+2. **需要与 Spring 事务集成**，同一事务复用同一个 `Connection`。
+3. **自动管理 `SqlSession` 生命周期**，不用手动 open / close / commit / rollback。
+
+**核心机制**:
+
+- 实现 `SqlSession` 接口，但内部不直接持有唯一 `SqlSession`。
+- 每次调用由 `SqlSessionInterceptor` 拦截。
+- 通过 `SqlSessionUtils.getSqlSession()` 获取当前事务的 `SqlSession`：
+  - **有 Spring 事务**：从 `TransactionSynchronizationManager` 取，复用并绑定。
+  - **无事务**：新建一个，用完关闭。
+- 底层使用 `SpringManagedTransaction`，连接从 `DataSourceUtils` 获取，提交/回滚交给 Spring。
+
+**工作流程**:
+
+```text
+Mapper
+  ↓
+SqlSessionTemplate
+  ↓
+SqlSessionInterceptor
+  ↓
+SqlSessionUtils.getSqlSession()
+  ↓
+当前事务 SqlSession / 新建 SqlSession
+  ↓
+Executor
+  ↓
+Connection
+```
+
+**生命周期**:
+
+- **无事务**：一次调用一个 `SqlSession`，用完即关。
+- **有事务**：整个事务共用一个 `SqlSession`，事务结束后由同步回调关闭。
+
+**使用与注意**:
+
+- 通常由 MyBatis-Spring 自动配置，注入 Mapper 即可。
+- 它是**线程安全的单例**，不要手动关闭。
+- 不要和原生 `SqlSession` 混用，避免连接和事务不一致。
+- 它还会把 MyBatis 异常转换为 Spring 的 `DataAccessException`。
+
+> [!tip]
+**`SqlSessionTemplate` 是 MyBatis 与 Spring 事务之间的线程安全适配器：让 Mapper 每次调用都能拿到当前事务正确的 `SqlSession` 和 `Connection`。**
+
+---
+
+## (九) Spring-managed SqlSession / `SqlSessionHolder`
+
+---
+
+## (十) `SpringManagedTransaction`
+
+---
+
+## (十一) 事务传播行为
+
+---
+
+## (十二) 事务提交/回滚与缓存的关系
 
 ---
 
