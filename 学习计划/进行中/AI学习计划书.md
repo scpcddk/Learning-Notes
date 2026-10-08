@@ -509,8 +509,8 @@ hello
 * [x] `system`
 * [x] `user`
 * [x] `assistant`
-* [ ] `temperature`
-* [ ] 输出 Token 限制
+* [x] `temperature`
+* [x] 输出 Token 限制
 * [ ] 理解常用参数对输出的影响
 
 ---
