@@ -21,7 +21,7 @@ Spring Boot (Spring Framework + 自动配置)
 
 ### 1. Java Web（Servlet/JSP 时代）
 
-[Java Web](<Spring MVC/JavaWeb.md>)
+[Java Web](<Spring MVC/Markdown/JavaWeb.md>)
 
 - **核心构成**：Servlet + JSP + JDBC + Tomcat + `web.xml`
 - **特点**：基于 Servlet 规范，直接操作`HttpServletRequest/Response`；JSP 负责视图渲染
@@ -39,7 +39,7 @@ Spring Boot (Spring Framework + 自动配置)
 
 ### 2. Spring MVC（Spring Framework 模块）
 
-[Java MVC](<Spring MVC/Spring MVC.md>)
+[Java MVC](<Spring MVC/Markdown/Spring MVC.md>)
 
 - **核心构成**：`DispatcherServlet` + Controller + `ModelAndView` + IoC 容器 + XML/注解配置
 - **特点**：

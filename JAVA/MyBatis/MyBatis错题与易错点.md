@@ -1072,3 +1072,372 @@ rollback()
 > `rollback()` 回滚的是**已执行但尚未提交的事务修改**，不是让 SQL 从未执行过。
 
 ---
+
+## 32. 事务异常传播与 `@Transactional` 回滚判断
+
+### ① SQL 执行 ≠ 事务提交
+
+场景：
+
+```java
+@Transactional
+public void transfer() {
+    studentMapper.updateScoreA();
+    studentMapper.updateScoreB();
+}
+```
+
+如果 `updateScoreB()` 执行过程中抛出运行时异常：
+
+❌ 错误理解：
+
+> B 没有执行，所以回滚。
+
+✅ 正确理解：
+
+如果 B 已经执行到数据库并抛出异常，那么：
+
+```text
+A、B 都可能已经执行
+        ↓
+异常向外传播
+        ↓
+Spring 感知异常
+        ↓
+事务回滚
+        ↓
+A、B 尚未提交的修改都回滚
+```
+
+**核心：**
+
+```text
+SQL 执行 ≠ 事务提交 ≠ 最终数据库状态
+```
+
+### ② `try-catch` 的位置会影响事务回滚
+
+场景：
+
+```java
+@Transactional
+public void transfer() {
+    studentMapper.updateScoreA();
+
+    try {
+        studentMapper.updateScoreB();
+        throw new RuntimeException();
+    } catch (Exception e) {
+        System.out.println("出错了");
+    }
+}
+```
+
+❌ 错误理解：
+
+> A、B 在同一个 Connection 中，所以一定回滚。
+
+✅ 正确理解：
+
+异常在 `@Transactional` 方法内部被捕获，并且没有继续向外抛出：
+
+```text
+异常被 catch
+    ↓
+@Transactional 方法正常返回
+    ↓
+Spring 默认认为事务正常结束
+    ↓
+commit
+```
+
+因此 A、B 通常都会提交。
+
+### ③ 外层 `catch` 不等于事务不会回滚
+
+场景：
+
+```java
+@Transactional
+public void transfer() {
+    studentMapper.updateScoreA();
+    studentMapper.updateScoreB();
+}
+```
+
+外层：
+
+```java
+try {
+    service.transfer();
+} catch (Exception e) {
+    System.out.println("捕获异常");
+}
+```
+
+❌ 错误理解：
+
+> 最后异常被 catch，所以 A、B 都提交。
+
+✅ 正确理解：
+
+异常已经从 `transfer()` 向外传播，Spring 在事务方法返回前就已经感知到异常并执行回滚。
+
+之后外层再 `catch`：
+
+```text
+@Transactional 方法
+    ↓
+RuntimeException
+    ↓
+Spring 感知
+    ↓
+rollback
+    ↓
+异常继续向外传播
+    ↓
+外层 catch
+```
+
+==**核心区别：**==
+
+```text
+事务方法内部 catch
+→ Spring 可能看不到异常
+→ 默认可能提交
+
+事务方法外部 catch
+→ Spring 已经看到异常
+→ 已经执行回滚
+```
+
+### ④ `@Transactional` 的核心不是“共享 Connection”
+
+❌ 不准确：
+
+> `@Transactional` 的作用是让多个 Mapper 使用同一个 Connection。
+
+✅ 更准确：
+
+> **`@Transactional` 的核心作用是划定事务边界。**
+
+在这个事务边界内：
+
+```text
+多个数据库操作
+        ↓
+参与同一个事务上下文
+        ↓
+最终统一 commit / rollback
+```
+
+同一个 Connection 是典型实现机制中的重要表现，但不是 `@Transactional` 最核心的定义。
+
+**核心记忆：**
+
+```text
+@Transactional
+→ 划定事务边界
+
+事务边界内
+→ 多个数据库操作参与同一事务
+
+异常传播 + 回滚规则
+→ 决定最终 commit 还是 rollback
+```
+
+---
+
+# 错题33：REQUIRED + 内层异常 + 外层 catch 的回滚判断
+
+## 题目
+
+```java
+@Transactional
+public void methodA() {
+    updateA();
+
+    try {
+        methodB();
+    } catch (Exception e) {
+        System.out.println("B失败");
+    }
+}
+```
+
+```java
+@Transactional
+public void methodB() {
+    updateB();
+    throw new RuntimeException();
+}
+```
+
+假设：
+
+* `methodA()` 通过 Spring Bean 正常调用
+* `methodB()` **确实经过 Spring Proxy**
+* `methodB()` 使用默认传播行为 `REQUIRED`
+
+问题：
+
+> `methodA()` 最终 catch 住 `methodB()` 的异常后，A、B 是提交还是回滚？
+
+## 正确答案
+
+> **A、B 都回滚。**
+
+## 为什么？
+
+### ① `methodA()` 开启事务 T1
+
+```text
+methodA()
+ ↓
+事务 T1
+ ↓
+updateA()
+```
+
+### ② `methodB()` 使用 `REQUIRED`
+
+当前已经存在事务 T1：
+
+```text
+methodB()
+ ↓
+REQUIRED
+ ↓
+加入 T1
+```
+
+所以不是两个事务：
+
+```text
+❌ T1 → methodA
+   T2 → methodB
+```
+
+而是：
+
+```text
+✅ T1
+├── updateA()
+└── updateB()
+```
+
+### ③ `methodB()` 抛出 RuntimeException
+
+```text
+updateB()
+ ↓
+RuntimeException
+ ↓
+Spring 事务拦截器处理
+ ↓
+T1 被标记为 rollback-only
+```
+
+这是本题最关键的地方。
+
+### ④ `methodA()` 虽然 catch 住了异常
+
+```java
+catch (Exception e) {
+    System.out.println("B失败");
+}
+```
+
+但：
+
+> [!warning]
+> **catch 只能阻止异常继续向外传播，不能自动把已经被标记为 rollback-only 的事务恢复成可提交状态。**
+
+因此：
+
+```text
+methodA()
+ ↓
+catch
+ ↓
+正常结束
+ ↓
+Spring 尝试 commit T1
+ ↓
+发现 T1 = rollback-only
+ ↓
+最终 rollback
+```
+
+所以：
+
+```text
+updateA() → 回滚
+updateB() → 回滚
+```
+
+## 最容易混淆的地方
+
+之前有一道题：
+
+```java
+@Transactional
+public void transfer() {
+
+    updateA();
+
+    try {
+        updateB();
+        throw new RuntimeException();
+    } catch (Exception e) {
+    }
+}
+```
+
+当异常只是**普通代码中产生并被直接 catch**，Spring 没有观察到向外传播的异常，因此通常可以正常提交。
+
+而本题不同：
+
+```text
+methodA
+ ↓
+methodB
+ ↓
+Spring Proxy
+ ↓
+事务拦截器已经处理 RuntimeException
+ ↓
+共享事务被标记 rollback-only
+ ↓
+外层 catch
+```
+
+所以不能简单记成：
+
+> **“异常被 catch → 一定提交”**
+
+正确判断应该是：
+
+```text
+① methodB 是否经过 Spring 事务代理？
+        ↓
+② 是否加入了外层事务？
+        ↓
+③ 异常是否已经导致共享事务 rollback-only？
+        ↓
+④ 外层 catch 是否只是把异常吞掉？
+        ↓
+⑤ 最终提交时是否发现 rollback-only？
+```
+
+## 核心记忆
+
+> **REQUIRED 共享同一个事务；内层事务异常可能把共享事务标记为 rollback-only，即使外层 catch 住异常，最终仍可能回滚。**
+
+### 一句话版
+
+```text
+REQUIRED + 同一事务 + 内层异常 → rollback-only → 外层 catch 也救不回来
+```
+
+---

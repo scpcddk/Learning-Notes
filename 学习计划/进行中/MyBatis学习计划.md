@@ -163,19 +163,85 @@
 
 这部分是为了达到你的 **B 水平**。
 
+# MyBatis 进阶学习清单
+
+## 一、核心机制
+
 * [x] `SqlSessionFactory`
 * [x] `SqlSession`
 * [x] MyBatis 生命周期
+
+## 二、缓存
+
 * [x] 一级缓存
 * [x] 二级缓存
+* [x] 缓存作用域
+* [x] 缓存失效
+* [x] LRU / `flushInterval` / `size` / `readOnly`
+
+## 三、类型转换
+
 * [x] TypeHandler
 * [x] 自定义 TypeHandler
+* [x] `BaseTypeHandler`
+* [x] `@MappedTypes` / `@MappedJdbcTypes`
+* [x] TypeHandler 注册与使用
+
+## 四、事务
+
 * [x] MyBatis 事务
+* [x] JDBC `Connection` / `commit` / `rollback`
 * [x] Spring `@Transactional`
-* [x] 分页
-* [ ] MyBatis 插件基本概念
-* [ ] 常见性能问题
-* [ ] 常见设计问题
+* [x] 默认回滚规则 / `rollbackFor`
+* [x] 事务失效场景
+* [x] `ThreadLocal` / `TransactionSynchronizationManager`
+* [x] `SqlSessionTemplate`
+* [x] `REQUIRED`
+* [x] `REQUIRES_NEW`
+* [x] `rollback-only`
+* [ ] `SpringManagedTransaction`
+* [ ] 事务专项强化 2～3 天
+
+## 五、分页
+
+* [x] `LIMIT offset, pageSize`
+* [x] offset 计算
+* [x] 稳定分页与 `ORDER BY`
+
+## 六、MyBatis 插件
+
+* [ ] Plugin / Interceptor 基本概念
+* [ ] 四大对象：`Executor` / `StatementHandler` / `ParameterHandler` / `ResultSetHandler`
+* [ ] 基本拦截机制
+* [ ] 简单自定义插件
+* [ ] 了解分页插件基本原理
+
+**目标：能看懂、会写简单插件。**
+
+## 七、常见性能问题
+
+* [ ] N+1 查询
+* [ ] 慢 SQL / 索引问题
+* [ ] 大结果集
+* [ ] 批量操作
+* [ ] 缓存使用问题
+* [ ] 连接池与数据库连接
+* [ ] MyBatis / SQL 性能排查
+
+**目标：能发现常见问题并知道解决方向。**
+
+## 八、常见设计问题
+
+* [ ] Controller → Service → Mapper 职责
+* [ ] 事务边界设计
+* [ ] Mapper / XML 可维护性
+* [ ] 动态 SQL 设计
+* [ ] `resultType` / `resultMap` 选择
+* [ ] 批量操作设计
+* [ ] 缓存设计
+* [ ] `#{}` / `${}` 安全问题
+
+**目标：能写出结构合理、可维护的 MyBatis 代码。**
 
 这里不要求源码级理解。
 

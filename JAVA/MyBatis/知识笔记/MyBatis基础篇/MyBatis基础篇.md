@@ -2050,6 +2050,14 @@ mapper.selectById(1)
 
 # 第十六篇：事务
 
+**方法是代码组织单位，事务是数据库操作的原子性组织单位**
+
+```text
+线程 → 谁在执行代码
+方法 → 执行哪段代码
+事务 → 哪些数据库操作作为一个整体提交/回滚
+```
+
 ## (一) 整体概览
 
 ```Mermaid
@@ -2281,6 +2289,8 @@ try {
 
 ## (四) `@Transactional`
 
+### 核心功能
+
 > [!note]
 > `@Transactional` 就是让 Spring 用 AOP 代理在方法调用前后画一条**事务边界线**。线内共用同一个 Connection，正常一起提交，异常一起回滚；线外是否独立，由传播行为决定。
 
@@ -2323,8 +2333,83 @@ public class StudentService {
 - try-catch 吞掉异常会导致不回滚
 - 自调用会导致代理失效
 
-`@Transactional` 的回滚规则
-`@Transactional` 常见失效场景
+### `@Transactional` 的回滚规则
+
+- **默认回滚**：`RuntimeException`、`Error`
+- **默认不回滚**：检查异常，即非 `RuntimeException` 的 `Exception`
+- **指定回滚**：`@Transactional(rollbackFor = Exception.class)` 让检查异常也回滚
+  - `rollbackFor`：如果事务方法最终以这个类型的异常向外结束，就把它视为回滚条件。
+    - 可以指定自己定义的业务异常
+    - 可以指定详细的错误，实际业务中更推荐根据业务需要指定具体异常类型
+- **排除回滚**：`noRollbackFor = XxxException.class`
+- **前提**：异常必须抛到事务代理层；==**被 `try-catch` 吞掉不会回滚**==
+- **手动回滚**：`TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()`
+- **回滚时机**：由 `TransactionInterceptor` 捕获异常后调用事务管理器 `rollback`
+
+> [!tip]
+> Spring 判断回滚，看的不是“整个调用链后来有没有异常”，而是**事务边界内的方法执行过程**中，异常是否以符合回滚规则的方式传播出来。
+
+### `@Transactional` 常见失效场景
+
+1. **自调用**：同类**内部直接调用**，绕过 Spring 代理                        
+   - 同类中 `this.b()` 调用 `b()`，`b()` 的 `@Transactional` 不生效  
+   - 解决：拆到另一个 Bean、注入自身代理、`AopContext.currentProxy()`、`TransactionTemplate`
+
+2. **方法非 public**：Spring AOP 默认只对 public 方法生效  
+   - `protected`、`private`、包可见方法通常不生效
+
+3. **类/对象未被 Spring 管理**：没有交给 Spring 容器，比如自己 `new`、没有 `@Service` / `@Component`，不会生成代理，`@Transactional` 不生效。
+   - ❌ **不要自己 new**：
+        ```java
+        StudentService service = new StudentService();
+        service.updateStudent();
+        ```
+        相当于：
+        ```text
+        自己创建对象
+        → Spring 不知道
+        → 没有 Spring 事务代理
+        → @Transactional 不生效
+        ```
+   - ✅ **使用 Spring 注入**：
+        ```java
+        private final StudentService studentService;
+        
+        public StudentController(StudentService studentService) {
+            this.studentService = studentService;
+        }
+        ```
+        相当于：
+        ```text
+        Spring 创建 Bean
+        → Spring 创建/应用代理
+        → 注入
+        → 调用代理
+        → @Transactional 生效
+        ```
+
+4. **异常被吞**：`catch` 后没重新抛出，事务拦截器感知不到异常
+
+5. **异常类型不匹配**：默认不回滚检查异常，需要 `rollbackFor`
+
+6. **传播行为配置不当**：需要独立事务却用了 `REQUIRED`  
+   - 应使用 `REQUIRES_NEW`，并注意事务管理器支持
+
+7. **多数据源/事务管理器不匹配**：需指定 `transactionManager`
+
+8.  **多线程/异步**：事务资源绑定在当前线程 `ThreadLocal`，子线程不共享事务
+
+9.  **`final` / `static` 方法**：CGLIB 无法代理 `final` 方法，`static` 不走实例代理
+    - `final` 方法不能被基于子类的 CGLIB 代理重写，因此事务增强无法正常织入
+
+10. **代理类型限制**：JDK 动态代理需要接口；无接口时用 CGLIB  
+    - Spring Boot 默认偏 CGLIB，但自调用、非 public 仍会失效
+
+11. **数据库不支持事务**：如 MySQL 的 MyISAM 引擎  
+    - 需要 InnoDB 等支持事务的引擎
+
+> [!tip]
+> **public 非自调用，异常要抛出；管理器匹配，数据库支持。**
 
 ---
 
@@ -2598,7 +2683,106 @@ Connection
 
 ---
 
-## (十一) 事务传播行为
+## (十一) 事务传播行为补充
+
+> [!note]
+> 传播行为解决的是：**当前方法被调用时，事务该怎么处理？**  
+> 是加入已有事务，还是新建一个事务，还是不要事务？
+
+### 七种传播行为
+
+| 传播行为 | 含义 | 有事务时 | 无事务时 |
+|---|---|---|---|
+| `REQUIRED` | **默认** | 加入当前事务 | 新建事务 |
+| `REQUIRES_NEW` | 必须新事务 | 挂起当前事务，新建事务 | 新建事务 |
+| `SUPPORTS` | 支持事务 | 加入当前事务 | 以非事务方式执行 |
+| `NOT_SUPPORTED` | 不支持事务 | 挂起当前事务，非事务执行 | 非事务执行 |
+| `MANDATORY` | 必须有事务 | 加入当前事务 | 抛异常 |
+| `NEVER` | 必须无事务 | 抛异常 | 非事务执行 |
+| `NESTED` | 嵌套事务 | 创建嵌套事务（保存点） | 新建事务 |
+
+### 重点区分
+
+**1. `REQUIRED` vs `REQUIRES_NEW`**
+
+```text
+REQUIRED：
+A 有事务 → B 加入 A
+A 回滚 → B 也回滚
+共用同一个 Connection
+
+REQUIRES_NEW：
+A 有事务 → 挂起 A，B 新建事务
+B 回滚不影响 A
+A 回滚不影响 B（B 已提交）
+使用不同 Connection
+```
+
+**2. `NESTED` vs `REQUIRES_NEW`**
+
+```text
+NESTED：
+基于保存点（Savepoint）
+外层回滚 → 内层也回滚
+内层回滚 → 外层可继续
+共用同一个 Connection
+
+REQUIRES_NEW：
+完全独立的新事务
+使用不同 Connection
+```
+
+**3. `MANDATORY` vs `REQUIRED`**
+
+```text
+REQUIRED：没有事务就新建
+MANDATORY：没有事务就抛异常
+```
+
+**4. `NEVER` vs `NOT_SUPPORTED`**
+
+```text
+NEVER：有事务就抛异常
+NOT_SUPPORTED：有事务就挂起，非事务执行
+```
+
+### 使用示例
+
+```java
+@Service
+public class OrderService {
+
+    @Autowired
+    private LogService logService;
+
+    @Transactional
+    public void createOrder() {
+        // 主业务
+        logService.saveLog(); // REQUIRES_NEW，独立事务
+    }
+}
+
+@Service
+public class LogService {
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveLog() {
+        // 即使主业务回滚，日志也会提交
+    }
+}
+```
+
+### 关键点
+
+- 默认是 `REQUIRED`
+- `REQUIRES_NEW` 会挂起当前事务，使用新 Connection
+- `NESTED` 基于 Savepoint，仍在同一事务内
+- `MANDATORY` / `NEVER` 主要用于校验事务上下文
+- 传播行为只在**跨 Bean 调用**时生效，自调用无效
+- `REQUIRES_NEW` 注意连接池大小，容易死锁
+
+> [!important]
+> **REQUIRED 加入，REQUIRES_NEW 独立，NESTED 嵌套，SUPPORTS 可有可无，MANDATORY 必须有，NEVER 必须无，NOT_SUPPORTED 不要有。**
 
 ---
 
@@ -2640,257 +2824,7 @@ studentMapper.selectPage(page, null);
 
 ---
 
-# 第十八篇：动态 SQL 实战
-
-### 场景 1：学生条件查询
-
-```xml
-<select id="selectByCondition" resultType="Student">
-    SELECT * FROM student
-    <where>
-        <if test="name != null and name != ''">
-            AND name LIKE CONCAT('%', #{name}, '%')
-        </if>
-        <if test="age != null">
-            AND age = #{age}
-        </if>
-        <if test="gender != null and gender != ''">
-            AND gender = #{gender}
-        </if>
-        <if test="className != null and className != ''">
-            AND class_name = #{className}
-        </if>
-        <if test="minScore != null">
-            AND score >= #{minScore}
-        </if>
-    </where>
-</select>
-```
-
-### 场景 2：学生动态修改
-
-```xml
-<update id="updateSelective">
-    UPDATE student
-    <set>
-        <if test="name != null">name = #{name},</if>
-        <if test="age != null">age = #{age},</if>
-        <if test="gender != null">gender = #{gender},</if>
-        <if test="score != null">score = #{score},</if>
-    </set>
-    WHERE id = #{id}
-</update>
-```
-
-### 场景 3：批量删除
-
-```xml
-<delete id="deleteBatch">
-    DELETE FROM student
-    WHERE id IN
-    <foreach collection="ids" item="id" open="(" separator="," close=")">
-        #{id}
-    </foreach>
-</delete>
-```
-
-### 场景 4：批量插入
-
-```xml
-<insert id="insertBatch">
-    INSERT INTO student(name, age, gender, score) VALUES
-    <foreach collection="list" item="s" separator=",">
-        (#{s.name}, #{s.age}, #{s.gender}, #{s.score})
-    </foreach>
-</insert>
-```
-
----
-
-# 第十九篇：常见问题与坑
-
-| 现象                        | 优先检查                    |
-| ------------------------- | ----------------------- |
-| `Invalid bound statement` | namespace / id / XML 加载 |
-| 参数找不到                     | `@Param` / `#{}`        |
-| 数据库连不上                    | datasource / MySQL      |
-| 查询成功但 Java 字段是 `null`     | resultMap / 驼峰映射        |
-| 事务没有回滚                    | `@Transactional` / 事务配置 |
-
-| 现象 | 原因 | 检查 | 解决 |
-|---|---|---|---|
-| `Invalid bound statement (not found)` | Mapper 接口与 XML 不对应 | namespace、id、方法名 | 改成全限定名一致 |
-| `Parameter 'xxx' not found` | 多参数未加 `@Param` | 方法参数 | 加 `@Param` |
-| `TooManyResultsException` | 查询返回多条但方法返回单条 | SQL 条件 | 用 `List` 或加条件 |
-| `BindingException` | Mapper 未注册 | `@Mapper`、`@MapperScan` | 加注解或扫描 |
-| XML 未加载 | `mapper-locations` 错 | resources 路径 | 配 `classpath:mapper/*.xml` |
-| 字段映射不上 | 下划线/驼峰 | `map-underscore-to-camel-case` | 开启驼峰或 `resultMap` |
-| SQL 注入 | 用了 `${}` | 参数值 | 改 `#{}` |
-| 动态 SQL 多 AND | `<where>` 没用 | SQL 拼接 | 用 `<where>` |
-| 主键拿不到 | 未配置回填 | insert 标签 | `useGeneratedKeys=true`、`keyProperty` |
-| 事务不回滚 | 异常被吞/检查异常 | `@Transactional` | `rollbackFor=Exception.class` |
-| 查询执行两次 | 一级缓存/嵌套查询 | 日志 | 用 join 或二级缓存 |
-
-### 生命周期相关坑
-
-| 现象 | 原因 | 解决 |
-|---|---|---|
-| 连接泄漏 | `SqlSession` 没关闭 | try-with-resources 或交给 Spring |
-| 事务不生效 | 手动 `openSession()` 绕过 Spring | 用 `SqlSessionTemplate` / `@Transactional` |
-| 一级缓存脏读 | `SqlSession` 生命周期过长 | 缩短会话，或 `local-cache-scope: statement` |
-| 重复创建工厂 | 每次操作都 `new SqlSessionFactoryBuilder()` | 交给 Spring 单例管理 |
-| 多线程状态错乱 | 多线程共享 `SqlSession` | 不要共享，交给 `SqlSessionTemplate` |
-
-### 线程安全相关坑
-
-| 现象 | 原因 | 解决 |
-|---|---|---|
-| 多线程状态错乱 | 多线程共享 `SqlSession` | 不要共享，交给 `SqlSessionTemplate` |
-| 事务不生效 | 手动 `openSession()` 绕过 Spring | 用 `SqlSessionTemplate` / `@Transactional` |
-| 连接泄漏 | `SqlSession` 没关闭 | try-with-resources 或交给 Spring |
-| 一级缓存脏读 | `SqlSession` 生命周期过长 | 缩短会话，或 `local-cache-scope: statement` |
-| 拦截器串数据 | 拦截器里存了请求级状态 | 拦截器保持无状态 |
-| TypeHandler 并发异常 | 自定义 TypeHandler 有可变字段 | 保持无状态 |
-
----
-
-# 第二十篇：MyBatis 常用配置速查
-
-```yaml
-mybatis:
-  mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.example.demo.entity
-  type-handlers-package: com.example.demo.handler
-  configuration:
-    map-underscore-to-camel-case: true
-    cache-enabled: true
-    lazy-loading-enabled: true
-    aggressive-lazy-loading: false
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-```
-
-| 配置 | 作用 | 频率 |
-|---|---|---|
-| `mapper-locations` | XML 位置 | 必须 |
-| `type-aliases-package` | 实体别名 | 常用 |
-| `map-underscore-to-camel-case` | 下划线转驼峰 | 必须 |
-| `log-impl` | 打印 SQL | 常用 |
-| `cache-enabled` | 二级缓存开关 | 偶尔 |
-| `lazy-loading-enabled` | 延迟加载 | 偶尔 |
-| `type-handlers-package` | 自定义 TypeHandler | 高级 |
-
----
-
-# 第二十一篇：MyBatis 常用标签速查
-
-| 标签 | 作用 | 频率 | 示例 |
-|---|---|---|---|
-| `select` | 查询 | 高 | `<select id="selectById">` |
-| `insert` | 插入 | 高 | `<insert id="insert">` |
-| `update` | 更新 | 高 | `<update id="update">` |
-| `delete` | 删除 | 高 | `<delete id="deleteById">` |
-| `if` | 条件 | 高 | `<if test="name != null">` |
-| `where` | 动态 WHERE | 高 | `<where>` |
-| `set` | 动态 UPDATE | 高 | `<set>` |
-| `foreach` | 批量 | 高 | `<foreach collection="ids">` |
-| `choose` | 分支 | 中 | `<choose><when>...` |
-| `trim` | SQL 修饰 | 中 | `<trim prefix="WHERE">` |
-| `resultMap` | 复杂映射 | 高 | `<resultMap id="...">` |
-| `association` | 一对一 | 中 | `<association property="clazz">` |
-| `collection` | 一对多 | 中 | `<collection property="students">` |
-
----
-
-# 第二十二篇：MyBatis 与 JDBC / JPA 对比
-
-| 特性 | JDBC | MyBatis | JPA |
-|---|---|---|---|
-| SQL 控制 | 完全手写 | 完全手写 | 框架生成 |
-| 学习成本 | 低 | 中 | 高 |
-| 灵活性 | 最高 | 高 | 中 |
-| ORM 程度 | 无 | 半自动 | 全自动 |
-| 映射 | 手动 | XML/注解 | 注解 |
-| 复杂 SQL | 麻烦 | 友好 | 较麻烦 |
-| 典型场景 | 教学/底层 | 互联网复杂查询 | 业务模型稳定 |
-
----
-
-# 第二十三篇：实际项目代码阅读方法
-
-```text
-Controller
-  ↓
-Service
-  ↓
-Mapper 接口
-  ↓
-Mapper XML
-  ↓
-SQL
-  ↓
-Database
-```
-
-看到：
-
-```java
-studentMapper.selectByCondition(...)
-```
-
-按顺序找：
-
-1. `StudentMapper` 接口方法
-2. `namespace` 对应的 XML
-3. `id` 对应的 `<select>`
-4. `#{}` 参数来源
-5. `resultType` / `resultMap`
-6. SQL 涉及的表
-7. 返回对象结构
-
----
-
-# 第二十四篇：MyBatis 学习重点分级
-
-### Level 1：必须掌握
-
-- Mapper、XML、CRUD
-- 参数传递、`@Param`
-- `#{}`、`${}`
-- `resultType`、`resultMap`
-- 动态 SQL：`if`、`where`、`set`、`foreach`
-- Spring Boot 整合
-- 主键回填
-
-### Level 2：应该掌握
-
-- `association`、`collection`
-- 事务、`@Transactional`
-- 缓存
-- 分页
-- TypeHandler
-
-### Level 3：理解原理
-
-- `SqlSessionFactory`
-- `SqlSession`
-- `Executor`
-- `MappedStatement`
-- `Plugin`、`Interceptor`
-- 生命周期
-- 线程安全
-- SqlSessionTemplate 线程安全原理
-- MapperProxy 为什么能安全注入
-
-### Level 4：暂时了解
-
-- 源码级解析
-- 自定义插件深度开发
-- 多级缓存整合 Redis
-- MyBatis-Plus 高级功能
-
----
-
-# MyBatis 与 MyBatis-Plus 的关系
+# 第十八篇 MyBatis 与 MyBatis-Plus 的关系
 
 【第三方扩展】
 
@@ -2900,165 +2834,5 @@ studentMapper.selectByCondition(...)
 - 很多 Spring Boot 项目用 MP 是为了少写简单 CRUD。
 
 不要混淆：`BaseMapper`、`IService`、`LambdaQueryWrapper` 都是 MyBatis-Plus 的，不是 MyBatis 原生。
-
----
-
-# 第二十五篇：最终速查手册 Cheat Sheet
-
-### Mapper
-
-```java
-@Mapper
-public interface StudentMapper {
-    Student selectById(Long id);
-    List<Student> selectByCondition(@Param("name") String name,
-                                    @Param("age") Integer age);
-    int insert(Student student);
-    int update(Student student);
-    int deleteBatch(@Param("ids") List<Long> ids);
-}
-```
-
-### XML
-
-```xml
-<mapper namespace="com.example.mapper.StudentMapper">
-    <select id="selectById" resultType="Student">
-        SELECT * FROM student WHERE id = #{id}
-    </select>
-</mapper>
-```
-
-### 参数
-
-```java
-Student select(@Param("name") String name, @Param("age") Integer age);
-```
-
-```xml
-WHERE name = #{name} AND age = #{age}
-```
-
-### `#{}`
-
-```xml
-WHERE id = #{id}
-```
-
-### `${}`
-
-```xml
-ORDER BY ${orderBy}
-```
-
-### resultType
-
-```xml
-<select id="selectAll" resultType="Student">
-    SELECT * FROM student
-</select>
-```
-
-### resultMap
-
-```xml
-<resultMap id="StudentMap" type="Student">
-    <id column="id" property="id"/>
-    <result column="name" property="name"/>
-</resultMap>
-```
-
-### 动态 SQL
-
-```xml
-<where>
-    <if test="name != null and name != ''">
-        AND name LIKE CONCAT('%', #{name}, '%')
-    </if>
-</where>
-```
-
-### foreach
-
-```xml
-<foreach collection="ids" item="id" open="(" separator="," close=")">
-    #{id}
-</foreach>
-```
-
-### 一对一
-
-```xml
-<association property="clazz" javaType="Class">
-    <id column="class_id" property="id"/>
-    <result column="class_name" property="name"/>
-</association>
-```
-
-### 一对多
-
-```xml
-<collection property="students" ofType="Student">
-    <id column="student_id" property="id"/>
-    <result column="student_name" property="name"/>
-</collection>
-```
-
-### Spring Boot 配置
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/test?serverTimezone=Asia/Shanghai
-    username: root
-    password: 123456
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-mybatis:
-  mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.example.demo.entity
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-```
-
----
-
-# MyBatis 问题 → 知识点索引
-
-| 我遇到的问题 | 优先查询 |
-|---|---|
-| Mapper 找不到 | `@Mapper` / `@MapperScan` |
-| XML 找不到 | `mapper-locations` |
-| `Invalid bound statement` | namespace / id / 方法名 |
-| 参数找不到 | `@Param` / 参数绑定 |
-| SQL 注入 | `#{}` / `${}` |
-| 查询结果为空 | `resultType` / `resultMap` |
-| 字段映射不上 | 驼峰映射 / `resultMap` |
-| 一对多查询 | `collection` |
-| 一对一查询 | `association` |
-| 多对多查询 | 中间表 + `collection` |
-| 批量查询/删除 | `foreach` |
-| 动态 WHERE | `if` / `where` |
-| 动态 UPDATE | `if` / `set` |
-| 主键拿不到 | `useGeneratedKeys` / `keyProperty` |
-| 事务不回滚 | Spring Transaction / `@Transactional` |
-| 查询执行两次 | 一级缓存 / 嵌套查询 |
-| 分页 | LIMIT / PageHelper / MyBatis-Plus |
-| 类型转换 | TypeHandler |
-| 缓存 | 一级缓存 / 二级缓存 |
-| MyBatis-Plus 功能 | 第三方扩展，不是 MyBatis 核心 |
-
----
-
-## 基础篇总结
-
-- 默认用 `#{}`，只有动态表名、列名、排序字段才考虑 `${}`，并且必须白名单校验。
-- 多参数一定加 `@Param`。
-- 复杂映射用 `resultMap`，简单映射用 `resultType`。
-- Spring Boot 项目优先使用构造器注入 Mapper。
-- 事务交给 Spring `@Transactional`，不要手动 `commit/rollback`。
-- MyBatis 缓存是应用层缓存，不要和 MySQL Buffer Pool 混淆。
-- MyBatis-Plus 是第三方增强，不是 MyBatis 原生功能。
 
 ---
