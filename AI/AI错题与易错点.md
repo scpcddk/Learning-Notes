@@ -347,3 +347,85 @@ httpx.post(
 > **HTTP = 规则，POST = 规则中的请求方法，`httpx.post()` = Python 调用这个方法的工具。**
 
 ---
+
+## 错题14：API 调试与 API Key 环境变量问题
+
+**错误表现：**
+
+直接执行：
+
+```python
+answer = result["choices"][0]["message"]["content"]
+```
+
+出现：
+
+```text
+KeyError: 'choices'
+```
+
+**排查过程：**
+
+1. 打印 `result`
+2. 发现 API 返回的是错误信息，而不是正常的 `choices`
+3. 错误信息显示：
+
+```text
+api key: None is invalid
+```
+
+4. 说明：
+
+```python
+api_key = os.environ.get("DEEPSEEK_API_KEY")
+```
+
+得到的是：
+
+```python
+None
+```
+
+也就是**当前 Python 进程没有读取到 `DEEPSEEK_API_KEY` 环境变量**。
+
+**为什么会读取不到？**
+
+之前是在 PowerShell 中通过：
+
+```powershell
+$env:DEEPSEEK_API_KEY="你的API Key"
+```
+
+设置的。
+
+这种 `$env:` 设置通常只对**当前 PowerShell 会话**有效。关闭终端、换终端或重新打开终端后，可能就不存在了，因此：
+
+```python
+os.environ.get("DEEPSEEK_API_KEY")
+```
+
+就会得到 `None`。
+
+**正确排查：**
+
+PowerShell：
+
+```powershell
+echo $env:DEEPSEEK_API_KEY
+```
+
+Python：
+
+```python
+api_key = os.environ.get("DEEPSEEK_API_KEY")
+print(api_key)
+```
+
+如果是 `None`，说明环境变量没有被当前 Python 进程读取到。
+
+**核心记忆：**
+
+> API 出现 `KeyError: 'choices'` 时，不要直接怀疑 JSON 路径；先看实际 Response。
+> 如果 Response 是认证错误，再检查 API Key 是否存在、是否正确，以及当前进程能否读取环境变量。
+
+---
