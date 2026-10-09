@@ -428,4 +428,60 @@ print(api_key)
 > API 出现 `KeyError: 'choices'` 时，不要直接怀疑 JSON 路径；先看实际 Response。
 > 如果 Response 是认证错误，再检查 API Key 是否存在、是否正确，以及当前进程能否读取环境变量。
 
+> [!note]
+> **排错顺序**：
+> 
+> 1. 查看 response.status_code。
+> 2. 查看 result 的实际内容。
+> 3. 如果是错误响应，检查错误信息。
+> 4. 根据错误信息排查 API Key、请求参数、权限、额度等问题。
+> 5. 如果响应是成功的，再核对代码访问的字段路径。
+
+---
+
+## 错题15：请求与响应格式混淆
+
+**错误表现：**
+认为请求头设置了 `Content-Type: application/json`，服务器就一定会返回 JSON；不清楚响应体是普通文本时调用 `response.json()` 会发生什么。
+
+**正确理解：**
+
+请求与响应是两个独立的方向。
+
+* 请求头 `Content-Type: application/json`：表示客户端发送的请求体采用 JSON 格式。
+* 响应体格式：由服务器实际返回的内容决定，不一定是 JSON，也可能是普通文本。
+* `response.json()`：尝试将响应体解析为 JSON，并转换成 Python 对象；如果响应体不是合法 JSON，通常会抛出 JSON 解析异常。
+
+**示例：**
+
+```python
+response = httpx.post(url, headers=headers, json=data)
+
+print(response.status_code)
+print(response.text)  # 查看响应体原始文本
+
+result = response.json()  # 尝试解析 JSON
+```
+
+假设服务器返回普通文本 `OK`：
+
+```text
+OK
+```
+
+调用 `response.json()` 通常会报 JSON 解析异常，因为 `OK` 不是合法 JSON。
+
+但如果返回的是带双引号的 `"OK"`，它就是合法 JSON 字符串。
+
+**排查方法：**
+
+1. 查看 `response.status_code`，确认 HTTP 状态。
+2. 查看响应头 `Content-Type`，了解服务器声明的响应格式。
+3. 查看 `response.text`，检查实际响应内容。
+4. 确认响应体是合法 JSON 后，再调用 `response.json()`。
+
+**记忆口诀：**
+
+请求的 `Content-Type` 管发送格式，不保证响应格式；`response.json()` 负责解析 JSON，不负责判断 API 是否调用成功。
+
 ---

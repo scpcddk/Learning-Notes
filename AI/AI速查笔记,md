@@ -674,7 +674,7 @@ print(out.shape)
   - 忘记 labels 错位一位。
   - 把困惑度当任务表现。
   - 与 Token 1.2、Logits 1.11、Softmax 1.12、交叉熵 10.9、Attention 1.21、Transformer 1.22、KV Cache 1.13 强相关。
-- **自回归生成**：模型根据已有上下文，逐个预测下一个 token，并把刚生成的结果追加回上下文，作为下一步输入，循环直到结束。
+- **自回归生成**(Autoregressive Generation)：模型根据已有上下文，逐个预测下一个 token，并把刚生成的结果追加回上下文，作为下一步输入，循环直到结束。
   - **公式**：
   \[
   P(x_1,\dots,x_T)=\prod_{t=1}^{T}P(x_t \mid x_{<t})

@@ -149,8 +149,8 @@
 | **命令** | **功能** | **示例** |
 | --------------------- | -------------------------------- | ------------------------------------------ |
 | `docker run` | ==**启动**一个新的容器**并运行**命令== | `docker run -d ubuntu` |
-| `docker ps` | ==**列出**当前正在运行的容器== | `docker ps` |
-| `docker ps -a` | 列出所有容器（包括已停止的容器） | `docker ps -a` |
+| `docker ps` | ==**列出**当前**正在运行**的容器== | `docker ps` |
+| `docker ps -a` | 列出**所有**容器（包括已停止的容器） | `docker ps -a` |
 | `docker build` | ==使用`Dockerfile`**构建镜像**== | `docker build -t my-image .` |
 | `docker images` | **列出**本地存储的所有**镜像** | `docker images` |
 | `docker pull` | 从 Docker 仓库**拉取镜像** | `docker pull ubuntu` |
@@ -161,7 +161,7 @@
 | `docker restart` | **重启**一个容器 | `docker restart container_name` |
 | `docker rm` | **删除**一个或多个**容器** | `docker rm container_name` |
 | `docker rmi` | **删除**一个或多个**镜像** | `docker rmi my-image` |
-| `docker logs` | **查看容器的日志** | `docker logs container_name` |
+| `docker logs` | ==**查看容器的日志**== | `docker logs container_name` |
 | `docker inspect` | 获取容器或镜像的详细信息 | `docker inspect container_name` |
 | `docker exec -it` | 进入容器的交互式终端 | `docker exec -it container_name /bin/bash` |
 | `docker network ls` | 列出所有`Docker`**网络** | `docker network ls` |
@@ -181,6 +181,15 @@
 常用`docker run`选项:
 
 - `-t`：在新容器内指定一个伪终端或终端
+  ```text
+  docker build -t
+          ↑
+       tag 镜像，给镜像设置名称/标签
+  
+  docker run -t
+          ↑
+       TTY 终端
+  ```
 - `-i`：允许你对容器内的标准输入 (STDIN) 进行交互
 - `-d`：后台运行
 - `-p 宿主机端口:容器端口`：端口映射
@@ -198,7 +207,7 @@
 | :--- | :--- | :--- |
 | `docker save` | ==将一个或多个镜像**导出**为归档文件（`.tar`）== | `docker save -o myapp.tar nginx:alpine` |
 | **`docker load`** | ==从 `save` 导出的归档文件中**导入镜像**（离线迁移核心）== | `docker load -i myapp.tar` |
-| `docker tag` | 给本地镜像打上新的**标签**（仓库名+版本） | `docker tag nginx:latest myrepo/nginx:v1.0` |
+| `docker tag` | 给本地镜像打上新的**标签**（仓库名+版本） | `docker tag nginx:latest myrepo/nginx:v1.0`(`latest`本质上就是一个默认 tag，只是一个名字，不保证它真的就是最新版本) |
 | `docker history` | 查看镜像的**构建历史**（分层细节与大小） | `docker history ubuntu:22.04 --no-trunc` |
 | `docker import` | 从压缩包或 URL **导入**内容创建镜像（配合 `export`） | `docker import myapp.tar.gz myapp:imported` |
 | `docker export` | 将**容器**当前文件系统**导出**为快照（扁平化，丢失历史） | `docker export container_id > snapshot.tar` |
@@ -331,10 +340,10 @@
 | **FROM** | **指定基础镜像** | `FROM eclipse-temurin:21-jre-alpine` |
 | **WORKDIR** | **设置工作目录**，后续指令在此目录下执行 | `WORKDIR /app` |
 | **COPY** | **从宿主机复制文件**到镜像（推荐用 COPY，不用 ADD） | `COPY target/*.jar app.jar` |
-| **RUN** | 构建时**执行命令**（安装依赖、配置） | `RUN apk add --no-cache curl` |
+| **RUN** | 构建 ==镜像== 时**执行命令**（安装依赖、配置） | `RUN apk add --no-cache curl` |
 | **ENV** | **设置环境变量**，运行时可用 `-e` 覆盖 | `ENV JAVA_OPTS="-Xmx512m"` |
 | **EXPOSE** | 声明容器内**服务端口**（仅文档作用） | `EXPOSE 8080` |
-| **CMD** | 容器启动时的**默认命令**，可被 `docker run` 后面的命令覆盖 | `CMD ["java", "-jar", "app.jar"]` |
+| **CMD** | ==容器== 启动时的**默认命令**，可被 `docker run` 后面的命令覆盖（如果需要运行命令过多，可以创建**启动脚本**，直接运行脚本，如：CMD ["./start.sh"]） | `CMD ["java", "-jar", "app.jar"]` |
 | **ENTRYPOINT** | 容器启动时的**入口命令**，不会被覆盖，但可追加参数 | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
 
 #### CMD vs ENTRYPOINT
