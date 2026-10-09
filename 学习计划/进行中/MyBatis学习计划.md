@@ -199,7 +199,7 @@
 * [x] `REQUIRED`
 * [x] `REQUIRES_NEW`
 * [x] `rollback-only`
-* [ ] `SpringManagedTransaction`
+* [x] `SpringManagedTransaction`
 * [ ] 事务专项强化 2～3 天
 
 ## 五、分页
