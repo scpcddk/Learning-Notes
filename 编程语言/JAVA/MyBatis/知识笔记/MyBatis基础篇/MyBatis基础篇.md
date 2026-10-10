@@ -438,7 +438,7 @@ Student selectByCondition(String name, Integer age);
 WHERE name = #{param1} AND age = #{param2}
 ```
 
-推荐：
+**推荐**：
 
 ```java
 Student select(@Param("name") String name, @Param("age") Integer age);
@@ -505,7 +505,7 @@ ORDER BY ${orderBy}
 | 示例 | `#{id}` | `${orderBy}` |
 | 推荐 | 默认使用 | 必须白名单校验 |
 
-安全示例：
+**安全示例**：
 
 ```java
 String orderBy = "id";
