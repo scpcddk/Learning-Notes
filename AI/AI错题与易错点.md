@@ -38,6 +38,8 @@
 一个单词 ≠ 必然一个 Token
 ```
 
+**例**：`playing = play + ing`
+
 ---
 
 ## 3. Token ID 没有语义
@@ -442,6 +444,7 @@ print(api_key)
 ## 错题15：请求与响应格式混淆
 
 **错误表现：**
+
 认为请求头设置了 `Content-Type: application/json`，服务器就一定会返回 JSON；不清楚响应体是普通文本时调用 `response.json()` 会发生什么。
 
 **正确理解：**

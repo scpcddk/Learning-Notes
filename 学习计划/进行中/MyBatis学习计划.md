@@ -163,8 +163,6 @@
 
 这部分是为了达到你的 **B 水平**。
 
-# MyBatis 进阶学习清单
-
 ## 一、核心机制
 
 * [x] `SqlSessionFactory`
@@ -200,7 +198,7 @@
 * [x] `REQUIRES_NEW`
 * [x] `rollback-only`
 * [x] `SpringManagedTransaction`
-* [ ] 事务专项强化 2～3 天
+* [x] 事务专项强化 2～3 天
 
 ## 五、分页
 
@@ -232,7 +230,7 @@
 
 ## 八、常见设计问题
 
-* [ ] Controller → Service → Mapper 职责
+* [x] Controller → Service → Mapper 职责
 * [ ] 事务边界设计
 * [ ] Mapper / XML 可维护性
 * [ ] 动态 SQL 设计
