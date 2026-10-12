@@ -45,6 +45,8 @@ x &= x + \text{FFN}(\text{LN}(x))
 \end{aligned}
 $$
 
+---
+
 ## 1.1 LLM [核心必背]
 
 - **是什么**：Large Language Model，本质是根据上下文**预测**下一个 token 的概率模型。(它通过训练调整模型参数，把从大量数据中学习到的模式和关系“编码”进模型；生成回答时，根据输入的上下文和这些参数，不断预测下一个 Token)
@@ -1263,6 +1265,302 @@ Python 解析
 - **自测题**：完整调用链是什么？
 - **答案**：Python → HTTP Request → LLM API → 推理 → Response → JSON/Stream → 解析 → 业务。
 - **反模式**：只会背参数，不会串链路。
+
+---
+
+## 2.17 Streaming
+
+## 2.17.1 普通响应 vs 流式响应
+
+```text
+普通请求通常是：
+发送请求 → 等待完整响应 → 解析 JSON → 获取答案
+流式请求则是：
+发送请求 → 持续接收数据片段 → 逐段处理并显示
+```
+
+> **注意**：数据片段不一定恰好对应一个汉字、一个单词或一个 Token，具体取决于 API 的传输格式。
+
+**关键点**
+
+- **理解 Streaming**：不等完整结果，边收边解析边渲染。
+- **普通响应 vs 流式响应**：
+  - 普通：首字延迟高，一次性返回，处理简单。
+  - 流式：首字延迟低，逐步返回，需处理半包和不完整 JSON。
+  - 总耗时通常相近，流式主要提升交互感。
+- **逐步显示原理**：
+  ```text
+  服务端生成一点 → 推送一块 → 客户端读取 → 解析增量 → 立即输出 → 继续下一块
+  ```
+
+## 2.17.2 逐步显示的原理
+
+| 知识点 | 记住什么 |
+|---|---|
+| 核心价值 | 让用户更早看到回答，降低感知等待时间；不一定减少总生成时间。 |
+| 开启方式 | 请求参数设置 `"stream": True`。 |
+| 读取方式 | 使用 `httpx.stream()` 和 `iter_lines()` 逐行读取；注意返回类型和空行。 |
+| 数据解析 | 提取 `data:` 后的 JSON，再读取 `choices[0].delta.content`；空 delta 直接跳过。 |
+| 文本显示 | `end=""` 不换行，`flush=True` 尽快刷新输出，形成“打字机”效果。 |
+| 结束标志 | 常见为 `[DONE]`、`finish_reason` 非空、特定 event 或连接关闭；不能靠空片段判断结束。 |
+| 异常处理 | 考虑 HTTP 错误、网络中断、超时、重试和部分回答补充。 |
+| 传输本质 | 返回的是传输层数据块（chunk/event），不一定对应一个汉字、单词或 Token。 |
+| 不完整数据 | 需缓冲并处理不完整 UTF-8 字节和不完整 JSON，否则可能乱码或解析失败。 |
+| 常见协议 | SSE、NDJSON、chunked HTTP、WebSocket；OpenAI 风格常用 SSE。 |
+| 稳健解析 | 用 `line[5:].strip()` 比 `line[6:]` 更稳；`delta` 可能为空，`content` 可能不存在。 |
+| CLI 输出 | 循环内 `sys.stdout.write(text)` + `sys.stdout.flush()`；结束后再 `print()` 换行。 |
+| 超时控制 | 给流式请求设置合理超时，例如 `timeout=60`，避免长时间挂起。 |
+| 重试策略 | 对连接失败、429、5xx 可重试；已输出部分内容时，重试要避免重复打印。 |
+| 调试技巧 | 打印原始 `line` 或 `data` 定位协议问题；不要默认每次都有 `content`。 |
+| 生产建议 | 加日志、限流、错误提示、中断恢复、`finish_reason` 检查和 usage 统计。 |
+
+**推荐流程**
+
+```text
+发起流式请求
+→ httpx.stream()
+→ iter_lines()
+→ 过滤 data:
+→ 解析 JSON
+→ 取 choices[0].delta.content
+→ write + flush
+→ 遇到 [DONE] 或 finish_reason 结束
+→ 处理异常与不完整输出
+```
+
+## 2.17.3 Chunk / Delta / Event
+
+- **Chunk / Delta / Event**：
+  - Chunk：传输层数据块，不一定对应一个汉字、单词或 Token。
+  - Delta：内容增量，例如 `delta.content`。
+  - Event：SSE 事件，常由 `data:` 行承载，可能跨多个 chunk。
+  - 结束标志：`[DONE]`、`finish_reason`、连接关闭。
+- 流式返回的是**传输层数据块（chunk/event）**，不是语义单位。
+- 一个片段可能包含：半个汉字、半个 JSON、多个 Token，甚至空 delta。
+- 不能“收到一块就当成一个完整字符/Token”，应先：
+  ```text
+  缓冲 → 按协议解析 → 提取增量 → 渲染
+  ```
+- 必须处理**不完整 UTF-8 字节**和**不完整 JSON**，否则会乱码或解析失败。
+- 常见协议：SSE、NDJSON、chunked HTTP、WebSocket。
+- 核心收益：**降低首字延迟、提升交互感**；不保证减少总生成时间。
+
+## 2.17.4 Python 处理流式响应
+
+```python
+with requests.post(url, headers=headers, json=payload, stream=True) as r:
+    for raw in r.iter_lines():
+        if not raw:
+            continue
+        line = raw.decode("utf-8", errors="replace")
+        if not line.startswith("data:"):
+            continue
+        data = line[5:].strip()
+        if data == "[DONE]":
+            break
+        obj = json.loads(data)
+        content = obj["choices"][0].get("delta", {}).get("content")
+        if content:
+            sys.stdout.write(content)
+            sys.stdout.flush()
+```
+
+## 2.17.5 实现 CLI 流式输出
+
+```python
+import os
+import sys
+import json
+import httpx
+
+# ============ 配置区 ============
+API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+API_URL = "https://api.deepseek.com/chat/completions"
+MODEL = "deepseek-chat"
+MAX_HISTORY = 6  # 最多保留最近 6 条消息，防止上下文无限增长
+
+# 启动时检查 API_KEY，避免带着空 key 发请求，得到难懂的 401
+if not API_KEY:
+    raise SystemExit("请设置环境变量 DEEPSEEK_API_KEY")
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json",
+}
+
+# 全局消息历史，保存多轮对话上下文
+messages = []
+
+
+def trim_messages(msgs):
+    """只保留最近 MAX_HISTORY 条消息。
+
+    注意：裁剪会丢弃更早的消息，一旦丢弃就无法再通过长度切片找回，
+    所以回滚时必须依赖备份副本，而不是依赖 old_length。
+    """
+    if len(msgs) > MAX_HISTORY:
+        return msgs[-MAX_HISTORY:]
+    return msgs
+
+
+def stream_request(msgs):
+    """发起流式请求，返回 (answer, finished, finish_reason)。
+
+    - answer: 累积的完整回答文本
+    - finished: 流是否正常结束（收到 [DONE] 或 finish_reason 即视为正常）
+    - finish_reason: 服务端给出的结束原因，如 "stop" / "length"
+    """
+
+    # stream=True 是开启流式响应的关键参数
+    data = {
+        "model": MODEL,
+        "messages": msgs,
+        "temperature": 0.1,
+        "max_tokens": 500,
+        "stream": True,
+    }
+
+    answer = ""
+    finished = False          # 是否收到明确的结束标志
+    finish_reason = None      # 服务端返回的结束原因
+
+    # httpx.stream()：以流式方式发送请求并读取响应
+    with httpx.stream("POST", API_URL, headers=headers, json=data, timeout=60.0) as response:
+        # HTTP 错误状态时抛异常，避免把错误响应误当成正常答案
+        response.raise_for_status()
+
+        # iter_lines()：逐行读取响应体（SSE 通常一行一个事件）
+        for line in response.iter_lines():
+            if not line:
+                continue
+
+            # 只处理 data 行，忽略 event、id、注释等其他行
+            # 用 startswith("data:") 而不是 "data: "，兼容有无空格
+            if not line.startswith("data:"):
+                continue
+
+            # line[5:] 去掉 "data:"，strip() 去掉行尾 \r 和空白
+            content = line[5:].strip()
+
+            # 收到 [DONE] 说明流正常结束
+            if content == "[DONE]":
+                finished = True
+                break
+
+            # 解析单个事件中的 JSON；坏块跳过，不中断整个流
+            try:
+                chunk = json.loads(content)
+            except json.JSONDecodeError:
+                continue
+
+            # 安全取值：choices 可能为空，delta 可能不存在
+            choice = (chunk.get("choices") or [{}])[0]
+            delta = choice.get("delta") or {}
+
+            # delta.content 是本事件新增的内容，不是完整回答
+            text = delta.get("content", "")
+
+            # finish_reason 非空也表示本轮结束
+            fr = choice.get("finish_reason")
+            if fr:
+                finish_reason = fr
+                finished = True
+
+            # 有增量内容就输出并累积
+            if text:
+                sys.stdout.write(text)   # 不换行
+                sys.stdout.flush()       # 立即刷新，实现打字机效果
+                answer += text
+
+    return answer, finished, finish_reason
+
+
+def ask_ai(question):
+    """处理一轮提问：追加 user、请求、成功保存、失败回滚。"""
+    global messages
+
+    # 关键：备份整个历史，而不是只记长度
+    # 因为 trim_messages 可能删掉旧消息，靠长度切片无法恢复
+    old_messages = messages.copy()
+
+    # 追加本轮用户消息，并裁剪历史
+    messages.append({"role": "user", "content": question})
+    messages = trim_messages(messages)
+
+    try:
+        # 发起流式请求，内容会边收边打印
+        answer, finished, finish_reason = stream_request(messages)
+
+        # 1. 空回答视为失败，直接回滚，避免留下空 assistant
+        if not answer:
+            messages = old_messages
+            print("\n[未收到有效回答，已回滚]")
+            return None
+
+        # 2. 流未正常结束（如中途断网），回滚
+        if not finished:
+            messages = old_messages
+            print("\n[流式响应未正常结束，已回滚]")
+            return None
+
+        # 3. finish_reason 不是 stop，说明回答可能被截断
+        #    这里选择回滚；若业务允许保留截断回答，可改为保存并标记
+        if finish_reason and finish_reason != "stop":
+            messages = old_messages
+            print(f"\n[finish_reason={finish_reason}，回答不完整，已回滚]")
+            return None
+
+        # 4. 成功，保存 assistant 回答到历史
+        messages.append({"role": "assistant", "content": answer})
+        return answer
+
+    # 各类异常都统一回滚到本轮之前，保证历史干净
+    except httpx.TimeoutException:
+        messages = old_messages
+        print("\n[超时，已回滚]")
+        return None
+    except httpx.HTTPStatusError as e:
+        messages = old_messages
+        print(f"\n[HTTP 错误 {e.response.status_code}，已回滚]")
+        return None
+    except httpx.RequestError:
+        messages = old_messages
+        print("\n[网络错误，已回滚]")
+        return None
+    except KeyboardInterrupt:
+        # 用户按 Ctrl+C，优雅回滚并返回
+        messages = old_messages
+        print("\n[已中断，已回滚]")
+        return None
+
+
+def main():
+    """CLI 主循环：读输入、问 AI、打印结果。"""
+    print("流式对话已启动，输入 exit 退出。\n")
+
+    while True:
+        try:
+            question = input("你：").strip()
+        except (EOFError, KeyboardInterrupt):
+            # Ctrl+D 或 Ctrl+C 优雅退出
+            print("\n聊天结束")
+            break
+
+        if question.lower() == "exit":
+            print("聊天结束")
+            break
+
+        if not question:
+            continue  # 空输入跳过
+
+        print("AI：", end="", flush=True)  # 提示后不换行，等待流式内容
+        ask_ai(question)
+        print()  # 每轮结束后统一换行，避免双换行
+
+
+if __name__ == "__main__":
+    main()
+```
 
 ---
 
