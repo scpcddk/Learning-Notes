@@ -550,9 +550,9 @@ hello
 * [x] 理解 Streaming
 * [x] 普通响应 vs 流式响应
 * [x] 理解逐步显示的原理
-* [ ] Chunk / Delta / Event
-* [ ] Python 处理流式响应
-* [ ] 实现 CLI 流式输出
+* [x] Chunk / Delta / Event
+* [x] Python 处理流式响应
+* [x] 实现 CLI 流式输出
 
 ---
 
