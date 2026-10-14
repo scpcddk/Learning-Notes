@@ -488,3 +488,127 @@ OK
 请求的 `Content-Type` 管发送格式，不保证响应格式；`response.json()` 负责解析 JSON，不负责判断 API 是否调用成功。
 
 ---
+
+## 错题16：SSE 流式响应与 JSON 解析混淆
+
+**易错理解：**
+
+认为 `response.iter_lines()` 读取到的 `line` 可以直接交给 `json.loads()` 解析；没有区分 SSE 事件格式与 JSON 数据格式。
+
+**错误代码：**
+
+```python
+for line in response.iter_lines():
+    data = json.loads(line)
+```
+
+**错误表现：**
+
+当读取到下面这行内容时：
+
+```text
+data: {"choices":[{"delta":{"content":"你好"}}]}
+```
+
+执行 `json.loads(line)` 会触发 `json.JSONDecodeError`。
+
+**正确理解：**
+
+SSE（Server-Sent Events）是一种服务器向客户端发送事件流的格式。常见的 LLM API 流式响应会通过 `data:` 字段传递数据，其中可能包含 JSON 文本。
+
+`response.iter_lines()` 读取的是响应中的行，不会自动去掉 `data:` 前缀，也不会自动将 JSON 文本解析成 Python 对象。
+
+**正确处理方式：**
+
+```python
+import json
+
+for line in response.iter_lines():
+    # 1. 跳过空行
+    if not line:
+        continue
+
+    # 2. 只处理 data 字段
+    if not line.startswith("data:"):
+        continue
+
+    # 3. 去掉 data: 前缀
+    content = line.removeprefix("data:").strip()
+
+    # 4. 判断流结束标志
+    if content == "[DONE]":
+        break
+
+    # 5. 解析 JSON
+    data = json.loads(content)
+
+    # 6. 提取本次新增文本
+    text = data["choices"][0]["delta"].get("content")
+
+    if text:
+        print(text, end="", flush=True)
+```
+
+**相关概念区分：**
+
+| 概念 | 含义 |
+|---|---|
+| `line` | `iter_lines()` 读取到的一行文本 |
+| SSE Event | 按 SSE 规则组织的事件，通常由空行结束 |
+| `data:` | SSE 中承载事件数据的字段 |
+| JSON 文本 | `data:` 后可能携带的 JSON 字符串 |
+| Streaming Chunk | LLM API 流式响应中的一个数据单元 |
+| `delta.content` | 当前数据单元中包含的新增文本 |
+
+注意：HTTP 网络层的数据块、SSE Event 和 LLM API 的 Streaming Chunk 不一定一一对应；`iter_lines()` 也不保证每一行都构成完整事件。
+
+**为什么要先判断 `[DONE]`？**
+
+常见的流式响应会通过 `data: [DONE]` 表示流结束。但 `[DONE]` 不是 JSON 对象，不能直接传给 `json.loads()`，所以应先识别结束标志，再解析 JSON。
+
+**核心记忆：**
+
+> 先处理 SSE 格式，再解析 JSON，最后提取 Delta。
+
+1. `iter_lines()` 读取原始行，不会自动解析 JSON。
+2. 先去掉 `data:` 前缀，再调用 `json.loads()`。
+3. 先判断 `[DONE]`，避免将结束标志当作 JSON 解析。
+4. 解析成功后，通常从 `choices[0].delta.content` 获取本次新增文本。
+
+---
+
+## 错题17：`delta` 字典不一定只有 `content` 键
+
+错误认知： 认为 `delta` 字典只有 `content` 这一个键。
+
+正确理解：
+
+`delta` 表示本次新增的字段或内容，并不保证只有 `content`。
+
+例如：
+
+```
+{"choices": [{"delta": {"role": "assistant"}}]}{"choices": [{"delta": {"content": "你"}}]}{"choices": [{"delta": {"content": "好"}}]}{"choices": [{"delta": {}}]}
+```
+
+- `role`：可能表示当前消息的角色。
+- `content`：本次新增的文本。
+- `{}`：可能没有新增字段或内容。
+
+关键代码：
+
+```
+text = data["choices"][0]["delta"].get("content")
+```
+
+使用 `.get("content")` 获取文本。如果不存在 `content` 键，则返回 `None`，不会因为缺少这个键而触发 `KeyError`。
+
+易混淆点：
+
+- `delta` 不等于 `content`。
+- `.get("content")` 是读取指定键的值，不代表字典只有这个键。
+- 流式响应可能分多次返回，也可能包含不带文本内容的事件。
+
+记忆口诀： `delta` 看增量，`content` 取文本，`.get()` 防缺键。
+
+---

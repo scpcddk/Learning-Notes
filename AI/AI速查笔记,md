@@ -1331,9 +1331,9 @@ Python 解析
 ## 2.17.3 Chunk / Delta / Event
 
 - **Chunk / Delta / Event**：
-  - Chunk：传输层数据块，不一定对应一个汉字、单词或 Token。
-  - Delta：内容增量，例如 `delta.content`。
-  - Event：SSE 事件，常由 `data:` 行承载，可能跨多个 chunk。
+  - **Chunk**：传输层数据块，不一定对应一个汉字、单词或 Token。
+  - **Delta**：内容增量，例如 `delta.content`。
+  - **Event**：SSE 事件，常由 `data:` 行承载，可能跨多个 chunk。
   - 结束标志：`[DONE]`、`finish_reason`、连接关闭。
 - 流式返回的是**传输层数据块（chunk/event）**，不是语义单位。
 - 一个片段可能包含：半个汉字、半个 JSON、多个 Token，甚至空 delta。
