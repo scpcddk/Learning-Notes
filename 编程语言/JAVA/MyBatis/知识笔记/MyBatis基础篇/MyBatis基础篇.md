@@ -675,8 +675,9 @@ System.out.println(student.getId()); // 自增 id 已回填
 
 - **`useGeneratedKeys` + `keyProperty` 的作用与价值**：
   - **`AUTO_INCREMENT`**：MySQL 自动生成新的主键 ID。
-  - **`useGeneratedKeys="true"`**：让 MyBatis 获取这个自动生成的 ID。
-  - **`keyProperty="id"`**：把获取到的 ID 回填到 Java 对象的 `id` 属性。
+  - **`useGeneratedKeys="true"`**：启用 JDBC 获取数据库生成的主键
+  - **`keyProperty="id"`**：指定将生成的主键写回 Java 对象的 `id` 属性
+    - `keyProperty` 指 Java 对象的属性名，不是数据库列名。
   - **核心价值**：
     - **一次 INSERT 后，同时知道“插入是否成功/影响几行”和“刚插入的数据 ID 是多少”，方便后续代码继续使用这个 ID。**
   - **注意**：
@@ -2050,6 +2051,8 @@ mapper.selectById(1)
 
 # 第十六篇：事务
 
+[事务补充理解](事务补充理解.md)
+
 **方法是代码组织单位，事务是数据库操作的原子性组织单位**
 
 ```text
@@ -2407,6 +2410,10 @@ public class StudentService {
 
 11. **数据库不支持事务**：如 MySQL 的 MyISAM 引擎  
     - 需要 InnoDB 等支持事务的引擎
+
+12. **外层正常返回，但共享事务已被标记回滚**
+    - 可能在提交阶段出现 `UnexpectedRollbackException`
+    - `rollback-only` 表示：当前事务已经被标记为只能回滚，不能再正常提交。
 
 > [!tip]
 > **public 非自调用，异常要抛出；管理器匹配，数据库支持。**
