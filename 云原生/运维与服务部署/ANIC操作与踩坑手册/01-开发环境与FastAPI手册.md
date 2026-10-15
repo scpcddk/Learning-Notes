@@ -46,7 +46,7 @@ Windows 项目路径：
 
 `D:\东北大学大作业\ANIC\project`
 
-对应的 WSL 路径：
+**对应的 WSL 路径**：
 
 `/mnt/d/东北大学大作业/ANIC/project`
 
@@ -536,7 +536,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.ExposedPorts}
 | `Config.ExposedPorts` | 镜像声明的端口集合 | 了解镜像预期使用的端口 |
 | `8080/tcp` | TCP 8080 端口声明 | 对照 HTTP 服务端口配置 |
 
-注意：`EXPOSE` 或 `Config.ExposedPorts` 只是端口声明，不会自动发布到宿主机。宿主机端口映射需要通过 `docker run -p` 或 Compose 的 `ports` 配置。
+注意：**`EXPOSE` 或 `Config.ExposedPorts` 只是端口声明，不会自动发布到宿主机**。宿主机端口映射需要通过 `docker run -p` 或 Compose 的 `ports` 配置。
 
 #### ⑤ 默认入口点：`Config.Entrypoint`
 
