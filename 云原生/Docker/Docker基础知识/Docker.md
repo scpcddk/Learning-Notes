@@ -346,6 +346,43 @@
 | **CMD** | ==容器== 启动时的**默认命令**，可被 `docker run` 后面的命令覆盖（如果需要运行命令过多，可以创建**启动脚本**，直接运行脚本，如：CMD ["./start.sh"]） | `CMD ["java", "-jar", "app.jar"]` |
 | **ENTRYPOINT** | 容器启动时的**入口命令**，不会被覆盖，但可追加参数 | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
 
+#### -e
+
+`-e`: **把配置放在环境变量里，启动容器时再传入**
+
+- **例如**：
+  ```
+  docker run -d \
+    --name backend \
+    -e APP_ENV=production \
+    -e DB_HOST=mysql \
+    -e DB_PORT=3306 \
+    myapp:1.0
+  ```
+- `-e` 设置的环境变量，是提供给容器内部运行的程序使用的，不是直接修改宿主的环境变量
+- `os.getenv()`：根据变量名，从当前程序的环境变量中取值
+  ```python
+  import os
+  
+  db_host = os.getenv("DB_HOST")
+  print(db_host)
+  ```
+  - `db_host`：Python 代码里的变量名，你自己定义的，可以用小写。
+  - `"DB_HOST"`：要从环境变量中查找的名称，字符串，必须和环境变量名称对应
+  - **左边变量名可以自己起；右边环境变量名必须匹配**
+  - 找不到对应名称时，默认返回 `None`
+
+- 如果你想检查容器实际配置了哪些环境变量，可以使用：
+  ```
+  docker exec backend printenv
+  ```
+  - 查看指定变量：
+
+    ```
+    docker exec backend printenv DB_HOST
+    ```
+  - 没设置时 `printenv` 则通常不输出内容。
+
 #### CMD vs ENTRYPOINT
 
 - **CMD**：适合可有可无的默认参数，运行`docker run image command`会直接替换`CMD`

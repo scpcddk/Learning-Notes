@@ -56,6 +56,9 @@ source .venv/bin/activate
 python -m pip install ...
 ```
 
+> [!note]
+`python -m` 的最大好处是“**绑定当前解释器** + 按模块语义运行”，让环境、依赖和导入路径更可控，尤其适合虚拟环境、多版本 Python 和包内开发。
+
 ---
 
 ## 二、环境管理（重中之重）
@@ -313,7 +316,10 @@ pip config unset global.require-virtualenv
 python -c "import sys; print(sys.prefix != sys.base_prefix)"
 ```
 
-输出 `True` 表示在 venv 里。
+- `sys.prefix`：当前 Python 解释器使用的环境路径。
+- `sys.base_prefix`：基础 Python 安装路径。
+- 如果两者不同，说明你大概率在虚拟环境、conda 环境等非基础环境中，输出 `True`。
+- 如果两者相同，说明你用的是基础 / 全局 Python，输出 `False`。
 
 ---
 

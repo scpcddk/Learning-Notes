@@ -280,34 +280,34 @@ show_channel_urls: true
 
 - **先用 conda 安装，再补 pip**。
 
-```bash
-conda install numpy pandas scipy
-pip install some-special-package
-```
+  ```bash
+  conda install numpy pandas scipy
+  pip install some-special-package
+  ```
 
 - **conda 装的核心库不要再用 pip 升级或重装**，否则可能破坏依赖关系。
 - **pip 装完不要再跑 `conda update --all`**，conda 会覆盖 pip 的包。
 - **把 pip 包也写进 `environment.yml`**：
 
-```yaml
-name: myenv
-channels:
-  - conda-forge
-dependencies:
-  - python=3.11
-  - numpy=1.26
-  - pandas
-  - pip
-  - pip:
-      - some-special-package==1.2.3
-```
+  ```yaml
+  name: myenv
+  channels:
+    - conda-forge
+  dependencies:
+    - python=3.11
+    - numpy=1.26
+    - pandas
+    - pip
+    - pip:
+        - some-special-package==1.2.3
+  ```
 
 - **导出时灵活使用 `--from-history` 与 `--explicit`**。
 - **在 conda 环境里用 pip 时，务必用**：
 
-```bash
-python -m pip install ...
-```
+  ```bash
+  python -m pip install ...
+  ```
 
 不要裸 `pip install`，避免装到别的环境。
 

@@ -677,7 +677,7 @@ System.out.println(student.getId()); // 自增 id 已回填
   - **`AUTO_INCREMENT`**：MySQL 自动生成新的主键 ID。
   - **`useGeneratedKeys="true"`**：启用 JDBC 获取数据库生成的主键
   - **`keyProperty="id"`**：指定将生成的主键写回 Java 对象的 `id` 属性
-    - `keyProperty` 指 Java 对象的属性名，不是数据库列名。
+    - `keyProperty` 指 ==**Java 对象**== 的属性名，不是数据库列名。
   - **核心价值**：
     - **一次 INSERT 后，同时知道“插入是否成功/影响几行”和“刚插入的数据 ID 是多少”，方便后续代码继续使用这个 ID。**
   - **注意**：
