@@ -1441,3 +1441,93 @@ REQUIRED + 同一事务 + 内层异常 → rollback-only → 外层 catch 也救
 ```
 
 ---
+
+## 34. `keyProperty` 对应 Java 属性名，不是数据库列名
+
+❌ **错误理解：**
+
+> `keyProperty` 应该填写数据库自增主键的列名。
+
+例如，数据库主键列为 `id`，Java 对象属性为 `studentId`，就写 `keyProperty="id"`。
+
+✅ **正确理解：**
+
+`keyProperty` 指定的是接收生成主键的 **Java 对象属性名**。
+
+```java
+public class Student {
+    private Integer studentId;
+    private String name;
+}
+```
+
+对应 XML：
+
+```xml
+<insert id="insertStudent"
+        useGeneratedKeys="true"
+        keyProperty="studentId">
+    INSERT INTO student (name)
+    VALUES (#{name})
+</insert>
+```
+
+其中：
+
+```text
+数据库列名 → id
+Java 属性名 → studentId
+```
+
+**易错点：**
+
+不要混淆数据库字段与 Java 对象属性。即使数据库列名是 `id`，只要 Java 对象中接收主键的属性是 `studentId`，就应使用 `keyProperty="studentId"`。
+
+---
+
+## 35. `useGeneratedKeys` 与 `keyProperty` 的职责不同
+
+❌ **错误理解：**
+
+> `useGeneratedKeys` 负责使用自增主键，`keyProperty` 具体回填字段，但不清楚中间机制。
+
+✅ **正确理解：**
+
+```text
+useGeneratedKeys="true"
+→ 启用 JDBC 获取数据库生成的主键
+
+keyProperty="studentId"
+→ 指定主键回填到 Java 对象的哪个属性
+```
+
+完整过程：
+
+```text
+Java Student 对象
+        ↓
+MyBatis / JDBC 执行 INSERT
+        ↓
+MySQL 生成自增主键
+        ↓
+JDBC 获取生成的主键值
+        ↓
+MyBatis 将主键回填到 Student.studentId
+```
+
+**易错点：**
+
+- 主键由数据库生成，不是 MyBatis 使用 `MAX(id) + 1` 生成。
+- 数据库不会直接修改 Java 对象。
+- MyBatis/JDBC 负责获取生成的主键，并将其回填到指定属性。
+
+**核心记忆：**
+
+```text
+数据库生成
+→ JDBC 获取
+→ MyBatis 回填
+→ Java 对象获得主键值
+```
+
+---

@@ -1479,12 +1479,165 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 
 ---
 
-## 31. Executor
+## 31 MyBatis 插件
 
-- 是什么：SQL 执行器
-- 类型：`SIMPLE`、`REUSE`、`BATCH`
-- 负责什么：调用 JDBC、处理缓存
-- 实际项目：一般不直接操作
+> [!note]
+> 
+> - MyBatis 插件**本质是拦截器**，可拦截四大核心对象：`Executor`、`StatementHandler`、`ParameterHandler`、`ResultSetHandler`。通过 `@Intercepts` + `@Signature` 指定拦截点，由 `Plugin` 生成动态代理，`InterceptorChain` 串成责任链。
+> - 底层主要使用 **拦截器**（Interceptor）与**动态代理** 实现。插件可以在调用原方法之前、之后执行逻辑，也可以决定是否继续调用原方法。
+> - 核心角色：`Interceptor`（插件逻辑）、`Plugin`（动态代理包装器）、`Invocation`（调用上下文）、`InterceptorChain`（责任链）。
+
+### 31.1 Executor
+
+- 是什么：SQL 执行器，MyBatis 调度的入口
+- 类型：`SIMPLE`、`REUSE`、`BATCH`；另有 `CachingExecutor` 装饰二级缓存
+- 负责什么：调用 JDBC、处理一级/二级缓存、事务、延迟加载；向下调用 `StatementHandler`
+- 可拦截方法：`update`、`query`、`queryCursor`、`flushStatements` 等
+- 实际项目：业务代码一般不直接操作；插件常拦截 `query/update`，如分页、读写分离、SQL 监控
+
+### 31.2 StatementHandler
+
+- 是什么：Statement 处理器，封装 JDBC `Statement` 操作
+- 类型/实现：
+  - `SimpleStatementHandler`：对应 `Statement`，不预编译
+  - `PreparedStatementHandler`：对应 `PreparedStatement`，最常用
+  - `CallableStatementHandler`：对应 `CallableStatement`，调用存储过程
+  - `RoutingStatementHandler`：根据 `MappedStatement.statementType` 路由到上面三种
+- 负责什么：创建 `Statement`；调用 `ParameterHandler` 设置参数；执行 SQL；调用 `ResultSetHandler` 处理结果；批处理、主键回填
+- 可拦截方法：`prepare`、`parameterize`、`batch`、`update`、`query`、`queryCursor`
+- 实际项目：分页插件常拦截 `prepare` 改写 SQL 加 `limit`；SQL 监控拦截 `query/update` 统计耗时；多租户、数据权限改写 SQL
+
+### 31.3 ParameterHandler
+
+- 是什么：参数处理器
+- 默认实现：`DefaultParameterHandler`
+- 负责什么：把 `BoundSql` 中的参数，通过 `TypeHandler` 设置到 `PreparedStatement` / `CallableStatement` 占位符；处理 `null`、`jdbcType`、`typeHandler`
+- 可拦截方法：`setParameters(PreparedStatement)`
+- 实际项目：参数加密/解密、脱敏、审计、默认值填充、多租户参数注入
+- 注意：`SimpleStatementHandler` 不经过它，只有预编译/存储过程场景有效
+
+### 31.4 ResultSetHandler
+
+- 是什么：结果集处理器
+- 默认实现：`DefaultResultSetHandler`
+- 负责什么：把 `ResultSet` 映射为 Java 对象 / `List` / `Map` / `Cursor`；处理 `resultMap`、自动映射、嵌套查询/嵌套结果、延迟加载、鉴别器、`TypeHandler`、输出参数
+- 可拦截方法：`handleResultSets`、`handleCursorResultSets`、`handleOutputParameters`
+- 实际项目：结果脱敏/解密、字典翻译、字段填充、数据权限过滤、逻辑删除、多租户、结果缓存
+
+### 31.5 Plugin 与 Interceptor
+
+| 概念 | 作用 |
+|---|---|
+| `Interceptor` | 插件开发者实现的拦截器接口，编写自定义逻辑 |
+| `Plugin` | MyBatis 内部用于包装目标对象、实现拦截机制的工具类 |
+| `@Intercepts` / `@Signature` | 声明拦截哪个接口的哪个方法，以及方法参数类型 |
+
+> [!tip]
+> MyBatis 使用 Plugin 为符合条件的目标对象创建代理。当调用命中 `@Signature` 声明的方法时，代理会调用自定义 `Interceptor.intercept()`，由我们决定如何处理这次调用。
+
+#### 31.5.1 Interceptor
+
+- **是什么**：MyBatis 插件接口，所有插件都实现它。
+- **核心方法**：
+  - `Object intercept(Invocation invocation) throws Throwable`：拦截逻辑，调用 `invocation.proceed()` **放行**，继续原方法。
+    - 当代理发现一次调用符合拦截条件时，它会把调用信息交给你的 `intercept()` 方法。这个信息由 `Invocation` 封装，包含目标对象、目标方法和参数等内容。
+  - `default Object plugin(Object target)`：默认 `Plugin.wrap(target, this)`，一般不用重写。
+  - `default void setProperties(Properties properties)`：读取 `<plugin><property>` 配置。
+- **核心注解**：
+  - `@Intercepts`：声明这个插件要拦截哪些**方法**，声明要拦截的签名集合。
+  - `@Signature`：描述一个具体的**拦截目标**
+    - `type` 表示要拦截的方法所属的**接口或类型**
+    - `method` 表示要拦截的**方法名称**
+    - `args` 表示目标方法的**参数类型列表**，不是实际传入的参数值
+- ==**示例**==：
+
+```java
+// @Intercepts：声明这是一个 MyBatis 拦截器，可包含多个 @Signature
+@Intercepts({
+  // @Signature：指定要拦截的具体方法
+  // type：拦截的目标接口，这里是 Executor（SQL 执行器）
+  // method：目标方法名，这里是 query
+  // args：目标方法的参数类型列表，必须与真实方法签名完全一致
+  //       这里对应 Executor 的 4 参数 query 方法：
+  //       query(MappedStatement, Object, RowBounds, ResultHandler)
+  @Signature(type = Executor.class, method = "query",
+    args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})
+})
+public class SqlCostInterceptor implements Interceptor {
+
+  // intercept：拦截器的核心逻辑，所有插件逻辑都写在这里
+  // Invocation：调用上下文，包含被拦截的目标对象、方法、参数
+  @Override
+  public Object intercept(Invocation invocation) throws Throwable {
+    // 记录方法执行开始时间
+    long start = System.currentTimeMillis();
+    try {
+      // invocation.proceed()：放行，继续执行原方法（或下一个拦截器）
+      // 返回值就是原方法的返回值，必须 return 出去
+      return invocation.proceed();
+    } finally {
+      // finally 保证即使原方法抛异常，也能统计耗时
+      // 计算并打印本次 SQL 执行耗时
+      System.out.println("cost=" + (System.currentTimeMillis() - start));
+    }
+  }
+}
+```
+
+#### 31.5.2 Plugin
+
+- 是什么：`Plugin` 实现 `InvocationHandler`，是 MyBatis 的动态代理包装器。
+- 核心方法：`Plugin.wrap(target, interceptor)`
+  - 解析 `@Signature`，得到 `signatureMap`。
+  - 找出 target 实现的、需要拦截的接口。
+  - 如果有匹配接口，用 `Proxy.newProxyInstance` 生成 JDK 动态代理；否则返回原对象。
+- 代理逻辑：`invoke` 中判断当前方法是否在 `signatureMap` 中：
+  - 是：调用 `interceptor.intercept(new Invocation(target, method, args))`。
+  - 否：直接 `method.invoke(target, args)`。
+- 注意：基于 JDK 动态代理，target 必须实现接口；MyBatis 四大对象都实现了对应接口，所以可被包装。
+
+#### 31.5.3 Invocation
+
+- 是什么：拦截方法的调用上下文。
+- 字段：`target`（被代理对象）、`method`（当前方法）、`args`（参数）。
+- 核心方法：`proceed()`，内部执行 `method.invoke(target, args)`，即放行到下一个拦截器或原方法。
+
+#### 31.5.4 InterceptorChain
+
+- 是什么：拦截器责任链，持有 `List<Interceptor>`。
+- 核心方法：`pluginAll(Object target)`，遍历所有拦截器，依次 `target = interceptor.plugin(target)`，层层包装。
+- 注册方式：
+  - XML：`<plugins><plugin interceptor="..."/></plugins>`
+  - Spring Boot：把 `Interceptor` 注册为 Bean，MyBatis Starter 会自动加入 `Configuration`
+- 执行顺序：先注册的先包装，后注册的后包装；最终后注册的代理在外层，执行时通常**后注册的先进入**。多插件形成责任链，任意一环不调用 `proceed()` 即可中断。
+
+#### 31.5.5 四大对象何时被包装
+
+- `Executor`：`Configuration.newExecutor` 创建后 `interceptorChain.pluginAll(executor)`。
+- `StatementHandler`：`Configuration.newStatementHandler` 创建后包装。
+- `ParameterHandler`：`Configuration.newParameterHandler` 创建后包装。
+- `ResultSetHandler`：`Configuration.newResultSetHandler` 创建后包装。
+- 因此四类对象都能被插件拦截。
+
+#### 31.5.6 开发建议
+
+- 明确拦截点，方法签名必须完全匹配，重载方法要分别声明。
+- 一定要按需调用 `invocation.proceed()`，否则会中断原逻辑。
+- 插件是单例，注意线程安全，避免共享可变状态。
+- 不要破坏原对象状态；分页优先考虑 `Executor.query` 或 `StatementHandler.prepare`。
+- 多个插件时注意注册顺序对执行顺序的影响。
+
+### 31.6 速查表
+
+| 组件 | 接口/默认实现 | 常用拦截方法 | 典型插件 |
+|---|---|---|---|
+| Executor | `Executor` / `SimpleExecutor`、`ReuseExecutor`、`BatchExecutor`、`CachingExecutor` | `update`、`query`、`queryCursor`、`flushStatements` | 分页、读写分离、SQL 监控 |
+| StatementHandler | `StatementHandler` / `RoutingStatementHandler` 路由到 Simple/Prepared/Callable | `prepare`、`parameterize`、`batch`、`update`、`query`、`queryCursor` | 分页改写、SQL 监控、多租户 |
+| ParameterHandler | `ParameterHandler` / `DefaultParameterHandler` | `setParameters` | 参数加解密、脱敏、审计 |
+| ResultSetHandler | `ResultSetHandler` / `DefaultResultSetHandler` | `handleResultSets`、`handleCursorResultSets`、`handleOutputParameters` | 结果脱敏、字典翻译、字段填充 |
+| Plugin / Interceptor | `Plugin` / `Interceptor` | `intercept`、`plugin`、`pluginAll` | 插件代理、责任链、自定义拦截逻辑 |
+
+---
 
 ## 32. MappedStatement
 

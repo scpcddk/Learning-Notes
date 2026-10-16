@@ -208,10 +208,10 @@
 
 ## 六、MyBatis 插件
 
-* [ ] Plugin / Interceptor 基本概念
-* [ ] 四大对象：`Executor` / `StatementHandler` / `ParameterHandler` / `ResultSetHandler`
-* [ ] 基本拦截机制
-* [ ] 简单自定义插件
+* [x] Plugin / Interceptor 基本概念
+* [x] 四大对象：`Executor` / `StatementHandler` / `ParameterHandler` / `ResultSetHandler`
+* [x] 基本拦截机制
+* [x] 简单自定义插件
 * [ ] 了解分页插件基本原理
 
 **目标：能看懂、会写简单插件。**
