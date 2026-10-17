@@ -1627,7 +1627,89 @@ public class SqlCostInterceptor implements Interceptor {
 - 不要破坏原对象状态；分页优先考虑 `Executor.query` 或 `StatementHandler.prepare`。
 - 多个插件时注意注册顺序对执行顺序的影响。
 
-### 31.6 速查表
+### 31.6 分页插件
+
+分页插件是 31.5 节机制的典型落地。MyBatis 默认 `RowBounds` 是**逻辑分页**——先把全部结果加载到内存再截取，大表不可接受。分页插件的目标：在 SQL 到达数据库前改写为**物理分页**。
+
+#### 31.6.1 拦截点选择
+
+| 拦截点 | 优势 | 代价 |
+|---|---|---|
+| `StatementHandler.prepare` | 直接改最终 SQL，不涉及参数列表变动，实现简单 | 无法感知二级缓存 key |
+| `Executor.query` | 可同时处理主查询和 COUNT 查询，缓存控制更完整 | 需手动构造 `MappedStatement` / `BoundSql` |
+
+- 轻量自研“加 limit”→ 拦截 `StatementHandler.prepare`。
+- 需要 COUNT、排序消除、方言适配 → 拦截 `Executor.query`。
+- PageHelper 拦截 `Executor.query`，拿到 `BoundSql` 后再改写。
+
+#### 31.6.2 方言适配
+
+用 `Dialect` 接口隔离数据库差异：
+
+| 数据库 | 分页语法 |
+|---|---|
+| MySQL / PostgreSQL | `LIMIT ?, ?` / `LIMIT ? OFFSET ?` |
+| Oracle | 嵌套 `ROWNUM` 或 `ROW_NUMBER() OVER()` |
+| SQL Server | `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY` |
+
+改写示例：
+
+```sql
+-- 原始
+select * from student order by id
+-- MySQL 改写后
+select * from student order by id limit 0, 10
+```
+
+注意：分页子句必须追加在 `ORDER BY` 之后。
+
+#### 31.6.3 COUNT 查询
+
+物理分页通常需要总数，一般先执行 COUNT SQL。
+
+生成策略：
+
+- **可优化**：单表、无 `GROUP BY` / `HAVING` / `UNION` / `DISTINCT` 时，改写为 `select count(0) from 表 where 原条件`，并去掉 `ORDER BY`。
+- **兜底**：复杂 SQL 包裹子查询 `select count(0) from (原SQL) tmp`，大表下可能成为瓶颈。
+- PageHelper 用 `SqlParser`（基于 JSqlParser）自动去 `ORDER BY`、优化 `LEFT JOIN`。
+
+> [!warning]
+> 涉及 `GROUP BY`、`LEFT JOIN`、自定义聚合时，自动 COUNT 语义可能与业务不符。应使用自定义 COUNT 查询或关闭自动优化（如 MyBatis-Plus 的 `optimizeCountSql`）。
+
+#### 31.6.4 链上位置
+
+分页插件宜放在插件链**靠后**（较早进入），基于其他插件（监控、多租户、数据权限）修饰后的最终 SQL 再改写，避免 COUNT 行数错误或分页子句被破坏。
+
+#### 31.6.5 深分页问题
+
+`LIMIT offset, size` 在 `offset` 很大时，数据库实际读取 `offset + size` 行再丢弃前 `offset` 行，扫描量线性增长。
+
+优化方向：
+
+1. **游标分页 / 键集分页**：`WHERE id > last_id ORDER BY id LIMIT size`，适合上一页/下一页，不适合随机跳页。
+2. **延迟关联**：子查询先用覆盖索引取主键，再回表取完整行。
+3. **限制最大翻页深度**：业务层避免极深页码。
+
+#### 31.6.6 实现要点
+
+- **分页参数传递**：PageHelper 用 `ThreadLocal` 存参数，`startPage()` 设置，拦截时读取并清除；务必在 `finally` 中清理，避免线程池复用串页。
+- **只拦截 `query`**：`@Signature` 的 `method` 不要声明 `update`。
+- **不要破坏 `BoundSql`**：追加占位符（如 `LIMIT ?, ?`）时需同步调整 `ParameterMapping` 并正确绑定新参数。
+- **COUNT 可选**：移动端滚动加载等场景提供“不查 COUNT”开关。
+- **与二级缓存交互**：分页结果不应直接命中普通二级缓存 key，否则未分页的同查询可能拿到被截断的结果。
+
+#### 31.6.7 速查
+
+| 维度 | 要点 |
+|---|---|
+| 核心动作 | 拦截 SQL，按方言追加物理分页子句 |
+| 拦截点 | `Executor.query`（可处理 COUNT）或 `StatementHandler.prepare`（轻量） |
+| COUNT 生成 | 可优化时去 `ORDER BY`、简化 `LEFT JOIN`，`count(0)`；复杂 SQL 兜底子查询 |
+| 方言 | `Dialect` 接口隔离 MySQL / Oracle / SQL Server 差异 |
+| 深分页 | 避免大 `OFFSET`，优先游标分页、延迟关联、限制翻页深度 |
+| 链上位置 | 靠后（较早进入），基于修饰后的 SQL 改写 |
+
+### 31.7 速查表
 
 | 组件 | 接口/默认实现 | 常用拦截方法 | 典型插件 |
 |---|---|---|---|

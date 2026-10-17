@@ -212,7 +212,7 @@
 * [x] 四大对象：`Executor` / `StatementHandler` / `ParameterHandler` / `ResultSetHandler`
 * [x] 基本拦截机制
 * [x] 简单自定义插件
-* [ ] 了解分页插件基本原理
+* [x] 了解分页插件基本原理
 
 **目标：能看懂、会写简单插件。**
 
@@ -234,10 +234,10 @@
 * [ ] 事务边界设计
 * [ ] Mapper / XML 可维护性
 * [ ] 动态 SQL 设计
-* [ ] `resultType` / `resultMap` 选择
+* [x] `resultType` / `resultMap` 选择
 * [ ] 批量操作设计
 * [ ] 缓存设计
-* [ ] `#{}` / `${}` 安全问题
+* [x] `#{}` / `${}` 安全问题
 
 **目标：能写出结构合理、可维护的 MyBatis 代码。**
 
