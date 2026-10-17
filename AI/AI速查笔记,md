@@ -1111,166 +1111,9 @@ messages.append({"role": "assistant", "content": answer})
 
 ---
 
-## 2.10 流式输出 [工程必会]
-
-- **是什么**：模型生成过程中逐步返回增量结果。
-- **机制**：SSE 或分块传输；常见概念：Chunk、Delta、Event。
-- **怎么用**：`stream=True`；`httpx.stream`；逐行解析事件和 JSON；`print(chunk, end="", flush=True)`。
-- **易错/关联**：不同服务格式不同；不是完整生成后切片；不处理断流。见 2.7。
-- **最小例子**：
-
-```python
-# 伪代码
-with httpx.stream("POST", url, headers=headers, json=data, timeout=30.0) as r:
-    for line in r.iter_lines():
-        if line:
-            print(line)
-```
-
-- **自测题**：流式输出优点？
-- **答案**：首字延迟低，体验好。
-- **反模式**：不处理断流；把每行都当最终文本。
-
----
-
-## 2.11 Structured Output [工程必会]
-
-- **是什么**：让模型按照指定数据结构输出结果。
-- **机制**：JSON Mode 保证合法 JSON；Schema Structured Output 进一步约束字段、类型、必填。
-- **怎么用**：JSON mode / Schema / Function Calling / 约束 + 校验；程序端必须做 Schema 和类型校验。见 14.10。
-- **易错/关联**：JSON Mode ≠ Schema；合法 JSON ≠ 符合业务结构；直接信任模型 JSON。
-- **最小例子**：
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {"type": "string"},
-    "age": {"type": "integer"}
-  },
-  "required": ["name", "age"]
-}
-```
-
-- **自测题**：为什么还要校验？
-- **答案**：模型可能不合规，需程序兜底。
-- **反模式**：直接信任模型 JSON。
-
----
-
-## 2.12 Tool Calling / Function Calling [工程必会]
-
-- **是什么**：让模型生成结构化的工具调用请求，由程序真正执行工具。
-- **机制**：用户问题 → 模型决定调用工具并生成参数 → 程序执行工具 → 结果回传模型 → 模型生成最终回答。
-- **怎么用**：定义 tools schema；解析 `tool_calls`；执行本地或远程函数；把结果作为 tool message 回传。
-- **易错/关联**：模型不直接运行 Python 函数；需要权限隔离和参数校验。见 14.10。
-- **最小例子**：
-
-```json
-{
-  "name": "get_weather",
-  "arguments": {"city": "北京"}
-}
-```
-
-- **自测题**：谁执行工具？
-- **答案**：程序执行，模型只生成调用请求。
-- **反模式**：把 Tool Call 当成已执行。
-
----
-
-## 2.13 API 调用封装 [工程必会]
-
-- **是什么**：把调用逻辑封装成函数或类。
-- **为什么**：更换 API 地址、模型、Header、参数、错误处理时只改一处。
-- **怎么用**：`chat(messages)`；集中处理认证、超时、重试、解析。
-- **易错/关联**：所有代码写在 `main()`；到处复制粘贴调用代码。见 2.4、2.8。
-- **最小例子**：
-
-```python
-# 需环境依赖：httpx；环境变量：LLM_API_KEY
-def chat(messages):
-    # 构造 headers、data、httpx.post
-    # response.raise_for_status()
-    # return response.json()["choices"][0]["message"]["content"]
-    ...
-```
-
-- **自测题**：为什么要封装？
-- **答案**：降低耦合，方便替换和统一错误处理。
-- **反模式**：到处复制粘贴调用代码。
-
----
-
-## 2.14 Timeout [工程必会]
-
-- **是什么**：请求超时时间。
-- **为什么**：避免程序无限等待，控制延迟和资源占用。
-- **怎么用**：`timeout=30.0`；可进一步区分 connect、read、write、pool timeout。
-- **易错/关联**：不设 timeout；超时后无限重试。见 2.8。
-- **最小例子**：
-
-```python
-# 伪代码
-httpx.post(url, headers=headers, json=data, timeout=30.0)
-```
-
-- **自测题**：为什么必须设 timeout？
-- **答案**：防止网络阻塞，控制延迟。
-- **反模式**：无限等待。
-
----
-
-## 2.15 安全原则 [工程必会]
-
-- **是什么**：API Key 与调用链安全。
-- **怎么用**：密钥放环境变量或 Secret 管理；`.env` 加入 `.gitignore`；不打印 Key；不把私密 Key 放前端；浏览器 → 你的后端 → LLM API。
-- **易错/关联**：硬编码、提交 Git、前端暴露。见 2.6。
-- **自测题**：前端能直接放私密 API Key 吗？
-- **答案**：不能，应走自己的后端代理。
-- **反模式**：`api_key = "sk-xxxx"` 写死。
-
----
-
-## 2.16 完整链路与架构 [工程必会]
-
-- **是什么**：第二章全链路。
-- **机制**：
-
-```text
-Python App
- ↓
-messages
- ↓
-JSON Body
- ↓
-Headers / API Key
- ↓
-POST
- ↓
-LLM API
- ↓
-模型推理
- ↓
-Response JSON / Stream
- ↓
-Python 解析
- ↓
-业务逻辑
-```
-
-- **怎么用**：项目递进：Hello LLM → 单轮问答 → CLI 多轮 → Streaming Chat → 错误处理 → Structured Output → Tool Calling。
-- **易错/关联**：API ≠ 模型；HTTP ≠ LLM；JSON ≠ dict；Response ≠ 最终字符串；多轮不是永久记忆；Streaming 不是切片；JSON Mode ≠ Schema；Tool Calling ≠ 模型直接执行。
-- **最小例子**：见 2.4、2.9、2.10、2.11、2.12。
-- **自测题**：完整调用链是什么？
-- **答案**：Python → HTTP Request → LLM API → 推理 → Response → JSON/Stream → 解析 → 业务。
-- **反模式**：只会背参数，不会串链路。
-
----
-
-## 2.17 Streaming
-
-## 2.17.1 普通响应 vs 流式响应
+## 2.10 流式输出（Streaming） [工程必会]
+ 
+## 2.10.1 普通响应 vs 流式响应
 
 ```text
 普通请求通常是：
@@ -1293,7 +1136,7 @@ Python 解析
   服务端生成一点 → 推送一块 → 客户端读取 → 解析增量 → 立即输出 → 继续下一块
   ```
 
-## 2.17.2 逐步显示的原理
+## 2.10.2 逐步显示的原理
 
 | 知识点 | 记住什么 |
 |---|---|
@@ -1328,7 +1171,7 @@ Python 解析
 → 处理异常与不完整输出
 ```
 
-## 2.17.3 Chunk / Delta / Event
+## 2.10.3 Chunk / Delta / Event
 
 - **Chunk / Delta / Event**：
   - **Chunk**：传输层数据块，不一定对应一个汉字、单词或 Token。
@@ -1345,7 +1188,7 @@ Python 解析
 - 常见协议：SSE、NDJSON、chunked HTTP、WebSocket。
 - 核心收益：**降低首字延迟、提升交互感**；不保证减少总生成时间。
 
-## 2.17.4 Python 处理流式响应
+## 2.10.4 Python 处理流式响应
 
 ```python
 with requests.post(url, headers=headers, json=payload, stream=True) as r:
@@ -1365,7 +1208,7 @@ with requests.post(url, headers=headers, json=payload, stream=True) as r:
             sys.stdout.flush()
 ```
 
-## 2.17.5 实现 CLI 流式输出
+## 2.10.5 实现 CLI 流式输出
 
 ```python
 import os
@@ -1561,6 +1404,148 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+- 使用 `.get("content")` 好处：
+  - `delta["content"]`：如果键不存在，会报 `KeyError`。
+  - `delta.get("content")`：如果键不存在，默认返回 `None`。
+  - 如果上游的 `choices` 或 `delta` 本身缺失，直接用方括号访问仍然可能报错。`.get("content")` 只能解决读取 `content` 这一层的缺键问题
+- `data: [DONE]`,去掉 `data:` 后得到 `[DONE]`，它是流式协议使用的结束标记，不是合法的 JSON 文本，因此不能直接交给 `json.loads()`。
+
+
+---
+
+## 2.11 Structured Output [工程必会]
+
+- **是什么**：让模型按照指定数据结构输出结果。
+- **机制**：JSON Mode 保证合法 JSON；Schema Structured Output 进一步约束字段、类型、必填。
+- **怎么用**：JSON mode / Schema / Function Calling / 约束 + 校验；程序端必须做 Schema 和类型校验。见 14.10。
+- **易错/关联**：JSON Mode ≠ Schema；合法 JSON ≠ 符合业务结构；直接信任模型 JSON。
+- **最小例子**：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {"type": "string"},
+    "age": {"type": "integer"}
+  },
+  "required": ["name", "age"]
+}
+```
+
+- **自测题**：为什么还要校验？
+- **答案**：模型可能不合规，需程序兜底。
+- **反模式**：直接信任模型 JSON。
+
+---
+
+## 2.12 Tool Calling / Function Calling [工程必会]
+
+- **是什么**：让模型生成结构化的工具调用请求，由程序真正执行工具。
+- **机制**：用户问题 → 模型决定调用工具并生成参数 → 程序执行工具 → 结果回传模型 → 模型生成最终回答。
+- **怎么用**：定义 tools schema；解析 `tool_calls`；执行本地或远程函数；把结果作为 tool message 回传。
+- **易错/关联**：模型不直接运行 Python 函数；需要权限隔离和参数校验。见 14.10。
+- **最小例子**：
+
+```json
+{
+  "name": "get_weather",
+  "arguments": {"city": "北京"}
+}
+```
+
+- **自测题**：谁执行工具？
+- **答案**：程序执行，模型只生成调用请求。
+- **反模式**：把 Tool Call 当成已执行。
+
+---
+
+## 2.13 API 调用封装 [工程必会]
+
+- **是什么**：把调用逻辑封装成函数或类。
+- **为什么**：更换 API 地址、模型、Header、参数、错误处理时只改一处。
+- **怎么用**：`chat(messages)`；集中处理认证、超时、重试、解析。
+- **易错/关联**：所有代码写在 `main()`；到处复制粘贴调用代码。见 2.4、2.8。
+- **最小例子**：
+
+```python
+# 需环境依赖：httpx；环境变量：LLM_API_KEY
+def chat(messages):
+    # 构造 headers、data、httpx.post
+    # response.raise_for_status()
+    # return response.json()["choices"][0]["message"]["content"]
+    ...
+```
+
+- **自测题**：为什么要封装？
+- **答案**：降低耦合，方便替换和统一错误处理。
+- **反模式**：到处复制粘贴调用代码。
+
+---
+
+## 2.14 Timeout [工程必会]
+
+- **是什么**：请求超时时间。
+- **为什么**：避免程序无限等待，控制延迟和资源占用。
+- **怎么用**：`timeout=30.0`；可进一步区分 connect、read、write、pool timeout。
+- **易错/关联**：不设 timeout；超时后无限重试。见 2.8。
+- **最小例子**：
+
+```python
+# 伪代码
+httpx.post(url, headers=headers, json=data, timeout=30.0)
+```
+
+- **自测题**：为什么必须设 timeout？
+- **答案**：防止网络阻塞，控制延迟。
+- **反模式**：无限等待。
+
+---
+
+## 2.15 安全原则 [工程必会]
+
+- **是什么**：API Key 与调用链安全。
+- **怎么用**：密钥放环境变量或 Secret 管理；`.env` 加入 `.gitignore`；不打印 Key；不把私密 Key 放前端；浏览器 → 你的后端 → LLM API。
+- **易错/关联**：硬编码、提交 Git、前端暴露。见 2.6。
+- **自测题**：前端能直接放私密 API Key 吗？
+- **答案**：不能，应走自己的后端代理。
+- **反模式**：`api_key = "sk-xxxx"` 写死。
+
+---
+
+## 2.16 完整链路与架构 [工程必会]
+
+- **是什么**：第二章全链路。
+- **机制**：
+
+```text
+Python App
+ ↓
+messages
+ ↓
+JSON Body
+ ↓
+Headers / API Key
+ ↓
+POST
+ ↓
+LLM API
+ ↓
+模型推理
+ ↓
+Response JSON / Stream
+ ↓
+Python 解析
+ ↓
+业务逻辑
+```
+
+- **怎么用**：项目递进：Hello LLM → 单轮问答 → CLI 多轮 → Streaming Chat → 错误处理 → Structured Output → Tool Calling。
+- **易错/关联**：API ≠ 模型；HTTP ≠ LLM；JSON ≠ dict；Response ≠ 最终字符串；多轮不是永久记忆；Streaming 不是切片；JSON Mode ≠ Schema；Tool Calling ≠ 模型直接执行。
+- **最小例子**：见 2.4、2.9、2.10、2.11、2.12。
+- **自测题**：完整调用链是什么？
+- **答案**：Python → HTTP Request → LLM API → 推理 → Response → JSON/Stream → 解析 → 业务。
+- **反模式**：只会背参数，不会串链路。
 
 ---
 

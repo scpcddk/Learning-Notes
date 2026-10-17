@@ -482,7 +482,7 @@ hello
 * [x] 配置 `messages`
 * [x] 发送 API 请求
 * [x] 接收 Response
-* [ ] 解析 JSON
+* [x] 解析 JSON
 * [x] 从嵌套 JSON 提取模型输出
 * [x] 封装成 Python 函数
 * [x] 完成第一次独立 API 调用
