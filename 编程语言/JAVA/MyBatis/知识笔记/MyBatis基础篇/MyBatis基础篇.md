@@ -276,7 +276,7 @@ Mapper 接口不需要写实现类，MyBatis 通过 JDK 动态代理生成 `Mapp
 ```text
 Mapper 接口全限定名 = XML namespace
 方法名 = XML 标签 id
-参数 = #{}
+参数 = #{} 
 返回值 = resultType / resultMap
 ```
 
@@ -481,6 +481,8 @@ ps.setLong(1, id);
 - 参数类型自动处理
 - 推荐所有参数值都用 `#{}`
 
+---
+
 ## 9. `${}`
 
 `${}` 是字符串直接拼接，直接替换 SQL 文本。
@@ -551,6 +553,8 @@ mybatis:
 ```sql
 SELECT class_name AS className FROM student
 ```
+
+---
 
 ## 11. resultMap
 
@@ -628,6 +632,8 @@ ResultSetHandler 把结果映射成 Java 对象
 查询返回对象/List/Map；增删改返回 int 影响行数
 ```
 
+---
+
 ## 12. SELECT
 
 ```xml
@@ -654,6 +660,8 @@ CONCAT('%', #{name}, '%')
    ↓
 实现包含式模糊查询
 ```
+
+---
 
 ## 13. INSERT
 
@@ -698,6 +706,8 @@ System.out.println(student.getId()); // 自增 id 已回填
     </foreach>
 </insert>
 ```
+
+---
 
 ## 14. UPDATE
 
@@ -754,6 +764,8 @@ System.out.println(student.getId()); // 自增 id 已回填
 </if>
 ```
 
+---
+
 ## 17. where
 
 **`<where>` 的作用：**
@@ -804,6 +816,8 @@ System.out.println(student.getId()); // 自增 id 已回填
 </select>
 ```
 
+---
+
 ## 18. trim
 
 `<trim>` 用于动态拼接 SQL，作用是：**加前后缀、去掉首尾多余字符**。
@@ -848,6 +862,8 @@ System.out.println(student.getId()); // 自增 id 已回填
 
 内部为空时不会加 `prefix/suffix`；建议写 `AND |OR ` 带空格；更新时保证至少有一个字段，避免生成错误 SQL。
 
+---
+
 ## 19. choose / when / otherwise
 
 ```xml
@@ -876,6 +892,8 @@ System.out.println(student.getId()); // 自增 id 已回填
 | `<when>`      | `<choose>` 中的条件分支   |
 | `<otherwise>` | 所有 `<when>` 都不满足时执行 |
 
+---
+
 ## 20. set
 
 ```xml
@@ -891,6 +909,8 @@ System.out.println(student.getId()); // 自增 id 已回填
 ```
 
 `<set>` 会自动去掉最后多余的逗号。
+
+---
 
 ## 21. foreach
 
@@ -921,9 +941,178 @@ System.out.println(student.getId()); // 自增 id 已回填
 
 ---
 
+## 22. `<bind>`：创建变量
+
+**作用**：在当前 OGNL 上下文中创建一个变量，后续 SQL 中可以直接用 `#{变量名}` 引用。
+
+**语法**：
+
+```xml
+<bind name="变量名" value="OGNL表达式"/>
+```
+
+- `name`：变量名
+- `value`：OGNL 表达式，不是 SQL 语句
+
+### 22.1 典型用法：模糊查询拼接 `%`
+
+不用 `<bind>` 时：
+
+```xml
+AND name LIKE CONCAT('%', #{name}, '%')
+```
+
+用 `<bind>` 后：
+
+```xml
+<select id="selectByName" resultType="Student">
+    <bind name="pattern" value="'%' + name + '%'"/>
+    SELECT * FROM student
+    WHERE name LIKE #{pattern}
+</select>
+```
+
+这里：
+
+```java
+'%' + name + '%'
+```
+
+是 OGNL 表达式，把参数 `name` 拼成 `%xxx%`，存入变量 `pattern`，SQL 中再用 `#{pattern}` 引用。
+
+### 22.2 注意点
+
+1. `value` 中字符串字面量要用单引号，例如 `'%'`。
+2. 如果 `name` 可能为 `null`，建议外层加 `<if>`，避免拼出 `%null%`：
+
+```xml
+<if test="name != null and name != ''">
+    <bind name="pattern" value="'%' + name + '%'"/>
+    AND name LIKE #{pattern}
+</if>
+```
+
+3. `<bind>` 适合简化复杂表达式，或避免在 SQL 中重复写同样的拼接逻辑。
+
+---
+
+## 23. `<sql>`：定义可复用 SQL 片段
+
+**作用**：定义一个 SQL 片段，给它一个 `id`，供其他语句通过 `<include>` 引用。
+
+**语法**：
+
+```xml
+<sql id="片段id">
+    SQL 片段
+</sql>
+```
+
+### 23.1 示例：复用字段列表
+
+```xml
+<sql id="Base_Column_List">
+    id, name, age, score
+</sql>
+```
+
+引用：
+
+```xml
+<select id="selectAll" resultType="Student">
+    SELECT <include refid="Base_Column_List"/>
+    FROM student
+</select>
+```
+
+### 23.2 示例：复用查询条件
+
+```xml
+<sql id="Student_Condition">
+    <where>
+        <if test="name != null and name != ''">
+            AND name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="age != null">
+            AND age = #{age}
+        </if>
+    </where>
+</sql>
+```
+
+引用：
+
+```xml
+<select id="selectByCondition" resultType="Student">
+    SELECT * FROM student
+    <include refid="Student_Condition"/>
+</select>
+```
+
+### 23.3 注意点
+
+1. `<sql>` 片段里可以写普通 SQL，也可以包含 `<if>`、`<where>`、`<foreach>` 等动态标签。
+2. 片段一般只放“SQL 片段”，不要在里面定义 `<select>`、`<update>` 这类顶层语句。
+3. 跨 mapper 引用时，`refid` 可以用全限定名，例如：
+
+```xml
+<include refid="com.example.mapper.CommonMapper.Base_Column_List"/>
+```
+
+---
+
+## 24. `<include>`：引用 SQL 片段
+
+**作用**：通过 `refid` 引用 `<sql>` 定义的片段。
+
+**基本语法**：
+
+```xml
+<include refid="片段id"/>
+```
+
+### 24.1 带 `<property>` 传参
+
+`<include>` 可以嵌套 `<property>`，向片段中的 `${}` 占位符传值。
+
+定义片段：
+
+```xml
+<sql id="User_Columns">
+    ${alias}.id, ${alias}.name, ${alias}.age
+</sql>
+```
+
+引用并传参：
+
+```xml
+<select id="selectUser" resultType="User">
+    SELECT
+    <include refid="User_Columns">
+        <property name="alias" value="u"/>
+    </include>
+    FROM user u
+</select>
+```
+
+最终效果类似：
+
+```sql
+SELECT u.id, u.name, u.age FROM user u
+```
+
+### 24.2 注意点
+
+1. 片段中的 `${alias}` 是**字符串替换**，不是预编译参数。
+2. `<property>` 的值不要来自用户输入，避免 SQL 注入。
+3. `<include>` 可以嵌套引用其他 `<sql>`，但不要形成循环引用。
+4. `refid` 可以引用当前 mapper 的片段，也可以引用其他 mapper 的全限定片段。
+
+---
+
 # 第十篇：复杂查询
 
-## 22. 多表查询
+## 25. 多表查询
 
 SQL 负责 JOIN，MyBatis 负责映射。
 
@@ -934,7 +1123,9 @@ LEFT JOIN class c ON s.class_id = c.id
 WHERE s.id = #{id}
 ```
 
-## 23. association 一对一
+---
+
+## 26. association 一对一
 
 > [!note]
 > `association` 是 MyBatis 中用于**一对一**关联映射的标签，它把关联查询结果组装成当前对象的一个属性对象
@@ -951,7 +1142,9 @@ WHERE s.id = #{id}
 </resultMap>
 ```
 
-## 24. collection 一对多
+---
+
+## 27. collection 一对多
 
 > [!note]
 > `collection` 是 MyBatis 中用于**一对多**关联映射的标签，它把查询结果中的多行/多个字段组装成当前对象的一个集合属性；`property` **指定集合属性**，`javaType` **指定集合类型**，`ofType` **指定集合元素类型**。
@@ -1010,7 +1203,9 @@ resultMap 拆成对象结构
 组装对象
 ```
 
-## 25. 多对多
+---
+
+## 28. 多对多
 
 ```text
 Student
@@ -1097,7 +1292,7 @@ Student selectWithClass(Long id);
 
 # 第十二篇：MyBatis 与 Spring Boot
 
-## 26. Spring Boot 整合
+## 29. Spring Boot 整合
 
 【**Spring Boot 整合**】
 
@@ -1124,14 +1319,16 @@ MyBatis-Spring：让 MyBatis 接入 Spring 事务、Bean 管理
 MyBatis-Spring-Boot-Starter：Spring Boot 自动配置
 ```
 
-### 26.1 Spring 如何管理 MyBatis 组件生命周期
+### 29.1 Spring 如何管理 MyBatis 组件生命周期
 
 - SqlSessionFactory：启动时创建，应用级单例。
 - SqlSession：不直接注入，由 SqlSessionTemplate 代理获取。
 - Mapper：启动时生成代理，注册为 Spring Bean。
 - 事务：Spring 管理，不需要手动 commit / rollback / close。
 
-## 27. Spring Boot 项目结构
+---
+
+## 30. Spring Boot 项目结构
 
 ```text
 src/main/java/com/example/demo
@@ -1162,7 +1359,9 @@ Mapper
 负责：“如果业务层决定要保存，那具体怎么通过 MyBatis 执行数据库操作？”
 ```
 
-## 28. Mapper 注入
+---
+
+## 31. Mapper 注入
 
 ```java
 @Service
@@ -1203,28 +1402,28 @@ MyBatis + StudentMapper.xml
 
 # 第十三篇：MyBatis 核心组件
 
-## 29. SqlSessionFactory
+## 32. SqlSessionFactory
 
-### 29.1 是什么
+### 32.1 是什么
 
 - 创建 `SqlSession` 的工厂。
 - MyBatis 应用级入口对象之一。
 - 可以理解为：负责生产 `SqlSession` 的地方。
 
-### 29.2 核心职责
+### 32.2 核心职责
 
 - 加载 MyBatis 配置，保存 `Configuration`。
 - 根据 MyBatis 配置创建会话。
 - 为会话提供数据库连接、执行器等运行所需的基础设施。
 - 作为应用访问 MyBatis 的入口之一。
 
-### 29.3 什么时候接触
+### 32.3 什么时候接触
 
 - 框架初始化 / 应用启动时构建一次。
 - 应用运行期间重复使用。
 - 通常是应用级共享对象。
 
-### 29.4 源码关系与默认实现
+### 32.4 源码关系与默认实现
 
 ```text
 SqlSessionFactoryBuilder -> SqlSessionFactory
@@ -1238,7 +1437,7 @@ SqlSessionFactoryBuilder -> SqlSessionFactory
   - 创建 `SqlSessionFactory`。
   - 构建完成后一般就可以丢弃。
 
-### 29.5 Configuration 里有什么
+### 32.5 Configuration 里有什么
 
 - 环境配置。
 - 数据源。
@@ -1249,7 +1448,7 @@ SqlSessionFactoryBuilder -> SqlSessionFactory
 - 拦截器。
 - 缓存配置等。
 
-### 29.6 常用 API
+### 32.6 常用 API
 
 ```java
 SqlSession openSession();
@@ -1259,14 +1458,14 @@ SqlSession openSession(ExecutorType execType, boolean autoCommit);
 SqlSession openSession(TransactionIsolationLevel level);
 ```
 
-### 29.7 生命周期与线程安全
+### 32.7 生命周期与线程安全
 
 - 生命周期：应用启动构建一次，长期复用。(因为 `SqlSessionFactory` 的主要职责是：**根据配置创建 `SqlSession`**,这些配置在应用启动后通常不会频繁变化,所以没有必要每个请求都重新创建 Factory)
 - 线程安全：通常线程安全。
 - 原因：它主要持有只读的 `Configuration`，本身不保存会话级可变状态。
 - 创建 `SqlSession` 时，再创建独立的 `Executor`、`Transaction` 等对象。
 
-### 29.8 Spring / Spring Boot 中
+### 32.8 Spring / Spring Boot 中
 
 - 通常由 `SqlSessionFactoryBean` 创建。
 - Spring Boot 中由 `MybatisAutoConfiguration` 自动配置。
@@ -1274,7 +1473,7 @@ SqlSession openSession(TransactionIsolationLevel level);
 - 一般不需要手动创建它。
 - 一般不需要手动 `new SqlSessionFactoryBuilder()`。
 
-### 29.9 与 SqlSession 的关系
+### 32.9 与 SqlSession 的关系
 
 ```text
 SqlSessionFactory
@@ -1291,14 +1490,14 @@ SqlSession A     SqlSession B     SqlSession C ...
 - `SqlSession` 按会话创建和管理，用完关闭。
 - 不同会话有各自的会话状态和一级缓存。
 
-### 29.10 常见坑
+### 32.10 常见坑
 
 - 误以为每次操作都要新建 `SqlSessionFactory`。
 - 误以为 `SqlSessionFactory` 不能共享。
 - Spring 项目中手动 `new SqlSessionFactoryBuilder()`，绕开自动配置。
 - 把 `SqlSessionFactory` 和 `SqlSession` 混为一谈。
 
-### 29.11 面试追问
+### 32.11 面试追问
 
 - 为什么 `SqlSessionFactory` 通常线程安全？
   - 因为它主要持有 `Configuration`，本身不保存会话级可变状态。
@@ -1311,16 +1510,16 @@ SqlSession A     SqlSession B     SqlSession C ...
 
 ---
 
-## 30. SqlSession
+## 33. SqlSession
 
-### 30.1 是什么
+### 33.1 是什么
 
 - MyBatis 提供的核心操作接口。
 - 代表一次数据库会话。
 - 负责执行映射语句、获取 Mapper，以及管理会话级别的提交、回滚和关闭等操作。
 - 默认实现：`DefaultSqlSession`。
 
-### 30.2 核心职责
+### 33.2 核心职责
 
 - 执行 SQL 映射语句。
 - 获取 Mapper 接口的代理对象。
@@ -1328,20 +1527,20 @@ SqlSession A     SqlSession B     SqlSession C ...
 - 管理当前会话的一级缓存。
 - 关闭会话，释放相关资源。
 
-### 30.3 源码链路
+### 33.3 源码链路
 
 ```text
 SqlSession -> Executor -> StatementHandler -> ParameterHandler / ResultSetHandler -> TypeHandler
 ```
 
-### 30.4 注意
+### 33.4 注意
 
 - `SqlSession` 不是数据库连接本身。
 - 它底层通过执行器等组件使用 JDBC 连接执行 SQL。
 - 不同会话有各自的会话状态和一级缓存。
 - 不能随意交给多个线程共享。
 
-### 30.5 生命周期与线程安全
+### 33.5 生命周期与线程安全
 
 - 生命周期：请求级 / 事务级 / 方法级，用完必须关闭。
 - 线程安全：不是线程安全的。
@@ -1354,7 +1553,7 @@ SqlSession -> Executor -> StatementHandler -> ParameterHandler / ResultSetHandle
   - 不要让多个线程同时使用同一个 SqlSession。
   - 使用完毕后应正确关闭会话，释放相关资源。
 
-### 30.6 常用 API
+### 33.6 常用 API
 
 ```java
 <T> T selectOne(String statement);
@@ -1368,7 +1567,7 @@ void rollback();
 void close();
 ```
 
-### 30.7 一级缓存
+### 33.7 一级缓存
 
 - **范围**：同一个 `SqlSession` 内。
 - **底层**：`Executor` 中的 `localCache`。
@@ -1383,7 +1582,7 @@ void close();
   - 同一个 `SqlSession` 内，外部修改并提交后，再次查询可能仍返回旧值。
   - 解决：换 `SqlSession`、执行更新、提交回滚，或设置为 `STATEMENT`。
 
-### 30.8 手动使用模板
+### 33.8 手动使用模板
 
 ```java
 try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -1399,7 +1598,7 @@ try (SqlSession session = sqlSessionFactory.openSession()) {
 }
 ```
 
-### 30.9 BATCH 模式注意
+### 33.9 BATCH 模式注意
 
 ```java
 try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
@@ -1411,7 +1610,13 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 }
 ```
 
-### 30.10 Spring 项目中
+- `ExecutorType.BATCH`：把多条相似的数据库操作集中起来，通过 JDBC 的批处理能力执行，减少逐条执行带来的部分开销
+- `flushStatements()`：把当前积累的批处理操作真正发送给 JDBC 执行
+  - 不同 SQL 形态或不同参数绑定方式可能形成不同的批次，不能假设所有操作都合并成同一批。
+  - `flushStatements()` 执行批处理，不等于事务提交。事务是否提交，由事务管理机制决定
+  - 批量执行时，不能只检查 Mapper 方法调用有没有立即报错，还要关注批处理执行阶段是否成功。
+
+### 33.10 Spring 项目中
 
 - 非 Spring 项目：手动使用 `SqlSession`。
 - Spring 项目：由 `SqlSessionTemplate` 管理。
@@ -1425,28 +1630,28 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 为什么 Spring 项目不直接注入 `SqlSession`：
   - `SqlSession` 非线程安全，生命周期短，不能作为单例 Bean 随意共享。
 
-### 30.11 Mapper 接口为什么能直接注入
+### 33.11 Mapper 接口为什么能直接注入
 
 - `@MapperScan` 会扫描 Mapper 接口。
 - 为每个接口注册 `MapperFactoryBean`。
 - `MapperFactoryBean` 最终通过 `SqlSessionTemplate.getMapper()` 生成代理对象。
 - 调用 Mapper 方法时，实际走的是 MyBatis 的 `MapperProxy`。
 
-### 30.12 Spring 事务和 MyBatis 事务
+### 33.12 Spring 事务和 MyBatis 事务
 
 - Spring 项目中，事务通常由 `DataSourceTransactionManager` 管理。
 - MyBatis 的 `SqlSession` 会与 Spring 事务同步。
 - 不需要手动 `commit` / `rollback` / `close`。
 - 手动 `openSession()` 可能绕过 Spring 事务管理，导致连接不一致。
 
-### 30.13 与 SqlSessionFactory 对比表
+### 33.13 与 SqlSessionFactory 对比表
 
 | 对象 | 定位 | 核心职责 | 生命周期 | 线程安全 | Spring 中 |
 |---|---|---|---|---|---|
 | `SqlSessionFactory` | 会话工厂 | 加载配置、保存 `Configuration`、创建 `SqlSession` | 应用启动构建一次，长期复用 | 通常安全 | 由 MyBatis-Spring 自动配置管理 |
 | `SqlSession` | 数据库会话 | 执行 SQL、获取 Mapper、事务、一级缓存、关闭资源 | 按会话创建，用完关闭 | 不安全 | 由 `SqlSessionTemplate` 代理管理 |
 
-### 30.14 常见坑
+### 33.14 常见坑
 
 - 同一个 `SqlSession` 多线程共享，导致状态错乱。
 - 一级缓存导致同一会话内查询结果不刷新。
@@ -1457,7 +1662,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 误以为 `SqlSession` 就是 `Connection`。
 - 误以为 `SqlSessionFactory` 每次操作都要新建。
 
-### 30.15 面试追问
+### 33.15 面试追问
 
 - 为什么 `SqlSession` 线程不安全？
   - 它持有 `Executor`、`Transaction`、一级缓存等会话级可变状态。
@@ -1469,7 +1674,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 为什么 Spring 项目不直接注入 `SqlSession`？
   - 因为 `SqlSession` 非线程安全，Spring 用 `SqlSessionTemplate` 代理管理。
 
-### 30.16 记忆口诀
+### 33.16 记忆口诀
 
 - 工厂长期共享，会话一次一用。
 - 工厂负责创建，会话负责执行。
@@ -1479,7 +1684,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 
 ---
 
-## 31 MyBatis 插件
+## 34. MyBatis 插件
 
 > [!note]
 > 
@@ -1487,7 +1692,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 > - 底层主要使用 **拦截器**（Interceptor）与**动态代理** 实现。插件可以在调用原方法之前、之后执行逻辑，也可以决定是否继续调用原方法。
 > - 核心角色：`Interceptor`（插件逻辑）、`Plugin`（动态代理包装器）、`Invocation`（调用上下文）、`InterceptorChain`（责任链）。
 
-### 31.1 Executor
+### 34.1 Executor
 
 - 是什么：SQL 执行器，MyBatis 调度的入口
 - 类型：`SIMPLE`、`REUSE`、`BATCH`；另有 `CachingExecutor` 装饰二级缓存
@@ -1495,7 +1700,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 可拦截方法：`update`、`query`、`queryCursor`、`flushStatements` 等
 - 实际项目：业务代码一般不直接操作；插件常拦截 `query/update`，如分页、读写分离、SQL 监控
 
-### 31.2 StatementHandler
+### 34.2 StatementHandler
 
 - 是什么：Statement 处理器，封装 JDBC `Statement` 操作
 - 类型/实现：
@@ -1507,7 +1712,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 可拦截方法：`prepare`、`parameterize`、`batch`、`update`、`query`、`queryCursor`
 - 实际项目：分页插件常拦截 `prepare` 改写 SQL 加 `limit`；SQL 监控拦截 `query/update` 统计耗时；多租户、数据权限改写 SQL
 
-### 31.3 ParameterHandler
+### 34.3 ParameterHandler
 
 - 是什么：参数处理器
 - 默认实现：`DefaultParameterHandler`
@@ -1516,7 +1721,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 实际项目：参数加密/解密、脱敏、审计、默认值填充、多租户参数注入
 - 注意：`SimpleStatementHandler` 不经过它，只有预编译/存储过程场景有效
 
-### 31.4 ResultSetHandler
+### 34.4 ResultSetHandler
 
 - 是什么：结果集处理器
 - 默认实现：`DefaultResultSetHandler`
@@ -1524,7 +1729,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 - 可拦截方法：`handleResultSets`、`handleCursorResultSets`、`handleOutputParameters`
 - 实际项目：结果脱敏/解密、字典翻译、字段填充、数据权限过滤、逻辑删除、多租户、结果缓存
 
-### 31.5 Plugin 与 Interceptor
+### 34.5 Plugin 与 Interceptor
 
 | 概念 | 作用 |
 |---|---|
@@ -1535,7 +1740,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH)) {
 > [!tip]
 > MyBatis 使用 Plugin 为符合条件的目标对象创建代理。当调用命中 `@Signature` 声明的方法时，代理会调用自定义 `Interceptor.intercept()`，由我们决定如何处理这次调用。
 
-#### 31.5.1 Interceptor
+#### 34.5.1 Interceptor
 
 - **是什么**：MyBatis 插件接口，所有插件都实现它。
 - **核心方法**：
@@ -1584,7 +1789,7 @@ public class SqlCostInterceptor implements Interceptor {
 }
 ```
 
-#### 31.5.2 Plugin
+#### 34.5.2 Plugin
 
 - 是什么：`Plugin` 实现 `InvocationHandler`，是 MyBatis 的动态代理包装器。
 - 核心方法：`Plugin.wrap(target, interceptor)`
@@ -1596,13 +1801,13 @@ public class SqlCostInterceptor implements Interceptor {
   - 否：直接 `method.invoke(target, args)`。
 - 注意：基于 JDK 动态代理，target 必须实现接口；MyBatis 四大对象都实现了对应接口，所以可被包装。
 
-#### 31.5.3 Invocation
+#### 34.5.3 Invocation
 
 - 是什么：拦截方法的调用上下文。
 - 字段：`target`（被代理对象）、`method`（当前方法）、`args`（参数）。
 - 核心方法：`proceed()`，内部执行 `method.invoke(target, args)`，即放行到下一个拦截器或原方法。
 
-#### 31.5.4 InterceptorChain
+#### 34.5.4 InterceptorChain
 
 - 是什么：拦截器责任链，持有 `List<Interceptor>`。
 - 核心方法：`pluginAll(Object target)`，遍历所有拦截器，依次 `target = interceptor.plugin(target)`，层层包装。
@@ -1611,7 +1816,7 @@ public class SqlCostInterceptor implements Interceptor {
   - Spring Boot：把 `Interceptor` 注册为 Bean，MyBatis Starter 会自动加入 `Configuration`
 - 执行顺序：先注册的先包装，后注册的后包装；最终后注册的代理在外层，执行时通常**后注册的先进入**。多插件形成责任链，任意一环不调用 `proceed()` 即可中断。
 
-#### 31.5.5 四大对象何时被包装
+#### 34.5.5 四大对象何时被包装
 
 - `Executor`：`Configuration.newExecutor` 创建后 `interceptorChain.pluginAll(executor)`。
 - `StatementHandler`：`Configuration.newStatementHandler` 创建后包装。
@@ -1619,7 +1824,7 @@ public class SqlCostInterceptor implements Interceptor {
 - `ResultSetHandler`：`Configuration.newResultSetHandler` 创建后包装。
 - 因此四类对象都能被插件拦截。
 
-#### 31.5.6 开发建议
+#### 34.5.6 开发建议
 
 - 明确拦截点，方法签名必须完全匹配，重载方法要分别声明。
 - 一定要按需调用 `invocation.proceed()`，否则会中断原逻辑。
@@ -1627,11 +1832,11 @@ public class SqlCostInterceptor implements Interceptor {
 - 不要破坏原对象状态；分页优先考虑 `Executor.query` 或 `StatementHandler.prepare`。
 - 多个插件时注意注册顺序对执行顺序的影响。
 
-### 31.6 分页插件
+### 34.6 分页插件
 
-分页插件是 31.5 节机制的典型落地。MyBatis 默认 `RowBounds` 是**逻辑分页**——先把全部结果加载到内存再截取，大表不可接受。分页插件的目标：在 SQL 到达数据库前改写为**物理分页**。
+分页插件是 34.5 节机制的典型落地。MyBatis 默认 `RowBounds` 是**逻辑分页**——先把全部结果加载到内存再截取，大表不可接受。分页插件的目标：在 SQL 到达数据库前改写为**物理分页**。
 
-#### 31.6.1 拦截点选择
+#### 34.6.1 拦截点选择
 
 | 拦截点 | 优势 | 代价 |
 |---|---|---|
@@ -1642,7 +1847,7 @@ public class SqlCostInterceptor implements Interceptor {
 - 需要 COUNT、排序消除、方言适配 → 拦截 `Executor.query`。
 - PageHelper 拦截 `Executor.query`，拿到 `BoundSql` 后再改写。
 
-#### 31.6.2 方言适配
+#### 34.6.2 方言适配
 
 用 `Dialect` 接口隔离数据库差异：
 
@@ -1663,7 +1868,7 @@ select * from student order by id limit 0, 10
 
 注意：分页子句必须追加在 `ORDER BY` 之后。
 
-#### 31.6.3 COUNT 查询
+#### 34.6.3 COUNT 查询
 
 物理分页通常需要总数，一般先执行 COUNT SQL。
 
@@ -1676,11 +1881,11 @@ select * from student order by id limit 0, 10
 > [!warning]
 > 涉及 `GROUP BY`、`LEFT JOIN`、自定义聚合时，自动 COUNT 语义可能与业务不符。应使用自定义 COUNT 查询或关闭自动优化（如 MyBatis-Plus 的 `optimizeCountSql`）。
 
-#### 31.6.4 链上位置
+#### 34.6.4 链上位置
 
 分页插件宜放在插件链**靠后**（较早进入），基于其他插件（监控、多租户、数据权限）修饰后的最终 SQL 再改写，避免 COUNT 行数错误或分页子句被破坏。
 
-#### 31.6.5 深分页问题
+#### 34.6.5 深分页问题
 
 `LIMIT offset, size` 在 `offset` 很大时，数据库实际读取 `offset + size` 行再丢弃前 `offset` 行，扫描量线性增长。
 
@@ -1690,7 +1895,7 @@ select * from student order by id limit 0, 10
 2. **延迟关联**：子查询先用覆盖索引取主键，再回表取完整行。
 3. **限制最大翻页深度**：业务层避免极深页码。
 
-#### 31.6.6 实现要点
+#### 34.6.6 实现要点
 
 - **分页参数传递**：PageHelper 用 `ThreadLocal` 存参数，`startPage()` 设置，拦截时读取并清除；务必在 `finally` 中清理，避免线程池复用串页。
 - **只拦截 `query`**：`@Signature` 的 `method` 不要声明 `update`。
@@ -1698,7 +1903,7 @@ select * from student order by id limit 0, 10
 - **COUNT 可选**：移动端滚动加载等场景提供“不查 COUNT”开关。
 - **与二级缓存交互**：分页结果不应直接命中普通二级缓存 key，否则未分页的同查询可能拿到被截断的结果。
 
-#### 31.6.7 速查
+#### 34.6.7 速查
 
 | 维度 | 要点 |
 |---|---|
@@ -1709,7 +1914,7 @@ select * from student order by id limit 0, 10
 | 深分页 | 避免大 `OFFSET`，优先游标分页、延迟关联、限制翻页深度 |
 | 链上位置 | 靠后（较早进入），基于修饰后的 SQL 改写 |
 
-### 31.7 速查表
+### 34.7 速查表
 
 | 组件 | 接口/默认实现 | 常用拦截方法 | 典型插件 |
 |---|---|---|---|
@@ -1721,29 +1926,29 @@ select * from student order by id limit 0, 10
 
 ---
 
-## 32. MappedStatement
+## 35. MappedStatement
 
 - 是什么：一个 SQL 映射对象
 - 唯一标识：`namespace + id`
 - 保存：SQL、参数映射、结果映射、缓存配置
 
-## 33. Configuration
+## 36. Configuration
 
 - 是什么：MyBatis 全局配置
 - 保存：`MappedStatement`、`TypeHandler`、缓存、插件
 - 实际项目：一般不直接操作
 
-## 34. TypeHandler
+## 37. TypeHandler
 
 见第十四篇。
 
 ---
 
-## 35. 生命周期与线程安全
+## 38. 生命周期与线程安全
 
 > 生命周期决定作用域，作用域决定是否共享，是否共享决定线程安全。
 
-### 35.1 生命周期
+### 38.1 生命周期
 
 - **是什么**：一个对象从创建出来，到使用，再到最终销毁/释放资源的整个过程。
 
@@ -1778,9 +1983,9 @@ select * from student order by id limit 0, 10
 > [!tip]
 > **`@Autowired` 注入的 `studentMapper` 不是 `SqlSession`，而是 MyBatis-Spring 注册到 Spring 容器里的一个 Mapper 代理对象。这个代理默认是单例，生命周期跟 Spring 容器一致；而 `SqlSession` 是短命的，通常是方法级/事务级。**
 
-### 35.2 线程安全
+### 38.2 线程安全
 
-#### 35.2.1 判断原则
+#### 38.2.1 判断原则
 
 - **应用级 + 只读 / 无状态** → 通常线程安全。
 - **会话级 / 方法级 + 持有 `Connection`、事务、一级缓存** → 通常线程不安全。
@@ -1789,7 +1994,7 @@ select * from student order by id limit 0, 10
 - **`SqlSessionTemplate`** → 安全；**`SqlSession`** → 不安全。
 - **自定义 `TypeHandler` / `Interceptor`** → 无状态才安全。
 
-#### 35.2.2 线程安全总览
+#### 38.2.2 线程安全总览
 
 | 组件 | 线程安全 | 原因 | 正确用法 |
 |---|---|---|---|
@@ -1812,7 +2017,7 @@ select * from student order by id limit 0, 10
 | `SqlSessionHolder` | ✅ 安全 | 线程绑定 | Spring 事务内复用 |
 | `BoundSql` / `StatementHandler` / `ParameterHandler` / `ResultSetHandler` | ❌ 不安全 | 方法级临时对象 | 不共享 |
 
-#### 35.2.3 Spring 项目中的结论
+#### 38.2.3 Spring 项目中的结论
 
 - 可以安全单例注入：`SqlSessionFactory`、`SqlSessionTemplate`、Mapper 接口。
 - 不要单例注入：`SqlSession`、`Executor`、`Connection`。
@@ -1826,7 +2031,7 @@ select * from student order by id limit 0, 10
 > 
 > **Spring 管理的是 Mapper 代理对象；Mapper 代理本身不会长期持有一个供所有线程共享的 SqlSession，而是由 MyBatis-Spring 协调当前调用所需的 SqlSession。**
 
-#### 35.2.4 常见坑
+#### 38.2.4 常见坑
 
 | 现象 | 原因 | 解决 |
 |---|---|---|
@@ -1837,7 +2042,7 @@ select * from student order by id limit 0, 10
 | 拦截器串数据 | 拦截器里存了请求级状态 | 拦截器保持无状态 |
 | TypeHandler 并发异常 | 自定义 TypeHandler 有可变字段 | 保持无状态 |
 
-#### 35.2.5 记忆口诀
+#### 38.2.5 记忆口诀
 
 - 工厂安全，模板安全，Mapper 注入安全。
 - 会话不安全，执行器不安全，连接不安全。
@@ -2083,7 +2288,7 @@ public class User {
 
 # 第十五篇：MyBatis 缓存
 
-## 36. 一级缓存
+## 39. 一级缓存
 
 【**MyBatis 核心**】
 
@@ -2157,7 +2362,7 @@ mapper.selectById(1)
 
 ---
 
-## 37. 二级缓存
+## 40. 二级缓存
 
 【MyBatis 核心】
 
@@ -2461,7 +2666,20 @@ flowchart TB
 - 物理连接创建昂贵，所以用池复用
 - 常见：HikariCP、Druid、DBCP
 - 配置项：最大连接数、超时、空闲回收
-- 长事务会占着连接，可能导致连接池耗尽
+
+| 参数 | 含义 | 过度设置的风险 |
+|---|---|---|
+| 最大连接数 | 连接池允许维护的连接数量上限 | 数据库连接过多，增加资源压力 |
+| 最小空闲连接数 | 希望保持的空闲连接数量 | 可能维持过多暂时用不到的连接 |
+| 获取连接超时时间 | 没有可用连接时，最多等待多久 | 设置过长会让请求等待很久 |
+
+- **连接池耗尽**：
+  - 长事务会占着连接，可能导致连接池耗尽
+  | 观察到的现象 | 优先排查方向 |
+  |---|---|
+  | 获取连接等待时间明显增加 | 连接池是否耗尽、连接是否长期被占用 |
+  | 获取连接很快，SQL 执行时间很长 | SQL、索引、执行计划、锁等待 |
+  | SQL 本身很快，但整个事务持续很久 | 事务范围、业务逻辑、外部调用 |
 
 **示例：**
 
