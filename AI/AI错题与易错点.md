@@ -612,3 +612,101 @@ text = data["choices"][0]["delta"].get("content")
 记忆口诀： `delta` 看增量，`content` 取文本，`.get()` 防缺键。
 
 ---
+
+## 错题18：浅拷贝与列表结构修改混淆
+
+**易错理解：**
+
+认为 `messages.copy()` 创建的浅拷贝与原列表共享同一个字典，因此修改原列表的结构也会影响副本。
+
+**错误回答：**
+
+> `messages.pop()` 后，`old_messages` 中最后一条消息也会被删除，因为浅拷贝共享同一个字典。
+
+**正确理解：**
+
+`messages.copy()` 会创建一个新的列表，但不会复制列表内部的字典对象。
+
+- **列表结构独立**：两个列表可以分别添加或删除元素，互不影响。
+- **内部字典共享**：如果通过任一列表修改共享字典的字段，另一个列表也能看到修改。
+
+**示例：**
+
+```python
+messages = [
+    {"role": "user", "content": "你好"},
+    {"role": "assistant", "content": "你好！"}
+]
+
+old_messages = messages.copy()
+
+messages.pop()
+
+print(len(messages))      # 1
+print(len(old_messages))  # 2
+```
+
+`messages.pop()` 只删除 `messages` 列表中的元素引用，不会删除 `old_messages` 中的元素。
+
+但是，如果执行：
+
+```python
+messages[0]["content"] = "修改后的内容"
+print(old_messages[0]["content"])
+```
+
+输出也会是 `修改后的内容`，因为两个列表中的第一个元素指向同一个字典对象。
+
+**与当前 AI 项目的联系：**
+
+在 `ask_ai()` 中：
+
+```python
+old_messages = messages.copy()
+```
+
+可以备份当前列表结构。请求失败时执行：
+
+```python
+messages = old_messages
+```
+
+能够恢复原始消息列表，包括此前被裁剪掉的消息。
+
+当前代码只追加新消息，没有修改已有字典的内部字段，因此浅拷贝足够。如果后续需要修改已有字典，并且要求保留修改前的完整状态，就需要考虑 `copy.deepcopy()`。
+
+**核心记忆：**
+
+> 浅拷贝复制列表，不复制内部对象；列表结构独立，内部可变对象共享。
+
+---
+
+## 错题19：`dict.get()` 默认值与异常类型判断
+
+1\. 错误理解
+
+- 认为 `chunk.get("choices", [{}])[0].get("delta", {})` 在 `choices` 为空列表时会得到 `{}`。
+- 认为 `choices = [None]` 时会触发 `IndexError`。
+
+2\. 正确理解
+
+`dict.get(key, default)` 只有在键不存在时才返回默认值，不会因为键对应的值为空而使用默认值。
+
+```
+{}.get("choices", [{}])                       # [{}]{"choices": []}.get("choices", [{}])          # []{"choices": [None]}.get("choices", [{}])[0]   # None
+```
+
+- 空列表访问 `[0]`：触发 `IndexError`。
+- `None.get("delta", {})`：触发 `AttributeError`。
+
+3\. 项目中的联系
+
+AI API 项目通过 `json.loads(content)` 解析流式响应，再从 `choices → delta → content` 提取文本。
+
+当前 `except` 捕获了 `IndexError`，但没有捕获 `AttributeError`。如果出现 `AttributeError`，当前异常处理分支不会执行，因而无法通过该分支恢复 `messages`。
+
+4\. 核心记忆
+
+> 键不存在才用默认值；空列表取 `[0]` 是 `IndexError`；`None` 调用 `.get()` 是 `AttributeError`。
+
+---
