@@ -261,11 +261,11 @@
 
 ### 基础
 
-* [ ] MyBatis-Plus 是什么
-* [ ] MyBatis 与 MP 的关系
+* [x] MyBatis-Plus 是什么
+* [x] MyBatis 与 MP 的关系
 * [ ] MP 项目配置
-* [ ] `BaseMapper`
-* [ ] 通用 CRUD
+* [x] `BaseMapper`
+* [x] 通用 CRUD
 * [ ] `IService`
 * [ ] Service 层常用方法
 

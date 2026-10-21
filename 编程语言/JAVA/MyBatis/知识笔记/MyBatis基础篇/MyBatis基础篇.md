@@ -3510,16 +3510,3 @@ studentMapper.selectPage(page, null);
 - `offset` = (`pageNum` - 1) * `pageSize`
 
 ---
-
-# 第十八篇 MyBatis 与 MyBatis-Plus 的关系
-
-【第三方扩展】
-
-- MyBatis：原生持久层框架，SQL 自己写。
-- MyBatis-Plus：在 MyBatis 上增强，提供通用 CRUD、条件构造器、分页、代码生成等。
-- 关系：MyBatis-Plus 不是 MyBatis 核心，它依赖 MyBatis。
-- 很多 Spring Boot 项目用 MP 是为了少写简单 CRUD。
-
-不要混淆：`BaseMapper`、`IService`、`LambdaQueryWrapper` 都是 MyBatis-Plus 的，不是 MyBatis 原生。
-
----

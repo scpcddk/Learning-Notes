@@ -491,11 +491,11 @@ hello
 
 # 3. API Key 与安全
 
-* [ ] 理解 API Key
+* [x] 理解 API Key
 * [ ] 理解认证 / 授权基本概念
 * [ ] 环境变量
-* [ ] Python 读取环境变量
-* [ ] 不把 Key 写入代码
+* [x] Python 读取环境变量
+* [x] 不把 Key 写入代码
 * [ ] `.gitignore`
 * [ ] 避免 Key 提交 Git
 * [ ] 基础 Secret 安全意识
@@ -559,7 +559,7 @@ hello
 # 7. 错误处理
 
 * [ ] HTTP 错误
-* [ ] API 错误
+* [x] API 错误
 * [ ] 网络异常
 * [ ] Timeout
 * [ ] 429 限流
@@ -592,7 +592,7 @@ hello
 
 * [x] CLI AI Chat
 * [x] 多轮聊天
-* [ ] Streaming
+* [x] Streaming
 * [ ] 错误处理
 * [ ] 基础日志
 
