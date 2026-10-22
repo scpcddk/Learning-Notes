@@ -250,6 +250,8 @@ int rows3 = studentMapper.deleteById(1L);
 | `deleteByIds(ids)` | 根据多个主键删除（新版本） | `int` 影响行数 |
 | `selectPage(page, wrapper)` | 分页查询 | `IPage<T>` |
 
+> MP 默认的字段更新策略通常是 `FieldStrategy.NOT_NULL`，当属性值为 `null` 时，不会将对应字段加入 `SET` 子句
+
 ### 7.1 原生 MyBatis 对照
 
 ```xml
@@ -494,14 +496,26 @@ public class StudentServiceImpl
 ```
 
 > [!note]
-> `ServiceImpl<M, T>` 中：`M` 为 Mapper 类型，`T` 为实体类型。`IService<T>` 定义通用 Service 操作，`ServiceImpl` 提供现成实现。新版 MP 文档也建议了解语义更明确的 `IRepository`；旧项目仍大量出现 `IService`，阅读代码必须认识。
+> `ServiceImpl<M, T>` 中：`M` 为 Mapper 类型，指定使用哪个 Mapper 访问数据库；`T` 为实体类型，指定操作哪个实体类型。`IService<T>` 定义通用 Service 操作，`ServiceImpl` 提供现成实现。新版 MP 文档也建议了解语义更明确的 `IRepository`；旧项目仍大量出现 `IService`，阅读代码必须认识。
+
+| 对比 | Mapper | Service |
+| ---------- | ------------------------ | -------------------------- |
+| 对象创建机制 | MyBatis 创建 Mapper 代理 | Spring 创建 Service Bean |
+| 通用方法来源 | `BaseMapper` + MP SQL 映射 | `IService` + `ServiceImpl` |
+| 是否需要自己写实现类 | 通常不需要 | 通常需要 |
+| 主要职责 | 数据库访问 | 业务逻辑及事务协调 |
+
+> [!tip] 关键区别
+> 
+> - **Mapper**： MyBatis 有专门的 Mapper 代理机制，可以为接口创建代理对象。
+> - **Service**： Spring 不会自动替每个 `IService` 接口生成完整业务实现；我们通常提供 `ServiceImpl` 实现类。
 
 ## 16. Service 常用方法
 
 | Service 方法 | 作用 | 典型返回值 |
 |---|---|---|
 | `save(entity)` | 新增 | `boolean` |
-| `saveBatch(list)` | 批量新增 | `boolean` |
+| `saveBatch(list)` | **批量**新增 | `boolean` |
 | `getById(id)` | 主键查询 | `T` |
 | `list(wrapper)` | 查询列表 | `List<T>` |
 | `count(wrapper)` | 统计数量 | `long` / `Long`（按版本签名） |

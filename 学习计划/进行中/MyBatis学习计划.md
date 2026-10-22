@@ -263,11 +263,11 @@
 
 * [x] MyBatis-Plus 是什么
 * [x] MyBatis 与 MP 的关系
-* [ ] MP 项目配置
+* [x] MP 项目配置
 * [x] `BaseMapper`
 * [x] 通用 CRUD
-* [ ] `IService`
-* [ ] Service 层常用方法
+* [x] `IService`
+* [x] Service 层常用方法
 
 ### 条件构造器
 
