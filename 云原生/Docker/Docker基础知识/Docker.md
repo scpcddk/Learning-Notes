@@ -192,12 +192,33 @@
   ```
 - `-i`：允许你对容器内的标准输入 (STDIN) 进行交互
 - `-d`：后台运行
-- `-p 宿主机端口:容器端口`：端口映射
+- **`-p 宿主机端口:容器端口`**：端口映射
+- `-p 绑定IP:宿主机端口:容器端口`：指定宿主机绑定地址（三段式）
+  ```bash
+  # 只允许宿主机本机访问，外网/局域网连不进来
+  docker run -d -p 127.0.0.1:8081:8080 myapp:1.0
+
+  # 等价于 -p 8081:8080，绑定所有网卡
+  docker run -d -p 0.0.0.0:8081:8080 myapp:1.0
+  ```
 - `--name`：指定容器名称
 - `-v 宿主机目录:容器目录`：挂载数据卷（持久化）
 - `--restart=always`：自动重启
 - `-m 512m`：内存硬限制
 - `--cpus="1.5"`：CPU 配额限制
+- `--network`：指定容器加入哪个网络
+  ```bash
+  docker run -d --name backend --network app-net myapp:1.0
+  ```
+  - `--network bridge`：默认桥接网络
+  - `--network host`：共享宿主机网络栈（端口可能冲突）
+  - `--network none`：禁用网络，只有 lo
+  - `--network container:容器名`：和另一个容器共享网络栈
+  - `--network 自定义网络名`：加入自定义 bridge 网络，可用容器名/服务名互访
+  - `--network-alias`：给容器在自定义网络里加别名
+    ```bash
+    docker run -d --network app-net --network-alias db mysql:8
+    ```
 
 ---
 
@@ -646,6 +667,26 @@ Thumbs.db
 | **restart** | **重启**策略，推荐 `unless-stopped` | `restart: unless-stopped` |
 | **environment** | 注入**环境变量** | `SPRING_PROFILES_ACTIVE=docker` |
 
+**重启策略**：
+
+| 策略               | 含义                                  |
+| ---------------- | ----------------------------------- |
+| `no`             | 默认，不自动重启                            |
+| `on-failure`     | 主进程以非零退出码结束时自动重启                    |
+| `always`         | 容器退出后通常自动重启                         |
+| `unless-stopped` | 自动重启，但主动停止的容器不会在 Docker 守护进程重启后自动恢复 |
+
+```
+docker run -d \
+  --name backend \
+  --restart unless-stopped \
+  myapp:1.0
+```
+```
+--restart unless-stopped
+```
+容器退出后，Docker 通常会尝试自动重启它；如果你主动停止容器，则不会自动重新启动，直到你再次手动启动它
+
 ---
 
 ### 4.2 数据挂载三种方式
@@ -717,6 +758,226 @@ docker inspect 容器名 | grep -A 20 "NetworkSettings"
 # 自定义网络额外提供：内置 DNS，容器间可用服务名 ping 通
 ```
 
+下面是你贴的 `4.4.0` 的**完整整合版**，已把 `-p` 绑定 IP 的内容插进去，并重新编号。直接整体替换你原来的 `4.4.0` 即可。
+
+---
+
+### 4.4.0 回环地址（loopback）与容器网络
+
+**回环地址**就是机器跟自己通信用的地址，常见写法：
+
+| 写法 | 说明 |
+| :--- | :--- |
+| `127.0.0.1` | IPv4 回环地址 |
+| `localhost` | 通常解析到 `127.0.0.1`（也可能解析到 `::1`） |
+| `::1` | IPv6 回环地址 |
+| `lo` | Linux 回环网卡 |
+
+特点：**只有本机自己能访问，外部机器访问不到**。
+
+#### 4.4.0.1 关键：每个容器都有自己的回环地址
+
+- **宿主机**的 `127.0.0.1` = 宿主机自己
+- **容器内**的 `127.0.0.1` = **容器自己**，不是宿主机
+
+所以容器里写：
+
+```python
+connect(host="localhost", port=3306)   # ❌ 连的是容器自己，不是宿主机 MySQL
+```
+
+如果 MySQL 装在宿主机上，容器内用 `localhost` 是**连不到的**，因为容器里的 `localhost` 指向容器自身。
+
+#### 4.4.0.2 宿主机 MySQL 只监听 127.0.0.1 时，容器也连不上
+
+即使改用 `host.docker.internal`，如果宿主机 MySQL 配置为：
+
+```ini
+bind-address = 127.0.0.1
+```
+
+它只接受**宿主机本机回环**的连接，容器通过网桥过来的流量会被拒绝。需要改成：
+
+```ini
+bind-address = 0.0.0.0
+```
+
+或至少允许 Docker 网桥网段（如 `172.17.0.0/16`）访问。
+
+#### 4.4.0.3 `-p` 绑定 IP：`127.0.0.1` vs `0.0.0.0`
+
+`-p` 除了两段式，还可以写成三段式：
+
+```text
+-p 绑定IP:宿主机端口:容器端口
+```
+
+| 写法 | 绑定地址 | 谁能访问 |
+| :--- | :--- | :--- |
+| `-p 8081:8080` | `0.0.0.0:8081` | 本机 + 局域网 + 外网（受防火墙影响） |
+| `-p 0.0.0.0:8081:8080` | `0.0.0.0:8081` | 同上，显式写法 |
+| `-p 127.0.0.1:8081:8080` | `127.0.0.1:8081` | **只有宿主机自己** |
+| `-p 192.168.1.10:8081:8080` | 指定网卡 IP | 只有该网段能访问 |
+
+注意：**这里的 `127.0.0.1` 是宿主机的绑定地址**，不是容器内的回环。含义是：
+
+> 只在宿主机回环口监听 8081，转发到容器 8080。外网和局域网都连不进来。
+
+示例：
+
+```bash
+# 只允许宿主机本机访问，外网/局域网连不进来
+docker run -d --name backend -p 127.0.0.1:8081:8080 myapp:1.0
+
+# 等价于 -p 8081:8080，绑定所有网卡
+docker run -d --name backend -p 0.0.0.0:8081:8080 myapp:1.0
+```
+
+**安全实践：**
+
+```bash
+# ❌ 数据库端口直接暴露到所有网卡，风险高
+docker run -d -p 3306:3306 mysql:8
+
+# ✅ 只允许宿主机访问数据库
+docker run -d -p 127.0.0.1:3306:3306 mysql:8
+```
+
+- 后端 API 要对局域网/外网提供服务：用 `-p 8080:8080`
+- 数据库、Redis、管理后台等只给本机用：用 `-p 127.0.0.1:端口:端口`
+
+Compose 中等价写法：
+
+```yaml
+ports:
+  - "127.0.0.1:3306:3306"   # 只绑回环
+  - "8080:8080"             # 绑所有网卡
+```
+
+#### 4.4.0.4 一句话区分
+
+| 你在哪 | `localhost` / `127.0.0.1` 指谁 |
+| :--- | :--- |
+| 宿主机终端 | 宿主机自己 |
+| 容器内部 | 容器自己 |
+| 容器想连宿主机 | 用 `host.docker.internal`（Mac/Win 默认，Linux 加 `extra_hosts`） |
+| 容器想连另一个容器 | 用**容器名/服务名**，不是 `localhost` |
+| `-p 127.0.0.1:8081:8080` | 宿主机只在回环口监听，**只有本机能访问** |
+| `-p 8081:8080` | 宿主机绑 `0.0.0.0`，**外部也能访问** |
+
+### 4.4.1 容器如何访问宿主机服务（host.docker.internal）
+
+如果 MySQL / Redis 安装在**宿主机**上，而不是 Compose 里的服务，那么容器内**不能用 `localhost` 或 `127.0.0.1`**，因为容器里的 `localhost` 指容器自己。
+
+**此时应使用**：
+
+```python
+connect(host="host.docker.internal", port=3306)
+```
+
+**或 Spring Boot 配置**：
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://host.docker.internal:3306/mydb
+```
+
+**说明**：
+
+| 环境 | 是否需要额外配置 |
+| :--- | :--- |
+| Windows / Mac Docker Desktop | 默认支持 `host.docker.internal` |
+| Linux | 需要在 Compose 服务中加 `extra_hosts` |
+| 宿主机 MySQL | 必须监听 `0.0.0.0:3306`，不能只监听 `127.0.0.1` |
+
+**Linux 下 Compose 配置**：
+
+```yaml
+services:
+  backend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+**单独 `docker run` 时等价写法**：
+
+```bash
+docker run --add-host=host.docker.internal:host-gateway ...
+```
+
+> [!warning] **注意区分**：
+> 
+> - **连接宿主机上的 MySQL**：`host.docker.internal:3306`
+> - **连接 Compose 里的 MySQL 服务**：`mysql:3306`，其中 `mysql` 是服务名
+> - **容器自身**：`localhost:3306`，当前容器自己
+
+### 4.4.2 `docker run --network` 用法补充
+
+`docker network create` 只是**创建网络**，容器要加入网络，需要在 `docker run` 时用 `--network` 指定。
+
+```bash
+# 1. 创建自定义 bridge 网络
+docker network create app-net
+
+# 2. 启动容器并加入该网络
+docker run -d --name backend --network app-net myapp:1.0
+
+# 3. 同一网络内的另一个容器，可直接用容器名访问
+docker run -d --name mysql --network app-net mysql:8
+```
+
+此时 `backend` 容器内可以直接连接：
+
+```text
+mysql:3306
+```
+
+因为自定义 bridge 网络自带 DNS 解析，容器名就是主机名。
+
+> [!tip]
+> **同一个自定义 Docker 网络中的容器，通常不需要通过 `-p` 就能相互访问监听中的服务**
+
+**常见 `--network` 取值**：
+
+| 写法 | 含义 | 注意 |
+| :--- | :--- | :--- |
+| `--network bridge` | 默认桥接网络 | 默认网络下容器名不能直接 DNS 解析，推荐自定义网络 |
+| `--network host` | 共享宿主机网络栈 | 容器端口就是宿主机端口，容易冲突 |
+| `--network none` | 无网络 | 只有回环口，完全隔离 |
+| `--network container:xxx` | 与 `xxx` 容器共享网络栈 | Sidecar / 代理场景 |
+| `--network app-net` | 加入自定义网络 | 同网络内容器名可互访 |
+
+**补充命令**：
+
+```bash
+# 把已运行容器连接到另一个网络
+docker network connect app-net backend
+
+# 把容器从网络断开
+docker network disconnect app-net backend
+```
+
+Compose 中等价写法不是 `--network`，而是在服务下写：
+
+```yaml
+services:
+  backend:
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+```
+
+> [!note] 一句话区分
+> 
+> - `docker network create app-net`：**建网络**
+> - `docker run --network app-net ...`：**让容器加入网络**
+> - `docker network connect app-net 容器名`：**给已运行容器补加网络**
+> - Compose 里：**用 `networks:` 字段**，不是 `--network`
+
 ---
 
 ### 4.5 ⭐ 完整编排模板：Spring Boot + AI 推理服务
@@ -754,7 +1015,8 @@ services:
           cpus: '0.5'
           memory: 256M
 
-    # ⭐【新增】Linux 用户访问宿主机 MySQL/Redis 的神器（Mac/Win 默认支持 host.docker.internal）
+    # ⭐ 容器访问宿主机 MySQL/Redis 用：host.docker.internal:3306
+    # Mac/Win 默认支持；Linux 靠下面这行映射 host-gateway
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -894,13 +1156,15 @@ jobs:
 | **日志与模型持久化** | 使用 volumes 挂载到宿主机，容器删除数据不丢 |
 | **网络互联** | 自定义网络下用**服务名**互访，如 `inference:5000`，不要硬编码 IP |
 | **资源限制** | 生产环境通过 `-m` / `--cpus` 或 Compose 的 `deploy.resources` 限制 CPU/内存，防止雪崩 |
-| **访问宿主机** | 容器内 `localhost` 指向自身；Windows/Mac 可用 `host.docker.internal`；Linux 需在 Compose 中加 `extra_hosts: - "host.docker.internal:host-gateway"`（已在本笔记模板中内置 ✅） |
+| **访问宿主机** | 容器内 `localhost` 指向自身；连接宿主机 MySQL/Redis 用 `host.docker.internal:3306`。Windows/Mac 默认支持；Linux 需在 Compose 服务下加 `extra_hosts: - "host.docker.internal:host-gateway"`。若数据库本身是 Compose 服务，则直接用服务名，如 `mysql:3306`。 |
 | **优雅停机** | Spring Boot 可配置 `server.shutdown=graceful`，配合 `SIGTERM` 保证请求处理完毕（已在本笔记 Dockerfile 中用 `exec` 修复 ✅） |
 | **镜像安全更新** | 定期执行 `docker build --pull .` 拉取最新基础镜像；使用 `docker scout` 或 `trivy` 扫描漏洞 |
 | **Compose 版本字段** | Docker Compose V2 不再需要 `version`，写上可能报警告，可移除 |
 | **JVM 容器感知** | Java 8u191+ / 11+ 默认开启 `-XX:+UseContainerSupport`，JVM 自动读取 cgroup 内存限制；早期版本需显式配置，否则按宿主机总内存分配导致 OOM |
 | **日志轮转** | 生产必配 `logging` 的 `max-size` 和 `max-file`，防止日志撑满磁盘 |
 | **`.dockerignore` 必备** | 创建 `.dockerignore` 排除 `target/`、`.git/` 等，防止构建缓存失效和镜像臃肿（已在本笔记 3.8 提供模板 ✅） |
+| **`--network` 参数** | `docker run` 时用 `--network app-net` 加入自定义网络；同一自定义网络内容器可用**容器名**互访。`docker network connect/disconnect` 可动态连接/断开已运行容器。Compose 中用 `networks:` 字段，不是 `--network`。 |
+| **回环地址** | `127.0.0.1` / `localhost` / `::1` / `lo` 都是回环地址，**只有本机自己能访问**。容器内的 `localhost` 指容器自己，不是宿主机；容器连宿主机 MySQL 要用 `host.docker.internal`，且宿主机 MySQL 需监听 `0.0.0.0` 而非仅 `127.0.0.1`。 |
 
 ---
 
