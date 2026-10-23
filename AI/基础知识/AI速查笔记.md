@@ -524,9 +524,9 @@ Transformer 是由多个部件组成的神经网络架构。本文先用 **Pre-N
 
 原始 Transformer 论文提出了编码器与解码器架构；本文先学的 Decoder-only 图是为理解生成式 LLM 选择的教学入口。[原论文](https://arxiv.org/abs/1706.03762)
 
-### 12.1 原笔记中的整体计算图
+### 12.1 整体计算图
 
-保留原笔记的公式流程，和上面的组件图配合阅读。图中的 Next Token Prediction 包含后续选择和追加；位置信息的实际注入方式依架构而异。
+图中的 Next Token Prediction 包含后续选择和追加；位置信息的实际注入方式依架构而异。
 
 $$
 \begin{array}{c}
@@ -714,6 +714,50 @@ httpx.Client.post：Python 发出该类请求的工具
 
 ## 17. Request / Response：请求与响应的分工
 
+**Request（请求）**是程序发送给服务器的信息，说明“请求哪个接口、使用什么方法、携带什么数据”；**Response（响应）**是服务器返回给程序的信息，包含状态码、响应头和响应体。
+
+**最基础的 AI 请求与响应示例**：先把 URL、Method、Headers、Body 分别写出来，观察它们如何组成一次请求。示例中的 API Key 和模型名称需要替换为自己的配置。
+
+```python
+import httpx
+
+# URL：请求发送到哪个接口。
+url = "https://api.deepseek.com/chat/completions"
+
+# Method：使用什么请求方法，POST 常用于向接口提交数据。
+method = "POST"
+
+# Headers：请求头，携带身份凭证和数据格式说明。
+headers = {
+    "Authorization": "Bearer 你的_API_Key",
+    "Content-Type": "application/json",
+}
+
+# Body：请求体，放本次要提交的具体数据。
+body = {
+    "model": "填写可用的模型名称",
+    "messages": [
+        {"role": "user", "content": "你好"}
+    ],
+}
+
+# 发送 Request：把请求方法、地址、请求头和请求体交给 HTTPX。
+response = httpx.request(
+    method=method,
+    url=url,
+    headers=headers,
+    json=body,
+)
+
+# 接收 Response：查看服务器返回的状态码和响应体。
+print(response.status_code)
+print(response.json())
+```
+
+这里 `json=body` 表示**将 body 转成 JSON 请求体发送**；`response.json()` 则是**将返回的 JSON 响应体解析为 Python 对象**。后面的 `httpx.post(...)` 是直接指定 POST 方法的常见写法。
+
+**对应的 HTTP 请求报文形式**：
+
 ```http
 POST /chat/completions HTTP/1.1
 Host: api.example.com
@@ -751,7 +795,7 @@ Content-Type: application/json
 
 不同服务商可能有额外状态与业务错误码；HTTP 成功不等于模型回答经过事实验证。
 
-### 17.2 保留原笔记的请求/响应阅读顺序
+### 17.2 请求/响应阅读顺序
 
 ```text
 准备 URL / Method / Headers / Body
@@ -840,7 +884,7 @@ dict
 
 **格式注意**：严格 JSON 不接受 `//` 注释、单引号属性名或末尾逗号；Python 代码也不接受用 `//` 写行注释。
 
-### 18.1 保留原笔记的双向转换图
+### 18.1 双向转换图
 
 ```text
 Python 对象
@@ -943,6 +987,27 @@ __pycache__/
 **示例是接口族，不是通用协议标准**：有的 API 使用 `input`、`max_output_tokens` 或不同事件类型；不能只改 Base URL 就认定全部功能兼容。
 
 DeepSeek 当前文档说明思考模式下部分采样参数不生效，且 `top_p` 行为因模型和模式不同。本文基础客户端不默认发送这些可选采样参数；需要实验时再明确加入。[思考模式说明](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/)
+
+### 21.1 参数实验：一次改变一个条件
+
+先固定模型/模式、Prompt、历史内容与其他生成参数，再观察一个参数的影响。每次使用同一份消息副本，避免把上一轮回答加入下一次实验，使“参数变化”和“上下文变化”混在一起。
+
+| 实验 | 保持什么不变 | 改变什么 | 观察什么 |
+|---|---|---|---|
+| Temperature | 模型、任务、历史、输出预算、top_p | 在接口允许且生效的范围内选低/中/高值 | 措辞、结构与结果波动；不直接等同于正确率 |
+| 输出 Token 限制 | 模型、任务、历史、采样参数 | 选较小与较大输出预算 | 是否截断、finish_reason、实际输出用量、要点完整程度 |
+| top_p | 模型、任务、历史、Temperature | 单独改变候选概率范围 | 输出分布变化；先核对当前模型支持情况 |
+
+```python
+# 形式示例：client 复用第 22 节，messages 是本次固定的实验输入。
+choice, usage = client.complete(messages, temperature=0.5, max_tokens=128)
+print(choice["message"].get("content"))
+print("结束原因：", choice.get("finish_reason"), "实际用量：", usage)
+```
+
+选择“输出多条注意事项”等有一定长度的固定任务，便于观察预算不足时的行为；较小预算**可能**触发 `length`，不保证每次都触发。这里使用 `complete()` 是为了保留结束原因供观察，第 22 节的 `text()` 会把不完整回答作为异常处理。
+
+**记录格式**：模型/模式与版本、固定输入、参数、输出、结束原因、usage、耗时、你的判断。单次差异可能只是采样波动，应在相同条件下观察多次；低 Temperature 也不能保证绝对确定或事实正确。
 
 ---
 
@@ -1069,7 +1134,7 @@ if __name__ == "__main__":
 > [!tip]
 > 第三篇记忆：配置先检查，请求先构造，状态先判断，JSON 再解析，结构再验证，文本最后提取。
 
-### 22.1 保留原笔记的变量与调用职责
+### 22.1 变量与调用职责
 
 ```text
 url
@@ -1333,7 +1398,7 @@ if __name__ == "__main__":
 
 这不是包含重连、Last-Event-ID 和事件类型分发的完整 SSE 客户端，但覆盖本文 data-only 读取路径。不要把 JSON 解析失败统一当成“空片段”跳过，否则可能把缺失的回答误当完整结果。
 
-### 26.1 保留原笔记对 `.get()` 与 `[DONE]` 的提醒
+### 26.1 `.get()` 与 `[DONE]`
 
 - `delta["content"]`：键不存在会产生 `KeyError`。
 - `delta.get("content")`：缺少这个键时默认返回 `None`。
@@ -1519,6 +1584,38 @@ if __name__ == "__main__":
 > [!note]
 > 原代码直接对每行 JSON 解析和跳过坏块的地方，已改成先组装 SSE 事件、协议错误明确失败；这是为防止把丢片段的回答误认为完整。核心对话与回滚意图保留。
 
+### 27.3 流式失败后：显示、历史与下一轮分别处理
+
+终端已经打印的文字只是**本次尝试的部分输出**。程序内部可以拒绝提交本轮，但终端上的字符不会因为列表回滚而自动消失。应明确提示“本轮未完成、未写入历史”，然后让外层输入循环继续接收问题。
+
+| 情况 | 失败属于哪一层 | 本轮处理 |
+|---|---|---|
+| 收到正文后出现 ReadError / ReadTimeout | 传输或等待失败 | 关闭响应，保留失败提示，不提交本轮 |
+| 连接正常结束，但没有 `[DONE]` | 本文接口的完整性校验失败 | 不能把 EOF 当成完整成功 |
+| SSE data 不是合法 JSON，或 delta 类型错误 | 事件/协议内容错误 | 明确失败，不跳过坏块后继续假装成功 |
+| 有 `[DONE]`，但结束原因是 `length` | 生成达到限制、回答截断 | 基础 CLI 不当作完整答案保存 |
+| 文本已打印，但用户按 Ctrl+C | 用户取消当前尝试 | 清理资源并恢复历史，允许重新提问 |
+
+**采用旧式 `messages` 列表时的回滚形式**如下。这里只展示一轮的状态变化，发送、解析和打印复用第 27 节的 `stream_text()`：
+
+```python
+# 形式示例：messages 是已确认历史，question 来自外层输入循环。
+old_messages = messages.copy()  # 在追加、裁剪等本轮修改之前备份。
+messages.append({"role": "user", "content": question})
+try:
+    answer, usage = stream_text(client, messages)
+except (httpx.HTTPError, ResponseFormatError, ValueError, KeyboardInterrupt):
+    # 切片恢复原列表内容，让引用该列表的其他代码也看到回滚结果。
+    messages[:] = old_messages
+    print("\n本轮未完成，未写入历史；可以重新提问。")
+else:
+    messages.append({"role": "assistant", "content": answer})
+```
+
+这个浅拷贝方案适用于**只修改外层列表、不改已有消息字典内容**的情况。若先修改 `messages[0]["content"]`，备份也会受到影响；见第 24.2 节。若本轮包含裁剪，要恢复裁剪前的快照，不能只记旧长度再截断，因为已经删掉的旧消息无法靠长度找回。
+
+第 27 节 CLI 已采用“候选历史 → 请求 → 完整成功后提交”，因此无需再叠加一份备份回滚代码。两种形式表达同一条约束：**下一轮只读取已确认的历史，失败问题与半段回答都不自动带入下一轮**。用户选择重试时重新构造一次候选请求，部分文字与新回答应明确区分。
+
 ---
 
 ## 28. 错误处理：按层定位，不把失败都叫“API 错误”
@@ -1569,6 +1666,116 @@ print({"choices": None}.get("choices", [])) # None
 ```
 
 空列表 `[0]` 是 `IndexError`；对 None 调 `.get()` 是 `AttributeError`；缺字典键用 `[]` 是 `KeyError`。协议处理要检查类型与长度，不靠捕获所有异常“兼容”任意数据。
+
+### 28.3 raise_for_status()：检查状态，不负责发送或解析
+
+`httpx.post()` 完成请求并得到 Response 后，HTTP 401、429、500 通常仍以**响应对象**返回。调用 `raise_for_status()` 才会把相应状态转成 `HTTPStatusError`；网络异常则可能在取得响应之前就发生。
+
+```text
+发送请求
+├─ 连接失败等 → RequestError 分支 → 无须等到 raise_for_status()
+└─ 取得 Response
+   ├─ raise_for_status() 检查状态 → 不符合成功状态则抛 HTTPStatusError
+   └─ 状态通过后，再做 JSON、响应结构和业务结果校验
+```
+
+HTTPX 的这项检查以 2xx 为成功范围，非 2xx 还包括重定向等情况，不能把它理解成仅检查 500。它不会重新发送请求、自动重试，也不会验证回答内容。`response.json()` 解析成功同样不代表 HTTP 成功。[HTTPX 状态检查](https://www.python-httpx.org/quickstart/#response-status-codes)
+
+**429 的最小模拟**只需构造响应对象，不必真实访问服务或故意触发限流：
+
+```python
+import httpx
+
+request = httpx.Request("POST", "https://offline.invalid/chat")
+response = httpx.Response(429, request=request, headers={"Retry-After": "2"},
+                          json={"error": "rate_limited"})
+print(response.status_code)  # 此时只是读取 429，还没有进入异常分支。
+try:
+    response.raise_for_status()
+except httpx.HTTPStatusError as exc:
+    print("HTTP 状态异常：", exc.response.status_code)
+    print("建议等待：", exc.response.headers.get("Retry-After"))
+```
+
+给手工 Response 关联 Request，是为了让状态异常带有完整请求上下文；否则手工构造的对象可能先报“缺少 request”的使用错误。将 429 改为 401、500，比较异常类型与状态码；改为 200 时，该状态检查不抛异常。
+
+### 28.4 RequestError 与 HTTPStatusError：分支和模拟
+
+| 对比 | HTTPStatusError | RequestError |
+|---|---|---|
+| 核心问题 | 收到响应，但状态检查未通过 | 请求或传输过程中发生异常 |
+| 典型例子 | 401、429、500 | 连接失败、读取失败、超时等 |
+| 状态信息 | 可用 `exc.response.status_code` | 不应假设存在 `exc.response` 或 HTTP 状态码 |
+| 常见触发位置 | `response.raise_for_status()` | 请求发送、连接建立或响应读取等阶段 |
+
+```text
+httpx.HTTPError
+├─ httpx.HTTPStatusError
+└─ httpx.RequestError
+   └─ httpx.TransportError
+      ├─ httpx.TimeoutException
+      │  ├─ ConnectTimeout(建立连接等待过久) / ReadTimeout(等待下一批响应数据过久)
+      │  └─ WriteTimeout(发送请求数据时等待过久) / PoolTimeout(等待获取连接池中的连接过久)
+      └─ httpx.NetworkError
+         └─ ConnectError / ReadError / WriteError / CloseError
+```
+
+上图只列本阶段关注的分支。`ConnectError` 表示建立连接失败，**不等于服务器返回 500，也不等于 ConnectTimeout**；`TimeoutException` 表示相应操作等待超时。要分别提示它们，应先捕获具体子类，最后捕获 `RequestError` 作这一类错误的兜底。[HTTPX 异常继承关系](https://www.python-httpx.org/exceptions/)
+
+```python
+import httpx
+
+def fail_to_connect(request):
+    # MockTransport 在发送阶段主动抛错，模拟应用遇到连接失败的路径。
+    raise httpx.ConnectError("模拟连接失败", request=request)
+
+with httpx.Client(transport=httpx.MockTransport(fail_to_connect)) as http:
+    try:
+        http.post("https://offline.invalid/chat", json={"messages": []})
+    except httpx.ConnectError:
+        print("连接未建立，请检查网络、代理或服务地址。")
+    except httpx.RequestError:
+        print("其他请求/传输异常。")
+```
+
+这个模拟不依赖断网或某个地址恰好不可用。`MockTransport` 用指定函数替换真实传输，适合观察异常分支；它不证明实际 DNS、TLS 或网络环境已经通过测试。[MockTransport](https://www.python-httpx.org/advanced/transports/#mock-transports)
+
+### 28.5 将分类提示整合进 ask_ai()
+
+通信层保留第 22 节的 `ChatClient`，在调用层按错误类型决定提示。这样不用为每个错误例子重写 HTTP 请求。下面的 `ask_ai()` 成功返回回答字符串，失败返回 `None`，失败提示直接展示给用户，**不当作 assistant 回答加入历史**。
+
+```python
+# 形式示例：复用 client.py；此处展示分类顺序与返回约定。
+import httpx
+from client import ResponseFormatError
+
+def ask_ai(client, messages):
+    try:
+        return client.text(messages)
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        if status == 401:
+            print("认证失败，请检查 API Key 与请求配置。")
+        elif status == 429:
+            print("请求受限，请检查限额，并按服务端提示稍后重试。")
+        elif status == 500:
+            print("服务端内部错误，本轮未完成，请稍后重试。")
+        else:
+            print(f"HTTP 请求未成功，状态码：{status}。")
+    except httpx.TimeoutException:
+        print("请求超时，本轮未完成，请稍后重试。")
+    except httpx.ConnectError:
+        print("无法建立连接，请检查网络、代理与服务地址。")
+    except httpx.RequestError:
+        print("网络请求或传输失败，本轮未完成。")
+    except ResponseFormatError:
+        print("响应格式或回答完整性不符合要求，本轮未完成。")
+    return None
+```
+
+`TimeoutException`、`ConnectError` 写在 `RequestError` 前，才会进入各自的具体提示。`HTTPStatusError` 是另一条分支，不会被 `except RequestError` 捕获。上层仅在 `answer is not None` 时提交候选历史；流式 CLI 的交互提示仍可放在第 27 节的外层循环。
+
+**调试时分两层看**：用户看到可理解的提示；开发日志保留 request_id、异常类别与状态码等诊断字段。不要把 Key、完整 Header 或私人消息原文直接打印给用户。
 
 ---
 
@@ -1643,6 +1850,71 @@ def text_with_retry(client, messages):
 
 这份示例不重试协议错误，也不用于执行写工具。即使没有返回答案，服务端也可能已计算或计费；重试不是“免费重新开始”。
 
+### 29.3 超时配置、异常捕获与无等待模拟
+
+连接超时是“连接尚未建立，等待超过限制”，读取超时是“等待下一段响应数据超过限制”。例如流式聊天已输出几个片段后长时间没有新数据，仍可能发生 `ReadTimeout`；HTTP 500 则已经收到服务端状态，属于不同路径。
+
+```python
+# 配置形式：默认阶段限时 30 秒；连接 5 秒、连接池等待 2 秒单独设置。
+timeout = httpx.Timeout(30.0, connect=5.0, pool=2.0)
+# 交给第 22 节的 httpx.Client(timeout=timeout, ...) 使用。
+```
+
+这些数值是练习起点，不是适用于所有模型的统一标准。结合网络、首字返回时间、片段间隔和交互目标调整；不能为了避免报错就直接无限等待。分阶段限时也不能替代第 27 节的业务总预算。[HTTPX 超时定义](https://www.python-httpx.org/advanced/timeouts/)
+
+沿用第 28.4 节的 MockTransport 写法，将故障函数换成以下形式，即可立即观察两种超时分支：
+
+```python
+import httpx
+
+def simulate_timeout(request):
+    raise httpx.ReadTimeout("模拟等待响应超时", request=request)
+    # 练习连接超时时，将上一行替换为 httpx.ConnectTimeout(..., request=request)。
+
+with httpx.Client(transport=httpx.MockTransport(simulate_timeout)) as http:
+    try:
+        http.post("https://offline.invalid/chat")
+    except httpx.ConnectTimeout:
+        print("建立连接超时。")
+    except httpx.ReadTimeout:
+        print("等待响应数据超时。")
+    except httpx.TimeoutException:
+        print("其他阶段超时。")
+```
+
+这里主动抛出超时异常，只测试**捕获和恢复逻辑**，没有实际等待，也没有验证超时计时器。给 MockTransport 的处理函数简单加 `sleep()`，不能据此证明 HTTPX 的真实网络读取计时行为。
+
+超时后仍按第 27.3 节处理历史：候选历史不提交，或恢复本轮修改前的快照。即便服务端可能已经收到问题，客户端也不能凭半段内容确认本轮完整成功；可以继续接受用户下一次输入。
+
+### 29.4 重试次数、分类提示与流式输出如何衔接
+
+第 29.2 节的 `range(3)` 表示**最多请求 3 次：首次 1 次，加重试 2 次**，不是首次请求之外再重试 3 次。最后一次仍失败时向上抛出异常；401 等不适合重试的错误直接交给分类提示。
+
+```text
+原始请求 client.text()
+    ↓ 仍能抛出 HTTPStatusError
+有限重试 text_with_retry()
+    ↓ 成功回答，或重试耗尽后继续抛错
+调用层 ask_ai() 分类提示
+    ↓ 只有完整成功才提交历史
+外层 CLI 继续交互
+```
+
+若使用第 28.5 节的 `ask_ai()`，需要重试时，把其 try 内的 `client.text(messages)` **替换**为 `text_with_retry(client, messages)`；不要同时调用两次。若先捕获 429 并返回 `None`，外层重试函数就收不到该异常，也无法按状态决定是否重试。
+
+| 模拟的结果顺序 | 预期请求次数 | 预期行为 |
+|---|---|---|
+| 429 → 200 | 2 | 按等待策略重试，成功后结束 |
+| 429 → 429 → 429 | 3 | 次数耗尽，交给调用层提示，不无限循环 |
+| 401 | 1 | 修正认证，不用同一份错误配置反复请求 |
+| 500 | 1，按当前示例 | 当前白名单仅含 429、502、503、504；是否加入 500 要明确规则 |
+| 协议结构错误 | 1 | 不当作暂时限流重试 |
+| 已打印部分流式正文后断开 | 当前尝试终止 | 标注本轮失败，由用户决定发起新尝试 |
+
+可用 `Mock.side_effect` 按顺序提供异常/成功值，测试时替换 `time.sleep` 记录等待而不真实暂停。HTTP 429 本身的构造复用第 28.3 节，不用复制整套请求程序。
+
+**为什么流式输出开始后不能直接套普通重试**：新的请求可能生成另一种措辞、重复已显示内容，且产生另一次计算。把新片段接在旧半句后，会混合两个独立尝试，也无法说明哪一份答案该写入历史。基础做法是结束旧尝试、保留失败提示，重试成功后只提交新尝试的完整结果。
+
 ---
 
 ## 30. 基础日志、项目分层与阶段验收
@@ -1673,7 +1945,7 @@ logging.info("request_id=%s stage=%s status=%s", request_id, "parse", "ok")
 > [!tip]
 > 第四篇记忆：事件先组装，增量再提取；成功才保存，失败留证据；重试有上限，历史有边界。
 
-### 30.1 保留原笔记的第二章全链路
+### 30.1 全链路
 
 ```text
 Python App
@@ -1912,6 +2184,54 @@ if __name__ == "__main__":
 ```
 
 **继续扩展的测试场景**：取消当前轮、429 与重试上限、重复工具 ID、工具超时、结构化字段错类型、Embedding 数量/维度/非有限值、检索越权、长历史、同版本并发更新。涉及服务商或第三方数据库的行为再增加独立集成测试；离线通过不等于可以跳过这些验证。
+
+### 30.3 配置、日志与用户提示怎样各司其职
+
+第 19 节已给出环境变量和 `.gitignore`，第 22 节的 Settings 负责统一读取配置。理解它们的调用关系，比为每个例子重新写一遍读取 Key 更重要：
+
+```text
+环境变量 / 显式加载的配置文件
+    ↓ 启动时读取与校验
+Settings：地址、模型、凭证等配置
+    ↓ 传入
+ChatClient：请求、状态检查与解析
+    ↓ 返回结果或抛出分类异常
+ask_ai / CLI：用户提示、历史提交与后续交互
+```
+
+`.env.example` 只放变量名和占位内容，说明需要配置什么；真实 `.env`、本地虚拟环境与缓存按第 19 节忽略。运行 CLI 前确认当前进程能读取配置；缺少必需配置应在启动时明确报告，避免每次提问才发现 Key 为空。项目结构中把这些职责分开即可，入门阶段不必为了分层再引入复杂框架。
+
+| 日志级别 | 在此项目中的常见用途 | 面向用户的提示 |
+|---|---|---|
+| DEBUG | 开发时观察脱敏后的分支、裁剪数量与参数 | 通常不直接展示 |
+| INFO | 请求开始/结束、耗时、结束原因 | 成功结果正常展示 |
+| WARNING | 429、准备重试、当前尝试被取消等需要关注的事件 | “稍后重试”“本轮已取消”等明确说明 |
+| ERROR | 请求最终失败、上游响应不符合约定等 | 说明失败类别、历史是否保留、下一步怎么做 |
+
+例如同一次 429，日志记录 `request_id、status=429、attempt、等待秒数`；用户看到“请求受限，稍后重试，本轮未写入历史”。日志用于定位过程，提示用于继续使用；不要把大段堆栈或完整上游响应直接当成聊天回复。
+
+第 30 节已有 `logging.basicConfig()` 与参数化日志的常见写法。后续接入真实请求时复用该 logger，在捕获异常和决定重试的位置记录；避免同一异常被每一层重复打印。参数实验的方法与记录字段见第 21.1 节。
+
+### 30.4 CLI Chat 验收：按输入、结果和历史检查
+
+验收不仅观察“程序有没有输出”，还要说明**走了哪个分支、显示了什么、历史变成什么、下一轮能否继续**。先用可控的离线响应检查失败路径，再用自己的配置验证真实服务兼容性。
+
+| 场景 | 应确认的行为 | 对应知识 |
+|---|---|---|
+| 正常非流式请求 | HTTP、JSON、结构与结束原因均通过，提交一轮问答 | 22、28 |
+| 多轮提问 | 下一轮能看到之前已确认的问答 | 20、23、27 |
+| 历史达到限制 | 按完整轮次裁剪，保留指令与当前问题 | 24、27 |
+| 正常流式回答 | 逐步显示，完整结束后才提交历史 | 25～27 |
+| 401、429、500 | 分别提示认证、请求受限和服务端问题，不把提示存成回答 | 28.3～28.5 |
+| ConnectError | 进入连接失败分支，不伪造 HTTP 状态码 | 28.4～28.5 |
+| ConnectTimeout / ReadTimeout | 能区分等待阶段，处理后继续交互 | 29.1、29.3 |
+| 连续 429 | 请求次数与等待受限，最终失败能返回输入循环 | 29.2、29.4 |
+| 空 choices、错误类型、非法 JSON | 明确识别响应不符合约定，不吞掉错误 | 22、26、28 |
+| 中途断流、缺 `[DONE]`、length | 标记未完成，失败问题与半段回答不进入下一轮 | 27.1、27.3 |
+| 当前轮取消、失败后重新提问 | 资源得到清理，先前成功历史保留，新一轮能正常执行 | 27、27.3 |
+| 配置、日志与参数实验 | 凭证由配置读取，日志能定位请求，实验只改变指定条件 | 19、21.1、30.3 |
+
+**独立维护的判断**：能够解释 `raise_for_status()` 为什么放在 JSON 解析之前，写出具体异常先于父类的捕获顺序，调整重试次数并预测总请求数，解释浅拷贝回滚的边界，以及修改一项参数后从日志和返回结果判断影响。完成这些操作后再依据实际表现确认掌握程度，不因为笔记收录了代码就默认已经学会。
 
 ---
 
@@ -5622,12 +5942,15 @@ api/                问题入口、身份、响应与引用
 | 本地 Token 数与远程不一致 | Tokenizer、模板、工具和预留口径 | 4.2～4.4、24.3 |
 | PAD 与 EOS 相同后不学结束 | 是否误屏蔽真实 EOS 标签 | 4.3、88.1、92.2 |
 | `KeyError: choices` | HTTP 状态、错误响应、结构 | 17～18、22、28 |
+| 收到 429 却没有进入 except | 是否调用 raise_for_status，捕获的异常分支是否正确 | 28.3～28.5 |
+| ConnectError 与 HTTP 500 混淆 | 请求/传输异常与响应状态异常分开处理 | 28.4～28.5 |
 | API Key 读取 None | 当前进程与运行配置 | 19 |
 | `JSONDecodeError` | 普通 JSON/SSE 混用、内容截断 | 18、26～28、36 |
 | `AttributeError: get` | None 或其他错误类型 | 28 |
 | 空列表访问 `[0]` | choices 长度与类型 | 22、28 |
 | 片段有 role 无 content | 正常增量字段差异 | 25～27 |
 | 打印一半后断网 | 未完成流、取消与历史提交策略 | 23、27～29 |
+| 重试没有触发或次数算错 | 内层是否已吞掉异常、总请求次数是否包含首次 | 29.4 |
 | 改 backup 发现旧内容也变 | 浅拷贝共享嵌套对象 | 24 |
 | 温度设置没效果 | 模型/模式支持与接口参数 | 13、21 |
 | JSON 合法但字段乱 | Schema 与业务校验 | 31～36 |
@@ -5767,10 +6090,11 @@ api/                问题入口、身份、响应与引用
 |---|---|
 | 模型参数、Token ID 无语义、Embedding 单维不可直读 | 2、4、6、37 |
 | Attention 手算、FFN、残差、LayerNorm、完整 NTP | 8～13、83～88 |
-| HTTPX、嵌套 JSON、函数封装、完整 CLI | 16～22、27 |
+| HTTPX、嵌套 JSON、函数封装、完整 CLI | 16～22、27；28.5 ask_ai 分类处理、30.4 CLI 验收 |
 | 认证/授权、环境变量、Git Secret 意识 | 19、52、108 |
 | 历史保存/裁剪、Context Window、Streaming | 7、20、23～27；24.3 Token 预算、57.2～57.3 持久化 |
-| HTTP/网络/Timeout/429/重试/友好提示/日志/项目结构 | 27～30 |
+| HTTP/网络/Timeout/429/重试/友好提示/日志/项目结构 | 27～30；28.3～28.5 原理与单项模拟、29.3～29.4 超时/重试衔接、30.3 分层职责 |
+| 参数实验、流式失败恢复与独立维护验收 | 21.1 控制实验、27.3 消息快照与回滚、30.4 场景验收 |
 | JSON 全部基本类型、Schema、字段/必填/枚举/嵌套、错误处理 | 18、31～36 |
 | 笔记整理器、分类器、提取器、学习计划分析器 | 34、36 |
 | Sentence/Document Embedding、Vector Space、相似度、API/保存/排序 | 37～41；37.1 Pooling、37.2 双编码与重排 |
@@ -5890,7 +6214,7 @@ api/                问题入口、身份、响应与引用
 | `tiny_lm.py` | PyTorch；微型文本语言模型训练与生成 | 否 |
 | `train_lora.py` | PyTorch、Transformers、PEFT；训练适配器并重载 | 首次下载底座需要 |
 
-**本次验证记录（2026-10-23）**：47 个 Python 代码块通过语法检查；13 项离线单元测试通过，包含独立进程读取 SQLite、版本冲突、用户隔离、断流、工具分片和评价回归；另运行了 Pooling 与记忆演示。Chroma、PyTorch、Transformers、PEFT 未在当前环境安装，相应代码仅做语法与文档核对，未实际训练或下载模型；真实 API 未调用。
+**本次验证记录（2026-10-23）**：55 个 Python 代码块通过语法检查；正文原有 13 项离线单元测试及本次补充内容的 13 项验证均通过。新增验证覆盖状态检查、401/429/500 分类、ConnectError、连接/读取超时、重试上限、实际读取中断后的历史恢复与资源关闭。此前也运行了 Pooling 与记忆演示。Chroma、PyTorch、Transformers、PEFT 未在当前环境安装，相应代码仅做语法与文档核对，未实际训练或下载模型；真实 API 未调用。
 
 复用代码前先理解配置与输入，网络代码不要直接把私人资料批量上传。学习验证优先覆盖：正常结果、缺字段、错类型、空列表、超时、截断、取消和失败后状态不变。
 
@@ -5912,6 +6236,7 @@ api/                问题入口、身份、响应与引用
 |---|---|---|
 | 新版初稿 | 2026-10-23 | 依据原笔记知识范围扩展，按知识领域重组；补完整示例、原理边界、工程实践与覆盖索引 |
 | 缺漏补充 | 2026-10-23 | 补分词/模板/多模态、Token 预算、Pooling/重排、Chroma、流式工具、持久化与人工恢复、检索评价、离线测试、完整小模型和 LoRA 实践 |
+| CLI 基础细化 | 2026-10-23 | 对照后续学习内容，补状态检查、网络/超时模拟、ask_ai 分类处理、重试与历史恢复衔接、参数实验及场景验收 |
 
 > [!important]
 > 这份笔记用于形成“能解释、能编程、能判断、能调试、能部署”的能力。收录某个知识点不代表已经掌握，学习进度仍由实际理解与实践决定。
