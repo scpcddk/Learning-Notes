@@ -261,30 +261,40 @@
 
 ### 基础
 
-* [x] MyBatis-Plus 是什么
-* [x] MyBatis 与 MP 的关系
-* [x] MP 项目配置
-* [x] `BaseMapper`
-* [x] 通用 CRUD
-* [x] `IService`
-* [x] Service 层常用方法
+- [x] MyBatis-Plus 是什么
+- [x] MyBatis 与 MP 的关系
+- [x] MP 项目配置
+- [x] `BaseMapper`
+- [x] 通用 CRUD
+- [x] `IService`
+- [x] Service 层常用方法
+
+### 基础实操
+
+- [x] Spring Boot + MyBatis-Plus 项目配置
+- [x] `Student` 实体映射
+- [x] `StudentMapper` 定义与使用
+- [x] `selectById(1)` 查询
+- [x] 查询不存在的学生（理解返回 `null` 的情况）
+- [x] `insert()` / `updateById()` / `deleteById()` 实操
+- [x] IService 实战
 
 ### 条件构造器
 
-* [ ] `QueryWrapper`
-* [ ] `LambdaQueryWrapper`
-* [ ] `UpdateWrapper`
-* [ ] `LambdaUpdateWrapper`
+- [ ] `QueryWrapper`
+- [ ] `LambdaQueryWrapper`
+- [ ] `UpdateWrapper`
+- [ ] `LambdaUpdateWrapper`
 
 ### 常用功能
 
-* [ ] 条件查询
-* [ ] 条件更新
-* [ ] 批量操作
-* [ ] 分页
-* [ ] 自动填充
-* [ ] 逻辑删除
-* [ ] 乐观锁基本概念
+- [ ] 条件查询
+- [ ] 条件更新
+- [ ] 批量操作
+- [ ] 分页
+- [ ] 自动填充
+- [ ] 逻辑删除
+- [ ] 乐观锁基本概念
 
 ### 最重要
 

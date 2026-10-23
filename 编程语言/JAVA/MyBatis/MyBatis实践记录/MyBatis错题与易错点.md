@@ -890,7 +890,7 @@ MyBatis-Spring协调 SqlSession
 
 ---
 
-### 31. MyBatis 二级缓存无法自动感知外部数据库修改
+## 31. MyBatis 二级缓存无法自动感知外部数据库修改
 
 * 易错理解： 只要数据库记录发生变化，MyBatis 就会自动清理对应缓存。
 
@@ -900,7 +900,7 @@ MyBatis-Spring协调 SqlSession
 
 ---
 
-### 32. TypeHandler 与 Mapper XML 在执行链路中的职责不要混淆
+## 32. TypeHandler 与 Mapper XML 在执行链路中的职责不要混淆
 
 ❌ **易错理解：**
 
@@ -1008,9 +1008,7 @@ Mapper XML
 
 ---
 
-# MyBatis 错题 31
-
-## 31. `rollback()` ≠ SQL 没有执行
+## 33. `rollback()` ≠ SQL 没有执行
 
 ❌ **易错理解：**
 
@@ -1073,7 +1071,7 @@ rollback()
 
 ---
 
-## 32. 事务异常传播与 `@Transactional` 回滚判断
+## 34. 事务异常传播与 `@Transactional` 回滚判断
 
 ### ① SQL 执行 ≠ 事务提交
 
@@ -1248,9 +1246,9 @@ rollback
 
 ---
 
-# 错题33：REQUIRED + 内层异常 + 外层 catch 的回滚判断
+## 35：REQUIRED + 内层异常 + 外层 catch 的回滚判断
 
-## 题目
+### 题目
 
 ```java
 @Transactional
@@ -1283,13 +1281,13 @@ public void methodB() {
 
 > `methodA()` 最终 catch 住 `methodB()` 的异常后，A、B 是提交还是回滚？
 
-## 正确答案
+### 正确答案
 
 > **A、B 都回滚。**
 
-## 为什么？
+### 为什么？
 
-### ① `methodA()` 开启事务 T1
+#### ① `methodA()` 开启事务 T1
 
 ```text
 methodA()
@@ -1299,7 +1297,7 @@ methodA()
 updateA()
 ```
 
-### ② `methodB()` 使用 `REQUIRED`
+#### ② `methodB()` 使用 `REQUIRED`
 
 当前已经存在事务 T1：
 
@@ -1326,7 +1324,7 @@ REQUIRED
 └── updateB()
 ```
 
-### ③ `methodB()` 抛出 RuntimeException
+#### ③ `methodB()` 抛出 RuntimeException
 
 ```text
 updateB()
@@ -1340,7 +1338,7 @@ T1 被标记为 rollback-only
 
 这是本题最关键的地方。
 
-### ④ `methodA()` 虽然 catch 住了异常
+#### ④ `methodA()` 虽然 catch 住了异常
 
 ```java
 catch (Exception e) {
@@ -1376,7 +1374,7 @@ updateA() → 回滚
 updateB() → 回滚
 ```
 
-## 最容易混淆的地方
+### 最容易混淆的地方
 
 之前有一道题：
 
@@ -1430,11 +1428,11 @@ Spring Proxy
 ⑤ 最终提交时是否发现 rollback-only？
 ```
 
-## 核心记忆
+### 核心记忆
 
 > **REQUIRED 共享同一个事务；内层事务异常可能把共享事务标记为 rollback-only，即使外层 catch 住异常，最终仍可能回滚。**
 
-### 一句话版
+#### 一句话版
 
 ```text
 REQUIRED + 同一事务 + 内层异常 → rollback-only → 外层 catch 也救不回来
@@ -1442,7 +1440,7 @@ REQUIRED + 同一事务 + 内层异常 → rollback-only → 外层 catch 也救
 
 ---
 
-## 34. `keyProperty` 对应 Java 属性名，不是数据库列名
+## 36. `keyProperty` 对应 Java 属性名，不是数据库列名
 
 ❌ **错误理解：**
 
@@ -1485,7 +1483,7 @@ Java 属性名 → studentId
 
 ---
 
-## 35. `useGeneratedKeys` 与 `keyProperty` 的职责不同
+## 37. `useGeneratedKeys` 与 `keyProperty` 的职责不同
 
 ❌ **错误理解：**
 
@@ -1529,5 +1527,237 @@ MyBatis 将主键回填到 Student.studentId
 → MyBatis 回填
 → Java 对象获得主键值
 ```
+
+---
+
+## 38：Spring Boot 与 JUnit 测试环境变量不一致，导致 MyBatis-Plus 数据库连接失败
+
+**1. 问题场景**
+
+在 Spring Boot + MyBatis-Plus 项目中，已经通过 `JdbcTemplate` 成功连接 MySQL：
+
+```text
+数据库连接测试：1
+```
+
+但使用 `@SpringBootTest` 测试 `BaseMapper.selectById()` 时，出现：
+
+```text
+CannotGetJdbcConnectionException:
+Failed to obtain JDBC Connection
+
+Caused by: java.sql.SQLException:
+Access denied for user 'dev'@'localhost'
+(using password: YES)
+```
+
+**2. 错误原因**
+
+`application.yml` 使用环境变量配置数据库密码：
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/school
+    username: dev
+    password: ${DB_PASSWORD}
+```
+
+此前只在 IntelliJ IDEA 的 **Spring Boot Application 运行配置**中设置了 `DB_PASSWORD`。
+
+但是，`StudentMapperTest` 使用的是独立的 **JUnit 运行配置**，不会自动继承另一个运行配置中的环境变量。
+
+因此，JUnit 测试没有获得正确的数据库密码，导致 MySQL 身份认证失败。
+
+注意：`using password: YES` 只说明客户端提供了密码，不代表密码正确。
+
+**3. 正确解决方法**
+
+在 IntelliJ IDEA 中：
+
+1. 打开 `Run → Edit Configurations`。
+2. 选择 `StudentMapperTest` 对应的 JUnit 配置。
+3. 找到 `Environment variables`（环境变量）。
+4. 添加：
+
+   ```text
+   DB_PASSWORD=实际数据库密码
+   ```
+
+5. 保存配置，重新运行测试。
+
+不要将真实数据库密码提交到 Git 仓库。
+
+**4. 验证结果**
+
+重新运行：
+
+```java
+@Test
+public void testSelectById() {
+    Student student = studentMapper.selectById(1);
+    System.out.println(student);
+}
+```
+
+成功输出：
+
+```text
+Student(id=1, name=张三, age=18, gender=男, score=95, className=一班)
+```
+
+说明 JUnit 测试已经可以通过 MyBatis-Plus 正常访问 MySQL。
+
+**5. 核心知识点**
+
+- Spring Boot Application 与 JUnit Test **可以使用不同的运行配置**。
+- IDEA 中某个运行配置的环境变量，不会自动共享给其他运行配置。
+- `${DB_PASSWORD}` 表示通过 Spring 属性解析机制获取对应配置值，可以来自环境变量等配置源。
+- IDEA Database 工具连接成功，不代表 Spring Boot 或 JUnit 的数据源配置一定正确。
+- `CannotGetJdbcConnectionException` 是上层异常，需要继续查看最底层的 `Caused by`。
+- `Access denied` 应优先检查用户名、密码、运行环境变量和 MySQL 账号匹配情况。
+
+**6. 排查流程**
+
+```text
+MyBatis 查询失败
+      ↓
+查看异常堆栈
+      ↓
+CannotGetJdbcConnectionException
+      ↓
+继续查找最底层 Caused by
+      ↓
+Access denied
+      ↓
+检查 application.yml
+      ↓
+检查实际运行配置中的 DB_PASSWORD
+      ↓
+修正 JUnit 环境变量
+      ↓
+重新运行，查询成功
+```
+
+**7. 本题教训**
+
+**程序能正常启动、数据库工具能连接，不代表所有运行环境都能正确访问数据库。**
+
+今后遇到数据库连接错误，应先检查底层异常，并确认**当前实际执行的运行配置**，不要直接认定是 MyBatis Mapper、SQL 或数据库服务的问题。
+
+---
+
+## 39：区分 Java 中的 null 对象引用与对象属性为 null
+
+**1. 错误场景**
+
+在 MyBatis-Plus 查询中执行：
+
+```java
+Student student = studentMapper.selectById(99999);
+
+System.out.println(student);
+System.out.println(student.getName());
+```
+
+假设数据库中不存在 `id = 99999` 的学生，`selectById()` 返回 `null`。
+
+**错误理解：**
+
+认为两条 `System.out.println()` 都会输出 `null`。
+
+**2. 正确理解**
+
+第一条：
+
+```java
+System.out.println(student);
+```
+
+输出：
+
+```text
+null
+```
+
+原因：`student` 是一个空引用，`System.out.println()` 可以直接打印空引用。
+
+第二条：
+
+```java
+System.out.println(student.getName());
+```
+
+抛出：
+
+```text
+java.lang.NullPointerException
+```
+
+原因：`student == null`，没有指向实际对象，无法通过空引用调用 `getName()` 实例方法。
+
+**3. 关键区别：对象为 null 与属性为 null**
+
+情况一：对象本身为 `null`
+
+```java
+Student student = null;
+
+System.out.println(student);          // 输出 null
+System.out.println(student.getName()); // NullPointerException
+```
+
+情况二：对象存在，但属性为 `null`
+
+```java
+Student student = new Student();
+student.setName(null);
+
+System.out.println(student);           // 输出 Student(id=null, name=null, ...)
+System.out.println(student.getName()); // 输出 null
+```
+
+第二种情况不会因为 `getName()` 返回 `null` 而抛出空指针异常，因为 **`student` 对象确实存在**。
+
+**4. 对比总结**
+
+| 代码 | 执行结果 |
+|---|---|
+| `System.out.println(student)`，对象为 null | 输出 `null` |
+| `student.getName()`，对象为 null | 抛出 `NullPointerException` |
+| `student.getName()`，对象存在但 name 为 null | 返回 `null` |
+| `student != null`，对象为 null | `false` |
+| `new Student()` | 创建真实对象，属性可以为 null |
+
+**5. 正确处理方式**
+
+对于可能返回 `null` 的查询：
+
+```java
+Student student = studentMapper.selectById(99999);
+
+if (student != null) {
+    System.out.println(student.getName());
+} else {
+    System.out.println("学生不存在");
+}
+```
+
+实际业务中，可以根据需求选择返回空结果、抛出业务异常或通过 HTTP 404 表示资源不存在。
+
+**6. 核心知识点**
+
+- `null` 表示引用没有指向对象。
+- `new Student()` 表示创建了真实对象，即使所有属性都是 `null`。
+- `System.out.println(null)` 可以正常输出。
+- 通过空引用调用实例方法会抛出 `NullPointerException`。
+- MyBatis-Plus 的 `selectById()` 查询不到记录时，通常返回 `null`。
+- 调用查询结果的方法之前，应考虑对象是否存在。
+
+**7. 本题教训**
+
+**对象本身为 `null`，与对象存在但内部属性为 `null`，是两种完全不同的情况。**
+
+以后遇到可能返回空对象的数据库查询，先判断对象是否为 `null`，再访问其属性或调用实例方法。
 
 ---
