@@ -110,7 +110,7 @@ Server: Apache-Coyote/1.1                           ← 响应头：服务器信
 
 > Java 对象转 JSON，后来 SpringMVC 会自动帮我们完成（`@RestController` 功劳）
 
-[JSON详细笔记](../../../基础前端/JavaScript/JSON.md)
+[JSON详细笔记](../../../../../前端基础/JavaScript/JSON.md)
 
 ---
 
