@@ -4,7 +4,7 @@
 
 > **在线阅读**：[打开高等数学速查与完整阅读页](https://scpcddk.github.io/Learning-Notes/calculus/)。支持公式排版、全文搜索、精要与完整笔记、补充专题、折叠解析、深色模式及打印。
 >
-> **离线文件**：[速查笔记.html](阅读页面/速查笔记.html)，下载时请保留整个“阅读页面”文件夹。
+> **离线文件**：[速查笔记.html](../../docs/pages/calculus/速查笔记.html)，下载时请保留完整的 docs/pages/calculus 文件夹。
 
 这份笔记分为三部分：**章节笔记查概念与公式，补充理解查方法与反例，自测题检验是否会用。**
 
@@ -66,7 +66,7 @@
 修改章节、专题或自测题后，在仓库根目录运行：
 
 ~~~powershell
-python "数学/高等数学/阅读页面/生成阅读页.py"
+python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site"
 ~~~
 
-脚本需要 markdown-it-py；生成后的网页可直接打开，不需要 Python 或本地服务器。页面结构、离线资源与维护方式见：[阅读页面说明](阅读页面/README.md)。
+脚本需要 markdown-it-py；生成后的网页可直接打开，不需要 Python 或本地服务器。页面结构、离线资源与维护方式见：[阅读页面说明](../../docs/pages/README.md)。
