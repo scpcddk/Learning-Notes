@@ -1,7 +1,7 @@
 """Package the math and algorithms reading pages for GitHub Pages.
 
 Generate and package every subject:
-    python docs/pages/build_site.py --output <site-directory>
+    python 学习笔记阅读页面/build_site.py --output <site-directory>
 
 The output is a static site. Repository links point back to GitHub, while the
 reading pages link to each other through stable, relative website routes.
@@ -25,17 +25,17 @@ from urllib.parse import quote, unquote, urlsplit
 from markdown_it import MarkdownIt
 
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[1]
 SUBJECTS = (
-    ("calculus", REPO / "docs/pages/calculus"),
-    ("linear-algebra", REPO / "docs/pages/linear-algebra"),
+    ("calculus", REPO / "学习笔记阅读页面/calculus"),
+    ("linear-algebra", REPO / "学习笔记阅读页面/linear-algebra"),
 )
 DATA = re.compile(r'(<script type="application/json" id="chapter-data">)([\s\S]*?)(</script>)')
 HREF = re.compile(r'(?P<prefix>\bhref\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
 
 
 def generate_calculus():
-    ROOT = REPO / "docs/pages/calculus"
+    ROOT = REPO / "学习笔记阅读页面/calculus"
     NOTES = REPO / "数学/高等数学"
     CHAPTERS = [
         ("sec-limit", "第一章 极限与连续.md", "极限与连续", "从无限趋近，理解变化的起点。", ["极限方法", "无穷小", "连续性"]),
@@ -260,7 +260,7 @@ def generate_calculus():
 
 
 def generate_linear_algebra():
-    ROOT = REPO / "docs/pages/linear-algebra"
+    ROOT = REPO / "学习笔记阅读页面/linear-algebra"
     NOTES = REPO / '数学/线性代数/基础概念/笔记'
     CHAPTERS = [
         ('sec-det', '第一章 行列式.md', '行列式', '用一个数，理解可逆性与空间的伸缩。', ['余子式', '展开与变换', '计算方法']),
@@ -577,7 +577,7 @@ def generate_linear_algebra():
 
         out = re.sub(r'<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*', admonition, out)
         out = re.sub(r'<table>([\s\S]*?)</table>', r'<div class="table-scroll"><table>\1</table></div>', out)
-        out = re.sub(r'href="([^"#:/]+\.md)"', lambda m: 'href="../../../数学/线性代数/基础概念/笔记/' + quote(unquote(m[1])) + '"', out)
+        out = re.sub(r'href="([^"#:/]+\.md)"', lambda m: 'href="../../数学/线性代数/基础概念/笔记/' + quote(unquote(m[1])) + '"', out)
         return out
 
 
@@ -590,7 +590,7 @@ def generate_linear_algebra():
             text = re.sub(r'\n\*\*章节导航\*\*[^\n]*\n?', '\n', text)
             chapters.append({
                 'id': ident, 'number': f'{index+1:02}', 'title': title, 'description': desc, 'tags': tags,
-                'source': '../../../数学/线性代数/基础概念/笔记/' + quote(filename),
+                'source': '../../数学/线性代数/基础概念/笔记/' + quote(filename),
                 'summary': render(SUMMARIES[ident], ident+'-quick'),
                 'full': render(text, ident+'-full'),
                 'search': re.sub(r'[#*$>\\{}]', ' ', text),
@@ -606,9 +606,9 @@ def generate_linear_algebra():
     build()
 
 
-DISCRETE = REPO / "docs/pages/discrete-math"
+DISCRETE = REPO / "学习笔记阅读页面/discrete-math"
 DISCRETE_NOTES = REPO / "数学/离散数学"
-CALCULUS_ASSETS = REPO / "docs/pages/calculus/阅读资源"
+CALCULUS_ASSETS = REPO / "学习笔记阅读页面/calculus/阅读资源"
 
 
 def copy_mathjax(destination):
@@ -877,15 +877,88 @@ def build_algorithms(output, github, branch):
                 '</h2><p>这份资料保留原始格式。打开原文件页面后，可下载到本地阅读。</p><a class="primary" href="'+entry["source"]+'" target="_blank" rel="noopener">查看与下载原文件 ↗</a></div>'
         pages.append(entry)
 
-    template = (REPO / "docs/pages/algorithms/index.html").read_text(encoding="utf-8")
+    template = (REPO / "学习笔记阅读页面/algorithms/index.html").read_text(encoding="utf-8")
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
     template = template.replace("<!--CHAPTER_DATA-->", payload)
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
     template = template.replace("<!--RESOURCE_COUNT-->", str(len(seen)))
     (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
-    shutil.copyfile(REPO / "docs/pages/algorithms/algorithms-hero.png", destination / "algorithms-hero.png")
+    shutil.copyfile(REPO / "学习笔记阅读页面/algorithms/algorithms-hero.png", destination / "algorithms-hero.png")
     copy_mathjax(destination)
     print(f"Packaged algorithms: {len(pages)} sections, {len(topics)} topics, 8 question lists, {len(seen)} unique resources.")
+
+
+def build_catalogs(output, github, branch):
+    """Show repository boards first, then the subjects inside each board."""
+    template = (REPO / "学习笔记阅读页面/index.html").read_text(encoding="utf-8")
+
+    def repository_url(path):
+        if path == REPO:
+            return github
+        kind = "tree" if path.is_dir() else "blob"
+        return f"{github}/{kind}/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}"
+
+    def card(title, description, href, label, chips=(), image=None, symbol="·", number=""):
+        art = '<div class="art"><img src="'+escape(image, quote=True)+'" alt="" width="1536" height="1024"></div>' if image else ""
+        mark = '<span class="number">'+escape(number)+'</span>' if image else '<div class="board-mark"><span>'+escape(symbol)+'</span><small class="number">'+escape(number)+'</small></div>'
+        return '<a class="subject'+('' if image else ' compact')+'" href="'+escape(href, quote=True)+'">'+art+'<div class="subject-copy">'+mark+'<h2>'+escape(title)+'</h2><p>'+escape(description)+'</p><div class="chips">'+''.join('<span>'+escape(chip)+'</span>' for chip in chips)+'</div><strong>'+escape(label)+'<span aria-hidden="true">↗</span></strong></div></a>'
+
+    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more=""):
+        destination = output / slug if slug else output
+        destination.mkdir(parents=True, exist_ok=True)
+        prefix = "../" if slug else ""
+        values = {"TITLE": escape(title), "SEO_DESCRIPTION": escape(description, quote=True),
+                  "HOME_URL": prefix or "./", "ASSET_BASE": prefix, "REPO_URL": escape(github, quote=True),
+                  "BREADCRUMB": '<nav class="catalog-trail" aria-label="位置"><a href="../">学习笔记</a><span>/</span><span>'+escape(title)+'</span></nav>' if slug else '',
+                  "EYEBROW": escape(eyebrow), "HEADING": heading, "DESCRIPTION": escape(description),
+                  "META": ''.join('<span>'+escape(item)+'</span>' for item in meta), "GRID_CLASS": grid,
+                  "SECTION_LABEL": escape(title+"目录", quote=True), "CARDS": ''.join(cards),
+                  "MORE_TITLE": "从目录，走向理解", "MORE_TEXT": escape(more or "沿着目录选择内容，再结合原笔记、代码与练习逐步阅读。"),
+                  "SOURCE_URL": escape(repository_url(source), quote=True),
+                  "READING_TIP": "数学与算法已提供在线阅读。其他板块先展示现有目录，子项可进入 GitHub 查阅原笔记，后续继续补充阅读页面。"}
+        text = template
+        for key, value in values.items():
+            text = text.replace("<!--"+key+"-->", value)
+        (destination / "index.html").write_text(text, encoding="utf-8", newline="\n")
+
+    math_cards = [
+        card("高等数学", "极限与连续、微分与积分，从局部变化到空间里的累积。", "../calculus/", "进入阅读", ("10 章笔记", "16 篇专题", "30 道自测"), "../calculus/阅读资源/calculus-hero.png", number="01 / CALCULUS"),
+        card("线性代数", "向量、矩阵与线性变换，在计算背后理解空间结构。", "../linear-algebra/", "进入阅读", ("7 章笔记", "完整例题", "拓展阅读"), "../linear-algebra/阅读资源/linear-algebra-hero.png", number="02 / LINEAR ALGEBRA"),
+        card("离散数学", "逻辑、集合、关系与图，连接概念、课件与推理。", "../discrete-math/", "进入阅读", ("15 份课件", "笔记与练习", "历年试卷"), "../discrete-math/discrete-math-hero.png", number="03 / DISCRETE MATHEMATICS"),
+        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), symbol="P", number="04 / PROBABILITY"),
+        card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), symbol="≈", number="05 / NUMERICAL ANALYSIS"),
+    ]
+    page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。", math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"), "math-catalog")
+
+    boards = {
+        "数学": ("math", "高等数学、线性代数、离散数学与概率统计。", "∑"),
+        "算法": ("algorithms", "数据结构课程、竞赛专题、源码与分类练习。", "⌘"),
+        "编程语言": ("programming-languages", "C 与 C++、Java 等语言知识与实践记录。", "</>"),
+        "计算机组成原理": ("computer-organization", "从数据表示到处理器、存储与输入输出。", "⌗"),
+        "前端基础": ("front-end", "页面结构、样式、交互与前端基础知识。", "〈〉"),
+        "Linux": ("linux", "操作系统使用、命令、配置与实践。", "$"),
+        "云原生": ("cloud-native", "容器、服务部署与云原生实践。", "☁"),
+        "AI": ("ai", "人工智能基础、工具与学习记录。", "✧"),
+        "学习计划": ("learning-plans", "学习目标、阶段计划与进度记录。", "✓"),
+        "通识与拓展": ("general-studies", "跨学科阅读、通识知识与延伸思考。", "∞"),
+    }
+    root_cards = []
+    candidates = [p for p in REPO.iterdir() if p.is_dir() and not p.name.startswith('.') and p.name not in {"docs", "学习笔记阅读页面"}]
+    candidates.sort(key=lambda p: (list(boards).index(p.name) if p.name in boards else len(boards), p.name))
+    for index, path in enumerate(candidates, 1):
+        slug, description, symbol = boards.get(path.name, ("section-"+hashlib.sha256(path.name.encode()).hexdigest()[:8], "按目录查阅这个板块的学习笔记。", "·"))
+        if path.name=="数学":
+            root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "calculus/阅读资源/calculus-hero.png", number="01 / MATHEMATICS"))
+            continue
+        if path.name=="算法":
+            root_cards.append(card(path.name, description, "algorithms/", "进入算法阅读", ("9 章课程", "19 篇专题与源码", "8 份题单"), "algorithms/algorithms-hero.png", number="02 / ALGORITHMS"))
+            continue
+        children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
+        child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
+        root_cards.append(card(path.name, description, slug+"/", "打开板块", (str(len(children))+" 个目录与文件",), symbol=symbol, number=str(index).zfill(2)))
+        page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog")
+    page("", "学习笔记", '从一本笔记，<br>走向<em>更完整的理解。</em>', "选择一个知识板块，进入它的科目、专题与学习记录。", root_cards, REPO, "IDEAS, CONNECTED.", (str(len(root_cards))+" 个知识板块", "分层阅读导航", "持续整理"), "root-catalog", "首页按仓库一级板块组织。先选择板块，再选择科目或目录。")
+    print(f"Packaged learning catalog: {len(root_cards)} repository boards and a mathematics subject directory.")
 
 
 def build(output, repository, branch):
@@ -942,18 +1015,14 @@ def build(output, repository, branch):
         text = text[:match.start(2)] + "<!--PROTECTED_NOTE_DATA-->" + text[match.end(2):]
         text = markup(text, source, destination)
         text = text.replace("<!--PROTECTED_NOTE_DATA-->", payload)
-        text = text.replace("<span>我的学习笔记</span>", '<a href="../">学习导航</a>')
+        text = text.replace("<span>我的学习笔记</span>", '<a href="../">学习笔记</a><i aria-hidden="true">/</i><a href="../math/">数学</a>')
         text = text.replace("</head>", '<link rel="icon" href="../favicon.svg" type="image/svg+xml"><style>.breadcrumb{min-width:0}.breadcrumb b{min-width:0;overflow:hidden;text-overflow:ellipsis}.breadcrumb>a,.top-actions{flex-shrink:0}</style></head>')
         (destination / "index.html").write_text(text, encoding="utf-8", newline="\n")
         shutil.copytree(source / "阅读资源", destination / "阅读资源", dirs_exist_ok=True)
     build_discrete(output, github, branch)
     build_algorithms(output, github, branch)
-    template = (REPO / "docs/pages/index.html").read_text(encoding="utf-8")
-    template = template.replace("<!--REPO_URL-->", escape(github, quote=True))
-    template = template.replace("<!--MATH_URL-->", escape(
-        f"{github}/blob/{quote(branch, safe='')}/{quote('数学/README.md')}", quote=True))
-    (output / "index.html").write_text(template, encoding="utf-8", newline="\n")
-    shutil.copyfile(REPO / "docs/pages/favicon.svg", output / "favicon.svg")
+    build_catalogs(output, github, branch)
+    shutil.copyfile(REPO / "学习笔记阅读页面/favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")
     validate(output)
     print("Validated static resources and page links.")

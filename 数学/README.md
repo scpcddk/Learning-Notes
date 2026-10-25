@@ -4,7 +4,7 @@
 
 从科目导航进入章节笔记、专题和练习。高等数学、线性代数与离散数学提供配套网页，可按目录阅读笔记、搜索公式，也可直接阅读 PDF 课件。
 
-> **在线入口**：[打开数学阅读网站](https://scpcddk.github.io/Learning-Notes/)。
+> **在线入口**：[打开数学科目目录](https://scpcddk.github.io/Learning-Notes/math/)。
 
 ## 选择科目
 
@@ -30,4 +30,4 @@
 - [在线阅读线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/)
 - [在线阅读离散数学与课件](https://scpcddk.github.io/Learning-Notes/discrete-math/)
 
-高等数学、线性代数下载后分别保留完整的 docs/pages/calculus、docs/pages/linear-algebra 文件夹，即可用浏览器离线打开。离散数学的 PDF 阅读器通过网站或本地 HTTP 服务使用。普通 GitHub HTML 文件链接显示源码，在线入口则直接显示排版后的阅读页。
+高等数学、线性代数下载后分别保留完整的 学习笔记阅读页面/calculus、学习笔记阅读页面/linear-algebra 文件夹，即可用浏览器离线打开。离散数学的 PDF 阅读器通过网站或本地 HTTP 服务使用。普通 GitHub HTML 文件链接显示源码，在线入口则直接显示排版后的阅读页。

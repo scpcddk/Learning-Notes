@@ -1,17 +1,19 @@
-# 学习笔记阅读网站
+# 学习笔记阅读页面
 
-[学习首页](https://scpcddk.github.io/Learning-Notes/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/)
+[学习首页](https://scpcddk.github.io/Learning-Notes/) · [数学科目页](https://scpcddk.github.io/Learning-Notes/math/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/)
 
-访客可从仓库 README 进入 [数学导航](../../数学/README.md) 或 [算法导航](../../算法/README.md)，选择内容后打开在线阅读页。
+网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；点击算法进入算法阅读页。其他板块先展示现有目录，子项链接到仓库原笔记，后续可逐步接入阅读页。
+
+访客可从仓库 README 进入 [数学导航](../数学/README.md) 或 [算法导航](../算法/README.md)，选择内容后打开在线阅读页。
 
 ## 文件布局
 
-页面相关文件集中在这里，数学、算法目录保留笔记、课件和习题。
+页面相关文件集中在仓库根目录的“学习笔记阅读页面”文件夹，数学、算法目录保留笔记、课件和习题。
 
 | 位置 | 内容 |
 | --- | --- |
 | [build_site.py](build_site.py) | 四个科目共用的生成、课件打包与链接检查入口，篇目配置也在此维护 |
-| [index.html](index.html) | 数学首页，包含专用样式 |
+| [index.html](index.html) | 一级板块与科目目录共用的导航模板，包含专用样式 |
 | [calculus/](calculus/) | 高等数学模板、精要内容、生成的离线页与图片、公式组件 |
 | [linear-algebra/](linear-algebra/) | 线性代数模板、生成的离线页与图片、公式组件 |
 | [discrete-math/](discrete-math/) | 离散数学模板与封面；构建时直接读取数学目录的 Markdown 和 PDF |
@@ -26,12 +28,12 @@
 
 ~~~powershell
 python -m pip install markdown-it-py==4.0.0
-python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site"
+python 学习笔记阅读页面/build_site.py --output "$env:TEMP/LearningNotes-math-site"
 ~~~
 
 统一脚本先更新高等数学和线性代数的离线 HTML，再打包数学与算法的在线站点。Markdown 原笔记链接转换为 GitHub 地址，科目阅读页之间保留网站内部跳转，最后检查页面和资源链接。
 
-[发布工作流](../../.github/workflows/pages.yml) 也只调用这一条构建命令。修改数学、算法 Markdown、源码、PDF 或这里的模板后，提交并推送到 main，GitHub Actions 会自动生成并发布；发布成功后，线上显示新内容。尚未推送的本地修改不会影响网站。
+[发布工作流](../.github/workflows/pages.yml) 也只调用这一条构建命令。修改仓库笔记、目录或这里的模板后，提交并推送到 main，GitHub Actions 会自动生成并发布；发布成功后，线上显示新内容。尚未推送的本地修改不会影响网站。
 
 PowerPoint 课件已在原课件目录转换为 PDF 并替换对应 PPTX，不保留两套课件或额外导出目录。原文件的历史版本仍可通过 Git 提交记录查阅。
 
@@ -42,7 +44,7 @@ PowerPoint 课件已在原课件目录转换为 PDF 并替换对应 PPTX，不�
 离散数学与算法的 PDF 阅读器需要 HTTP 服务。构建后运行：
 
 ~~~powershell
-python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site" --serve
+python 学习笔记阅读页面/build_site.py --output "$env:TEMP/LearningNotes-math-site" --serve
 ~~~
 
 然后在浏览器访问 http://127.0.0.1:8768/。
@@ -56,3 +58,5 @@ python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site" --s
 算法页收录九章课程与附录、17篇竞赛专题、2份源码、8份题单，以及19份按内容去重的课件资料。代码支持高亮和复制，首页有可逐步操作的排序演示。PDF 在线阅读，PPTX、DOCX 提供原件入口，既有课件无需重复保存。
 
 算法封面使用内置 imagegen，采用用户选定的第一张立体排序柱、二叉树与状态网格图：[封面](algorithms/algorithms-hero.png) · [提示词](algorithms/algorithms-hero.prompt.txt)。
+
+首页根据仓库一级目录生成知识板块，排除隐藏目录、docs 和阅读页面配置目录；新增一级知识板块后也会生成相应目录入口。发布工作流在 main 更新后统一重新构建。
