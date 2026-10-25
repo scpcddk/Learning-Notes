@@ -24,7 +24,7 @@
 
 ## 目录结构
 
-数学笔记可从 [数学学习导航](../数学/README.md) 进入，再选择 [高等数学](../数学/高等数学/README.md)、[线性代数](../数学/线性代数/README.md) 或 [离散数学](../数学/离散数学/README.md)。网站首页按仓库一级知识板块展示；进入数学后再选择科目，科目导航中提供章节笔记、练习资料与在线阅读入口，也可直接进入 [学习笔记阅读网站](https://scpcddk.github.io/Learning-Notes/)。算法从 [算法学习导航](../算法/README.md) 进入，提供九章课程、竞赛专题、代码与题单的 [在线阅读页](https://scpcddk.github.io/Learning-Notes/algorithms/)。
+[学习笔记阅读网站](https://scpcddk.github.io/Learning-Notes/)
 
 以下按实际目录整理，展开主要分类与代表性文件，课件、图片等资源不逐一列出。标注「计划补充」的条目是后续学习与整理的方向，内容会逐步完善。
 
