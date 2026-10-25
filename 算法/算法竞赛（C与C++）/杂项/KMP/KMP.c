@@ -1,9 +1,6 @@
 #include <stdio.h>
-#include <math.h> 
 #include <string.h>
-#include <assert.h>
 #include <stdlib.h>
-#include <ctype.h>
 
 /**
  * 计算模式串的 nextval 数组（优化版的 next 数组）
@@ -11,16 +8,16 @@
  * @param nextval 存储 nextval 值的数组
  * @note nextval 数组在 next 数组基础上进行优化，避免不必要的回溯
  */
-void Nextval(char* needle, int* nextval)
+void Nextval(const char* needle, int* nextval)
 {
     int i = 0, j = -1;          // i: 当前处理位置，j: 前缀末尾位置（或next值）
-    nextval[0] = -1;           // 初始值设为-1，用于表示需要移动主串指针
-    int len2 = strlen(needle);
+    int len2 = (int)strlen(needle);
     
     if(len2 == 0)              // 处理空模式串情况
         return;
-    
-    while(i < len2)
+    nextval[0] = -1;           // 仅构造下标 0..len2-1
+
+    while(i < len2 - 1)
     {
         // 情况1：j为-1（初始状态）或当前字符匹配
         if(j == -1 || needle[i] == needle[j])
@@ -54,22 +51,22 @@ void Nextval(char* needle, int* nextval)
  * @param pos 开始搜索的位置
  * @return 匹配成功返回模式串在主串中的起始位置，失败返回-1
  */
-int KMP(char* haystack, char *needle, int pos)
+int KMP(const char* haystack, const char *needle, int pos)
 {
-    int len1 = strlen(haystack);    // 主串长度
-    int len2 = strlen(needle);      // 模式串长度
+    int len1 = (int)strlen(haystack);    // 主串长度
+    int len2 = (int)strlen(needle);      // 模式串长度
     
     // 特殊情况处理
-    if(len2 == 0)                   // 空模式串匹配成功，返回0
-        return 0;
-    if(pos < 0 || pos >= len1)      // 起始位置越界
+    if(pos < 0 || pos > len1)       // 允许在串尾匹配空串
         return -1;
-    if(len2 > len1)                 // 模式串比主串长，不可能匹配
+    if(len2 == 0)                   // 从 pos 开始，空串匹配在 pos
+        return pos;
+    if(len2 > len1 - pos)           // 剩余主串比模式串短
         return -1;
     
     // 分配并初始化nextval数组
     int* nextval = (int*)malloc(len2 * sizeof(int));
-    assert(nextval != NULL);        // 确保内存分配成功
+    if(nextval == NULL) return -1;
     Nextval(needle, nextval);
     
     int i = pos;    // 主串指针，从pos位置开始
@@ -112,7 +109,8 @@ int main()
     char needle[200] = {0};    // 模式串
     
     // 读取输入字符串
-    scanf("%s %s", haystack, needle);
+    // 演示输入为两个不含空格、长度不超过199的字符串。
+    if(scanf("%199s %199s", haystack, needle) != 2) return 1;
     
     // 执行KMP搜索，从位置0开始
     int re = KMP(haystack, needle, 0);

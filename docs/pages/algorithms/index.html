@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="算法与数据结构笔记：九章课程、竞赛专题、分类题单与代码阅读。">
+  <title>算法与数据结构 · 学习笔记</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml"><style>
+:root{color-scheme:light;--bg:#fafbf7;--paper:#fff;--ink:#253c30;--muted:#758074;--green:#2f624b;--line:#dfe6da;--soft:#edf2e8;--serif:'Noto Serif SC','Songti SC','SimSun',serif;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth;scroll-padding-top:90px}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.8 var(--sans);-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button,input{font:inherit}button{cursor:pointer;color:inherit}a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--green);outline-offset:3px}button{border:0;background:none}a:hover{color:var(--green)}.skip{position:fixed;z-index:90;left:280px;top:-80px;background:var(--green);color:var(--paper);padding:12px}.skip:focus{top:10px}
+#sidebar{position:fixed;inset:0 auto 0 0;width:268px;background:var(--paper);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:40}.brand{display:flex;gap:12px;align-items:center;padding:29px 23px 24px;font:600 21px/1.5 var(--serif);letter-spacing:.05em}.brand small{display:block;font:8px/2 var(--sans);color:var(--muted);letter-spacing:.13em}.brand-icon{display:grid;place-items:center;width:36px;height:41px;border-radius:9px;background:var(--green);color:var(--paper);font:28px Georgia,serif}.sidebar-tools{padding:0 18px 18px;border-bottom:1px solid var(--line)}.search-box{display:flex;gap:8px;align-items:center;padding:7px 10px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--muted)}.search-box span{font-size:23px;line-height:1}.search-box input{width:100%;min-width:0;border:0;background:none;color:var(--ink);font-size:11px;outline:none}.filters{display:flex;justify-content:space-between;gap:5px;margin-top:13px}.filters button{font-size:11px;padding:4px 11px;border-radius:5px;color:var(--muted)}.filters [aria-pressed=true]{background:var(--soft);color:var(--green);font-weight:600}#catalog{overflow:auto;flex:1;padding:16px 14px 26px;scrollbar-width:thin}.nav-home{display:block;font-size:12px;padding:9px 12px;margin-bottom:17px;border-radius:5px}.nav-group{font-size:9px;letter-spacing:.06em;color:var(--muted);margin:22px 12px 7px}.nav-link{display:flex;align-items:baseline;gap:9px;padding:8px 12px;font-size:11px;border-radius:5px;line-height:1.6;margin:2px 0}.nav-link .type{font:8px var(--sans);color:var(--muted);border:1px solid var(--line);padding:1px 3px;flex-shrink:0}.nav-link:hover,.nav-home:hover{background:var(--bg)}[aria-current=page]{background:var(--soft)!important;color:var(--green);font-weight:600}.sidebar-footer{display:flex;justify-content:space-between;padding:17px 24px;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}.empty{font-size:12px;padding:12px;color:var(--muted)}
+.workspace{margin-left:268px;min-width:0}header{height:67px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:var(--bg);padding:0 38px;position:sticky;top:0;z-index:30;gap:12px}.breadcrumb{display:flex;align-items:center;gap:12px;font-size:11px;min-width:0}.breadcrumb>a{flex-shrink:0}.breadcrumb>span{color:var(--muted)}.breadcrumb b{font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);min-width:0}.breadcrumb b:not(:empty)::before{content:'/';margin-right:12px}.top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}.top-actions button{font-size:11px;padding:5px 9px;color:var(--muted);border:1px solid var(--line);border-radius:5px}#theme{font-size:17px;padding:1px 9px}#menu{display:none}main{max-width:1320px;margin:auto;padding:35px 38px 0;outline:none}.hero{display:grid;grid-template-columns:.9fr 1.1fr;align-items:center;gap:16px;min-height:385px}.hero-copy{padding:8px 0 22px}.eyebrow{font:9px/1.8 var(--sans);letter-spacing:.13em;color:var(--green)}h1{font:500 clamp(34px,3.5vw,51px)/1.5 var(--serif);letter-spacing:.055em;margin:22px 0 18px}h1 em{font-style:normal;color:var(--green)}.hero p{font-size:13px;line-height:2;color:var(--muted);margin:0}.hero img{display:block;width:100%;height:auto;border-radius:10px;mix-blend-mode:multiply}.primary{display:inline-flex;align-items:center;gap:40px;background:var(--green);color:#fff;border-radius:5px;padding:10px 17px;font-size:12px;margin-top:25px}.primary:hover{color:#fff;filter:brightness(1.12)}.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:24px 0;margin:15px 0 41px}.stats>div{display:flex;align-items:center;justify-content:center;gap:15px}.stats>div+div{border-left:1px solid var(--line)}.stats strong{font:italic 30px Georgia,serif;font-weight:400}.stats span{font-size:10px;color:var(--muted)}.section-title>span{font:10px Georgia,serif;color:var(--muted);letter-spacing:.07em}h2{font:500 24px/1.7 var(--serif);letter-spacing:.04em;margin:8px 0}.section-title p{color:var(--muted);font-size:12px;margin:0 0 23px}.course-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.course-card{padding:22px 20px;border:1px solid var(--line);border-radius:7px;background:var(--paper);transition:transform .15s,border-color .15s;position:relative}.course-card:hover{border-color:var(--green);transform:translateY(-2px)}.course-card>span{color:var(--muted);font:italic 12px Georgia,serif}.course-card h3{font:500 19px var(--serif);margin:16px 0 10px}.course-card p{font-size:10px;color:var(--muted);margin:0}.course-card b{position:absolute;right:19px;top:21px;font-size:17px;font-weight:400;color:var(--green)}.companion{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;padding:32px;margin:35px 0;background:var(--soft);border-radius:8px}.companion h2{margin-top:12px}.companion p{font-size:12px;color:var(--muted);line-height:2}.text-links{display:flex;gap:24px;font-size:11px;margin-top:18px;color:var(--green)}.reading-order{border-left:1px solid var(--line);padding-left:30px}.reading-order>span{font-size:10px;color:var(--muted)}.reading-order b{font:italic 18px Georgia,serif;margin-right:16px;color:var(--green)}.reading-order p{margin:14px 0}.resource-note{display:flex;align-items:center;gap:30px;border-top:1px solid var(--line);padding:22px 0;font-size:10px;color:var(--muted)}.resource-note p{flex:1;margin:0}.resource-note a{white-space:nowrap;color:var(--green)}footer{padding:21px 0;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}
+.document-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding:3px 0 24px}.document-head h1{font-size:30px;line-height:1.6;letter-spacing:.025em;margin:10px 0 5px}.document-head p{font-size:11px;color:var(--muted);margin:0}.document-links{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;padding-top:27px}.document-links a{font-size:10px;padding:5px 9px;border:1px solid var(--line);border-radius:5px;white-space:nowrap}.viewer-tip{font-size:10px;display:flex;justify-content:space-between;gap:15px;color:var(--muted);margin:0;padding:10px 14px;background:var(--soft);border-radius:6px 6px 0 0}#pdf-viewer{width:100%;height:calc(100dvh - 250px);min-height:510px;border:1px solid var(--line);display:block;background:#dedede}.fallback{font-size:10px;color:var(--muted);margin:9px 0}.fallback a{color:var(--green);margin-left:3px}.document-pager{display:flex;justify-content:space-between;gap:30px;border-top:1px solid var(--line);padding:24px 0;margin-top:30px;font-size:11px;color:var(--green)}.document-pager a{max-width:47%}.document-pager a:last-child{text-align:right}
+article{max-width:850px;margin:0 auto 50px;font-size:15px;line-height:2.05;overflow-wrap:anywhere}article:empty{display:none}article h1{font-size:27px;margin:30px 0 20px}article h2{font-size:23px;border-bottom:1px solid var(--line);padding-bottom:10px;margin:36px 0 21px}article h3{font:600 18px var(--serif);margin:29px 0 18px}article h4{font-size:15px;margin:25px 0 13px}article p{margin:16px 0}article li{margin:7px 0}article ul,article ol{padding-left:25px}article a{color:var(--green);text-decoration:underline}article blockquote{margin:22px 0;padding:2px 20px;background:var(--soft);border-left:3px solid var(--green);font-size:13px}article blockquote p{margin:12px 0}article hr{border:0;border-top:1px solid var(--line);margin:30px 0}.table-scroll{overflow-x:auto;margin:22px 0}table{border-collapse:collapse;min-width:100%;font-size:12px;line-height:1.9}th,td{padding:10px 13px;text-align:left;border:1px solid var(--line)}th{background:var(--soft);font-weight:600}tr:nth-child(even){background:var(--paper)}article pre{overflow-x:auto;background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:16px;font:12px/1.8 Consolas,monospace;white-space:pre}article code{font:12px/1.8 Consolas,monospace}mark{background:#eee6b5;color:inherit}.math-display{display:block;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:4px 0}.math-inline{font-size:.98em}mjx-container[jax=SVG]{max-width:none}mjx-container[jax=SVG][display=true]{margin:.8em 0!important}.answers{margin:35px 0;border:1px solid var(--line);border-radius:7px;padding:0 21px 15px}.answers summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--green);padding:16px 0}.answers:not([open]){padding-bottom:0}
+html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6d7;--muted:#9baa98;--green:#a0c49b;--line:#374638;--soft:#2a392d}html[data-theme=dark] .hero img{mix-blend-mode:normal;opacity:.9}html[data-theme=dark] .primary{background:#427655;color:#fff}html[data-theme=dark] .brand-icon{color:#19221c}html[data-theme=dark] mark{background:#635d2f}
+@media(min-width:1550px){main{padding-top:47px}.hero{gap:45px;min-height:425px}}
+@media(max-width:1150px){main{padding:28px 27px 0}header{padding:0 27px}.hero{grid-template-columns:1fr 1fr;min-height:340px}.hero h1{font-size:38px}.hero .eyebrow{font-size:8px;letter-spacing:.06em}.stats>div{gap:9px}.stats span{font-size:9px}.course-cards{grid-template-columns:repeat(2,1fr)}.document-head{display:block}.document-links{justify-content:flex-start;padding-top:15px}.companion{gap:24px;padding:25px}.reading-order{padding-left:20px}.resource-note{align-items:flex-start;flex-direction:column;gap:12px}}
+@media(max-width:840px){#sidebar{transform:translateX(-100%);transition:transform .2s ease}body.nav-open #sidebar{transform:none}.workspace{margin-left:0}#menu{display:block;font-size:18px;padding:0 7px 0 0}header{height:59px;padding:0 22px}.breadcrumb{gap:9px}#shade{position:fixed;inset:0;background:#13291a66;z-index:35;width:100%;height:100%;border:0}main{padding:24px 23px 0}.hero{min-height:350px;gap:20px}.hero h1{font-size:43px}.hero p{font-size:12px}.skip{left:20px}.document-head h1{font-size:27px}#pdf-viewer{min-height:510px;height:calc(100dvh - 265px)}}
+@media(max-width:540px){header{padding:0 17px}.breadcrumb{font-size:10px}.top-actions{gap:4px}.top-actions button{font-size:10px;padding:4px 6px}#theme{padding:0 6px}.breadcrumb b{max-width:90px}main{padding:24px 20px 0}.hero{display:flex;flex-direction:column;align-items:stretch;gap:0;min-height:0}.hero-copy{padding:6px 0 18px}.hero h1{font-size:41px;line-height:1.5;margin:17px 0 16px}.hero .eyebrow{font-size:8px;letter-spacing:.09em}.hero img{margin-top:0;border-radius:7px;max-height:260px;object-fit:cover}.hero p{line-height:2}.primary{margin-top:19px}.stats{padding:21px 0;margin:25px 0 29px}.stats>div{flex-direction:column;gap:3px}.stats strong{font-size:26px}.stats span{font-size:8px}.course-cards{gap:10px}.course-card{padding:18px 15px}.course-card h3{font-size:17px;margin:12px 0 9px}.course-card b{right:12px;top:15px}.course-card p{font-size:9px}.section-title h2{font-size:22px}.section-title p{font-size:10px;line-height:2}.companion{grid-template-columns:1fr;padding:23px;gap:23px;margin:27px 0}.companion h2{font-size:22px}.reading-order{padding:19px 0 0;border:0;border-top:1px solid var(--line)}.reading-order p{margin:10px 0}.resource-note{font-size:10px}.document-head h1{font-size:25px;margin-top:8px}.document-head{padding-top:0}.document-links{gap:6px}.document-links a{font-size:9px;padding:4px 7px}.viewer-tip{font-size:9px;display:block;padding:9px 10px}#pdf-status{display:block;margin-top:3px}#pdf-viewer{min-height:510px;height:67dvh}.document-pager{font-size:10px;gap:15px}article{font-size:14px;line-height:2}article h1{font-size:22px}article h2{font-size:21px}article h3{font-size:17px}.answers{padding-left:13px;padding-right:13px}th,td{min-width:75px;padding:8px 10px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}#sidebar,.course-card{transition:none}}
+@media print{#sidebar,header,#shade,.document-links,.viewer-tip,.fallback,.document-pager,.answers>summary{display:none!important}.workspace{margin:0}main{max-width:none;padding:0}body,html[data-theme=dark]{--bg:#fff;--paper:#fff;--ink:#000;--muted:#444;--green:#222;--line:#ccc;--soft:#f7f7f7}article{max-width:none;font-size:11pt}article pre,.table-scroll{overflow:visible}.math-display{overflow:visible}h2,h3,h4{break-after:avoid}tr{break-inside:avoid}}
+
+
+.brand{font-size:18px}.brand small{font-size:7px;letter-spacing:.07em}.filters button{padding:4px 8px;font-size:10px}.hero h1{font-size:clamp(33px,3.2vw,47px);letter-spacing:.03em}.primary{max-width:100%;gap:20px}.code-block{margin:25px 0;min-width:0;border:1px solid var(--line);border-radius:7px;overflow:hidden}.code-block figcaption{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--soft);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.04em}.copy-code{font-size:10px;color:var(--green);padding:2px 6px}.code-block pre{margin:0;border:0;border-radius:0;background:var(--paper);padding:19px;line-height:1.9;font-size:12px}.token-comment{color:var(--muted)}.token-string{color:#98643f}.token-keyword{color:#426a89;font-weight:600}.token-number{color:#8d6284}html[data-theme=dark] .token-keyword{color:#9fcae7}html[data-theme=dark] .token-string{color:#dbc294}html[data-theme=dark] .token-number{color:#d1afd7}.article-contents{border:1px solid var(--line);border-radius:7px;background:var(--paper);padding:12px 18px;margin:0 0 25px;font-size:12px}.article-contents summary{cursor:pointer;color:var(--green);font-weight:600}.toc-list{display:grid;grid-template-columns:1fr 1fr;gap:5px 22px;padding:13px 0 0}.toc-list a{font-size:11px;line-height:1.8;text-decoration:none}.resource-card{padding:35px;background:var(--paper);border:1px solid var(--line);border-radius:8px}.resource-card>span{font:italic 22px Georgia,serif;color:var(--green)}.resource-card p{font-size:13px;color:var(--muted)}.sort-demo{margin-top:34px;border:1px solid var(--line);border-radius:8px;padding:28px;background:var(--paper)}.demo-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:11px}.demo-heading>span{color:var(--muted)}.demo-heading button{border:1px solid var(--line);border-radius:4px;padding:5px 9px;margin-left:5px;font-size:10px}.demo-heading button:disabled{opacity:.45;cursor:default}.sort-bars{height:175px;display:flex;align-items:flex-end;gap:13px;padding:13px 20px 0;border-bottom:1px solid var(--line);margin-top:15px}.sort-bar{height:calc(var(--value)*17px + 22px);flex:1;background:var(--soft);border:1px solid var(--line);border-radius:5px 5px 0 0;display:flex;justify-content:center;align-items:flex-start;padding-top:8px;color:var(--green);font:italic 17px Georgia,serif;transition:height .22s,background .22s}.sort-bar.comparing{background:#d8b977;color:#493d25;border-color:#c7a361}.sort-bar.sorted{background:var(--green);color:var(--paper)}#sort-status{font-size:11px;color:var(--muted);min-height:20px;margin:15px 0 6px}.demo-link{font-size:11px;color:var(--green)}@media(max-width:1150px){.hero h1{font-size:35px}.code-block pre{font-size:11px}}@media(max-width:540px){.hero h1{font-size:35px}.hero .eyebrow{font-size:7px}.hero img{max-height:240px}.sort-demo{padding:20px}.demo-heading{align-items:flex-start;flex-direction:column;gap:10px}.demo-heading button{margin:0 5px 0 0}.sort-bars{gap:8px;padding-left:3px;padding-right:3px;height:165px}.sort-bar{font-size:15px}.toc-list{grid-template-columns:1fr}.resource-card{padding:22px}.code-block pre{font-size:11px;padding:14px}.document-head h1{font-size:24px}}@media(prefers-reduced-motion:reduce){.sort-bar{transition:none}}@media print{.copy-code,.article-contents,.sort-demo{display:none!important}.code-block pre{white-space:pre-wrap;overflow-wrap:anywhere}}
+
+</style>
+  <script>window.MathJax={loader:{paths:{mathjax:'./mathjax'}},tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']],processEscapes:true},svg:{fontCache:'local'},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
+  <script defer src="mathjax/tex-svg.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到阅读区</a>
+  <aside id="sidebar" aria-label="阅读目录">
+    <a class="brand" href="#overview"><span class="brand-icon">⌘</span><span>算法与数据结构<small>ALGORITHMS & DATA STRUCTURES</small></span></a>
+    <div class="sidebar-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索概念、方法与代码 · Ctrl K" aria-label="搜索目录和笔记"></label>
+    <div class="filters" role="group" aria-label="资料类型"><button data-filter="all" aria-pressed="true">全部</button><button data-filter="chapter" aria-pressed="false">课程</button><button data-filter="topic" aria-pressed="false">专题</button><button data-filter="practice" aria-pressed="false">题单</button><button data-filter="courseware" aria-pressed="false">课件</button></div></div>
+    <nav id="catalog" aria-label="课件与笔记"></nav>
+    <div class="sidebar-footer"><a href="../">← 学习导航</a><a href="<!--SOURCE_URL-->">源文件 ↗</a></div>
+  </aside>
+  <button id="shade" aria-label="关闭目录" hidden></button>
+  <div class="workspace">
+    <header><div class="breadcrumb"><button id="menu" aria-label="打开目录" aria-controls="sidebar" aria-expanded="false">☰</button><a href="../">学习笔记</a><span>/</span><a href="#overview">算法与数据结构</a><b id="crumb"></b></div><div class="top-actions"><button id="theme" aria-label="切换深色模式" title="切换深色模式">◐</button><button id="print" title="打印笔记或试卷">打印</button></div></header>
+    <main id="main" tabindex="-1">
+      <section id="overview">
+        <div class="hero"><div class="hero-copy"><div class="eyebrow">THINK CLEARLY. SOLVE STEP BY STEP.</div><h1>把问题拆开，<br>让方法<em>有迹可循。</em></h1><p>从数据的组织，到问题的求解。<br>连接课程、代码与练习，走通每一步。</p><a id="start-reading" class="primary" href="#chapter-1">从第一章开始 <span>↗</span></a></div><img src="algorithms-hero.png" alt="立体排序柱、二叉搜索树和动态规划状态网格" width="1536" height="1024"></div>
+        <div class="stats"><div><strong>09</strong><span>章课程笔记</span></div><div><strong>19</strong><span>篇专题与源码</span></div><div><strong>08</strong><span>份分类题单</span></div></div>
+        <section class="start"><div class="section-title"><span>01 / THE FOUNDATIONS</span><h2>先建立框架，再理解实现</h2><p>沿课程主线阅读概念、复杂度与适用条件，遇到方法时回到代码。</p></div><div id="course-cards" class="course-cards"></div></section>
+        <section class="sort-demo" aria-label="冒泡排序交互演示"><div class="section-title"><span>02 / MAKE THE STEPS VISIBLE</span><h2>让一步一步，看得见</h2><p>从一次比较开始，观察较大的数如何逐步移向右侧。</p></div><div class="demo-heading"><span>冒泡排序 · 升序</span><div><button id="demo-step">下一步</button><button id="demo-play">自动演示</button><button id="demo-reset">重新开始</button></div></div><div id="sort-bars" class="sort-bars" aria-label="当前数组"></div><p id="sort-status" role="status" aria-live="polite"></p><a class="demo-link" href="#bubble">阅读原理与代码 ↗</a></section>
+        <section class="companion"><div><span class="eyebrow">UNDERSTAND. IMPLEMENT. PRACTICE.</span><h2>把学过的方法，变成会用的工具。</h2><p>排序、搜索、图论、动态规划与高精度，按专题逐项理解。已有代码可复制，题目集中在题单里，方便练习后回看。</p><div class="text-links"><a href="#search">选择搜索方法 ↗</a><a href="#practice-dp">开始一组练习 ↗</a></div></div><div class="reading-order"><span>建议阅读顺序</span><p><b>01</b> 课程主线与复杂度</p><p><b>02</b> 专题方法与代码</p><p><b>03</b> 分类题单与复盘</p></div></section>
+        <div class="resource-note"><p><!--RESOURCE_COUNT--> 份课件与资料已归入侧栏，重复文件在网页中合并展示。PDF 可在线阅读，PowerPoint 和 Word 提供原文件入口。欧拉函数相关空笔记与待补题单暂不列入正文。</p><a href="<!--SOURCE_URL-->">查看算法目录 ↗</a></div>
+        <footer>算法与数据结构 · 课程笔记与竞赛专题</footer>
+      </section>
+      <section id="document" hidden>
+        <div class="document-head"><div><div id="doc-kind" class="eyebrow"></div><h1 id="doc-title"></h1><p id="doc-description"></p></div><div class="document-links"><a id="source" target="_blank" rel="noopener">查看原文件 ↗</a><a id="download" download>下载 PDF ↓</a><a id="open-pdf" target="_blank" rel="noopener">独立阅读 ↗</a></div></div>
+        <div id="pdf-panel" hidden><p class="viewer-tip"><span id="viewer-hint">阅读器内可搜索课件正文、选择文字与翻页。</span><span id="pdf-status" role="status">正在载入课件…</span></p><iframe id="pdf-viewer" title="PDF 课件阅读器" allowfullscreen></iframe><p class="fallback">若阅读器无法显示，可<a id="raw-pdf" target="_blank" rel="noopener">直接打开 PDF</a>。</p></div>
+        <article id="note-body"></article>
+        <nav class="document-pager" aria-label="相邻资料"><a id="previous"></a><a id="next"></a></nav>
+      </section>
+      <noscript><p>阅读导航需要启用 JavaScript。也可以<a href="<!--SOURCE_URL-->">在 GitHub 阅读原始课件和笔记</a>。</p></noscript>
+    </main>
+  </div>
+  <script type="application/json" id="chapter-data"><!--CHAPTER_DATA--></script>
+<script>
+/* Courseware navigation. PDF controls and rendering are provided by Mozilla PDF.js. */
+(() => {
+  'use strict';
+  const pages = JSON.parse(document.getElementById('chapter-data').textContent);
+  const $ = id => document.getElementById(id);
+  const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const get = key => { try { return localStorage.getItem(key); } catch { return null; } };
+  const save = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Private browsing can disable storage. */ } };
+  let filter = 'all', active = 'overview', generation = 0;
+  const media = matchMedia('(max-width:840px)');
+  const matchFilter = page => filter === 'all' || page.kind === filter || (filter === 'topic' && page.kind === 'code') || (filter === 'courseware' && page.kind === 'resource');
+  const labels = {chapter:'课程', topic:'专题', code:'源码', practice:'题单', courseware:'PDF', resource:'资料'};
+
+  function catalog() {
+    const query = $('search').value.trim().toLocaleLowerCase();
+    const visible = pages.filter(page => matchFilter(page) && (!query || (page.title+' '+page.search).toLocaleLowerCase().includes(query)));
+    let group = '';
+    $('catalog').innerHTML = '<a class="nav-home" href="#overview"'+(active==='overview'?' aria-current="page"':'')+'>课程总览</a>' + visible.map(page => {
+      const heading = group === page.group ? '' : '<div class="nav-group">'+escape(page.group)+'</div>';
+      group = page.group;
+      return heading+'<a class="nav-link" href="#'+page.id+'"'+(active===page.id?' aria-current="page"':'')+'><span class="type">'+(page.format || labels[page.kind])+'</span><span>'+escape(page.title)+'</span></a>';
+    }).join('') + (!visible.length ? '<p class="empty">没有找到对应资料，试试其他关键词。</p>' : '');
+    document.querySelectorAll('[data-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.filter === filter)));
+  }
+  $('search').addEventListener('input', catalog);
+  document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => { filter = button.dataset.filter; catalog(); }));
+
+  const cards = [
+    ['chapter-1','01','绪论','概念、结构与复杂度'],
+    ['chapter-2','02','线性表','顺序表、链表与操作'],
+    ['chapter-3','03','栈和队列','递归、缓冲与表达式'],
+    ['chapter-4','04','串','模式匹配与 KMP'],
+    ['chapter-5','05','数组与广义表','存储映射与压缩'],
+    ['chapter-6','06','树和二叉树','遍历、构造与编码'],
+    ['chapter-7','07','图','遍历、最短路与生成树'],
+    ['chapter-8','08','查找','有序结构与散列'],
+    ['chapter-9','09','排序','效率、空间与稳定性'],
+  ];
+  $('course-cards').innerHTML = cards.map(([id,n,title,description]) => '<a class="course-card" href="#'+id+'"><span>CHAPTER '+n+'</span><b aria-hidden="true">↗</b><h3>'+title+'</h3><p>'+description+'</p></a>').join('');
+  const last = pages.find(page => page.id === get('algorithms-last'));
+  if (last) { $('start-reading').href='#'+last.id; $('start-reading').innerHTML='继续阅读：'+escape(last.title)+' <span>↗</span>'; }
+
+  function menu(open) {
+    document.body.classList.toggle('nav-open', open);
+    $('shade').hidden = !open;
+    $('menu').setAttribute('aria-expanded', String(open));
+    $('sidebar').inert = media.matches && !open;
+  }
+  $('menu').addEventListener('click', () => menu(!document.body.classList.contains('nav-open')));
+  $('shade').addEventListener('click', () => menu(false));
+  media.addEventListener('change', () => menu(false));
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') { menu(false); $('menu').focus(); } });
+  menu(false);
+
+  function theme(value) {
+    document.documentElement.dataset.theme = value;
+    $('theme').setAttribute('aria-label', value==='dark' ? '切换浅色模式' : '切换深色模式');
+    save('algorithms-theme', value);
+  }
+  theme(get('algorithms-theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
+  $('theme').addEventListener('click', () => theme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+
+  function route() {
+    const id = location.hash.slice(1) || 'overview';
+    const headingRoute = id.match(/^(.*)-h\d+$/);
+    const page = pages.find(item => item.id === id || item.id === headingRoute?.[1]);
+    // Heading anchors belong to the current article, not a different document.
+    if (!page && id !== 'overview' && document.getElementById(id)) return;
+    stopDemo();
+    const ticket = ++generation;
+    active = page ? page.id : 'overview';
+    $('overview').hidden = !!page;
+    $('document').hidden = !page;
+    $('crumb').textContent = page ? page.title : '';
+    document.title = page ? page.title+' · 算法与数据结构' : '算法与数据结构 · 学习笔记';
+    if (page && !matchFilter(page)) filter = 'all';
+    catalog();
+    menu(false);
+    $('pdf-viewer').onload = null;
+    $('pdf-viewer').removeAttribute('src');
+    $('pdf-panel').hidden = true;
+    if (window.MathJax?.typesetClear) MathJax.typesetClear([$('note-body')]);
+    $('note-body').replaceChildren();
+    if (page) {
+      save('algorithms-last', page.id);
+      $('doc-kind').textContent = page.group+' / '+labels[page.kind];
+      $('doc-title').textContent = page.title;
+      $('doc-description').textContent = page.description;
+      $('source').href = page.source;
+      $('source').textContent = '查看原文件 ↗';
+      $('download').hidden = $('open-pdf').hidden = !page.pdf;
+      if (page.pdf) {
+        $('pdf-panel').hidden = false;
+        $('viewer-hint').textContent = page.scanned ? '这份试卷是扫描件，可翻页、缩放和下载；正文暂不支持文字搜索。' : '阅读器内可搜索课件正文、选择文字与翻页。';
+        const saved = Number(get('algorithms-page-'+page.id)) || 1;
+        const reader = '../pdfjs/web/viewer.html?file='+encodeURIComponent(new URL(page.pdf, location.href).href)+'#page='+saved+'&zoom=page-width&pagemode=none';
+        $('download').href = page.pdf;
+        $('download').download = page.title+'.pdf';
+        $('raw-pdf').href = page.pdf;
+        $('open-pdf').href = reader;
+        $('pdf-status').textContent = '正在载入课件…';
+        $('pdf-viewer').onload = async () => {
+          try {
+            const win = $('pdf-viewer').contentWindow;
+            const app = win.PDFViewerApplication;
+            if (!app) { $('pdf-status').textContent='也可直接打开 PDF'; return; }
+            await app.initializedPromise;
+            if (ticket !== generation) return;
+            app.eventBus.on('pagechanging', event => {
+              if (ticket !== generation) return;
+              save('algorithms-page-'+page.id, String(event.pageNumber));
+              $('pdf-status').textContent='第 '+event.pageNumber+' 页 / '+app.pagesCount+' 页';
+            });
+            app.eventBus.on('pagesinit', () => {
+              if (ticket === generation) $('pdf-status').textContent='第 '+app.page+' 页 / '+app.pagesCount+' 页';
+            });
+            app.eventBus.on('documenterror', () => {
+              if (ticket === generation) $('pdf-status').textContent='载入失败，请尝试下方“直接打开 PDF”';
+            });
+            if (app.pdfDocument) $('pdf-status').textContent='第 '+app.page+' 页 / '+app.pagesCount+' 页';
+          } catch { if (ticket === generation) $('pdf-status').textContent='可使用下方链接直接打开 PDF'; }
+        };
+        $('pdf-viewer').src = reader;
+      } else {
+        $('note-body').innerHTML = page.full;
+        decorateArticle();
+        if (window.MathJax?.startup?.promise) {
+          MathJax.startup.promise.then(() => {
+            if (ticket === generation) return MathJax.typesetPromise([$('note-body')]);
+          }).catch(() => { /* Raw TeX remains readable if the math component cannot load. */ });
+        }
+      }
+      const siblings = pages.filter(item => item.kind === page.kind);
+      const index = siblings.indexOf(page);
+      const previous = siblings[index-1], next = siblings[index+1];
+      for (const [target, item, prefix] of [[$('previous'),previous,'← '],[$('next'),next,'下一份：']]) {
+        target.hidden = !item;
+        if (item) { target.href='#'+item.id; target.textContent=prefix+item.title; }
+      }
+    }
+    window.scrollTo({top:0, behavior:'instant'});
+    if (headingRoute) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({block:'start'}));
+  }
+
+  let demoTimer = null;
+  let values = [7,2,5,1,6,3,4], pass=0, cursor=0, comparisons=0;
+  function stopDemo() { if(demoTimer !== null) clearInterval(demoTimer); demoTimer=null; $('demo-play').textContent='自动演示'; }
+  function drawDemo(pair=[]) {
+    const done=pass>=values.length-1;
+    $('sort-bars').innerHTML=values.map((value,index)=>'<div class="sort-bar '+(done?'sorted':pair.includes(index)?'comparing':index>=values.length-pass?'sorted':'')+'" style="--value:'+value+'" aria-label="第'+(index+1)+'项：'+value+'">'+value+'</div>').join('');
+    $('demo-step').disabled=$('demo-play').disabled=done;
+    if(done) { stopDemo(); $('sort-status').textContent='排序完成：'+values.join('，')+'。共比较 '+comparisons+' 次。'; }
+  }
+  function stepDemo() {
+    if(pass>=values.length-1) return;
+    const left=cursor, right=cursor+1, a=values[left], b=values[right]; comparisons++;
+    const swapped=a>b; if(swapped) [values[left],values[right]]=[values[right],values[left]];
+    $('sort-status').textContent='第 '+(pass+1)+' 趟：比较 '+a+' 与 '+b+'，'+(swapped?'交换它们的位置。':'顺序正确，保持不变。');
+    cursor++; if(cursor>=values.length-pass-1) { cursor=0; pass++; }
+    drawDemo([left,right]);
+  }
+  $('demo-step').addEventListener('click',stepDemo);
+  $('demo-play').addEventListener('click',()=>{ if(demoTimer!==null) {stopDemo();return;} $('demo-play').textContent='暂停演示';demoTimer=setInterval(stepDemo,650); });
+  $('demo-reset').addEventListener('click',()=>{stopDemo();values=[7,2,5,1,6,3,4];pass=cursor=comparisons=0;$('sort-status').textContent='输入：7，2，5，1，6，3，4。点击“下一步”开始比较。';drawDemo();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopDemo();});
+  $('demo-reset').click();
+
+  function decorateArticle() {
+    const article=$('note-body');
+    article.querySelectorAll('pre code').forEach(code=>{
+      if(code.className.match(/language-(text|tree|math)$/i))return;
+      const raw=code.textContent;
+      const tokens=/(\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:int|long|char|void|bool|double|float|class|struct|public|private|static|const|return|if|else|for|while|break|continue|true|false|null|nullptr|using|namespace|new|delete|size_t|unsigned|typedef|include)\b|\b\d+(?:\.\d+)?\b)/g;
+      let result='', previous=0;
+      for(const match of raw.matchAll(tokens)) {
+        const token=match[0], type=token.startsWith('//')||token.startsWith('/*')?'comment':token.startsWith('"')||token.startsWith("'")?'string':/^\d/.test(token)?'number':'keyword';
+        result+=escape(raw.slice(previous,match.index))+'<span class="token-'+type+'">'+escape(token)+'</span>';previous=match.index+token.length;
+      }
+      code.innerHTML=result+escape(raw.slice(previous));
+    });
+    const headings=[...article.querySelectorAll('h2,h3')];
+    if(headings.length>1) {
+      const contents=document.createElement('details');contents.className='article-contents';
+      contents.innerHTML='<summary>本篇目录 · '+headings.length+' 节</summary><nav class="toc-list" aria-label="本篇目录">'+headings.map(heading=>'<a href="#'+heading.id+'">'+escape(heading.textContent)+'</a>').join('')+'</nav>';
+      article.prepend(contents);
+    }
+  }
+  $('note-body').addEventListener('click',async event=>{
+    const button=event.target.closest('.copy-code');if(!button)return;
+    const text=button.closest('.code-block').querySelector('code').textContent;
+    try { await navigator.clipboard.writeText(text);button.textContent='已复制'; }
+    catch {button.textContent='请选中代码复制';}
+    setTimeout(()=>{if(button.isConnected)button.textContent='复制代码';},1800);
+  });
+
+  $('print').addEventListener('click', () => {
+    if (!$('pdf-panel').hidden) {
+      try { const app=$('pdf-viewer').contentWindow.PDFViewerApplication; if (app?.pdfDocument) { app.triggerPrinting(); return; } } catch { /* Fallback below. */ }
+      window.open($('raw-pdf').href, '_blank', 'noopener');
+      return;
+    }
+    document.querySelectorAll('.answers').forEach(details => details.open = true);
+    window.print();
+  });
+  document.addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase()==='k') {
+      event.preventDefault(); if(media.matches) menu(true); $('search').focus();
+    }
+  });
+  addEventListener('hashchange', route);
+  route();
+})();
+
+</script>
+</body>
+</html>

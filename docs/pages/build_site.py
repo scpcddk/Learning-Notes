@@ -1,6 +1,6 @@
-"""Package the math reading pages and courseware for GitHub Pages.
+"""Package the math and algorithms reading pages for GitHub Pages.
 
-Generate and package all three subjects:
+Generate and package every subject:
     python docs/pages/build_site.py --output <site-directory>
 
 The output is a static site. Repository links point back to GitHub, while the
@@ -11,6 +11,8 @@ import hashlib
 import html
 from html import escape
 from html.parser import HTMLParser
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from inspect import cleandoc
 import json
 import os
@@ -608,6 +610,15 @@ DISCRETE = REPO / "docs/pages/discrete-math"
 DISCRETE_NOTES = REPO / "数学/离散数学"
 CALCULUS_ASSETS = REPO / "docs/pages/calculus/阅读资源"
 
+
+def copy_mathjax(destination):
+    math = destination / "mathjax"
+    math.mkdir(exist_ok=True)
+    for name in ("tex-svg.js", "LICENSE"):
+        shutil.copyfile(CALCULUS_ASSETS / name, math / name)
+    shutil.copytree(CALCULUS_ASSETS / "input", math / "input", dirs_exist_ok=True)
+
+
 def render_discrete(text, ident):
     text = re.sub(r"\A---\n[\s\S]*?\n---\n", "", text)
     protected = []
@@ -719,11 +730,7 @@ def build_discrete(output, github, branch):
     (dest / "index.html").write_text(template, encoding="utf-8", newline="\n")
     for name in ("discrete-math-hero.png",):
         shutil.copyfile(DISCRETE / name, dest / name)
-    math = dest / "mathjax"
-    math.mkdir(exist_ok=True)
-    for name in ("tex-svg.js", "LICENSE"):
-        shutil.copyfile(CALCULUS_ASSETS / name, math / name)
-    shutil.copytree(CALCULUS_ASSETS / "input", math / "input", dirs_exist_ok=True)
+    copy_mathjax(dest)
 
     vendor = output / "pdfjs"
     vendor.mkdir(exist_ok=True)
@@ -736,6 +743,149 @@ def build_discrete(output, github, branch):
             archive.extract(entry, vendor)
     print(f"Packaged discrete-math: {len(pages)} sections, 17 PDFs, 9 Markdown sources.")
 
+
+
+def build_algorithms(output, github, branch):
+    """Reuse the site renderer for course chapters, contest notes and resources."""
+    root = REPO / "算法"
+    competition = root / "算法竞赛（C与C++）"
+    destination = output / "algorithms"
+    destination.mkdir(parents=True, exist_ok=True)
+    pages, routes = [], {}
+
+    def original(path):
+        return f"{github}/blob/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}"
+
+    def add(ident, title, group, path, kind="topic", text=None, description="概念、思路与代码实现"):
+        body = path.read_text(encoding="utf-8-sig") if text is None else text
+        if not body.strip():
+            return
+        entry = dict(id=ident, title=title, group=group, path=path, text=body,
+                     kind=kind, description=description, source=original(path))
+        pages.append(entry)
+        routes.setdefault(path.resolve(), ident)
+
+    course = root / "数据结构与算法（C语言版）/数据结构与算法笔记.md"
+    chapters = re.split(r"(?m)(?=^## (?:第[一二三四五六七八九]章|附录 A))", course.read_text(encoding="utf-8"))[1:]
+    for index, chapter in enumerate(chapters, 1):
+        title = re.match(r"## ([^\n]+)", chapter)[1] if index <= 9 else "附录：公式、易错点与解题模板"
+        add("chapter-"+str(index), title, "课程 / 数据结构与算法", course,
+            kind="chapter", text=chapter, description="课程速查 · 公式、条件与典型方法")
+
+    topics = [
+        ("bubble", "冒泡排序", "排序", "排序/冒泡排序.md"),
+        ("insertion", "插入排序", "排序", "排序/插入排序.md"),
+        ("selection", "选择排序", "排序", "排序/选择排序.md"),
+        ("search", "DFS 与 BFS", "搜索与树", "搜索与树/DFS,BFS/dfs,bfs使用场景.md"),
+        ("bst", "有序数组与平衡搜索树", "搜索与树", "搜索与树/树/平衡二叉搜索树.md"),
+        ("floyd", "Floyd 最短路径", "图论", "图论/Floyd/Floyd.md"),
+        ("monotonic", "单调栈", "数据结构", "数据结构/单调栈.md"),
+        ("dp-count", "动态规划：组合与排列", "动态规划", "动态规划/分析组合数与排列数.md"),
+        ("johnson", "Johnson 双机调度", "贪心", "贪心算法/Johnson rule.md"),
+        ("bigint", "高精度整数运算", "高精度", "高精度/高精度.md"),
+        ("sieve", "素数与筛法", "数学", "数学/素数.md"),
+        ("newton", "牛顿迭代法", "数学", "数学/牛顿迭代法.md"),
+        ("bits", "位运算：颠倒位与计数", "数学", "数学/位运算/颠倒位 & 统计“1”的个数.md"),
+        ("gcd", "GCD 与 LCM", "基础方法", "杂项/GCD LCM.md"),
+        ("josephus", "约瑟夫环", "基础方法", "杂项/约瑟夫环问题.md"),
+        ("postfix", "逆波兰表示法", "基础方法", "杂项/逆波兰表示法.md"),
+        ("enumeration", "枚举与不降原则", "基础方法", "杂项/枚举/不降原则.md"),
+    ]
+    for ident, title, group, path in topics:
+        add(ident, title, "专题 / "+group, competition / path)
+    for ident, title, path in [("code-kmp", "KMP 字符串匹配源码", "杂项/KMP/KMP.c"),
+                               ("code-floyd", "Floyd 完整源码", "图论/Floyd/Floyd.cpp")]:
+        path = competition / path
+        language = "c" if path.suffix == ".c" else "cpp"
+        add(ident, title, "源码 / C 与 C++", path, kind="code",
+            text="```"+language+"\n"+path.read_text(encoding="utf-8")+"\n```",
+            description="完整示例 · 支持复制代码")
+    for ident, title, path in [
+        ("practice-search", "搜索题单与池塘计数", "搜索与树/DFS,BFS/例题"),
+        ("practice-binary", "二分搜索题单", "搜索与树/二分搜索/例题"),
+        ("practice-graph", "图论题单", "图论/例题"),
+        ("practice-dp", "动态规划题单", "动态规划/例题"),
+        ("practice-data", "数据结构题单", "数据结构/例题.md"),
+        ("practice-math", "数学题单", "数学/例题"),
+        ("practice-bigint", "高精度题单与平方差", "高精度/例题"),
+        ("practice-enumeration", "枚举题单", "杂项/枚举/例题"),
+    ]:
+        add(ident, title, "习题 / 分类题单", competition / path, kind="practice",
+            description="按方法练习 · 原题链接与已有题解")
+
+    def render(text, ident, source):
+        code = []
+
+        def fence(match):
+            language = match[1].strip() or "text"
+            snippet = match[2].rstrip("\n")
+            code.append('<figure class="code-block"><figcaption><span>'+escape(language.upper())+
+                        '</span><button class="copy-code" type="button" aria-label="复制代码">复制代码</button></figcaption>'+
+                        '<pre><code class="language-'+escape(language, quote=True)+'">'+escape(snippet)+'</code></pre></figure>')
+            return "\nALGORITHMCODE"+str(len(code)-1)+"TOKEN\n"
+
+        text = re.sub(r"(?m)^```([^\n]*)\n([\s\S]*?)^```\s*$", fence, text)
+        text = re.sub(r"\A\s*#{1,2} [^\n]+\n", "", text, count=1)
+        text = re.sub(r"(?m)^(\d+)\.\s*(?=https?://)", r"\1. ", text)
+        # The raw question lists contain URLs without Markdown link syntax.
+        text = re.sub(r'''(?<![(<"'])https?://[^\s<>()\u3000-\u9fff\uff00-\uffef]+''',
+                      lambda match: '<'+match[0]+'>', text)
+        result = render_discrete(text, ident)
+        for index, block in enumerate(code):
+            result = result.replace('<p>ALGORITHMCODE'+str(index)+'TOKEN</p>', block)
+
+        def local_link(match):
+            url = match["url"]
+            parts = urlsplit(url)
+            if not parts.scheme and not parts.netloc and parts.path:
+                target = (source.parent / unquote(parts.path)).resolve()
+                if target in routes:
+                    url = "#"+routes[target]
+                elif target.is_file() and target.is_relative_to(REPO):
+                    url = original(target)
+                else:
+                    raise FileNotFoundError(f"Algorithm note link is missing: {source}: {url}")
+            return match["prefix"]+match["q"]+url+match["q"]
+
+        return HREF.sub(local_link, result)
+
+    for page in pages:
+        page["search"] = page["text"]
+        page["full"] = page["summary"] = render(page.pop("text"), page["id"], page.pop("path"))
+
+    # Keep originals in the notes tree; identical lecture files share one web entry.
+    seen = set()
+    materials = [p for p in root.rglob("*") if p.suffix.lower() in (".pdf", ".pptx", ".docx")]
+    for path in sorted(materials, key=lambda p: ("数据结构与算法（C语言版）" not in p.parts, p.as_posix())):
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest in seen:
+            continue
+        seen.add(digest)
+        ident = "material-"+digest[:10]
+        entry = dict(id=ident, title=path.stem.replace("+", " · "),
+                     group="课件 / "+("课程资料" if "数据结构与算法（C语言版）" in path.parts else "竞赛与集训"),
+                     kind="courseware" if path.suffix.lower()==".pdf" else "resource",
+                     format=path.suffix[1:].upper(), source=original(path), search=path.stem,
+                     description="PDF 课件 · 在线阅读" if path.suffix.lower()==".pdf" else "原始资料 · 下载后使用对应软件打开")
+        if path.suffix.lower()==".pdf":
+            target = destination / "courseware" / (ident+".pdf")
+            target.parent.mkdir(exist_ok=True)
+            shutil.copyfile(path, target)
+            entry["pdf"] = "courseware/"+target.name
+        else:
+            entry["full"] = entry["summary"] = '<div class="resource-card"><span>'+entry["format"]+'</span><h2>'+escape(entry["title"])+\
+                '</h2><p>这份资料保留原始格式。打开原文件页面后，可下载到本地阅读。</p><a class="primary" href="'+entry["source"]+'" target="_blank" rel="noopener">查看与下载原文件 ↗</a></div>'
+        pages.append(entry)
+
+    template = (REPO / "docs/pages/algorithms/index.html").read_text(encoding="utf-8")
+    payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
+    template = template.replace("<!--CHAPTER_DATA-->", payload)
+    template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
+    template = template.replace("<!--RESOURCE_COUNT-->", str(len(seen)))
+    (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
+    shutil.copyfile(REPO / "docs/pages/algorithms/algorithms-hero.png", destination / "algorithms-hero.png")
+    copy_mathjax(destination)
+    print(f"Packaged algorithms: {len(pages)} sections, {len(topics)} topics, 8 question lists, {len(seen)} unique resources.")
 
 
 def build(output, repository, branch):
@@ -792,11 +942,12 @@ def build(output, repository, branch):
         text = text[:match.start(2)] + "<!--PROTECTED_NOTE_DATA-->" + text[match.end(2):]
         text = markup(text, source, destination)
         text = text.replace("<!--PROTECTED_NOTE_DATA-->", payload)
-        text = text.replace("<span>我的学习笔记</span>", '<a href="../">数学导航</a>')
+        text = text.replace("<span>我的学习笔记</span>", '<a href="../">学习导航</a>')
         text = text.replace("</head>", '<link rel="icon" href="../favicon.svg" type="image/svg+xml"><style>.breadcrumb{min-width:0}.breadcrumb b{min-width:0;overflow:hidden;text-overflow:ellipsis}.breadcrumb>a,.top-actions{flex-shrink:0}</style></head>')
         (destination / "index.html").write_text(text, encoding="utf-8", newline="\n")
         shutil.copytree(source / "阅读资源", destination / "阅读资源", dirs_exist_ok=True)
     build_discrete(output, github, branch)
+    build_algorithms(output, github, branch)
     template = (REPO / "docs/pages/index.html").read_text(encoding="utf-8")
     template = template.replace("<!--REPO_URL-->", escape(github, quote=True))
     template = template.replace("<!--MATH_URL-->", escape(
@@ -844,5 +995,21 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", "scpcddk/Learning-Notes"))
     parser.add_argument("--branch", default="main")
+    parser.add_argument("--serve", nargs="?", const=8768, type=int, metavar="PORT",
+                        help="Serve the built site on 127.0.0.1 (default port: 8768).")
     arguments = parser.parse_args()
     build(arguments.output, arguments.repository, arguments.branch)
+    if arguments.serve is not None:
+        class PreviewHandler(SimpleHTTPRequestHandler):
+            # Windows registry associations can otherwise map .mjs to text/plain.
+            extensions_map = {**SimpleHTTPRequestHandler.extensions_map,
+                              ".mjs": "text/javascript", ".js": "text/javascript",
+                              ".wasm": "application/wasm"}
+
+        handler = partial(PreviewHandler, directory=str(arguments.output.resolve()))
+        with ThreadingHTTPServer(("127.0.0.1", arguments.serve), handler) as server:
+            print(f"Local preview: http://127.0.0.1:{arguments.serve}/", flush=True)
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                pass

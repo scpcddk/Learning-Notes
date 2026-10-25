@@ -3,14 +3,16 @@
 | 特性 | DFS (深度优先搜索) | BFS (广度优先搜索) |
 |------|-------------------|-------------------|
 | **数据结构** | 栈（递归或显式栈） | 队列 |
-| **空间复杂度** | O(h)，h为树的高度 | O(w)，w为树的宽度 |
+| **辅助空间** | 树上递归栈 O(h)；一般图另需 O(V) 访问标记 | 树上队列 O(w)；一般图的队列和访问标记均可达 O(V) |
 | **特点** | 一条路走到黑，然后回溯 | 层层推进，按层遍历 |
-| **是否保证最短路径** | 否（除非全遍历） | 是（边权相等时） |
+| **是否保证最短路径** | 普通遍历不保证；枚举所有候选路径并取最小值另计复杂度 | 是（无权或统一正边权时，最短路等价于最少边数） |
 | **适用场景** | 连通性、路径存在性、拓扑排序 | 最短路径、层序遍历 |
 
 ---
 
 ## 具体使用场景
+
+代码片段中的邻接表、访问标记、结果数组等全局变量须先初始化；下标范围须与题目约定一致。
 
 ### DFS 适用场景
 
@@ -30,7 +32,7 @@ bool dfs_connected(int u, int target) {
 
 1. **回溯/排列组合**
 ```cpp
-// 全排列
+// 全排列：假设 nums 中元素互不相同；含重复值时还需对分支去重
 void dfs_permutation(vector<int>& nums, vector<bool>& used, vector<int>& path) {
     if (path.size() == nums.size()) {
         result.push_back(path);
@@ -50,20 +52,40 @@ void dfs_permutation(vector<int>& nums, vector<bool>& used, vector<int>& path) {
 
 2. **拓扑排序**
 ```cpp
-void dfs_topological(int u) {
-    visited[u] = true;
+// graph 为有向图邻接表；0=未访问，1=当前递归路径，2=已完成。
+vector<vector<int>> graph;
+vector<int> state, result;
+
+bool dfs_topological(int u) {
+    state[u] = 1;
     for (int v : graph[u]) {
-        if (!visited[v]) dfs_topological(v);
+        if (state[v] == 1) return false; // 回到当前路径：发现有向环
+        if (state[v] == 0 && !dfs_topological(v)) return false;
     }
-    result.push_back(u);  // 后序加入结果
+    state[u] = 2;
+    result.push_back(u);
+    return true;
+}
+
+bool topological_dfs(int n) {
+    state.assign(n, 0);
+    result.clear();
+    for (int u = 0; u < n; ++u) {
+        if (state[u] == 0 && !dfs_topological(u)) {
+            result.clear();
+            return false;
+        }
+    }
+    reverse(result.begin(), result.end()); // 逆后序才是拓扑序
+    return true;
 }
 ```
 
 3. **迷宫/棋盘问题**（找到一条路径即可）
 ```cpp
 bool dfs_maze(int x, int y, int target_x, int target_y) {
-    if (x == target_x && y == target_y) return true;
     if (x < 0 || x >= n || y < 0 || y >= m || maze[x][y] == 1) return false;
+    if (x == target_x && y == target_y) return true;
     
     maze[x][y] = 1;  // 标记访问
     // 四个方向探索
@@ -83,6 +105,8 @@ bool dfs_maze(int x, int y, int target_x, int target_y) {
 ```cpp
 // 奇怪的电梯问题
 int bfs_elevator(int start, int target) {
+    if (start < 1 || start > N || target < 1 || target > N) return -1;
+    if (start == target) return 0;
     queue<int> q;
     vector<int> dist(N+1, -1);
     
@@ -203,9 +227,9 @@ vector<int> topological_sort(int n, vector<vector<int>>& graph) {
 | 问题特征 | 推荐算法 | 原因 |
 |---------|---------|------|
 | 找最短路径（等权） | BFS | BFS第一次到达即最短 |
-| 路径是否存在 | DFS | 找到即返回，空间小 |
-| 需要所有路径 | DFS/BFS都可 | 需要完整遍历 |
-| 状态空间很大但深度浅 | BFS | 避免递归过深 |
+| 路径是否存在 | DFS 或 BFS | 普通图中均为 O(V+E)，按图结构和其他需求选择 |
+| 需要所有简单路径 | DFS 回溯 | 维护当前路径并恢复访问标记；普通图遍历只访问各点一次，不能枚举所有路径 |
+| 搜索深度浅、需要按层或最短路 | BFS | 按层扩展；仍需评估队列宽度 |
 | 状态空间很大但宽度广 | DFS | 避免队列过大 |
 | 需要回溯状态 | DFS | 递归自然支持回溯 |
 | 层序遍历 | BFS | 天然按层处理 |
