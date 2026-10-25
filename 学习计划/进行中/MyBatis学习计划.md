@@ -281,7 +281,7 @@
 
 ### 条件构造器
 
-- [ ] `QueryWrapper`
+- [x] `QueryWrapper`
 - [ ] `LambdaQueryWrapper`
 - [ ] `UpdateWrapper`
 - [ ] `LambdaUpdateWrapper`

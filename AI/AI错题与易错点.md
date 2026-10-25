@@ -301,383 +301,170 @@ Position 帮助模型区分：
 
 ## 错题13：HTTP / POST / `httpx.post()` 层级混淆
 
-**易错理解：**
-把 `HTTP`、`POST`、`httpx.post()` 看成同一个层面的东西。
+**易错理解：** 把 HTTP、POST、`httpx.post()` 当成同一层面的概念。
 
-**正确区分：**
-
-| 名称             | 是什么                   | 所属层次            |
-| -------------- | --------------------- | --------------- |
-| `HTTP`         | 应用层通信协议               | 协议              |
-| `POST`         | HTTP 定义的请求方法          | HTTP 协议中的概念     |
-| `httpx.post()` | Python HTTPX 库提供的调用方法 | Python 实现 / 工具层 |
-
-三者关系可以记成：
-
-```text
-HTTP
- ↓
-规定通信规则
- ↓
-POST
- ↓
-HTTP 协议定义的一种请求方法
- ↓
-httpx.post()
- ↓
-Python 程序调用 HTTPX 来实际发起 POST 请求
-```
-
-例如：
+| 名称 | 是什么 | 所属层次 |
+|---|---|---|
+| HTTP | 应用层通信协议，规定通信规则 | 协议 |
+| POST | HTTP 定义的一种请求方法 | 协议中的概念 |
+| `httpx.post()` | Python HTTPX 库中发起 POST 请求的方法 | 程序实现 / 工具层 |
 
 ```python
-httpx.post(
-    url,
-    headers=headers,
-    json=data
-)
+httpx.post(url, headers=headers, json=data)
 ```
 
-这里：
-
-* `POST` → **真正的 HTTP Method**
-* `httpx.post()` → **Python 中调用 POST 请求的方式**
-* HTTP → **底层遵循的应用层通信协议**
-
-### 一句话记忆
-
-> **HTTP = 规则，POST = 规则中的请求方法，`httpx.post()` = Python 调用这个方法的工具。**
+这段 Python 代码通过 HTTPX 发起 HTTP 请求，使用的请求方法是 POST。
 
 ---
 
 ## 错题14：API 调试与 API Key 环境变量问题
 
-**错误表现：**
-
-直接执行：
-
-```python
-answer = result["choices"][0]["message"]["content"]
-```
-
-出现：
-
-```text
-KeyError: 'choices'
-```
-
-**排查过程：**
-
-1. 打印 `result`
-2. 发现 API 返回的是错误信息，而不是正常的 `choices`
-3. 错误信息显示：
+**错误表现：** 访问 `result["choices"][0]["message"]["content"]` 时出现 `KeyError: 'choices'`，实际响应却是：
 
 ```text
 api key: None is invalid
 ```
 
-4. 说明：
+**原因：** 当前 Python 进程执行 `os.environ.get("DEEPSEEK_API_KEY")` 得到 `None`，请求认证失败，返回的错误对象自然没有正常响应中的 `choices` 字段。
 
-```python
-api_key = os.environ.get("DEEPSEEK_API_KEY")
-```
-
-得到的是：
-
-```python
-None
-```
-
-也就是**当前 Python 进程没有读取到 `DEEPSEEK_API_KEY` 环境变量**。
-
-**为什么会读取不到？**
-
-之前是在 PowerShell 中通过：
+此前只在某个 PowerShell 会话中设置：
 
 ```powershell
 $env:DEEPSEEK_API_KEY="你的API Key"
 ```
 
-设置的。
+这种设置作用于当前会话及其后启动的子进程，换终端或使用其他运行配置时，不应假定仍能读到。
 
-这种 `$env:` 设置通常只对**当前 PowerShell 会话**有效。关闭终端、换终端或重新打开终端后，可能就不存在了，因此：
+**排查顺序：**
 
-```python
-os.environ.get("DEEPSEEK_API_KEY")
-```
+1. 查看 `response.status_code` 和实际响应，先区分错误响应与正常结果。
+2. 若提示认证错误，在实际运行的 Python 进程中检查变量是否读取成功：
 
-就会得到 `None`。
+   ```python
+   api_key = os.environ.get("DEEPSEEK_API_KEY")
+   print("已读取 API Key:", bool(api_key))  # 检查存在性，不打印密钥本身
+   ```
 
-**正确排查：**
-
-PowerShell：
-
-```powershell
-echo $env:DEEPSEEK_API_KEY
-```
-
-Python：
-
-```python
-api_key = os.environ.get("DEEPSEEK_API_KEY")
-print(api_key)
-```
-
-如果是 `None`，说明环境变量没有被当前 Python 进程读取到。
-
-**核心记忆：**
-
-> API 出现 `KeyError: 'choices'` 时，不要直接怀疑 JSON 路径；先看实际 Response。
-> 如果 Response 是认证错误，再检查 API Key 是否存在、是否正确，以及当前进程能否读取环境变量。
-
-> [!note]
-> **排错顺序**：
-> 
-> 1. 查看 response.status_code。
-> 2. 查看 result 的实际内容。
-> 3. 如果是错误响应，检查错误信息。
-> 4. 根据错误信息排查 API Key、请求参数、权限、额度等问题。
-> 5. 如果响应是成功的，再核对代码访问的字段路径。
+3. 若没有读取到，在启动该进程的终端或运行配置中设置变量，再重试。
+4. 若变量存在，继续检查密钥是否正确，以及错误信息指向的权限、额度或请求参数。
+5. 只有正常响应仍无法取值时，再核对字段路径。
 
 ---
 
 ## 错题15：请求与响应格式混淆
 
-**错误表现：**
+**错误理解：** 请求头设置 `Content-Type: application/json`，服务器就一定返回 JSON。
 
-认为请求头设置了 `Content-Type: application/json`，服务器就一定会返回 JSON；不清楚响应体是普通文本时调用 `response.json()` 会发生什么。
+**正确区分：**
 
-**正确理解：**
-
-请求与响应是两个独立的方向。
-
-* 请求头 `Content-Type: application/json`：表示客户端发送的请求体采用 JSON 格式。
-* 响应体格式：由服务器实际返回的内容决定，不一定是 JSON，也可能是普通文本。
-* `response.json()`：尝试将响应体解析为 JSON，并转换成 Python 对象；如果响应体不是合法 JSON，通常会抛出 JSON 解析异常。
-
-**示例：**
+- 请求头 `Content-Type` 说明发送的请求体格式，不保证响应格式。
+- 响应格式应结合响应头 `Content-Type` 与实际响应体判断。
+- `response.json()` 尝试把响应体解析成 Python 对象；它不负责判断 API 是否调用成功。
 
 ```python
 response = httpx.post(url, headers=headers, json=data)
 
 print(response.status_code)
-print(response.text)  # 查看响应体原始文本
-
-result = response.json()  # 尝试解析 JSON
+print(response.headers.get("content-type"))
+print(response.text)  # 先查看实际内容，再决定如何解析
+result = response.json()  # 响应不是合法 JSON 时会抛出解析异常
 ```
 
-假设服务器返回普通文本 `OK`：
-
-```text
-OK
-```
-
-调用 `response.json()` 通常会报 JSON 解析异常，因为 `OK` 不是合法 JSON。
-
-但如果返回的是带双引号的 `"OK"`，它就是合法 JSON 字符串。
-
-**排查方法：**
-
-1. 查看 `response.status_code`，确认 HTTP 状态。
-2. 查看响应头 `Content-Type`，了解服务器声明的响应格式。
-3. 查看 `response.text`，检查实际响应内容。
-4. 确认响应体是合法 JSON 后，再调用 `response.json()`。
-
-**记忆口诀：**
-
-请求的 `Content-Type` 管发送格式，不保证响应格式；`response.json()` 负责解析 JSON，不负责判断 API 是否调用成功。
+例如，普通文本 `OK` 不是合法 JSON，解析会失败；带双引号的 `"OK"` 则是合法 JSON 字符串。认证等错误响应的排查见错题 14。
 
 ---
 
 ## 错题16：SSE 流式响应与 JSON 解析混淆
 
-**易错理解：**
+**错误理解：** `iter_lines()` 返回的每一行都能直接传给 `json.loads()`。
 
-认为 `response.iter_lines()` 读取到的 `line` 可以直接交给 `json.loads()` 解析；没有区分 SSE 事件格式与 JSON 数据格式。
-
-**错误代码：**
-
-```python
-for line in response.iter_lines():
-    data = json.loads(line)
-```
-
-**错误表现：**
-
-当读取到下面这行内容时：
+例如，下面一行是 SSE 的 `data` 字段，整行并不是 JSON：
 
 ```text
 data: {"choices":[{"delta":{"content":"你好"}}]}
 ```
 
-执行 `json.loads(line)` 会触发 `json.JSONDecodeError`。
-
-**正确理解：**
-
-SSE（Server-Sent Events）是一种服务器向客户端发送事件流的格式。常见的 LLM API 流式响应会通过 `data:` 字段传递数据，其中可能包含 JSON 文本。
-
-`response.iter_lines()` 读取的是响应中的行，不会自动去掉 `data:` 前缀，也不会自动将 JSON 文本解析成 Python 对象。
-
-**正确处理方式：**
+`iter_lines()` 只读取行，不会去掉 `data:` 前缀或解析 JSON。对于每个 `data:` 行承载一份完整 JSON、用 `[DONE]` 结束的 LLM 接口，可按以下方式处理：
 
 ```python
 import json
 
 for line in response.iter_lines():
-    # 1. 跳过空行
-    if not line:
+    if not line or not line.startswith("data:"):
         continue
 
-    # 2. 只处理 data 字段
-    if not line.startswith("data:"):
-        continue
-
-    # 3. 去掉 data: 前缀
     content = line.removeprefix("data:").strip()
-
-    # 4. 判断流结束标志
-    if content == "[DONE]":
+    if content == "[DONE]":  # 结束标记不是 JSON，必须先判断
         break
 
-    # 5. 解析 JSON
     data = json.loads(content)
-
-    # 6. 提取本次新增文本
     text = data["choices"][0]["delta"].get("content")
-
     if text:
         print(text, end="", flush=True)
 ```
 
-**相关概念区分：**
+**不要混淆这些层次：**
 
 | 概念 | 含义 |
 |---|---|
-| `line` | `iter_lines()` 读取到的一行文本 |
+| `line` | `iter_lines()` 读取的一行文本 |
 | SSE Event | 按 SSE 规则组织的事件，通常由空行结束 |
 | `data:` | SSE 中承载事件数据的字段 |
-| JSON 文本 | `data:` 后可能携带的 JSON 字符串 |
-| Streaming Chunk | LLM API 流式响应中的一个数据单元 |
-| `delta.content` | 当前数据单元中包含的新增文本 |
+| JSON 文本 | `data:` 后可能携带的数据格式 |
+| Streaming Chunk | LLM API 的一个流式数据单元 |
+| `delta.content` | 当前数据单元中的新增文本 |
 
-注意：HTTP 网络层的数据块、SSE Event 和 LLM API 的 Streaming Chunk 不一定一一对应；`iter_lines()` 也不保证每一行都构成完整事件。
-
-**为什么要先判断 `[DONE]`？**
-
-常见的流式响应会通过 `data: [DONE]` 表示流结束。但 `[DONE]` 不是 JSON 对象，不能直接传给 `json.loads()`，所以应先识别结束标志，再解析 JSON。
-
-**核心记忆：**
-
-> 先处理 SSE 格式，再解析 JSON，最后提取 Delta。
-
-1. `iter_lines()` 读取原始行，不会自动解析 JSON。
-2. 先去掉 `data:` 前缀，再调用 `json.loads()`。
-3. 先判断 `[DONE]`，避免将结束标志当作 JSON 解析。
-4. 解析成功后，通常从 `choices[0].delta.content` 获取本次新增文本。
+网络数据块、SSE Event 与 LLM Streaming Chunk 不一定一一对应；一行也不保证构成完整事件。上例按接口约定处理单行数据，不是通用的多行 SSE 事件解析器。`delta` 缺少文本字段的情况见错题 17。
 
 ---
 
 ## 错题17：`delta` 字典不一定只有 `content` 键
 
-错误认知： 认为 `delta` 字典只有 `content` 这一个键。
+**错误理解：** `delta` 字典只有 `content` 这一个键。
 
-正确理解：
+**正确理解：** `delta` 表示本次新增的字段或内容，也可能包含角色或没有文本：
 
-`delta` 表示本次新增的字段或内容，并不保证只有 `content`。
-
-例如：
-
+```json
+{"choices": [{"delta": {"role": "assistant"}}]}
+{"choices": [{"delta": {"content": "你"}}]}
+{"choices": [{"delta": {"content": "好"}}]}
+{"choices": [{"delta": {}}]}
 ```
-{"choices": [{"delta": {"role": "assistant"}}]}{"choices": [{"delta": {"content": "你"}}]}{"choices": [{"delta": {"content": "好"}}]}{"choices": [{"delta": {}}]}
-```
 
-- `role`：可能表示当前消息的角色。
-- `content`：本次新增的文本。
-- `{}`：可能没有新增字段或内容。
+上面每行代表一个独立的数据单元，并非一份完整 JSON 文档。
 
-关键代码：
-
-```
+```python
 text = data["choices"][0]["delta"].get("content")
 ```
 
-使用 `.get("content")` 获取文本。如果不存在 `content` 键，则返回 `None`，不会因为缺少这个键而触发 `KeyError`。
-
-易混淆点：
-
-- `delta` 不等于 `content`。
-- `.get("content")` 是读取指定键的值，不代表字典只有这个键。
-- 流式响应可能分多次返回，也可能包含不带文本内容的事件。
-
-记忆口诀： `delta` 看增量，`content` 取文本，`.get()` 防缺键。
+`.get("content")` 只读取指定键；缺键时返回 `None`，不代表 `delta` 只有这个键。它也不会保护前面 `choices[0]` 等访问，相关默认值与异常类型见错题 19。
 
 ---
 
 ## 错题18：浅拷贝与列表结构修改混淆
 
-**易错理解：**
+**错误理解：** `messages.copy()` 与原列表共享内部字典，所以执行 `messages.pop()` 也会删除副本中的消息。
 
-认为 `messages.copy()` 创建的浅拷贝与原列表共享同一个字典，因此修改原列表的结构也会影响副本。
-
-**错误回答：**
-
-> `messages.pop()` 后，`old_messages` 中最后一条消息也会被删除，因为浅拷贝共享同一个字典。
-
-**正确理解：**
-
-`messages.copy()` 会创建一个新的列表，但不会复制列表内部的字典对象。
-
-- **列表结构独立**：两个列表可以分别添加或删除元素，互不影响。
-- **内部字典共享**：如果通过任一列表修改共享字典的字段，另一个列表也能看到修改。
-
-**示例：**
+**正确理解：** 浅拷贝创建新列表，但不复制内部字典；**列表结构独立，内部可变对象共享**。
 
 ```python
 messages = [
     {"role": "user", "content": "你好"},
     {"role": "assistant", "content": "你好！"}
 ]
-
 old_messages = messages.copy()
 
 messages.pop()
-
 print(len(messages))      # 1
-print(len(old_messages))  # 2
-```
+print(len(old_messages))  # 2：删除原列表元素，不会删除副本中的引用
 
-`messages.pop()` 只删除 `messages` 列表中的元素引用，不会删除 `old_messages` 中的元素。
-
-但是，如果执行：
-
-```python
 messages[0]["content"] = "修改后的内容"
-print(old_messages[0]["content"])
+print(old_messages[0]["content"])  # 修改后的内容：第一个字典仍然共享
 ```
 
-输出也会是 `修改后的内容`，因为两个列表中的第一个元素指向同一个字典对象。
+**与当前项目的联系：** 在 `ask_ai()` 中先用 `old_messages = messages.copy()` 备份，请求失败后执行 `messages = old_messages`，可以恢复此前被追加、删除或裁剪的列表结构。
 
-**与当前 AI 项目的联系：**
-
-在 `ask_ai()` 中：
-
-```python
-old_messages = messages.copy()
-```
-
-可以备份当前列表结构。请求失败时执行：
-
-```python
-messages = old_messages
-```
-
-能够恢复原始消息列表，包括此前被裁剪掉的消息。
-
-当前代码只追加新消息，没有修改已有字典的内部字段，因此浅拷贝足够。如果后续需要修改已有字典，并且要求保留修改前的完整状态，就需要考虑 `copy.deepcopy()`。
-
-**核心记忆：**
-
-> 浅拷贝复制列表，不复制内部对象；列表结构独立，内部可变对象共享。
+当前代码不修改已有消息字典，因此浅拷贝足够；如果后续要修改已有字典且保留修改前的完整状态，再考虑 `copy.deepcopy()`。
 
 ---
 

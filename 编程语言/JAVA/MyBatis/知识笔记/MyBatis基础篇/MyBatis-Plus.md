@@ -68,7 +68,7 @@ MySQL
 <dependency>
     <groupId>com.mysql</groupId>
     <artifactId>mysql-connector-j</artifactId>
-    <scope>runtime</scope>
+    <scope>runtime</scope> <!-- 运行时加载 JDBC 驱动，业务代码通常无需直接引用驱动类 -->
 </dependency>
 ```
 
@@ -92,7 +92,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/school?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: dev
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD} # 从环境变量等配置源读取，避免在文件里写明文密码
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 mybatis-plus:
@@ -113,6 +113,7 @@ mybatis-plus:
 
 ```java
 @SpringBootApplication
+// 扫描 Mapper 接口并注册代理 Bean，之后可通过构造器注入 Mapper
 @MapperScan("com.example.mapper")
 public class Application {
     public static void main(String[] args) {
@@ -149,9 +150,9 @@ public class Student {
     private Long id;
 
     private String name;
-    private Integer age;
+    private Integer age; // 包装类型可表示数据库 NULL；int 无法表示 null
     private String gender;
-    private BigDecimal score;
+    private BigDecimal score; // 对应 DECIMAL，避免用浮点数表示需要精确的小数
 
     @TableField("class_name")
     private String className;
@@ -180,13 +181,9 @@ public class Student {
 
 > [!warning] 易混淆
 > 
-> - 对于已有 MySQL `AUTO_INCREMENT` 主键，应显式用 `IdType.AUTO`，不要误以为 MP 默认主键生成策略就等同于数据库自增  
-> - `IdType.AUTO`：由 MySQL 生成主键：
->    - Java 应用端： INSERT 不带 id → MySQL： `AUTO_INCREMENT` 生成 → 返回 Java 应用端 → MP 回填。对应 `IdType.AUTO`。
-> - `IdType.ASSIGN_ID`：由 MyBatis-Plus 在 Java 应用侧生成主键，再发送给 MySQL 补充进来
->   - Java 应用端：在插入前生成 ID → MySQL： 接收应用生成的 ID 并插入。对应 `IdType.ASSIGN_ID` 或 `IdType.INPUT`。
-> - 表是 `AUTO_INCREMENT` 时必须显式写 `IdType.AUTO`；MP 默认策略通常是 `ASSIGN_ID`，是**在 Java 应用侧生成主键**，不等于数据库自增。
-> - **MP 默认是在执行插入操作的过程中生成 `ID`，而不是创建 Java 对象时就生成**。 如果你需要在调用 `insert()` 之前把 `ID` 发送给其他服务，就需要提前显式生成并设置 `ID`。
+> - **数据库自增 `IdType.AUTO`**：Java 不提供 ID → MySQL 用 `AUTO_INCREMENT` 生成 → MP 回填实体。使用数据库自增机制时，应显式配置该策略。
+> - **MP 分配 `IdType.ASSIGN_ID`**：MP 在 Java 应用侧生成 ID → 随 INSERT 发送给 MySQL。MP 默认策略通常是 `ASSIGN_ID`，不等于数据库自增。
+> - **MP 分配 ID 发生在执行插入的过程中，不是创建 Java 对象时**。若调用 `insert()` 前就需要把 ID 发给其他服务，应提前显式生成并设置 ID。
 
 ---
 
@@ -224,8 +221,8 @@ Mapper 代理按 MyBatis 原有机制执行 SQL
 int rows1 = studentMapper.insert(student);
 
 // SELECT
-Student one = studentMapper.selectById(1L);
-List<Student> all = studentMapper.selectList(null);
+Student one = studentMapper.selectById(1L); // 1L 是 long 字面量，与 Long 主键类型对应
+List<Student> all = studentMapper.selectList(null); // null 表示不额外传入 Wrapper 条件
 Long total = studentMapper.selectCount(null);
 
 // UPDATE：根据实体主键更新（按默认策略处理字段）
@@ -276,6 +273,25 @@ Student student = studentMapper.selectById(1L);
 
 【**MP 增强**】Wrapper 是一种**用 Java API 描述 SQL 条件**的方式。
 
+**为什么需要条件构造器？**
+
+假设要查询年龄大于 18 岁的学生，对应 SQL 是：
+
+```sql
+SELECT * FROM student WHERE age > 18;
+```
+
+但 `studentMapper.selectList(null)` 没有传入额外筛选条件，无法表达“年龄大于 18 岁”。要让 MP 按条件查询，可以把条件放进 `QueryWrapper`，再传给 `selectList`：
+
+```java
+// <> 根据左侧类型推断为 Student；泛型指定实体，不是表名字符串
+QueryWrapper<Student> query = new QueryWrapper<>();
+query.gt("age", 18); // 添加 age > 18 条件，此时还没有访问数据库
+List<Student> students = studentMapper.selectList(query); // 把条件交给 Mapper，此处才执行查询
+```
+
+**条件构造器的作用，就是把“按什么条件操作数据”告诉 MP，由 MP 生成对应的 SQL。** 上例实际使用参数绑定，条件为 `WHERE age > ?`，参数值为 `18`。
+
 ```text
 Java 条件构造器
     .eq(Student::getAge, 20)
@@ -290,73 +306,277 @@ MyBatis / JDBC 绑定参数并执行
 
 ### 8.1 四个核心 Wrapper
 
-| 类 | 主要用途 | 列名传入方式 |
-|---|---|---|
-| `QueryWrapper<T>` | 查询条件、查询列、排序 | 字符串列名，如 `"age"` |
-| `LambdaQueryWrapper<T>` | 查询条件、排序 | 方法引用，如 `Student::getAge` |
-| `UpdateWrapper<T>` | 更新条件与 SET | 字符串列名 |
-| `LambdaUpdateWrapper<T>` | 更新条件与 SET | 方法引用 |
+先看用途（**查询 / 更新**），再看指定列的方式（**字符串 / getter 方法引用**）：
+
+| 构造器 | 主要用途 | 指定列的方式 | 简单示例 |
+|---|---|---|---|
+| `QueryWrapper<T>` | **查询**：筛选、选列、排序 | 数据库列名字符串 | `.eq("age", 20)` |
+| `LambdaQueryWrapper<T>` | **查询**：筛选、选列、排序 | 实体 getter 方法引用 | `.eq(Student::getAge, 20)` |
+| `UpdateWrapper<T>` | **更新**：筛选、设置新值 | 数据库列名字符串 | `.set("age", 21)` |
+| `LambdaUpdateWrapper<T>` | **更新**：筛选、设置新值 | 实体 getter 方法引用 | `.set(Student::getAge, 21)` |
+
+- **查询示例**：表中的 `eq` 表示“筛选年龄为 20 的记录”。
+- **更新示例**：表中的 `set` 表示“把年龄改为 21”，实际更新时还应添加 `eq` 等条件限定记录范围。
+- **字段映射**：Java 属性 `className` 对应数据库列 `class_name` 时，普通版写 `"class_name"`，Lambda 版写 `Student::getClassName`，由 MP 根据实体映射确定列名。
 
 > [!tip]
-> **优先掌握 LambdaWrapper：把字段名字符串转换为 Java 方法引用，重构更方便。** 但它不能代替复杂的 SQL 表达式。
+> **记忆方式：Query 管查询，Update 管更新；普通版写列名，Lambda 版引用 getter。** 日常代码可优先使用 Lambda 版，减少列名字符串拼错、重构时漏改的问题。四种 Wrapper 的完整示例见第 9 节。
 
-## 9. QueryWrapper 与 LambdaQueryWrapper
+### 8.2 条件构造器的实际用途
+
+`selectById(id)` 能处理“按主键查一个学生”，但实际页面经常需要“按班级、姓名、最低成绩组合筛选”。Wrapper 可以把这些业务筛选条件组织成 SQL，并交给 Mapper 执行，减少重复编写简单动态 SQL。
+
+**① 列表搜索：把页面筛选项转换成数据库查询条件**
+
+例如学生管理页提供“姓名关键词、班级、最低成绩”三个筛选项。Wrapper 只添加用户已填写的条件，未填写的项不参与筛选，再交给数据库查询，无需先查出全表后用 Java 过滤。动态条件的具体写法见第 11 节，完整分页案例见第 26 节。
+
+**② 条件更新：一次修改所有符合条件的记录**
+
+例如，把“一班中成绩达到 90 分的学生”调整到“提高班”：
 
 ```java
-// 字符串字段名
-QueryWrapper<Student> q = new QueryWrapper<>();
-q.eq("age", 20).ge("score", 80);
-List<Student> list1 = studentMapper.selectList(q);
+LambdaUpdateWrapper<Student> adjust = new LambdaUpdateWrapper<>();
+adjust.eq(Student::getClassName, "一班")
+      .ge(Student::getScore, new BigDecimal("90")) // 字符串构造精确十进制数，ge 表示 >=
+      .set(Student::getClassName, "提高班");
 
-// 方法引用：更适合日常代码
-LambdaQueryWrapper<Student> lq = new LambdaQueryWrapper<>();
-lq.eq(Student::getAge, 20)
-  .ge(Student::getScore, new BigDecimal("80"));
-List<Student> list2 = studentMapper.selectList(lq);
+int updatedRows = studentMapper.update(null, adjust); // 同时满足班级和成绩条件的记录都会被更新
+```
+
+这会执行一条按条件更新的 SQL，无需先查询学生列表，再逐个调用 `updateById`。`eq`、`ge` 控制修改范围，`set` 指定修改内容。
+
+**③ 条件删除：组合勾选结果与业务范围**
+
+例如，页面勾选了一批学生，但本次操作只允许删除其中属于“一班”的记录：
+
+```java
+List<Long> selectedIds = List.of(1L, 2L, 3L); // List.of 创建不可修改的列表，这里模拟页面勾选结果
+if (selectedIds == null || selectedIds.isEmpty()) {
+    throw new IllegalArgumentException("请先选择要删除的学生");
+}
+
+LambdaQueryWrapper<Student> toDelete = new LambdaQueryWrapper<>();
+toDelete.in(Student::getId, selectedIds) // 集合中的每个 ID 对应 IN 中的一个参数值
+        .eq(Student::getClassName, "一班"); // 默认用 AND：既要被勾选，也要属于一班
+
+int deletedRows = studentMapper.delete(toDelete);
+```
+
+条件相当于 `WHERE id IN (?, ?, ?) AND class_name = ?`。这里用查询构造器描述筛选范围，由 `delete(...)` 决定执行删除；配置了 `@TableLogic` 时，MP 通用删除按逻辑删除处理。
+
+> [!warning]
+> 删除前应先检查主键集合非空，避免集合为空导致预期中的 `IN` 条件没有加入 SQL。业务允许操作的班级等范围应由服务端校验或确定。
+
+**④ 条件统计与分页：同样的筛选需求，选择不同执行入口**
+
+- **统计人数**：构造“一班且成绩达到 60 分”的条件，传给 `studentMapper.selectCount(wrapper)`，获得符合条件的人数，无需把所有学生查回 Java 再计数。
+- **分页展示**：构造列表筛选条件，传给 `studentMapper.selectPage(page, wrapper)`；Wrapper 描述筛选和排序，`Page` 提供页码与每页数量，分页插件处理分页 SQL。
+
+---
+
+## 9. 四种 Wrapper 的用法与区别
+
+以下示例均沿用前文的 `Student` 实体和 `studentMapper`。
+
+### 9.1 QueryWrapper：用列名字符串描述查询
+
+适合通过数据库列名直接组织查询条件，也可以指定查询列和排序。
+
+```java
+QueryWrapper<Student> q = new QueryWrapper<>();
+// 下列方法返回当前构造器，因此可以用 . 连续调用，逐步补充同一条查询
+q.select("id", "name", "score") // SELECT 只返回这三列，不是按这三列筛选
+ .eq("class_name", "一班")
+ .ge("score", new BigDecimal("80"))
+ .orderByDesc("score") // 先按成绩降序，高分排在前面
+ .orderByAsc("id"); // 成绩相同时再按主键排序，使结果顺序确定
+
+List<Student> students = studentMapper.selectList(q);
 ```
 
 对应 SQL 语义：
 
 ```sql
-SELECT ... FROM student WHERE age = ? AND score >= ?
+SELECT id, name, score
+FROM student
+WHERE class_name = ? AND score >= ?
+ORDER BY score DESC, id ASC;
 ```
 
-`Student::getAge` 指**Java 属性的 getter 方法引用**，MP 再根据实体映射找到数据库的 `age` 列。
+- `select(...)` 指定查询列；`eq(...)`、`ge(...)` 构造 `WHERE`；`orderBy...` 构造排序。
+- `"class_name"` 是**数据库列名**，不能因为 Java 属性叫 `className` 就直接写成 `"className"`。
+- 列名拼写错误通常要到执行 SQL 时才暴露，重命名 Java 属性也不会自动修改这些字符串。
+
+### 9.2 LambdaQueryWrapper：用 getter 方法引用描述查询
+
+查询能力与普通查询构造器类似，主要区别是**列的表达方式**。下面实现与上一例相同的查询：
+
+```java
+LambdaQueryWrapper<Student> lq = new LambdaQueryWrapper<>();
+// 方法引用只标识列；不会在这里调用某个 Student 对象的 getter 读取值
+lq.select(Student::getId, Student::getName, Student::getScore)
+  .eq(Student::getClassName, "一班") // getter 对应 Java 属性，最终条件使用数据库列 class_name
+  .ge(Student::getScore, new BigDecimal("80"))
+  .orderByDesc(Student::getScore)
+  .orderByAsc(Student::getId);
+
+List<Student> students = studentMapper.selectList(lq);
+```
+
+`Student::getClassName` 是**getter 方法引用**，MP 根据实体映射找到 `class_name` 列；这里不是先读取某个学生对象的班级值。
+
+**为什么用 `Student::getAge`，不能直接写 `"age"`？**
+
+`"age"` 可以用，但要看构造器类型：**普通版的列参数接收字符串，Lambda 版的列参数要求 getter 方法引用，两者不能直接混用。**
+
+```java
+new QueryWrapper<Student>().eq("age", 20); // 普通版：数据库列名
+new LambdaQueryWrapper<Student>().eq(Student::getAge, 20); // Lambda 版：由 getter 找到列
+// new LambdaQueryWrapper<Student>().eq("age", 20); // 参数类型不匹配，无法编译
+```
+
+前两种写法都表达 `age = 20`。使用方法引用的好处是可以由 IDE 检查方法是否存在，并在重命名时同步修改；如果 Java 属性与数据库列名不同，MP 还会根据实体映射找到正确的列。
+
+- `<Student>` 指定操作的实体类型，`Student::getScore` 指定列，`new BigDecimal("80")` 才是比较值。
+- IDE 重命名 getter 时可同步修改方法引用，能减少字段名字符串造成的错误。
+- 适合日常单表查询；Lambda 写法本身不会让 SQL 执行得更快。
+
+### 9.3 UpdateWrapper：分别指定更新值和更新条件
+
+更新时需要分清：**`set` 决定改什么，`eq` 等条件决定改哪些记录**。
+
+```java
+UpdateWrapper<Student> u = new UpdateWrapper<>();
+// 两次 set 为同一批记录设置两列；eq 限定记录范围，不是给 id 赋值
+u.set("class_name", "二班")
+ .set("age", 21)
+ .eq("id", 1L);
+
+int rows = studentMapper.update(null, u); // 无实体参数，SET 的更新值全部取自 u
+```
+
+对应 SQL 语义：
+
+```sql
+UPDATE student
+SET class_name = ?, age = ?
+WHERE id = ?;
+```
+
+- `set("age", 21)` 表示把年龄改为 21；`eq("age", 21)` 表示筛选年龄为 21 的记录，**不会给年龄赋值**。
+- `update(null, u)` 的第一个参数是实体；此处传 `null`，表示更新值全部由 Wrapper 的 `set(...)` 提供。
+- 这里的 `rows` 是影响行数；若条件匹配多条记录，就可能更新多条。
+
+### 9.4 LambdaUpdateWrapper：用方法引用描述更新
+
+与 `UpdateWrapper` 的分工相同，使用 getter 方法引用指定 `SET` 和 `WHERE` 中的列。下面与上一例的更新语义相同：
+
+```java
+LambdaUpdateWrapper<Student> lu = new LambdaUpdateWrapper<>();
+// set、eq 的书写先后不决定 SQL 子句顺序，MP 会分别组织 SET 与 WHERE
+lu.set(Student::getClassName, "二班")
+  .set(Student::getAge, 21) // getter 用来定位列，新值由第二个参数提供
+  .eq(Student::getId, 1L);
+
+int rows = studentMapper.update(null, lu);
+```
+
+虽然是**更新**，这里仍写 `Student::getAge`，不是 `Student::setAge`：方法引用用于**标识列**，新值由 `set` 的第二个参数提供。
+
+默认实体更新策略下，`null` 字段通常会被忽略；而显式 `.set(Student::getClassName, null)` 可表达把该列设置为 `NULL`。更新策略及实体与 Wrapper 的配合见第六篇。
+
+### 9.5 Wrapper 与 Mapper 的分工
+
+> [!warning] Wrapper 构造条件，Mapper 执行操作
+>
+> - 上面四种 Wrapper 的 `eq`、`set` 等调用只构造 SQL 片段，**不会立即访问数据库**；调用 Mapper 方法后才执行。
+> - `QueryWrapper` / `LambdaQueryWrapper` 的条件也可传给 `delete(wrapper)`，并非只能用于查询；是否执行删除由 Mapper 方法决定。
+
+以上 API 用法可对照 [MyBatis-Plus 官方条件构造器文档](https://baomidou.com/guides/wrapper/)。
+
+---
 
 ## 10. Wrapper 常用条件方法
 
 | 方法 | SQL 含义 | 示例 |
 |---|---|---|
 | `eq` | `=` | `.eq(Student::getAge, 20)` |
-| `ne` | `<>` | `.ne(Student::getAge, 20)` |
+| `ne` | `<>`(不等于) | `.ne(Student::getAge, 20)` |
 | `gt` / `ge` | `>` / `>=` | `.ge(Student::getAge, 18)` |
 | `lt` / `le` | `<` / `<=` | `.lt(Student::getAge, 30)` |
 | `between` | `BETWEEN ... AND ...` | `.between(Student::getAge, 18, 25)` |
+| `notBetween` | `NOT BETWEEN ... AND ...` | `.notBetween(Student::getAge, 18, 25)` |
 | `like` | `LIKE '%内容%'` | `.like(Student::getName, "张")` |
+| `likeLeft` | `LIKE '%内容'`，以指定内容结尾 | `.likeLeft(Student::getName, "三")` |
 | `likeRight` | `LIKE '内容%'` | `.likeRight(Student::getName, "张")` |
 | `in` | `IN (...)` | `.in(Student::getId, List.of(1L,2L))` |
+| `notIn` | `NOT IN (...)` | `.notIn(Student::getId, List.of(1L,2L))` |
 | `isNull` | `IS NULL` | `.isNull(Student::getScore)` |
+| `isNotNull` | `IS NOT NULL` | `.isNotNull(Student::getScore)` |
+| `or` | 用 `OR` 连接下一个条件 | `.eq(Student::getAge, 18).or().eq(Student::getAge, 20)` |
+| `nested` | 将内部条件组成括号分组 | `.nested(x -> x.eq(Student::getAge, 18).or().eq(Student::getAge, 20))` |
 | `orderByDesc` | `ORDER BY ... DESC` | `.orderByDesc(Student::getScore)` |
 | `orderByAsc` | `ORDER BY ... ASC` | `.orderByAsc(Student::getId)` |
+
+> [!tip]
+普通条件默认用 `AND` 连接；上面的 `or()` 示例表示 `age = 18 OR age = 20`。若要表达 `A AND (B OR C)`，需显式构造括号分组，见第 12 节。
+
+> [!tip]
+SQL 判断 NULL 应使用 `IS NULL` / `IS NOT NULL`，不要用 `.eq(Student::getScore, null)` 或 `.ne(Student::getScore, null)` 代替。`isNotNull` 也不表示字符串非空：空字符串 `""` 和数据库 NULL 是两种不同的值。
+
+> [!tip]
+`between()` 不会自动排序,必须自己按照**下界在前、上界在后**的顺序传入参数
+
+### 10.1 空集合：先明确业务含义
+
+`wrapper.in("class_name", classes)` 中 `classes` 为空，**不能直接理解为“查询不到学生”**。应结合 MP 版本检查实际 SQL，并在业务层明确处理：
+
+- **空集合表示“不按班级筛选”**：主动跳过该条件。
+- **空集合表示“没有任何允许的班级”**：查询前直接返回空列表（如 `return List.of()`），不要仅靠空集合限制范围，以免条件被跳过后扩大查询范围，甚至退化为全表查询。
+
+---
 
 ## 11. 动态条件：使用 boolean condition
 
 【**重点**】条件可能为空时，无需为每个字段写 XML `<if>`。
+
+**eq 的三参数重载**
+
+`QueryWrapper` 支持 `eq(boolean condition, String column, Object value)`：三个参数依次为**是否加入条件、数据库列名、比较值**。
+
+```java
+String className = "一班"; // 假设来自请求，也可能未填写
+QueryWrapper<Student> q = new QueryWrapper<>();
+q.eq(className != null && !className.isBlank(),
+     "class_name", className);
+```
+
+`isBlank()` 是 Java 11+ 的字符串方法：空字符串 `""` 或只含空格、制表符、换行等空白字符时返回 `true`；如 `"一班"` 则返回 `false`。`isEmpty()` 只判断长度是否为 0，因此 `"   ".isEmpty()` 为 `false`，但 `"   ".isBlank()` 为 `true`。
+
+`className != null && !className.isBlank()` 表示**字符串存在且含有非空白内容**。先判断 `null`，再利用 `&&` 的短路特性调用 `isBlank()`，避免空指针异常。
+
+有班级值时添加 `class_name = ?`；未填写时跳过该条件。两参数 `eq(column, value)` 相当于 `condition=true`，不会自动判断值是否为空。
+
+Lambda 版也支持三参数形式，但列参数须换为 getter 方法引用，如 `.eq(className != null && !className.isBlank(), Student::getClassName, className)`。
+
+**示例**：
 
 ```java
 String name = "张";         // 可能为空
 Integer minAge = 18;        // 可能为 null
 
 LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<>();
+// && 短路：name 为 null 时不调用 isBlank()；条件为 false 时不添加 LIKE
 w.like(name != null && !name.isBlank(), Student::getName, name)
- .ge(minAge != null, Student::getAge, minAge)
+ .ge(minAge != null, Student::getAge, minAge) // 三个参数依次是：是否加入条件、列、比较值
  .orderByDesc(Student::getScore)
  .orderByAsc(Student::getId);
 
+// name="张"、minAge=18 时：WHERE name LIKE '%张%' AND age >= 18（实际走参数绑定）
 List<Student> students = studentMapper.selectList(w);
 ```
 
-相当于原生 MyBatis 的：
+**相当于原生 MyBatis 的**：
 
 ```xml
 <where>
@@ -369,19 +589,23 @@ List<Student> students = studentMapper.selectList(w);
 </where>
 ```
 
-> [!warning]
-> 如果 `condition` 为 `false`，这一条件**不会加入 SQL**；不是生成 `字段 = NULL`。用于更新、删除时尤其要小心：可能最终没有 WHERE 条件。
+> [!warning] 关键细节：不添加条件，不等于返回空结果
+> `condition = false` 表示**不添加该条件**，并不等于“查询不到任何记录”，也不是生成 `字段 = NULL`。其余条件仍正常生效；如果所有筛选条件都被跳过，可能退化为全表查询。用于更新、删除时，同样要检查最终的 WHERE 范围。
+
+---
 
 ## 12. AND / OR / 括号分组
 
 ```java
 LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<>();
 w.eq(Student::getClassName, "一班")
+ // x 是括号内部的条件构造器；这里组合为 AND (score >= 90 OR score < 60)
  .and(x -> x.ge(Student::getScore, new BigDecimal("90"))
+            // 此处 or 连接括号内两个成绩条件，班级条件仍位于括号外
             .or().lt(Student::getScore, new BigDecimal("60")));
 ```
 
-条件含义：
+**条件含义**：
 
 ```sql
 WHERE class_name = '一班'
@@ -392,69 +616,175 @@ WHERE class_name = '一班'
 - `.or()` 使后面相邻条件使用 `OR`。
 - `.and(x -> ...)` / `.or(x -> ...)` 便于表达带括号的条件。
 
-⚠️ **易混淆**：`A AND B OR C` 与 `A AND (B OR C)` 的结果**不一定相同**。复杂条件要明确分组。
+**AND 与 OR 的优先级**
 
-## 13. select / orderBy / 安全
+在这些条件组合中，**括号分组优先，`AND` 的优先级高于 `OR`**。Wrapper 最终生成 SQL，逻辑分组遵循 SQL 规则，不能把 Java 链式调用顺序理解为从左到右依次加括号。[MySQL 官方说明](https://dev.mysql.com/doc/refman/8.0/en/operator-precedence.html)
+
+```text
+A AND B OR C   等价于 (A AND B) OR C
+A OR B AND C   等价于 A OR (B AND C)
+A AND (B OR C) 必须显式添加括号分组
+```
+
+例如，`class_name = '一班' AND score >= 90 OR score < 60` 会把**其他班级中成绩低于 60 分的学生也查出来**。本节示例通过 `.and(x -> ...)` 生成括号，使两个成绩条件都受到“一班”的限制。
+
+### 12.1 nested：独立的括号分组
+
+`nested(x -> ...)` 把内部条件放进一对括号，**自身不强制指定与前面条件使用 AND 还是 OR 连接**。它适合先组织一组条件，再与其他条件组合。
+
+```java
+LambdaQueryWrapper<Student> query = new LambdaQueryWrapper<>();
+query.nested(x -> x.eq(Student::getAge, 18)
+                   .or().eq(Student::getAge, 20)) // 先组成 (age = 18 OR age = 20)
+     .eq(Student::getClassName, "一班"); // 后续普通条件默认通过 AND 连接
+
+List<Student> students = studentMapper.selectList(query);
+```
+
+对应 SQL 条件：
+
+```sql
+WHERE (age = 18 OR age = 20) AND class_name = '一班'
+```
+
+**与 and / or 嵌套的区别：**
+
+| 写法 | 与前面已有条件 A 的组合方式 |
+|---|---|
+| `.and(x -> ...)` | 明确组成 `A AND (...)` |
+| `.or(x -> ...)` | 明确组成 `A OR (...)` |
+| `.nested(x -> ...)` | 只构造 `(...)`，连接方式取决于外部上下文 |
+
+`nested(...)` 放在开头时直接形成首个括号分组；前面已有普通条件时默认用 `AND` 连接，若写成 `.or().nested(...)` 则用 `OR` 连接。也可用 `nested(boolean condition, x -> ...)` 控制是否加入整组条件。[官方说明](https://baomidou.com/guides/wrapper/#nested)
+
+> [!note]
+> `x` 是 MP 传入的内部构造器形参，可改名为 `w` 或 `nested`。例如 `.and(nested -> nested.eq(...))` 中的 `nested` 只是变量名，调用的方法仍是 `and`，不是 `nested(...)`。
+
+---
+
+## 13. 查询列、排序与进阶方法
+
+例如，只读取学生的主键、姓名和成绩：
 
 ```java
 LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<Student>()
     .select(Student::getId, Student::getName, Student::getScore)
     .orderByDesc(Student::getScore)
     .orderByAsc(Student::getId);
+
+List<Student> students = studentMapper.selectList(w); // 返回类型仍是 List<Student>
 ```
 
-- `select(...)`：只查询需要的列。未查询的实体属性通常为 `null` / 默认值。
+- `select(...)`：只查询指定列。上例未读取 `age`、`gender`、`class_name`，结果对象中的对应属性通常为 `null` / 默认值。**这不代表数据库中的值是 NULL，而是本次查询没有读取这些列。**
 - `orderBy...`：实现稳定排序；分页时建议追加唯一列 `id` 作为最后排序键。
-- Wrapper 的普通值条件通常走**参数绑定**，但 `last`、`apply` 里的 SQL 片段、`inSql` 等依然可能存在注入风险。
+
+以下示例相互独立，构造好 Wrapper 后，仍需传给 `selectList(...)` 等 Mapper 方法执行。
+
+### 13.1 allEq：用 Map 组合多个等值条件
+
+适合把一组明确的“列 → 值”条件一起加入 SQL，多个条件默认用 `AND` 连接。
 
 ```java
-// 推荐：参数通过占位方式传入
-w.apply("DATE(create_time) = {0}", "2026-10-21");
+Map<String, Object> filters = new LinkedHashMap<>();
+filters.put("class_name", "一班"); // 普通 QueryWrapper 的 key 是数据库列名
+filters.put("age", 20);
+filters.put("score", null);
 
-// 危险：绝不能把用户提交的整段 SQL 原样拼进去
-// w.last(userInput);
+QueryWrapper<Student> query = new QueryWrapper<>();
+query.allEq(filters, false); // false 是 null2IsNull：忽略值为 null 的项
 ```
 
-> [!warning]
-> **SQL 文本、表名、排序列不等于 SQL 参数值。** 前端传入排序字段时，要做字段白名单映射；不要直接拼接 `last`、`apply`、`orderBy` 的原始 SQL 字符串。
+上例条件相当于 `class_name = ? AND age = ?`。使用时注意：
+
+1. **列名要正确**：对于本例的普通 `QueryWrapper`，Map 的键必须是数据库列名，如 `class_name`。
+2. **默认保留 NULL 判断**：`allEq(params)` 等同于 `allEq(params, true)`，值为 `null` 的项会生成 `IS NULL`，如 `score IS NULL`。
+3. **可跳过 NULL 项**：`allEq(params, false)` 忽略值为 `null` 的条目；这里的 `false` 是 `null2IsNull`，不是整个方法的条件开关。
+4. **HashMap 不保证条件顺序**：等值条件通过 `AND` 连接时，顺序变化通常不影响查询逻辑。示例使用 `LinkedHashMap` 保持插入顺序，方便对照生成的 SQL。
+
+如需控制是否添加整组条件，使用 `allEq(boolean condition, map, null2IsNull)`。另外，`Map.of(...)` 不允许 null 键或值，不能用来构造上面包含 null 的示例。
+
+### 13.2 apply：添加带参数的 SQL 条件片段
+
+适合表达普通 `eq / ge` 等方法不便描述的数据库函数条件。假设表中已增加 `create_time` 列：
+
+```java
+LambdaQueryWrapper<Student> query = new LambdaQueryWrapper<>();
+query.apply("DATE(create_time) = {0}", "2026-10-21");
+// DATE(...) 提取日期；{0} 对应后面的第一个参数，通过参数绑定传值
+```
+
+生成的条件类似 `WHERE DATE(create_time) = ?`。后续参数可用 `{1}`、`{2}` 引用；SQL 片段中写的是数据库列名，即使用 LambdaWrapper 也不会自动把字符串转成实体属性。
+
+**不要直接拼接用户输入：**
+
+```java
+// 不安全：userInput 被直接拼入 SQL 文本，可能引入 SQL 注入
+query.apply("score > " + userInput);
+```
+
+上面的成绩比较可直接写为 `query.gt(Student::getScore, minScore)`，其中 `minScore` 是经过校验的数值参数。
+
+使用 `apply()` 时，**值用 `{0}` 等占位符绑定，SQL 片段由后端编写**，不要在片段中自行添加 `WHERE`。
+
+### 13.3 last：在 SQL 末尾直接追加片段
+
+例如按主键排序后只取第一条：
+
+```java
+LambdaQueryWrapper<Student> query = new LambdaQueryWrapper<>();
+query.orderByAsc(Student::getId)
+     .last("LIMIT 1"); // 后端固定片段，直接追加到 SQL 末尾
+
+List<Student> students = studentMapper.selectList(query); // 仍返回 List，最多一条
+```
+
+SQL 类似 `SELECT ... FROM student ORDER BY id ASC LIMIT 1`。
+
+**同一 Wrapper 多次调用 `last()`，通常以后一次设置为准，不会逐次累加。** 其中的文本直接拼接，不是参数绑定。常规分页优先使用 `Page` 与分页插件，避免再手工追加 `LIMIT`。
+
+### 13.4 exists：筛选存在关联记录的数据
+
+例如查询“已有报名记录的学生”。假设存在 `enrollment` 表，其中 `student_id` 关联学生主键：
+
+```java
+LambdaQueryWrapper<Student> query = new LambdaQueryWrapper<>();
+query.exists("SELECT 1 FROM enrollment e WHERE e.student_id = student.id");
+// student.id 引用外层学生记录，e.student_id 来自报名表
+```
+
+条件相当于：
+
+```sql
+WHERE EXISTS (
+    SELECT 1 FROM enrollment e WHERE e.student_id = student.id
+)
+```
+
+`EXISTS` 判断子查询是否返回记录，`SELECT 1` 不会把常量 1 加到学生查询的返回字段中。相反，`notExists(...)` 用于筛选不存在关联记录的学生。
+
+更多重载与参数说明见 [官方条件构造器文档](https://baomidou.com/guides/wrapper/)。
 
 ---
 
 # 第六篇：条件更新与更新策略
 
-## 14. UpdateWrapper / LambdaUpdateWrapper
+## 14. updateById 与条件更新
 
-```java
-LambdaUpdateWrapper<Student> w = new LambdaUpdateWrapper<>();
-w.eq(Student::getId, 1L)
- .set(Student::getName, "新名字")
- .set(Student::getAge, 21);
-
-int rows = studentMapper.update(null, w);
-```
-
-对应 SQL 语义：
-
-```sql
-UPDATE student SET name = ?, age = ? WHERE id = ?
-```
-
-- `.set(...)`：指定 `SET` 后的赋值内容。
-- `.eq(...)`：指定 `WHERE` 条件。
-- `update(null, w)`：更新值完全由 Wrapper 的 `set` 指定。
-
-### 14.1 updateById 与条件更新
+Wrapper 更新的基础写法见第 9.3、9.4 节。本节重点区分记录定位方式与字段更新策略：`updateById(entity)` 根据实体主键定位，`update(entity, wrapper)` 根据 Wrapper 条件定位。
 
 ```java
 Student s = new Student();
-s.setId(1L);
+s.setId(1L); // updateById 从实体中取主键作为 WHERE 条件
 s.setName("李四");
 studentMapper.updateById(s);
 ```
 
 默认常见字段策略下，实体中值为 `null` 的字段通常**不会**被更新为 `NULL`。
 
+### 14.1 显式更新为 NULL
+
 ```java
+// 这里只构造更新片段；还需传给 studentMapper.update(null, wrapper) 才会执行
 new LambdaUpdateWrapper<Student>()
     .eq(Student::getId, 1L)
     .set(Student::getClassName, null);
@@ -464,10 +794,8 @@ new LambdaUpdateWrapper<Student>()
 
 ⚠️ **易混淆**：
 
-1. `updateById` 依据**实体中的主键**定位记录。
-2. `update(entity, wrapper)` 依据**Wrapper 的 WHERE** 更新。
-3. 默认的 `null` 更新策略不等于“任何场景都不会写 NULL”；显式 `set`、字段策略等会影响结果。
-4. **禁止无条件执行更新或删除**，否则可能影响全表；上线前可按需配置防全表更新删除插件。
+1. 默认的 `null` 更新策略不等于“任何场景都不会写 NULL”；显式 `set`、字段策略等会影响结果。
+2. **禁止无条件执行更新或删除**，否则可能影响全表；上线前可按需配置防全表更新删除插件。
 
 ---
 
@@ -488,7 +816,7 @@ public interface StudentService extends IService<Student> {
 ```
 
 ```java
-@Service
+@Service // 将实现类注册为 Spring Bean，供其他组件注入
 public class StudentServiceImpl
         extends ServiceImpl<StudentMapper, Student>
         implements StudentService {
@@ -526,7 +854,7 @@ public class StudentServiceImpl
 ```java
 // 业务层调用示意
 Student student = studentService.getById(1L);
-boolean ok = studentService.save(newStudent);
+boolean ok = studentService.save(newStudent); // newStudent 为已准备好的实体；返回操作结果，不是主键
 List<Student> list = studentService.list(
     new LambdaQueryWrapper<Student>().ge(Student::getAge, 18)
 );
@@ -560,11 +888,11 @@ List<Student> list = studentService.list(
 @Configuration
 public class MybatisPlusConfig {
 
-    @Bean
+    @Bean // 将返回的拦截器交给 Spring 管理，供 MP 整合配置使用
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(
-            new PaginationInnerInterceptor(DbType.MYSQL)
+            new PaginationInnerInterceptor(DbType.MYSQL) // 指定 MySQL 方言，生成对应分页 SQL
         );
         return interceptor;
     }
@@ -588,12 +916,12 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 long pageNum = 2;  // 第 2 页（从 1 开始）
 long pageSize = 5; // 每页 5 条
 
-Page<Student> page = new Page<>(pageNum, pageSize);
+Page<Student> page = new Page<>(pageNum, pageSize); // 构造参数依次为页码、每页条数，不是 offset
 LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<Student>()
     .ge(Student::getAge, 18)
     .orderByAsc(Student::getId);
 
-IPage<Student> result = studentMapper.selectPage(page, w);
+IPage<Student> result = studentMapper.selectPage(page, w); // 通常先统计总数，再查本页数据
 
 List<Student> records = result.getRecords();
 long total = result.getTotal();
@@ -628,6 +956,7 @@ LIMIT 5, 5
 【**MP 增强**】用于新增时间、修改时间等字段。
 
 ```java
+// 以下字段需加入 Student，同时在数据库中增加对应的 create_time、update_time 列
 @TableField(fill = FieldFill.INSERT)
 private LocalDateTime createTime;
 
@@ -636,18 +965,21 @@ private LocalDateTime updateTime;
 ```
 
 ```java
-@Component
+@Component // 注册填充处理器，MP 才能在处理实体时使用它
 public class AuditMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void insertFill(MetaObject metaObject) {
+        // metaObject 封装待处理实体；同一次插入共用 now，保持两个时间一致
         LocalDateTime now = LocalDateTime.now();
+        // 参数依次为：实体包装对象、Java 属性名（非列名）、属性类型、填充值
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
     }
 
     @Override
     public void updateFill(MetaObject metaObject) {
+        // strict 默认不覆盖已有非空值；实体保留旧 updateTime 时需另外处理覆盖策略
         this.strictUpdateFill(metaObject, "updateTime",
                 LocalDateTime.class, LocalDateTime.now());
     }
@@ -685,7 +1017,7 @@ ALTER TABLE student ADD COLUMN deleted TINYINT NOT NULL DEFAULT 0;
 实体中：
 
 ```java
-@TableLogic(value = "0", delval = "1")
+@TableLogic(value = "0", delval = "1") // value 是未删除值，delval 是删除后写入的值
 private Integer deleted;
 ```
 
@@ -735,6 +1067,7 @@ private Integer version;
 插件中添加：
 
 ```java
+// 添加到前文配置类的同一个 MybatisPlusInterceptor 中，不是单独创建一个无关联对象
 interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
 ```
 
@@ -760,9 +1093,9 @@ WHERE id = ? AND version = 3
 ```
 
 ```java
-Student s = studentMapper.selectById(1L);
+Student s = studentMapper.selectById(1L); // 同时读取 version；实际业务应先检查查询结果是否为 null
 s.setName("新名字");
-int rows = studentMapper.updateById(s);
+int rows = studentMapper.updateById(s); // 插件携带旧版本作为条件，并生成新版本值
 if (rows == 0) {
     // 业务上可选择提示冲突、重新加载，或有限次数重试
 }
@@ -782,10 +1115,10 @@ if (rows == 0) {
 ## 22. 批量新增、更新、删除
 
 ```java
-// Service 层：批量新增
+// Service 层：studentList 是待新增实体的集合；批量方法不保证只发送一条 SQL
 boolean inserted = studentService.saveBatch(studentList);
 
-// Service 层：根据主键批量更新
+// Service 层：根据主键批量更新，集合中每个实体都应设置自己的 id
 boolean updated = studentService.updateBatchById(studentList);
 
 // Mapper 层：按主键集合删除（新版本）
@@ -809,6 +1142,7 @@ int deleted = studentMapper.deleteByIds(List.of(1L, 2L, 3L));
 
 ```java
 public interface StudentMapper extends BaseMapper<Student> {
+    // 为 XML 参数命名，使 #{minScore} 可以引用这个方法参数
     List<Student> selectExcellentStudents(@Param("minScore") BigDecimal minScore);
 }
 ```
@@ -819,11 +1153,13 @@ public interface StudentMapper extends BaseMapper<Student> {
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace 是 Mapper 接口全限定名，select 的 id 对应接口方法名 -->
 <mapper namespace="com.example.mapper.StudentMapper">
     <select id="selectExcellentStudents"
             resultType="com.example.entity.Student">
         SELECT id, name, age, gender, score, class_name
         FROM student
+        <!-- XML 中 &gt; 表示 >；#{minScore} 通过参数绑定传值 -->
         WHERE score &gt;= #{minScore}
         ORDER BY score DESC, id ASC
     </select>
@@ -862,17 +1198,20 @@ List<Student> b = studentMapper.selectExcellentStudents(
 @Service
 public class RegistrationService {
     private final StudentMapper studentMapper;
+    // Enrollment / EnrollmentMapper 表示报名记录及其 Mapper，本例省略它们的定义
     private final EnrollmentMapper enrollmentMapper;
 
+    // 单构造器由 Spring 注入两个 Mapper，无需再手动 new
     public RegistrationService(StudentMapper studentMapper,
                                EnrollmentMapper enrollmentMapper) {
         this.studentMapper = studentMapper;
         this.enrollmentMapper = enrollmentMapper;
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class) // 通过 Spring 代理调用时，抛出 Exception 也回滚
     public void register(Student student, Enrollment enrollment) {
         studentMapper.insert(student);
+        // 前一次插入已回填学生主键，作为报名记录关联的 studentId
         enrollment.setStudentId(student.getId());
         enrollmentMapper.insert(enrollment);
     }
@@ -900,13 +1239,20 @@ public class RegistrationService {
 | 自动填充未执行 | 字段 `fill`、`MetaObjectHandler` 注册、是否有实体参与 |
 | SQL 很慢 | EXPLAIN、索引、排序、分页偏移、返回列、数据量 |
 
-### 25.1 Wrapper 的几个原则
+### 25.1 Wrapper 工程原则速查
 
-1. **每次请求/操作创建新 Wrapper**，不要把可变 Wrapper 当成共享单例。
-2. 条件更新和删除执行前必须保证 WHERE 条件符合预期。
-3. 严格控制动态排序、原始 SQL 片段。
-4. SQL 性能由数据库执行计划决定；用了 MP 不代表 SQL 自动更快。
-5. 多表复杂查询优先保证正确、可维护，不要为了“全用 MP”强行链式拼接。
+| 场景 | 推荐方式 |
+|---|---|
+| 普通比较、范围、集合、模糊查询 | 优先使用 `eq / gt / between / in / like` 等内置条件方法 |
+| 可选查询参数 | 使用 `condition` 参数控制是否添加条件 |
+| 多条件逻辑分组 | 使用 `and(...)`、`or(...)`、`nested(...)` 明确括号范围 |
+| 特殊数据库表达式 | 按需使用 `apply()`，值通过 `{0}` 等占位符绑定 |
+| SQL 尾部追加 | 谨慎使用 `last()`；常规分页优先使用 `Page` 与分页插件 |
+| 复杂关联、聚合业务 | 考虑 XML 或自定义查询，不强求全部用 Wrapper 表达 |
+| 动态字段名、SQL 片段 | 字段名通过服务端白名单映射，SQL 片段由后端控制；不能直接信任用户输入 |
+| Wrapper 的创建与共享 | 每次操作新建，不把可变 Wrapper 作为共享单例 |
+| 条件更新、删除 | 执行前检查最终 WHERE 的实际范围，尤其注意动态条件被跳过的情况 |
+| SQL 性能 | 结合 EXPLAIN、索引和数据量评估；使用 MP 不代表 SQL 自动更快 |
 
 ---
 
@@ -921,17 +1267,20 @@ public IPage<Student> searchStudents(String name,
                                      Integer minAge,
                                      long pageNum,
                                      long pageSize) {
+    // 在访问数据库前检查页码与单页上限，避免非法或过大的分页请求
     if (pageNum < 1 || pageSize < 1 || pageSize > 100) {
         throw new IllegalArgumentException("分页参数非法");
     }
 
     LambdaQueryWrapper<Student> wrapper = new LambdaQueryWrapper<>();
+    // 未填写的筛选项不加入 WHERE；like 默认在关键词两侧补 %
     wrapper.like(name != null && !name.isBlank(), Student::getName, name)
            .ge(minAge != null, Student::getAge, minAge)
            .orderByDesc(Student::getScore)
-           .orderByAsc(Student::getId);
+           .orderByAsc(Student::getId); // 同分时按唯一主键排序，保证排序规则确定
 
     Page<Student> page = new Page<>(pageNum, pageSize);
+    // 返回分页对象：既包含本页 records，也包含 total、current、size 等元信息
     return studentMapper.selectPage(page, wrapper);
 }
 ```
@@ -971,9 +1320,9 @@ IPage<Student>（records / total / pages / current）
 
 ---
 
-# 第十六篇：开发速查与最终结论
+# 第十六篇：开发速查
 
-## 27. 一张表区分四类核心 API
+## 27. 常用功能与 API 速查
 
 | 需求 | 推荐 API | 原生 MyBatis 的对应思路 |
 |---|---|---|
@@ -988,20 +1337,6 @@ IPage<Student>（records / total / pages / current）
 | 逻辑删除 | `@TableLogic` | 手动改删除标记并过滤 |
 | 乐观锁 | `@Version` + 乐观锁插件 | 手写 `WHERE version = ?` |
 | 复杂 JOIN/报表 | 自定义 Mapper XML | 自定义 Mapper XML |
-
-## 28. 最容易记混的 8 个结论
-
-1. **MP 基于 MyBatis**，不是绕开 MyBatis 直接操作数据库。
-2. **`BaseMapper<T>` 属于 Mapper 层**；`IService<T>` 属于通用 Service 接口层。
-3. **Mapper 层返回影响行数 `int`**，Service 常见保存/更新/删除方法返回 `boolean`。
-4. **`QueryWrapper` 查询，`UpdateWrapper` 更新；Lambda 版本用 getter 方法引用描述列。**
-5. **Wrapper 的 `eq` 等值参数一般可以安全绑定，但原始 SQL 片段仍可能产生注入。**
-6. **`Page` 负责分页数据结构，`PaginationInnerInterceptor` 负责 SQL 分页处理。**
-7. **`@TableLogic` 是逻辑删除；`@Version` 是乐观锁；`@TableField(fill)` 是自动填充。**
-8. **复杂 SQL 依然可以写 XML**，无需也不应该把所有 SQL 都改造成 Wrapper。
-
-> [!tip]
-> **最终定位：原生 MyBatis 让你明白 SQL 如何映射和执行；MyBatis-Plus 让你在理解原理之后，更高效地写单表 CRUD。两者应该互补，而不是二选一。**
 
 ---
 
