@@ -1449,6 +1449,12 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 markup = md.render(text)
             if ai:
                 page["math"] = bool(re.search(r'class="math-(?:inline|display)"', markup))
+                page["chapters"] = []
+                for item in page["headings"]:
+                    if page["section"] != "提示词模板" and item["level"] == 1 and re.match(r"^第.+篇[：:]", item["title"]):
+                        page["chapters"].append(dict(id=item["id"], title=item["title"], headings=[]))
+                    elif item["level"] == 2 and page["chapters"]:
+                        page["chapters"][-1]["headings"].append(dict(id=item["id"], title=item["title"]))
             if frontend and path.stem.casefold() == "latex":
                 page["math"] = True
                 markup = re.sub(r'(<pre\b[\s\S]*?</pre>)|(<code\b[^>]*>[\s\S]*?</code>)|(?<!\\)\$([^$\n<>]+?)\$',
@@ -1597,6 +1603,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         if frontend:
             config["sectionIntro"] = "选择标记与排版、JavaScript 或 Vue，沿着原笔记继续阅读。"
         if ai:
+            config["sidebarMode"] = "all"
             config["sectionHeading"] = "沿着原理、实践与复盘，继续学习。"
             config["sectionIntro"] = "选择基础知识、实践记录、提示词模板或错题，连接理解与动手。"
             config["stats"] = [
@@ -1618,6 +1625,12 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                            '<script defer src="mathjax/tex-svg.js"></script>')
         if ai:
             math_assets += ('<script defer src="阅读资源/mermaid.min.js"></script><style>'
+                            '#catalog{min-height:0;overscroll-behavior:contain}'
+                            '.nav-chapters{margin:5px 0 12px 13px;padding-left:10px;border-left:1px solid var(--line)}'
+                            '.nav-chapter>summary{padding:7px 0;font-size:11px;line-height:1.7;color:var(--muted);cursor:pointer}'
+                            '.nav-chapter>summary>a{color:inherit}.nav-chapter-sections{padding:0 0 7px 8px}'
+                            '.nav-outline-link{display:block;padding:6px 4px;font-size:10px;line-height:1.8;color:var(--muted);overflow-wrap:anywhere;border-radius:4px}'
+                            '.nav-outline-link:hover,.nav-outline-link.active,.nav-chapter summary>a.active{color:var(--green);background:var(--soft)}'
                             '.math-display,.mermaid-diagram{max-width:100%;overflow-x:auto;margin:1.5rem 0}'
                             '.mermaid-diagram svg{max-width:100%;height:auto}.diagram-block{margin:1.5rem 0}'
                             '.diagram-block>details>summary{cursor:pointer;font-size:.85rem;opacity:.75}</style>')

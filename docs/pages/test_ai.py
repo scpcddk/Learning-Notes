@@ -59,6 +59,7 @@ class AIReaderTests(unittest.TestCase):
         self.assertEqual([s["title"] for s in self.config["sections"]],
                          ["基础知识", "实践记录", "提示词模板", "错题与易错点"])
         self.assertEqual(self.config["coverUrl"], "阅读资源/ai-hero-v2.png")
+        self.assertEqual(self.config["sidebarMode"], "all")
         self.assertTrue(all(not s["cover"] for s in self.config["sections"]))
         self.assertEqual(len(self.pages), 6)
         self.assertEqual(self.config["pending"], 1)
@@ -75,6 +76,36 @@ class AIReaderTests(unittest.TestCase):
         self.assertIn("正文更新", changed["full"])
         self.assertIn("新笔记", [p["title"] for p in self.pages])
         self.assertNotIn("旧模板", [p["title"] for p in self.pages])
+
+    def test_chapter_outline_uses_real_heading_anchors(self):
+        self.write("基础知识/AI 原理.md", """# AI 笔记
+
+## 阅读导航
+
+# 第一篇：整体认知
+
+## 1. 模型是什么
+
+### 1.1 补充说明
+
+# 第二篇：应用开发
+
+## 2. 调用接口
+
+```text
+# 第三篇：代码内的标题不能当目录
+```
+""")
+        self.write("提示词模板/笔记风格.md", "# 第一篇：示例结构\n\n## 1. 示例标题")
+        self.build()
+        note = self.pages[0]
+        self.assertEqual(self.pages[1]["chapters"], [])
+        self.assertEqual([chapter["title"] for chapter in note["chapters"]], ["第一篇：整体认知", "第二篇：应用开发"])
+        self.assertEqual([item["title"] for chapter in note["chapters"] for item in chapter["headings"]],
+                         ["1. 模型是什么", "2. 调用接口"])
+        for chapter in note["chapters"]:
+            for heading in [chapter] + chapter["headings"]:
+                self.assertIn('id="' + heading["id"] + '"', note["full"])
 
     def test_python_source_is_searchable_literal_and_linked_from_notes(self):
         source = '# 标题也必须保留为代码\nvalue = "</script> $HOME #{name} ${name}"\nprint(value)\n'
