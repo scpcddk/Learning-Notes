@@ -843,8 +843,8 @@ public Result<User> create(@RequestBody @Valid UserDTO dto) {
 | **核心功能** | 触发校验 | 触发校验 + 分组校验（groups） |
 | **支持分组校验** | ❌ 不支持（需配合 Spring 的 `@Validated`） | ✅ 原生支持 `groups` 属性 |
 | **支持嵌套校验** | ✅ 支持（对象内部包含对象时，用 `@Valid` 标记嵌套属性） | ❌ 不直接支持嵌套，需在嵌套属性上额外加 `@Valid` |
-| **可标注位置** | 方法参数、字段、构造器 | 类、方法参数、方法（类上标注后，内部所有 `@PostConstruct`/`@PreDestroy` 会校验） |
-| **触发异常类型** | `MethodArgumentNotValidException`（Controller 层） | `ConstraintViolationException`（Service 层或方法级） |
+| **可标注位置** | 方法、字段、构造器、参数、类型使用位置等 | 类、方法、方法参数；类级标注用于启用代理式方法校验，不会自动校验 `@PostConstruct` / `@PreDestroy` 生命周期回调 |
+| **触发异常类型** | 由校验入口决定，MVC 请求体校验通常抛 `MethodArgumentNotValidException` | 同样由入口决定：MVC 请求体校验通常抛 `MethodArgumentNotValidException`，AOP 方法校验默认抛 `ConstraintViolationException`；Spring MVC 6.1+ 内置方法校验抛 `HandlerMethodValidationException` |
 
 **典型用法一：Controller 层请求体校验（最常用，推荐 `@Valid`）**
 
@@ -859,10 +859,10 @@ public Result<User> create(@RequestBody @Valid UserCreateDTO dto) {
 
 **典型用法二：Controller 层简单参数校验（如 `@RequestParam` / `@PathVariable`）**
 
-如果要对 GET 请求的 `@RequestParam` 或 `@PathVariable` 做非空、长度限制，**必须使用 `@Validated` 标注在 Controller 类上**：
+若使用 AOP 方法校验，对 `@RequestParam` / `@PathVariable` 的约束可通过 Controller 类上的 `@Validated` 启用。Spring MVC 6.1+ 也支持内置方法校验；使用该方式时应移除类级 `@Validated`，由 MVC 直接处理方法参数约束：
 
 ```java
-@Validated          // ★ 必须加在类上，才能激活方法参数上的校验注解
+@Validated          // 本示例选择 AOP 方法校验；使用 MVC 6.1+ 内置方法校验时移除此注解
 @RestController
 public class UserController {
 
@@ -963,9 +963,11 @@ public class GlobalExceptionHandler {
 
 | 坑 | 现象 | 解决 |
 | ---- | ------ | ------ |
-| `@Validated` 加在方法上无效 | 方法参数上的 `@NotNull`/`@Size` 未触发校验 | 必须把 `@Validated` 标注在 **类** 上，Spring 才会为类生成代理进行方法级校验 |
-| 嵌套对象属性为 null 时不校验 | 外层对象校验通过，但内部对象字段为空却没报错 | 在嵌套对象字段上**额外加 `@Valid`**：`@Valid private Address address;` |
-| 分组校验传了多个组 | `@Validated({CreateGroup.class, UpdateGroup.class})` | 合法，且的关系（满足任一组的约束都算通过） |
+| 仅在方法上加 `@Validated` 未触发 AOP 方法校验 | 方法参数上的 `@NotNull`/`@Size` 未触发校验 | AOP 模式需在类上标注 `@Validated` 并经过代理；MVC 6.1+ 内置方法校验无需类级 `@Validated` |
+| 嵌套对象为 null 时不校验 | 只有 `@Valid`，但嵌套对象本身为空 | `@Valid` 会跳过 null；要求对象非空需同时加 `@NotNull`：`@Valid @NotNull private Address address;` |
+| 分组校验传了多个组 | `@Validated({CreateGroup.class, UpdateGroup.class})` | 合法，需满足所有被选组中的约束；默认不保证组间执行顺序，需要顺序时使用 `@GroupSequence` |
+
+MVC 内置方法校验及其与类级 `@Validated` 的关系参见 [Spring 官方校验文档](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html)。
 
 #### 5.3.4 常用校验注解速查
 

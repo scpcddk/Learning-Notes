@@ -10,6 +10,7 @@
   在浏览器中阅读笔记、搜索知识点、查看公式与课件<br>
   <a href="https://scpcddk.github.io/Learning-Notes/math/">数学</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/algorithms/">算法</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/programming-languages/">编程语言</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a>
 </p>
 
@@ -56,6 +57,7 @@
 │       ├── discrete-math/                                    # 离散数学
 │       ├── algorithms/                                       # 算法与数据结构
 │       ├── linux/                                            # Linux 阅读页、Tux 封面与提示词
+│       ├── programming/                                      # 编程语言共用阅读模板、四张封面与提示词
 │       └── vendor/                                           # PDF 阅读器与许可证
 ├── 编程语言/
 │   ├── C与C++/

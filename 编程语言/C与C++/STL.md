@@ -11,10 +11,10 @@ markmap:
 | --------------------- | ---------- | ---------------- | ---------- | ------------ | ------------------------------ |
 | vector | ✅ O(1) | 尾快 | O(n) | O(n) | 通用、随机访问 |
 | deque | ✅ O(1) | ✅ O(1) | O(n) | O(n) | 双端操作 |
-| list | ❌ | ✅ O(1) | ✅ O(1) | O(n) | 频繁插入删除 |
+| list | ❌ | ✅ O(1) | 已有位置迭代器时 O(1)，定位 O(n) | O(n) | 频繁插入删除 |
 | set/map | ❌ | ❌ | ❌ | O(log n) | 有序、去重、区间查询 |
-| unordered_set/map | ❌ | ❌ | ❌ | O(1) | 高频查找、去重 |
-| stack/queue | ❌ | 仅一端 | ❌ | ❌ | 栈/队列逻辑 |
+| unordered_set/map | ❌ | ❌ | ❌ | 平均 O(1)，最坏 O(n) | 高频查找、去重 |
+| stack/queue | ❌ | 栈同端进出，队列尾入头出 | ❌ | ❌ | 栈/队列逻辑 |
 | priority_queue | ❌ | 仅堆顶 | ❌ | ❌ | 贪心、Dijkstra |
 
 ---
@@ -27,6 +27,7 @@ markmap:
 
 ```cpp
 #include <vector>
+#include <iostream>
 using namespace std;
 int main() 
 {
@@ -63,6 +64,7 @@ int main()
     dq.push_front(2);      // 头插
     dq.pop_back();         // 尾删
     dq.pop_front();        // 头删
+    dq.push_back(3);       // 前两次删除后已为空，先添加元素
     dq[0];                 // 随机访问
     dq.front(); dq.back(); // 首尾元素
 }
@@ -85,7 +87,7 @@ int main()
     lst.insert(lst.begin(), 3);  // 在迭代器前插入
     lst.erase(lst.begin());      // 删除迭代器位置
     lst.remove(3);               // 删除所有值为3的元素
-    lst.sort();                  // 排序（成员函数，比全局sort快）
+    lst.sort();                  // 链表排序；std::sort 要求随机访问迭代器，不能用于 list
     lst.reverse();               // 反转
 }
 ```
@@ -134,7 +136,7 @@ int main()
     
     ms.erase(2);  // 删除所有值为 2 的元素，集合变为 {1,1,3}
     
-    auto it = ms.find(1); // 查找，返回第一个值为 1 的元素的迭代器
+    auto it = ms.find(1); // 查找，返回某个值为 1 的元素的迭代器；找首个用 lower_bound
     ms.count(1);   // 返回 1 出现的次数（这里是 2）
     
     ms.lower_bound(2); // 返回第一个 ≥2 的元素（指向 3 的迭代器）
@@ -152,7 +154,7 @@ int main()
 | **插入重复元素** | 无效，不会增加大小 | 成功，增加大小 |
 | **count(x)** | 返回 0 或 1 | 返回 x 出现的次数 |
 | **erase(x)** | 删除一个元素（如果存在） | 删除所有值为 x 的元素 |
-| **find(x)** | 返回迭代器（唯一） | 返回第一个匹配的迭代器 |
+| **find(x)** | 返回迭代器（唯一） | 返回某个匹配的迭代器，不保证首个 |
 | **equal_range(x)** | 范围长度 ≤ 1 | 范围长度 = 出现次数 |
 
 ---
@@ -163,6 +165,8 @@ int main()
 
 ```cpp
 #include <map>
+#include <string>
+#include <iostream>
 using namespace std;
 
 int main() 
@@ -188,6 +192,8 @@ int main()
 
 ```cpp
 #include <map>
+#include <string>
+#include <iostream>
 using namespace std;
 
 int main() 
@@ -204,7 +210,7 @@ int main()
     // 查找
     mmp.count("Alice");             // 返回键 "Alice" 出现的次数（这里是 2）
     
-    auto it = mmp.find("Bob");      // 返回第一个键为 "Bob" 的迭代器
+    auto it = mmp.lower_bound("Bob"); // 查找第一个键 >= "Bob" 的迭代器
     if (it != mmp.end()) {
         cout << it->first << ": " << it->second << endl;  // 输出 Bob: 85
     }
@@ -231,11 +237,11 @@ int main()
 | 特性 | map | multimap |
 | :--- | :--- | :--- |
 | **键唯一性** | 每个键只能出现一次 | 允许相同键多次出现 |
-| **插入重复键** | 无效（除非使用 insert 或下标覆盖） | 成功，增加元素 |
+| **插入重复键** | `insert` 不覆盖；可用 `mp[k] = v` 或 `insert_or_assign`（C++17）更新 | 成功，增加元素 |
 | **下标操作符 `[]`** | 支持（不存在则插入默认值） | 不支持 |
 | **count(k)** | 返回 0 或 1 | 返回键 k 出现的次数 |
 | **erase(k)** | 删除一个元素（如果存在） | 删除所有键为 k 的元素 |
-| **find(k)** | 返回迭代器（唯一） | 返回第一个匹配的迭代器 |
+| **find(k)** | 返回迭代器（唯一） | 返回某个匹配的迭代器，不保证首个 |
 | **equal_range(k)** | 范围长度 ≤ 1 | 范围长度 = 出现次数 |
 | **元素类型** | `pair<const Key, T>` | `pair<const Key, T>` |
 | **排序依据** | 按 key 排序 | 按 key 排序 |
@@ -253,7 +259,7 @@ int main()
     pair<int,string>p1;             //默认构造（值初始化）
     pair<int,string>p2(1,"Alice");  //直接初始化
     pair<int,string>p3={2,"bob"};   //列表初始化
-    auto p4=make_pair(3,"Charlie")  //make_pair(自动推导类型)
+    auto p4=make_pair(3,"Charlie"); //make_pair(自动推导类型)
     p1.first;                       //第一个元素（键）
     p1.second;                      //第二个元素（值）
     //比较（按先first后second字典序）

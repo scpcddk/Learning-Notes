@@ -21,8 +21,8 @@ markmap:
 ### 1.2 **Java中集合框架层次结构**
 
 - **根接口**：`Collection` 和 `Map`
-- **Collection** 子接口：`List`（有序、可重复）、`Set`（无序、不可重复）、`Queue`（队列，按特定规则操作）
-- **Map** 子接口：`HashMap`、`TreeMap`、`LinkedHashMap` 等，存储键值对
+- **Collection** 子接口：`List`（有序、可重复）、`Set`（不可重复，顺序由实现决定）、`Queue`（队列，按特定规则操作）
+- **Map** 实现类：`HashMap`、`TreeMap`、`LinkedHashMap` 等，存储键值对；子接口包括 `SortedMap`、`NavigableMap` 等
 - 主要实现类关系图（简化）：
 
 ```java
@@ -77,7 +77,7 @@ Map (接口)
 #### 2.2.2 LinkedList实现类
 
 - **底层**：**双向链表**
-- **特点**：增删快（只需修改前后节点指针）、查询慢（需遍历）
+- **特点**：头尾增删或已通过迭代器定位后的增删为 O(1)；按索引定位需 O(n)，因此按索引增删整体也可能为 O(n)
 - **特有方法**：`addFirst()`、`addLast()`、`removeFirst()`、`removeLast()`、`getFirst()`、`getLast()`，可作为**栈**或**队列**使用
 - **线程安全**：不安全
 
@@ -117,7 +117,7 @@ while (it.hasNext()) {
 ### 2.4 **增强型for循环**（for-each）
 
 - **语法**：`for (元素类型 变量名 : 集合或数组) { ... }`
-- **本质**：编译器自动转换为`Iterator`遍历
+- **本质**：遍历 `Iterable` 时转换为迭代器遍历；遍历数组时转换为索引循环
 - **优点**：代码简洁，不易出错
 - **限制**：遍历过程中**不能直接修改集合结构**（增删），否则可能抛出 `ConcurrentModificationException`（除非使用迭代器自身的 `remove`）
 - **示例**：
@@ -140,12 +140,12 @@ for (String s : list) {
 - **特点**：元素无序（依赖哈希值存储），不可重复，允许一个`null`元素
 - **去重原理**：先比较`hashCode()`，若相同再比较`equals()`，均相同则视为重复元素
 - **性能**：增删查`O(1)`平均时间复杂度
-- **要求**：存储的对象**必须正确重写**`hashCode()`和`equals()`方法
+- **要求**：若按业务字段判等，需配套重写 `hashCode()` 和 `equals()`；若按对象身份判等，可沿用 `Object` 的默认实现。入集合后不要修改参与判等和哈希计算的字段
 
 #### 2.5.2 TreeSet类
 
 - **底层**：**红黑树**（自平衡二叉查找树）
-- **特点**：元素有序（自然排序或定制排序），不可重复，不允许`null`（JDK 1.7后）
+- **特点**：元素有序（自然排序或定制排序），按比较结果为 0 判重；自然排序不允许 `null`，自定义比较器支持 `null` 时则可存入
 - **排序方式**：
   - 自然排序：元素实现`Comparable`接口，重写`compareTo()`
   - 定制排序：构造时传入`Comparator`比较器
@@ -236,7 +236,7 @@ for (String s : list) {
   - **打乱**：`shuffle(List<?> list)`
   - **二分查找**：`binarySearch(List<? extends Comparable<? super T>> list, T key)`
   - **线程安全包装**：`synchronizedCollection(Collection<T> c)`、`synchronizedMap(Map<K,V> m)` 等
-  - **不可变集合**：`unmodifiableList(List<? extends T> list)` 等
+  - **不可修改视图**：`unmodifiableList(List<? extends T> list)` 等；底层集合改变仍会反映到视图中，元素对象本身也不因此变为不可变
   - **空集合**：`emptyList()`、`emptySet()`、`emptyMap()`
 
 ---
@@ -289,7 +289,7 @@ for (String s : list) {
 
 - 内部依赖`HashMap`，将元素作为`Map`的键
 - 调用`hashCode()`定位存储位置，若该位置无元素则直接存储；若已有元素，再调用`equals()`比较，若返回`true`则认为重复，不添加
-- **要求**：存储在`HashSet`中的对象**必须正确重写**`hashCode()`和`equals()`
+- **要求**：若自定义内容相等规则，应同时重写 `hashCode()` 和 `equals()`，并保持入集合后的哈希与判等字段稳定；对象身份判等可使用默认实现
 
 ---
 
@@ -305,7 +305,7 @@ for (String s : list) {
 
 ### 6.4 什么是 `fail-fast` 机制？如何避免？
 
-- **定义**：在遍历集合时，如果集合结构被修改（增/删），会立即抛出 `ConcurrentModificationException`
+- **定义**：普通集合的迭代器检测到未经其允许的结构修改时，可能抛出 `ConcurrentModificationException`；这是尽力检测机制，不保证立即或必然抛出，不能用它保证线程安全
 - **实现原理**：集合内部维护一个 `modCount` 字段，迭代器每次 `next()` 前检查 `modCount` 是否变化
 - **避免方法**：
   1. 使用迭代器自身的 `remove()` 方法

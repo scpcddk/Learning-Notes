@@ -33,7 +33,7 @@
 - **三角函数**：`sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`
 - **指数/对数**：`exp()`, `log()`, `log10()`
 
-> **编译注意**：Linux/macOS 编译需加 `-lm` 链接数学库  
+> **编译注意**：Linux 使用 GCC 时，数学函数通常需加 `-lm` 链接数学库；macOS 的系统库已包含数学库功能，通常无需单独添加。
 > 示例：`gcc test.c -o test -lm`
 
 ### 5. `<ctype.h>`
@@ -70,12 +70,12 @@
 ### 10. `<errno.h>`
 **核心功能**：错误码处理
 
-**常用内容**：`errno`（错误码变量），`perror()`（打印错误信息）
+**常用内容**：`errno`（错误码宏，展开为可修改的 `int` 左值）及 `EDOM`、`ERANGE` 等错误码宏。`perror()` 用于打印 `errno` 对应的错误信息，声明在 `<stdio.h>` 中。
 
 ### 11. `<windows.h>`（Windows 专属）
 **核心功能**：Windows API 调用
 
-**常用功能**：窗口创建、文件操作、进程控制、定时器（仅适配 MSVC 编译器）
+**常用功能**：窗口创建、文件操作、进程控制、定时器（需要 Windows API 头文件与库，MSVC 和 MinGW 等工具链均可使用）
 
 ---
 
@@ -87,7 +87,7 @@
 #define MYHEADER_H
 
 // 1. 函数声明（仅声明，不实现）
-void print_hello();
+void print_hello(void);
 int add(int a, int b);
 
 // 2. 宏定义

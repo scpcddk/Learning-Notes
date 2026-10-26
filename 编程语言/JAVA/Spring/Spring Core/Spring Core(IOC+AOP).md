@@ -884,7 +884,7 @@ public class StockService {
 | **隔离性** | 控制并发事务间的可见性 | `isolation = Isolation.READ_COMMITTED` |
 | **传播性** | 方法间事务的传递规则 | `propagation = Propagation.REQUIRED` |
 | **回滚规则** | 定义哪些异常触发回滚 | `rollbackFor = Exception.class` / `noRollbackFor = BusinessException.class` |
-| **是否只读** | 优化查询性能，禁止 flush | `readOnly = true` |
+| **是否只读** | 向事务管理器和持久化提供者提供只读提示，具体优化和写入限制取决于实现，不能据此保证禁止写入 | `readOnly = true` |
 | **超时时间** | 事务最大执行时间（秒） | `timeout = 30` |
 
 ```java
@@ -907,9 +907,9 @@ public void createOrder() {
 
 | 失效场景 | 原因 | 解决方案 |
 | ---------- | ------ | ---------- |
-| **方法非 `public`** | Spring 代理只能拦截 public 方法 | 改为 public，或开启 AspectJ 模式 |
+| **方法可见性不符合代理要求** | JDK 接口代理要求 public 接口方法；Spring 6 起，类代理默认也支持 protected 和包可见事务方法，private 方法仍无法拦截 | 检查版本和代理类型；统一使用 public 事务入口最易理解 |
 | **同类自调用** | `this.method()` 绕过代理 | 注入自身 `@Autowired` 或 `AopContext.currentProxy()`（需 `exposeProxy = true`） |
-| **异常被 catch 未抛出** | 事务需感知到异常才会回滚 | 在 catch 中重新抛出，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
+| **异常被 catch 未抛出** | 代理未看到符合回滚规则的异常且事务未被标记 rollback-only 时，可能正常提交；若内层事务代理已标记回滚，外层 catch 也无法恢复提交 | 按业务需要重新抛出异常或显式设置 rollback-only，并检查内层事务边界 |
 | **异常类型非回滚异常** | 默认为 `RuntimeException` 及 `Error` | 配置 `@Transactional(rollbackFor = Exception.class)` |
 | **数据库引擎不支持** | 如 MyISAM | 使用 InnoDB |
 | **多线程调用** | 事务绑定线程，子线程不在事务内 | 重新设计事务边界，确保在事务线程内操作 |
@@ -917,11 +917,14 @@ public void createOrder() {
 | **未启用事务管理** | 缺少 `@EnableTransactionManagement`（SpringBoot 自动配置已包含，但纯 Spring 需手动） | 确认存在注解或 XML 配置 |
 | **类未被 Spring 管理** | 缺少 `@Service`/`@Component` | 确保类被组件扫描 |
 | **方法被 `static` 修饰** | 静态方法无法被代理 | 改为实例方法 |
-| **事务方法被 `@Async` 调用** | 异步线程脱离原事务上下文 | 将事务逻辑放在 `@Async` 方法内部 |
+| **异步任务误用调用方事务** | 普通线程绑定事务不会传播到异步线程 | 异步任务可通过另一 Bean 的事务代理在工作线程中开启自己的事务；避免自调用 |
 | **`@Configuration` 错误** | `@Bean` 在 `@Component` 中互调，无 CGLIB 代理 | 确保配置类使用 `@Configuration` |
 
 > [!TIP]
-> **速查口诀**：非 public 不代理，同类调用绕代理，异常吞掉不回滚，类型不对也白搭，引擎不对没事务，多线程里事务丢，final 方法难代理，不在容器全白费，静态异步无代理，配置类用 `@Configuration`
+> **速查要点**：先看版本和代理类型，再看调用是否经过代理、异常回滚规则及 rollback-only 状态；普通线程绑定事务不跨线程传播，类代理无法拦截 final 方法。
+
+版本和方法可见性限制参见 [Spring 官方文档：Using @Transactional](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html)。
+
 ---
 
 ### 3. 高级场景
@@ -1182,7 +1185,7 @@ import jakarta.servlet.http.HttpServletRequest;
 | 2 | 循环依赖（A 依赖 B，B 依赖 A） | 使用 **Setter/字段注入** + `@Lazy` 打破循环 | Spring Boot 2.6+ 默认禁止循环依赖，需设置 `spring.main.allow-circular-references=true`；最佳实践是重构消除循环依赖 |
 | 3 | AOP 切面不生效（内部方法调用） | 同类内 `this.method()` 不会触发代理 → 通过 **代理对象** 调用或 `AopContext.currentProxy()` | 使用 `AopContext.currentProxy()` 前，需在 `@EnableAspectJAutoProxy(exposeProxy = true)` 中开启暴露代理；更优雅的方案是将方法抽取到另一个 Service Bean 中 |
 | 4 | `@Around` 忘记调用 `proceed()` | 必须 `pjp.proceed()`，否则目标方法不会执行 | 环绕通知中`proceed()`是调用目标方法的关键，忘记调用会导致方法"消失" |
-| 5 | `@Transactional` 失效 | ① 方法必须为 `public`<br>② 异常默认只回滚`RuntimeException`，不回滚`Exception`<br>③ 同类内部调用（`this.method()`）会绕过代理，导致事务注解完全失效 | Spring Boot 自动开启事务管理，通常**无需**手动加`@EnableTransactionManagement`；如需回滚受检异常，设置`rollbackFor = Exception.class` |
+| 5 | `@Transactional` 失效 | ① 可见性限制取决于版本和代理类型，public 入口最通用<br>② 默认对 `RuntimeException` 和 `Error` 回滚，受检异常默认不回滚（可配置）<br>③ 自调用绕过被调方法的事务拦截，但仍可处于调用方已有的事务中 | Spring Boot 满足自动配置条件时通常无需手动加 `@EnableTransactionManagement`；如需回滚受检异常，设置 `rollbackFor = Exception.class` |
 | 6 | 多实现类注入报错（`NoUniqueBeanDefinitionException`） | 使用`@Primary`指定默认实现，或使用`@Qualifier("beanName")` 指定具体 Bean | 也可以用字段名匹配 Bean 名称（如 `@Autowired private PayService alipayService`） |
 | 7 | `@Value`读取配置文件为`null` | 确认类被 Spring 管理，且配置源已加载 | Spring Boot 中`application.yml`/`application.properties`自动加载，无需`@PropertySource`；自定义配置文件才需要显式指定 |
 | 8 | 切点表达式写错导致无通知 | 用`@Pointcut`定义切点，通过日志或 Debug 检查切入点是否匹配 | 常见错误：包路径写错、方法签名不匹配、访问修饰符限制过严 |
@@ -1257,7 +1260,7 @@ public class TimeAspect {
 | **IOC 两种注册方式** | **自己写的扫描，三方的 Bean** |
 | **三种注入优先级** | **构造规范，字段方便，Setter 可选** |
 | **AOP 代理选择** | **有接口 JDK，无接口 CGLIB** |
-| **事务失效** | **非公、自调、吃掉、类型不对、final、多线程** |
+| **事务失效** | **核对方法可见性与代理类型、自调用、异常规则、rollback-only、final 和跨线程边界** |
 | **生命周期** | **实例化 → 注入 → Aware → PostProcessor 前 → 初始化 → PostProcessor 后 → 销毁** |
 | **循环依赖解决** | **三级缓存：成品 → 半成品 → 工厂** |
 

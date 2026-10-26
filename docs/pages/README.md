@@ -1,8 +1,8 @@
 # 学习笔记阅读页面
 
-[学习首页](https://scpcddk.github.io/Learning-Notes/) · [数学科目页](https://scpcddk.github.io/Learning-Notes/math/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/) · [Linux](https://scpcddk.github.io/Learning-Notes/linux/)
+[学习首页](https://scpcddk.github.io/Learning-Notes/) · [数学科目页](https://scpcddk.github.io/Learning-Notes/math/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/) · [编程语言](https://scpcddk.github.io/Learning-Notes/programming-languages/) · [Linux](https://scpcddk.github.io/Learning-Notes/linux/)
 
-网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；算法和 Linux 可直接进入各自的阅读页。其他板块先展示现有目录，子项链接到仓库原笔记，后续可逐步接入阅读页。
+网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页。其他板块展示现有目录，子项链接到仓库原笔记。
 
 访客可从仓库 README 进入 [数学导航](../../数学/README.md) 或 [算法导航](../../算法/README.md)，选择内容后打开在线阅读页。
 
@@ -19,6 +19,7 @@
 | [discrete-math/](discrete-math/) | 离散数学模板与封面；构建时直接读取数学目录的 Markdown 和 PDF |
 | [algorithms/](algorithms/) | 算法阅读模板与封面；课程、专题、源码、题单、课件统一生成 |
 | [linux/](linux/) | Linux 阅读模板与封面；沿核心知识、Shell.md、补充理解、习题组织内容 |
+| [programming/](programming/) | 编程语言共用阅读模板、四张封面及提示词；自动收录各语言目录的笔记、图解与资料 |
 | [vendor/](vendor/README.md) | Mozilla PDF.js 5.4.624 官方发行包及许可证 |
 
 每页专用的样式和交互代码并入对应 HTML 模板，不再另设科目生成脚本或 CSS、JS 配置文件。第三方公式组件与 PDF 阅读器保持原有资源结构和许可证。
@@ -29,7 +30,7 @@
 
 ~~~powershell
 python -m pip install markdown-it-py==4.0.0
-python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site"
+python docs/pages/build_site.py --output docs/site
 ~~~
 
 统一脚本先更新高等数学和线性代数的离线 HTML，再打包数学与算法的在线站点。Markdown 原笔记链接转换为 GitHub 地址，科目阅读页之间保留网站内部跳转，最后检查页面和资源链接。
@@ -45,7 +46,7 @@ PowerPoint 课件已在原课件目录转换为 PDF 并替换对应 PPTX，不�
 离散数学与算法的 PDF 阅读器需要 HTTP 服务。构建后运行：
 
 ~~~powershell
-python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site" --serve
+python docs/pages/build_site.py --output docs/site --serve
 ~~~
 
 然后在浏览器访问 http://127.0.0.1:8768/。
@@ -75,3 +76,19 @@ Linux 沿用原笔记目录：核心知识、根目录的 Shell.md、补充理�
 Linux 不使用数学公式转换，确保 `$name`、`$?` 等 Shell 内容按原文展示。源 Markdown 仍在 Linux 目录维护，构建脚本统一生成 `/linux/` 阅读入口，并将首页 Linux 板块替换为带封面的阅读卡片。
 
 封面通过内置 imagegen 生成，保留 Tux 企鹅特征，配合终端、文件夹与服务器元素；材质和配色与既有科目封面保持一致：[封面](linux/linux-hero.png) · [提示词](linux/linux-hero.prompt.txt)。
+
+## 编程语言阅读页
+
+访问 `/programming-languages/` 选择语言，再进入 `c-cpp/`、`java/`、`python/`。页面模板、配图和提示词位于 `docs/pages/programming`；本地生成站点统一放在 `docs/site`，该目录不提交到 Git。GitHub Actions 使用同一命令生成和发布。
+
+正文从仓库的 `编程语言/` 目录读取，不复制维护另一套 Markdown。构建会自动扫描语言子目录及其全部层级，按原目录分组收录 Markdown、HTML 图解、PDF 和 Office、ZIP 资料；空笔记显示“待补充”。新增语言子目录也会自动生成入口，未知语言暂时沿用编程语言总封面。
+
+修改已有笔记、新增 Markdown 或新增语言目录后，提交并推送到 `main`，自动构建成功即可更新网站，无需逐篇修改章节配置。阅读入口和正文锚点由相对路径生成；文件更名或移动会改变对应入口。
+
+阅读页支持按类型和全文关键词筛选、目录速览与完整笔记切换、代码高亮和复制、本篇目录、相邻笔记、深色模式、打印，以及浏览器内的上次阅读记录。目录速览直接使用原文章节标题，不自动编写精要摘要。代码中的 `$`、`#{}`、`${}` 等按原文展示。
+
+现有 Markdown 互链转为站内阅读入口，配图随站点打包。HTML 图解在隔离的 iframe 中展示，PDF 使用已有 PDF.js 阅读器，Office 与 ZIP 资料提供 GitHub 原文件入口。PDF 和图解推荐通过本地 HTTP 预览阅读。
+
+四张封面使用内置图像生成工具制作，与数学页面保持同一视觉风格；Java 使用用户选定的第一版。查看 [封面与最终提示词](programming/阅读资源/README.md)。
+
+自动收录与 Markdown 渲染的回归检查：`python -m unittest discover -s docs/pages -p test_programming.py`。检查新增、修改和移除笔记，新增语言，站内锚点、跨语言链接、配图、空笔记，以及代码中的特殊字符。

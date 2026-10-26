@@ -19,6 +19,7 @@
 
 .catalog-trail{display:flex;gap:10px;padding-top:27px;font-size:11px;color:var(--muted)}.catalog-trail a{color:var(--green)}.catalog-trail+.intro{padding-top:30px}.root-catalog .art{height:245px}.subject.compact .subject-copy{padding:26px}.subject.compact h2{font-size:23px;margin:12px 0 10px}.subject.compact strong{margin-top:21px}.board-mark{display:flex;justify-content:space-between;align-items:center}.board-mark>span{font:italic 27px Georgia,serif;color:var(--green)}.subject.compact .chips{margin-top:15px}.math-catalog{grid-template-columns:repeat(3,minmax(0,1fr))}.math-catalog .art{height:205px}.directory-catalog .subject h2{font-size:23px}.directory-catalog .subject p{overflow-wrap:anywhere}@media(max-width:900px){.math-catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.root-catalog .art{height:200px}}@media(max-width:540px){.math-catalog{grid-template-columns:1fr}.root-catalog .art{height:215px}.subject.compact .subject-copy{padding:23px}.catalog-trail{padding-top:22px}.catalog-trail+.intro{padding-top:26px}}
 
+.intro.with-cover{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:center;gap:24px;padding:28px 0 37px}.intro.with-cover h1{font-size:clamp(35px,4vw,50px)}.catalog-cover{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;mix-blend-mode:multiply}.programming-catalog{grid-template-columns:repeat(3,minmax(0,1fr))}.programming-catalog .art{height:200px}.programming-catalog .subject-copy{padding:23px}.programming-catalog .subject h2{font-size:27px}.programming-catalog .subject p{min-height:52px}.intro-copy{min-width:0}@media(prefers-color-scheme:dark){.catalog-cover{mix-blend-mode:normal;opacity:.85}}@media(max-width:900px){.programming-catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.intro.with-cover{gap:15px}.intro.with-cover h1{font-size:36px}}@media(max-width:600px){.intro.with-cover{grid-template-columns:1fr;padding-top:33px;gap:15px}.intro.with-cover h1{font-size:37px}.catalog-cover{max-width:470px;justify-self:center}.programming-catalog{grid-template-columns:1fr}.programming-catalog .art{height:210px}.programming-catalog .subject p{min-height:0}}
 </style>
   <link rel="icon" href="<!--ASSET_BASE-->favicon.svg" type="image/svg+xml">
 </head>
@@ -30,11 +31,12 @@
   </header>
   <main>
     <!--BREADCRUMB-->
-    <section class="intro">
+    <section class="intro <!--INTRO_CLASS-->"><div class="intro-copy">
       <div class="eyebrow"><!--EYEBROW--></div>
       <h1><!--HEADING--></h1>
       <p><!--DESCRIPTION--></p>
       <div class="intro-meta"><!--META--></div>
+      </div><!--HERO_ART-->
     </section>
     <section id="subjects" class="subjects <!--GRID_CLASS-->" aria-label="<!--SECTION_LABEL-->">
       <!--CARDS-->

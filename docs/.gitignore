@@ -1,0 +1,4 @@
+# Local generated website; source templates and original assets live in pages/.
+/site/
+/review-output/
+__pycache__/

@@ -6,7 +6,7 @@ markmap:
 # SpringMVC 底层学习笔记（现代 Java 技术栈）
 
 > **定位**：面向后端接口开发，贯穿原生 SpringMVC 底层原理，无缝衔接 SpringBoot
-> **环境**：Spring 5.3.x / Spring 6+，Servlet 3.1+，纯 Java Config，外置 Tomcat（或 Jetty）
+> **环境**：示例以 Spring 5.3.x、`javax.servlet` API 为主。Spring 6 需 Java 17+、Jakarta Servlet 5.0+（如 Tomcat 10+），并将相关导入改为 `jakarta.servlet`；两套 Servlet 命名空间不可混用。使用纯 Java Config，外置 Tomcat（或 Jetty）
 > **摒弃**：web.xml、JSP、XML 配置方式，视图解析器仅概念提及，不实操
 
 [SpringMVC网课](https://www.bilibili.com/video/BV1Lh4y1M7kx/?spm_id_from=333.1387.favlist.content.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
@@ -465,7 +465,7 @@ public Result save(@RequestBody @Valid User user) {
 
 - 必须设置 `Content-Type: application/json`
 - 搭配 `@Valid` 或 `@Validated` 可触发`Bean Validation`
-- `POST`**允许**请求体，Spring 会读取它；`GET`规范上**不应带**请求体，Tomcat 会忽略，所以 Spring 也无法绑定`@RequestBody`
+- `POST`、`PUT`、`PATCH` 常用请求体。GET 请求体没有普遍定义的语义，客户端、代理和服务器支持也不一致，应使用查询参数；不能据此断言 Tomcat 必然忽略或 Spring 绝对无法读取 GET 请求体。
 
 ---
 
@@ -962,10 +962,10 @@ protected Filter[] getServletFilters() {
 
 | 作用域 | 说明 | 典型场景 | 线程安全 |
 | :---: | :--- | :--- | :---: |
-| `singleton` | 容器内**唯一**实例，默认作用域。所有请求**共享**同一个对象，**禁止定义可变成员变量** | Service、Controller | ❌ |
-| `prototype` | 每次获取都**新建**实例，Spring 不管理销毁。注入到单例时需注意不会更新 | 有状态的临时对象 | ✅ |
-| `request` | 每个**HTTP 请求**内唯一，请求结束实例销毁(Bean刷新就改变)。注入单例时必须加 `proxyMode` | 请求级上下文 | ✅ |
-| `session` | 每个**用户会话**内唯一，会话超时后销毁。适合存放登录用户信息 | 登录信息、购物车 | ✅ |
+| `singleton` | 每个 Bean 定义在容器内共享一个实例，默认作用域。可变成员状态需正确处理并发访问 | Service、Controller | 不自动保证 |
+| `prototype` | 每次向容器获取都新建实例，Spring 不负责其完整销毁生命周期；直接注入单例时通常只获取一次 | 有状态的临时对象 | 不自动保证，取决于实例是否共享 |
+| `request` | 每个 HTTP 请求中共享一个实例，请求结束时清理；注入单例时可使用作用域代理或按需获取 | 请求级上下文 | 不自动保证，同一请求内异步共享仍需注意 |
+| `session` | 每个用户会话中共享一个实例，会话结束时清理；同一会话可有多个并发请求 | 登录信息、购物车 | 不自动保证，需处理同一会话的并发访问 |
 | `application` | **ServletContext**内唯一，应用启动到关闭。需要自行处理并发读写 | 全局计数器、配置 | ❌ |
 
 ---
@@ -998,7 +998,7 @@ public class UserContext { ... }   // 注入到单例时需加代理
 @GetMapping("/demo")
 public String demo(HttpSession session, HttpServletRequest req) {
     session.setAttribute("uid", 123);          // 存session
-    String uid = (String) session.getAttribute("uid"); // 取（强转）
+    Integer uid = (Integer) session.getAttribute("uid"); // 存入的 123 自动装箱为 Integer，不能强转成 String
     req.setAttribute("temp", "abc");            // 请求域
     return "ok";
 }
@@ -1011,7 +1011,7 @@ public String demo(HttpSession session, HttpServletRequest req) {
 - **不要**定义可变的成员变量（count、List等）
 - **不要**在 Controller 中手动创建线程
 - 需要状态 → 放入 `request`/`session` 作用域 Bean 或方法局部变量
-- 若必须注入 `prototype`/`request` Bean 到单例 Controller，**必须开启 `proxyMode`**，否则注入的是固定实例
+- 注入 `prototype` / `request` Bean 到单例 Controller 时，可使用作用域代理，或注入 `ObjectProvider<T>` 按需获取；直接注入通常只在单例创建时解析一次
 
 ```java
 // 正确：代理模式
@@ -1021,7 +1021,7 @@ public class RequestData { ... }
 
 @RestController
 public class SafeController {
-    @Autowired private RequestData data;   // 每次请求都是新代理实例
+    @Autowired private RequestData data;   // 注入稳定的代理，由代理定位当前请求对应的目标实例
 }
 ```
 
@@ -1114,7 +1114,7 @@ public class FileController {
 }
 ```
 
-- **注意**：`@RequestBody` 不能用于文件上传，只能接收 JSON。文件必须用 `@RequestParam` 绑定 `MultipartFile`
+- **注意**：`multipart/form-data` 上传常用 `@RequestParam` 或 `@RequestPart` 绑定 `MultipartFile`，JSON 元数据可用 `@RequestPart`。`@RequestBody` 通过消息转换器读取整个请求体，除 JSON 外也支持文本、字节数组等；原始二进制上传可用 `@RequestBody byte[]`，无需 multipart 解析。
 
 ---
 

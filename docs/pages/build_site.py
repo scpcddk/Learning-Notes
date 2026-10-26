@@ -1119,7 +1119,183 @@ def build_linux(output, github, branch):
     print(f"Packaged Linux: {len(pages)} entries, original directory groups, notes and interactive diagrams.")
 
 
-def build_catalogs(output, github, branch):
+def programming_languages():
+    """Discover languages without making the website depend on a fixed list."""
+    known = {
+        "C与C++": ("c-cpp", "C / C++", "C & C++", "从内存与类型出发，把基础写扎实。", "c-cpp-hero.png"),
+        "JAVA": ("java", "Java", "JAVA", "从对象到应用，连接语法、框架与实践。", "java-hero.png"),
+        "Python": ("python", "Python", "PYTHON", "用清晰的表达，把想法变成可运行的代码。", "python-hero.png"),
+    }
+    folders = [p for p in (REPO / "编程语言").iterdir() if p.is_dir() and not p.name.startswith('.')]
+    folders.sort(key=lambda p: (list(known).index(p.name) if p.name in known else len(known), p.name.casefold()))
+    languages = []
+    for folder in folders:
+        default_slug = "language-" + hashlib.sha256(folder.name.encode()).hexdigest()[:10]
+        slug, title, label, description, cover = known.get(folder.name, (
+            default_slug, folder.name, folder.name.upper(), "沿着语法、例题与实践，逐步理解这门语言。", "programming-hero.png"))
+        languages.append(dict(slug=slug, title=title, label=label, description=description, cover=cover, folder=folder))
+    return languages
+
+
+def build_programming(output, github, branch):
+    """Generate readers from source notes; keep templates and all outputs in docs."""
+    source = PAGE_ROOT / "programming"
+    destination = output / "programming-languages"
+    destination.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source / "阅读资源", destination / "阅读资源", dirs_exist_ok=True)
+    languages = programming_languages()
+    routes, headings = {}, {}
+    supported = {".md", ".html", ".pdf", ".ppt", ".pptx", ".doc", ".docx", ".zip"}
+    group_order = ["Java基础语法", "Python基础语法", "MyBatis", "Spring", "Python后端", "环境与依赖管理", "补充理解", "实战日志", "习题", "课件"]
+    group_names = {name.casefold(): index for index, name in enumerate(group_order)}
+
+    def original(path):
+        kind = "tree" if path.is_dir() else "blob"
+        return f"{github}/{kind}/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}"
+
+    def plain(value):
+        return re.sub(r"[*`#=]", "", value).strip()
+
+    def slug_heading(value):
+        return re.sub(r"[^\w\-\s]", "", plain(value).lower()).replace(" ", "-")
+
+    for language in languages:
+        folder = language["folder"]
+        entries = language["entries"] = []
+        files = [p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in supported
+                 and not any(part.startswith('.') for part in p.relative_to(folder).parts)]
+
+        def order(path):
+            relative = path.relative_to(folder)
+            top = relative.parts[0] if len(relative.parts) > 1 else ""
+            suborder = {"核心语法": 0, "知识笔记": 0, "Spring Core": 0, "Spring MVC": 1,
+                        "Spring Boot": 2, "补充理解": 1, "习题": 2, "期末复习": 3}
+            parents = tuple((suborder.get(part, 4), part.casefold()) for part in relative.parts[1:-1])
+            return (group_names.get(top.casefold(), len(group_order)),
+                    parents, path.suffix.lower() != ".md", path.stem not in ("面向对象程序设计", "核心语法"), relative.as_posix().casefold())
+
+        for path in sorted(files, key=order):
+            relative = path.relative_to(folder).as_posix()
+            ident = "note-" + hashlib.sha256(relative.casefold().encode()).hexdigest()[:12]
+            kind = {".md": "note", ".html": "diagram", ".pdf": "pdf"}.get(path.suffix.lower(), "resource")
+            if kind == "note" and any(word in relative for word in ("习题", "题目")):
+                kind = "practice"
+            entry = dict(id=ident, title=path.stem, group=path.parent.relative_to(folder).as_posix(),
+                         kind=kind, format=path.suffix[1:].upper(), source=original(path), relative=relative,
+                         path=path, headings=[], full="", search="", pending=False)
+            entry["group"] = "基础笔记" if entry["group"] == "." else entry["group"].replace("/", " / ")
+            entries.append(entry)
+            routes[path.resolve()] = (language["slug"], ident)
+
+    for language in languages:
+        target_folder = destination / language["slug"]
+        target_folder.mkdir(parents=True, exist_ok=True)
+        language["notes"] = 0
+        language["resources"] = 0
+        for page in language["entries"]:
+            path, ident = page["path"], page["id"]
+            if page["kind"] not in ("note", "practice"):
+                language["resources"] += 1
+                page["search"] = page["title"] + " " + page["group"]
+                if page["kind"] in ("diagram", "pdf"):
+                    name = ident + path.suffix.lower()
+                    resource = target_folder / "resources" / name
+                    resource.parent.mkdir(exist_ok=True)
+                    shutil.copyfile(path, resource)
+                    page["embed" if page["kind"] == "diagram" else "pdf"] = "resources/" + name
+                continue
+            text = path.read_text(encoding="utf-8-sig")
+            text = re.sub(r"\A---\r?\n[\s\S]*?\r?\n---\r?\n", "", text)
+            page["pending"] = not bool(text.strip())
+            language["notes"] += not page["pending"]
+            page["search"] = text
+            md = MarkdownIt("commonmark", {"html": True}).enable("table")
+            anchors = headings[path.resolve()] = {}
+            duplicate_slugs = {}
+
+            def heading(tokens, index, options, env):
+                title = tokens[index+1].content
+                anchor = ident + "-h" + str(len(page["headings"]) + 1)
+                tokens[index].attrSet("id", anchor)
+                stem = slug_heading(title)
+                number = duplicate_slugs.get(stem, 0)
+                duplicate_slugs[stem] = number + 1
+                anchors[stem + ("-" + str(number) if number else "")] = anchor
+                page["headings"].append(dict(id=anchor, title=plain(title), level=int(tokens[index].tag[1])))
+                return md.renderer.renderToken(tokens, index, options, env)
+
+            def fence(tokens, index, options, env):
+                token = tokens[index]
+                code_language = token.info.strip().split()[0].lower() if token.info.strip() else "text"
+                return ('<figure class="code-block"><figcaption><span>' + escape(code_language.upper()) +
+                        '</span><button class="copy-code" type="button" aria-label="复制代码">复制代码</button></figcaption>' +
+                        '<pre><code class="language-' + escape(code_language, quote=True) + '">' +
+                        escape(token.content) + '</code></pre></figure>\n')
+
+            md.renderer.rules["heading_open"] = heading
+            md.renderer.rules["fence"] = fence
+            markup = md.render(text)
+            markup = re.sub(r"(<figure class=\"code-block\">[\s\S]*?</figure>)|(<code\b[^>]*>[\s\S]*?</code>)|==([^\n]+?)==",
+                            lambda m: m[1] or m[2] or "<mark>" + m[3] + "</mark>", markup)
+            markup = re.sub(r"<table>([\s\S]*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', markup)
+            markup = re.sub(r"\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]", lambda m: {
+                "NOTE": "补充理解", "TIP": "使用提示", "WARNING": "易错提醒", "IMPORTANT": "关键结论", "CAUTION": "注意事项"}[m[1]], markup)
+            if page["kind"] == "practice" and "<details" not in markup:
+                answer = re.search(r'<h([1-6])\b[^>]*>[^<]*(?:<[^>]+>)*\s*参考答案', markup)
+                if answer:
+                    markup = markup[:answer.start()] + '<details class="answers"><summary>展开参考答案与解析</summary>' + markup[answer.start():] + '</details>'
+            page["full"] = markup
+
+    attributes = re.compile(r'(?P<prefix>\b(?P<attribute>href|src)\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
+    for language in languages:
+        target_folder = destination / language["slug"]
+        for page in language["entries"]:
+            path = page.pop("path")
+
+            def rewrite(match):
+                url = match["url"]
+                parts = urlsplit(url)
+                if parts.scheme or parts.netloc or url.startswith(("//", "data:")):
+                    return match[0]
+                target = (path.parent / unquote(parts.path)).resolve() if parts.path else path.resolve()
+                if not target.is_relative_to(REPO):
+                    return match[0]
+                if not target.exists() and parts.path:
+                    # Notes sometimes retain a link after the target moves to a subfolder.
+                    candidates = [p for p in routes if p.name == target.name and p.is_relative_to(language["folder"])]
+                    if len(candidates) == 1:
+                        target = candidates[0]
+                route = routes.get(target)
+                if route and match["attribute"] == "href":
+                    fragment = unquote(parts.fragment)
+                    anchor = headings.get(target, {}).get(fragment, route[1])
+                    url = ("" if route[0] == language["slug"] else "../" + route[0] + "/") + "#" + anchor
+                elif target.is_file() and match["attribute"] == "src":
+                    name = hashlib.sha256(target.relative_to(REPO).as_posix().encode()).hexdigest()[:12] + target.suffix.lower()
+                    asset = target_folder / "assets" / name
+                    asset.parent.mkdir(exist_ok=True)
+                    shutil.copyfile(target, asset)
+                    url = "assets/" + name
+                elif parts.path:
+                    url = original(target) + ("#" + parts.fragment if parts.fragment else "")
+                return match["prefix"] + match["q"] + escape(url, quote=True) + match["q"]
+
+            page["full"] = attributes.sub(rewrite, page["full"])
+        config = {key: language[key] for key in ("slug", "title", "label", "description", "cover", "notes", "resources")}
+        config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
+        config["source"] = original(language["folder"])
+        payload = json.dumps(language["entries"], ensure_ascii=False).replace("</", r"<\/")
+        text = (source / "阅读页模板.html").read_text(encoding="utf-8")
+        for key, value in {"TITLE": escape(language["title"]), "DESCRIPTION": escape(language["description"], quote=True),
+                           "CHAPTER_DATA": payload, "LANGUAGE_DATA": json.dumps(config, ensure_ascii=False).replace("</", r"<\/")}.items():
+            text = text.replace("<!--" + key + "-->", value)
+        (target_folder / "index.html").write_text(text, encoding="utf-8", newline="\n")
+    print(f"Packaged programming: {len(languages)} languages, {sum(item['notes'] for item in languages)} notes, "
+          f"{sum(item['resources'] for item in languages)} diagrams and materials.")
+    return languages
+
+
+def build_catalogs(output, github, branch, programming):
     """Show repository boards first, then the subjects inside each board."""
     template = (PAGE_ROOT / "index.html").read_text(encoding="utf-8")
 
@@ -1134,7 +1310,7 @@ def build_catalogs(output, github, branch):
         mark = '<span class="number">'+escape(number)+'</span>' if image else '<div class="board-mark"><span>'+escape(symbol)+'</span><small class="number">'+escape(number)+'</small></div>'
         return '<a class="subject'+('' if image else ' compact')+'" href="'+escape(href, quote=True)+'">'+art+'<div class="subject-copy">'+mark+'<h2>'+escape(title)+'</h2><p>'+escape(description)+'</p><div class="chips">'+''.join('<span>'+escape(chip)+'</span>' for chip in chips)+'</div><strong>'+escape(label)+'<span aria-hidden="true">↗</span></strong></div></a>'
 
-    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more=""):
+    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more="", hero=None):
         destination = output / slug if slug else output
         destination.mkdir(parents=True, exist_ok=True)
         prefix = "../" if slug else ""
@@ -1146,7 +1322,9 @@ def build_catalogs(output, github, branch):
                   "SECTION_LABEL": escape(title+"目录", quote=True), "CARDS": ''.join(cards),
                   "MORE_TITLE": "从目录，走向理解", "MORE_TEXT": escape(more or "沿着目录选择内容，再结合原笔记、代码与练习逐步阅读。"),
                   "SOURCE_URL": escape(repository_url(source), quote=True),
-                  "READING_TIP": "数学、算法与 Linux 已提供在线阅读。其他板块先展示现有目录，子项可进入 GitHub 查阅原笔记，后续继续补充阅读页面。"}
+                  "INTRO_CLASS": "with-cover" if hero else "",
+                  "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024">' if hero else "",
+                  "READING_TIP": "数学、算法、编程语言与 Linux 已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
@@ -1160,6 +1338,17 @@ def build_catalogs(output, github, branch):
         card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), symbol="≈", number="05 / NUMERICAL ANALYSIS"),
     ]
     page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。", math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"), "math-catalog")
+
+    language_cards = [card(item["title"], item["description"], item["slug"]+"/", "进入阅读",
+                           (str(item["notes"])+" 篇笔记", str(item["resources"])+" 份图解与资料"),
+                           "阅读资源/"+item["cover"], number=str(index).zfill(2)+" / "+item["label"])
+                      for index, item in enumerate(programming, 1)]
+    page("programming-languages", "编程语言", '从一条语句，<br>到<em>独立解决问题。</em>',
+         "读懂语法，写下例子，把疑问留给下一次实践。选择一门语言，继续积累自己的理解。",
+         language_cards, REPO / "编程语言", "PROGRAMMING / LANGUAGES",
+         (str(len(programming))+" 门语言", str(sum(item["notes"] for item in programming))+" 篇笔记", "语法 · 练习 · 实践"),
+         "programming-catalog", "语言各有表达，学习始终相通。先理解基础，再在代码和项目中验证。",
+         "阅读资源/programming-hero.png")
 
     boards = {
         "数学": ("math", "高等数学、线性代数、离散数学与概率统计。", "∑"),
@@ -1186,6 +1375,11 @@ def build_catalogs(output, github, branch):
             continue
         if path.name=="Linux":
             root_cards.append(card(path.name, "从文件与权限到 Shell 脚本，沿着命令、补充理解与习题逐步实践。", "linux/", "进入 Linux 阅读", ("核心知识", "Shell", "补充理解与习题"), "linux/linux-hero.png", number=str(index).zfill(2)+" / LINUX"))
+            continue
+        if path.name=="编程语言":
+            root_cards.append(card(path.name, "从语法、习题到框架与项目，在代码中积累理解。", "programming-languages/", "选择语言",
+                                   tuple(item["title"] for item in programming), "programming-languages/阅读资源/programming-hero.png",
+                                   number=str(index).zfill(2)+" / PROGRAMMING"))
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
@@ -1256,7 +1450,8 @@ def build(output, repository, branch):
     build_discrete(output, github, branch)
     build_algorithms(output, github, branch)
     build_linux(output, github, branch)
-    build_catalogs(output, github, branch)
+    programming = build_programming(output, github, branch)
+    build_catalogs(output, github, branch, programming)
     shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")
     validate(output)
@@ -1290,8 +1485,9 @@ def validate(output):
             for entry in json.loads(match[2]):
                 parser.feed(entry.get("summary", ""))
                 parser.feed(entry.get("full", ""))
-                if entry.get("pdf"):
-                    parser.feed('<a href="' + escape(entry["pdf"], quote=True) + '"></a>')
+                for resource in ("pdf", "embed"):
+                    if entry.get(resource):
+                        parser.feed('<a href="' + escape(entry[resource], quote=True) + '"></a>')
 
 
 if __name__ == "__main__":
