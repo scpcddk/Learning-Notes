@@ -1106,6 +1106,8 @@ logging:
 
 ## 5. CI/CD 流水线示例（GitHub Actions）
 
+CI/CD 的概念、GitHub Actions 基础、测试与发布条件见 [CI/CD 学习笔记](../DevOps/CI-CD.md)；镜像标签、仓库权限和版本追溯见 [镜像仓库与版本管理](镜像仓库与版本管理.md)。本节保留镜像发布模板。
+
 ```yaml
 # .github/workflows/docker-build.yml
 name: Build and Push Docker Image
@@ -1130,7 +1132,7 @@ jobs:
           distribution: 'temurin'
           
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        run: mvn --batch-mode --no-transfer-progress verify
         
       - name: Login to Docker Hub
         uses: docker/login-action@v3
