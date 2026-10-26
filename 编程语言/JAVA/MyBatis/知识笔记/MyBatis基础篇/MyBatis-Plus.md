@@ -409,7 +409,7 @@ ORDER BY score DESC, id ASC;
 
 ### 9.2 LambdaQueryWrapper：用 getter 方法引用描述查询
 
-查询能力与普通查询构造器类似，主要区别是**列的表达方式**。下面实现与上一例相同的查询：
+`QueryWrapper` 与 `LambdaQueryWrapper` 的主要区别是**指定列的方式**，两者仍通过 MyBatis / JDBC 访问数据库。下面实现与上一例相同的查询：
 
 ```java
 LambdaQueryWrapper<Student> lq = new LambdaQueryWrapper<>();
@@ -425,6 +425,18 @@ List<Student> students = studentMapper.selectList(lq);
 
 `Student::getClassName` 是**getter 方法引用**，MP 根据实体映射找到 `class_name` 列；这里不是先读取某个学生对象的班级值。
 
+**方法调用、Lambda 与方法引用的区别：**
+
+| 写法 | 含义 |
+|---|---|
+| `student.getName()` | 立即调用该对象的方法，获得返回值 |
+| `s -> s.getName()` | Lambda 表达式，接收学生对象，调用时读取姓名 |
+| `Student::getName` | 对 `Student` 实例方法 `getName` 的方法引用 |
+
+后两种写法在 `Function<Student, String>` 等合适的函数式接口目标类型下，可以表达等价行为；声明时都不会立即读取某个学生的姓名。
+
+**但在 MP 中，列参数仍应使用 `Student::getName` 这样的 getter 方法引用。** MP 通过方法引用的元信息确定属性和列，并非执行函数取值，不能据此把列参数直接改成任意 `s -> ...` 表达式。
+
 **为什么用 `Student::getAge`，不能直接写 `"age"`？**
 
 `"age"` 可以用，但要看构造器类型：**普通版的列参数接收字符串，Lambda 版的列参数要求 getter 方法引用，两者不能直接混用。**
@@ -435,11 +447,17 @@ new LambdaQueryWrapper<Student>().eq(Student::getAge, 20); // Lambda 版：由 g
 // new LambdaQueryWrapper<Student>().eq("age", 20); // 参数类型不匹配，无法编译
 ```
 
-前两种写法都表达 `age = 20`。使用方法引用的好处是可以由 IDE 检查方法是否存在，并在重命名时同步修改；如果 Java 属性与数据库列名不同，MP 还会根据实体映射找到正确的列。
+前两种写法都表达 `age = 20`。
 
 - `<Student>` 指定操作的实体类型，`Student::getScore` 指定列，`new BigDecimal("80")` 才是比较值。
-- IDE 重命名 getter 时可同步修改方法引用，能减少字段名字符串造成的错误。
 - 适合日常单表查询；Lambda 写法本身不会让 SQL 执行得更快。
+
+**方法引用的优势与边界：**
+
+- 字符串列名如 `"name"` 不会得到 Java 编译器的字段存在性检查。
+- 将实体属性 `name` 重命名为 `studentName` 并同步修改 getter 时，IDE 重构通常可以更新方法引用；引用的方法不存在时，编译就会报错。
+- **编译通过不代表数据库映射正确。** 方法引用检查不会确认数据库中的列是否真实存在；实体映射错误仍可能导致运行时 SQL 出错。
+- **重构便利不等于 SQL 安全。** LambdaWrapper 中的 `apply / last` 等 SQL 片段仍需后端控制；Java 方法引用带来的检查与维护优势，也不是通过 Spring 注入获得的额外数据库访问安全保障。
 
 ### 9.3 UpdateWrapper：分别指定更新值和更新条件
 
