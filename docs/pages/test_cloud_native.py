@@ -55,12 +55,15 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.write("运维与服务部署/ANIC项目/环境.md", "# 环境\n\n实测记录。")
         text = self.build()
         self.assertEqual([s["title"] for s in self.config["sections"]],
-                         ["Docker", "DevOps", "运维与服务部署", "待学与拓展"])
-        pending = next(s for s in self.config["sections"] if s["title"] == "待学与拓展")
-        self.assertEqual(pending["count"], 4)
-        self.assertTrue(all(p["section"] == "待学与拓展" for p in self.pages if p["pending"]))
+                         ["Docker", "DevOps", "数据库与中间件", "运维与服务部署", "Kubernetes", "可观测性", "微服务"])
+        for section in self.config["sections"]:
+            pending = [topic for topic in section["topics"] if topic["key"] == "待学"]
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(pending[0]["count"], sum(p["pending"] and p["section"] == section["key"] for p in self.pages))
+        self.assertTrue(all(p["topic"] == "待学" and p["section"] == p["originalSection"] for p in self.pages if p["pending"]))
         old_k8s = "section-" + hashlib.sha256("Kubernetes".casefold().encode()).hexdigest()[:12]
-        self.assertEqual(self.config["redirects"][old_k8s], pending["id"])
+        self.assertNotIn(old_k8s, self.config["redirects"])
+        self.assertEqual(next(s for s in self.config["sections"] if s["key"] == "Kubernetes")["id"], old_k8s)
         self.assertEqual(self.config["pending"], 4)
         self.assertEqual(self.config["notes"], 3)
         self.assertNotIn("<!--HOME_URL-->", text)
@@ -90,7 +93,8 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.assertEqual(changed_redis["topic"], "Redis")
         self.assertNotIn(old_k8s, self.config["redirects"])
         database = next(s for s in self.config["sections"] if s["key"] == "数据库与中间件")
-        self.assertEqual([t["title"] for t in database["topics"]], ["Redis"])
+        self.assertEqual([t["title"] for t in database["topics"]], ["Redis", "待学"])
+        self.assertEqual(database["topics"][-1]["count"], 0)
         build_site.validate(self.output)
 
     def test_database_topics_and_pending_are_separate(self):
@@ -100,9 +104,10 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.write("数据库与中间件/Kafka.md", "")
         self.build()
         section = next(s for s in self.config["sections"] if s["key"] == "数据库与中间件")
-        self.assertEqual([t["title"] for t in section["topics"]], ["MySQL", "Nginx", "EMQX", "MinIO", "SRS"])
-        self.assertEqual(sum(t["count"] for t in section["topics"]), 7)
-        self.assertTrue(all(not p["pending"] for p in self.pages if p["section"] == section["key"]))
+        self.assertEqual([t["title"] for t in section["topics"]], ["MySQL", "Nginx", "EMQX", "MinIO", "SRS", "待学"])
+        self.assertEqual(sum(t["count"] for t in section["topics"] if t["key"] != "待学"), 7)
+        self.assertEqual(section["topics"][-1]["count"], 1)
+        self.assertEqual(next(p for p in self.pages if p["title"] == "Kafka")["section"], "数据库与中间件")
         self.assertEqual(next(p for p in self.pages if p["title"] == "minio")["subgroup"], "Java 集成")
         self.assertEqual(next(p for p in self.pages if p["title"] == "Linux")["subgroup"], "系统操作手册")
 
