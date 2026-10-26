@@ -425,6 +425,8 @@ List<Student> students = studentMapper.selectList(lq);
 
 `Student::getClassName` 是**getter 方法引用**，MP 根据实体映射找到 `class_name` 列；这里不是先读取某个学生对象的班级值。
 
+**方法引用指定操作哪一列，`eq()`、`lt()`、`set()` 等方法指定操作类型，后续值参数提供比较值或新值。** 例如，`eq` 表示等值筛选，`lt` 表示小于筛选，更新构造器的 `set` 表示赋值。
+
 **方法调用、Lambda 与方法引用的区别：**
 
 | 写法 | 含义 |
