@@ -45,6 +45,11 @@ class ProgrammingReaderTests(unittest.TestCase):
         text = (self.output / "programming-languages" / slug / "index.html").read_text(encoding="utf-8")
         return json.loads(build_site.DATA.search(text)[2])
 
+    def config(self, slug):
+        text = (self.output / "programming-languages" / slug / "index.html").read_text(encoding="utf-8")
+        import re
+        return json.loads(re.search(r'<script type="application/json" id="language-data">(.*?)</script>', text, re.S)[1])
+
     def test_add_edit_remove_notes_and_add_language(self):
         self.write("Python/基础/起点.md", "# 起点\n\n第一版。")
         self.build()
@@ -124,6 +129,32 @@ unsafe = "</script><script>bad()</script>"
         self.assertTrue((folder / pdf["pdf"]).is_file())
         self.assertNotIn("embed", resource)
         build_site.validate(self.output)
+
+    def test_java_python_sections_and_direct_cpp_reading(self):
+        for name in ("Java基础语法/核心语法/对象", "MyBatis/知识笔记/映射", "Spring/Spring Core/容器", "实战日志/排查"):
+            self.write("JAVA/" + name + ".md", "# 笔记\n\n完整内容。")
+        self.write("Python/python基础语法/核心语法.md", "# Python 基础\n\n内容。")
+        self.write("Python/Python后端/开发.md", "# Python 后端\n\n内容。")
+        self.write("C与C++/STL.md", "# STL\n\n直接阅读。")
+        self.build()
+        sections = self.config("java")["sections"]
+        self.assertEqual([section["title"] for section in sections], ["Java基础语法", "MyBatis", "Spring", "实战日志"])
+        original = {section["title"]: section["id"] for section in sections}
+        self.assertEqual([section["title"] for section in self.config("python")["sections"]], ["Python基础语法", "Python后端"])
+        self.assertEqual(self.config("c-cpp")["sections"], [])
+        self.assertEqual(self.pages("c-cpp")[0]["title"], "STL")
+        java = self.pages("java")
+        spring = next(page for page in java if page["section"] == "Spring")
+        self.assertEqual(spring["subgroup"], "Spring Core")
+        self.write("JAVA/Java基础语法/核心语法/集合.md", "# 新笔记\n\n自动加入已有板块。")
+        self.write("JAVA/并发/线程.md", "# 新板块\n\n自动收录。")
+        self.build()
+        sections = self.config("java")["sections"]
+        self.assertEqual(len(sections), 5)
+        self.assertEqual(next(section for section in sections if section["title"] == "Java基础语法")["count"], 2)
+        for section in sections:
+            if section["title"] in original:
+                self.assertEqual(section["id"], original[section["title"]])
 
 
 if __name__ == "__main__":

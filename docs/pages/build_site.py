@@ -1183,6 +1183,9 @@ def build_programming(output, github, branch):
             entry = dict(id=ident, title=path.stem, group=path.parent.relative_to(folder).as_posix(),
                          kind=kind, format=path.suffix[1:].upper(), source=original(path), relative=relative,
                          path=path, headings=[], full="", search="", pending=False)
+            parents = path.parent.relative_to(folder).parts
+            entry["section"] = parents[0] if parents else ""
+            entry["subgroup"] = " / ".join(parents[1:]) or "板块笔记"
             entry["group"] = "基础笔记" if entry["group"] == "." else entry["group"].replace("/", " / ")
             entries.append(entry)
             routes[path.resolve()] = (language["slug"], ident)
@@ -1282,6 +1285,28 @@ def build_programming(output, github, branch):
 
             page["full"] = attributes.sub(rewrite, page["full"])
         config = {key: language[key] for key in ("slug", "title", "label", "description", "cover", "notes", "resources")}
+        config["sections"] = []
+        if language["slug"] in ("java", "python"):
+            descriptions = {
+                "Java基础语法": "从类与对象开始，掌握语法、集合与常用方法。",
+                "MyBatis": "连接 Java 与数据库，理解映射、查询与事务。",
+                "Spring": "从核心机制到 Web 应用，逐步串起框架知识。",
+                "实战日志": "记录项目接手、接口测试与问题排查的过程。",
+                "python基础语法": "变量、容器与函数，从例子中理解 Python 的表达。",
+                "Python基础语法": "变量、容器与函数，从例子中理解 Python 的表达。",
+                "Python后端": "把语法用到接口、数据库与后端服务中。",
+                "环境与依赖管理": "整理解释器、虚拟环境与项目依赖的使用方法。",
+                "习题": "先独立作答，再对照答案和补充理解。",
+                "课件": "按需要查阅课堂讲义、数据分析与建模资料。",
+            }
+            for key in dict.fromkeys(page["section"] for page in language["entries"]):
+                entries = [page for page in language["entries"] if page["section"] == key]
+                config["sections"].append(dict(
+                    key=key, id="section-"+hashlib.sha256(key.casefold().encode()).hexdigest()[:12],
+                    title="Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
+                    description=descriptions.get(key, "沿着这个板块的目录，继续阅读与实践。"),
+                    count=len(entries), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in entries),
+                    resources=sum(page["kind"] not in ("note", "practice") for page in entries)))
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
         payload = json.dumps(language["entries"], ensure_ascii=False).replace("</", r"<\/")
