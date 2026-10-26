@@ -11,14 +11,20 @@
   <a href="https://scpcddk.github.io/Learning-Notes/math/">数学</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/algorithms/">算法</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/programming-languages/">编程语言</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/computer-organization/">计算机组成原理</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/cloud-native/">云原生</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/learning-plans/">学习计划</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/front-end/">前端基础</a> ·
-  <a href="https://scpcddk.github.io/Learning-Notes/ai/">AI</a>
+  <a href="https://scpcddk.github.io/Learning-Notes/ai/">AI</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/general-studies/">通识与拓展</a>
 </p>
 
-把学过的知识、做过的练习和踩过的坑记在这里，方便以后的自己查阅。笔记按主题持续整理，保留基础概念、补充理解、练习复盘与项目实践。
+学习常常从一个小小的疑问开始：一条公式为什么成立，一段代码为什么报错，一个熟悉的问题，为什么换个条件就有了不同的答案。这里记录着这些追问，也收拢着寻找答案时留下的草稿、练习和实践。
+
+有课堂上尚未想透的概念，有做题时反复混淆的细节，也有项目跑通后的欣喜与排查故障时的曲折。从数学与算法的推演，到编程、后端、AI 与云原生的实践，我试着把零散的理解串联起来，让每一次“原来如此”，都能在日后的翻阅中找到来处。
+
+笔记会继续生长，也会不断修订。愿这里既能留住学过的知识，也能留住思考的过程：走过的弯路成为后来可循的线索，今天写下的一点理解，成为明天向前的一步。
 
 ## 目录结构
 
@@ -309,11 +315,9 @@
 | 练习复习 | 习题、题目、期末复习与错题记录 |
 | 回顾实践 | Java 实战日志、AI 实践记录、云原生部署手册 |
 
-本地阅读 Markdown 时，使用支持 LaTeX 公式的阅读器；HTML 文件下载后用浏览器打开；PDF、Office 资料使用对应工具。GitHub 中的 HTML 文件页展示源码。
+**本地与离线阅读**：下载完整仓库，按 [阅读网站说明](pages/README.md) 生成站点并启动本机预览，即可在本地浏览已接入阅读页的各个板块。笔记正文、配图、公式组件和打包的课件随站点保存；指向 GitHub 的原文件及外部资源仍需联网。
 
-高等数学与线性代数支持离线速查：保留 `docs/pages` 下对应科目的完整文件夹，打开其中的 `速查笔记.html`，即可阅读与搜索。
-
-网站生成、预览与发布方法见 [阅读网站说明](pages/README.md)。
+**原始文件阅读**：所有板块的原始笔记、源码和课件均可下载查阅。Markdown 使用支持 LaTeX 公式的阅读器，HTML 下载后用浏览器打开，PDF、Office 资料使用对应工具。GitHub 中的 HTML 文件页展示源码。
 
 ## 使用与引用
 
