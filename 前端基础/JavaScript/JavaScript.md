@@ -29,7 +29,7 @@ const STATION_ID = 12;      // 换热站ID，永不改变
 var oldWay = '不推荐';      // 老式写法，有坑
 
 // ❌ 错误写法 — 未声明直接赋值（会成为全局变量，污染命名空间）
-pressure = 0.8;             // 严格模式报错，松散模式埋雷
+undeclaredPressure = 0.8;   // 严格模式报错，松散模式可能创建全局属性
 
 // ✅ 修正写法
 let pressure = 0.8;
@@ -62,7 +62,7 @@ alarmList2.push('过温');
 console.log(alarmList1); // ['断电','超压','过温']，被意外修改了
 
 // ✅ 修正：浅拷贝基本满足简单场景
-let alarmList2 = [...alarmList1];
+const alarmListCopy = [...alarmList1]; // 新数组；嵌套对象仍需另外处理
 ```
 
 > [!TIP]
@@ -82,7 +82,7 @@ let isHot = Boolean(realTemp > 50); // 转布尔
 let heatLoad = "20" + 5;            // "205" 而不是 25
 
 // ✅ 修正 — 先转换再运算
-let heatLoad = Number("20") + 5;    // 25
+const fixedHeatLoad = Number("20") + 5; // 25，使用不同变量名避免重复声明
 
 // ❌ 易错：比较时类型不同
 console.log(0 == false);   // true （松散相等，会发生类型转换）
@@ -128,12 +128,12 @@ if (currentSupplyTemp > HIGH_TEMP_LIMIT) {
 let tempDiff = currentSupplyTemp - currentReturnTemp;
 
 console.log('当前供水温度:', currentSupplyTemp, '℃');
-console.log('供回温差:', tempDiff, '℃');
+console.log('供回温差:', tempDiff.toFixed(1), '℃'); // 展示时控制浮点小数位
 console.log('活跃报警:', activeAlarms);
 // 输出：当前供水温度: 82.5 ℃  供回温差: 22.3 ℃  活跃报警: ['sensor_fault', 'high_supply_temp']
 ```
 
-**解释**：从后端接口拿到的一定是字符串或原始对象，必须进行类型转换和拷贝再操作，否则数据展示错误或原始数据被污染
+**解释**：本例接口把温度字段表示为字符串，因此先转换为数字。实际 JSON 也可以直接包含数字、布尔值、数组或 null，应按接口约定校验，不能无条件转换。空字符串和 null 转成数字都可能得到 0，要先判断它们是否表示缺失；只有需要独立修改对象或数组时才复制。
 
 ---
 
@@ -158,7 +158,7 @@ console.log('活跃报警:', activeAlarms);
 - **API 数据解析**：后端返回的 JSON 中数字可能是字符串类型，需要统一 `Number()` 转换后再用于图表绑定。
 - **报警列表管理**：报警数组是引用类型，展示时需浅拷贝后排序，避免混淆原始数据顺序，也防止无意修改缓存的数据源。
 - **站状态位运算**：一个站可能有多个状态标识（如运行、故障、离线），可通过**基本类型**布尔或数字位掩码来表示，保证状态判断准确。
-- **表单输入处理**：用户输入的值永远是字符串，设置参数前必须转换成数字并校验，防止提交“abc”到PLC导致异常。
+- **表单输入处理**：原生文本框的 value 通常是字符串；valueAsNumber、复选框 checked、Vue 的绑定与修饰符可能得到数字或布尔值。提交前按字段约定校验类型和范围。
 
 ---
 
@@ -178,7 +178,7 @@ console.log(b);
 
 **答案**：`10`  
 **常见错误**：以为 `b` 跟着变成 20。  
-**解析**：基本类型赋值是值的复制，`b` 保存的是 `a` 的旧值 10，之后 `a` 改变不影响 `b`。**`const` 只是不能重新赋值，值本身可以改变**.这里存的数字是基本类型，无法改变，所以 `b` 还是 10。
+**解析**：基本类型赋值是值的复制，`b` 保存的是 `a` 的旧值 10，之后 `a` 改变不影响 `b`。**`const` 禁止对变量重新赋值；对象的属性仍可修改，基本类型值本身不可变**。这里 b 保存的是数字 10，因此不会随 a 的重新赋值而变化。
 </details>
 
 #### Q2: 如何正确判断一个变量是不是数字 0（排除假值）？
@@ -191,7 +191,7 @@ if (val == false) { console.log("假值"); }  // 会输出吗？
 <details>
 <summary>答案与解析</summary>
 
-**答案**：会输出，但这是错误的判断。应使用 `Number(val) === 0` 或 `val === 0` 如果已知类型。  
+**答案**：会输出，但这是错误的判断。如果必须排除假值和其他类型，应使用 `val === 0`；`Number(val) === 0` 还会接受 false、null 和空字符串，只适合先完成输入校验后的转换场景。<br>
 **常见错误**：用 `==` 导致 `"0" == false` 为 `true`（隐式转换规则诡异）。正确做法：先确保类型一致，再用严格相等。
 </details>
 
@@ -254,7 +254,7 @@ let name = stationName ?? "未命名";   // 看的是 “有没有值”（只�
 let flow = 0;
 let flowRate = flow || 1.0;   // flowRate是1，但流量可能就是0
 // ✅ 修正
-let flowRate = flow ?? 1.0;   // flowRate是0
+const safeFlowRate = flow ?? 1.0; // 0；不能在同一作用域再次声明 let flowRate
 ```
 
 #### 3. 条件语句 —— “运行模式切换”
@@ -387,7 +387,7 @@ function calcHeatLoad(flow, tempDiff) {
 }
 
 // ✅ 箭头函数（简短，不绑定this）
-const calcHeatLoad = (flow, tempDiff) => flow * 4.2 * tempDiff;
+const calcHeatLoadArrow = (flow, tempDiff) => flow * 4.2 * tempDiff;
 
 // ❌ 错误 — 箭头函数不能用作构造函数
 const LoadCalc = () => {};
@@ -398,9 +398,9 @@ const LoadCalc = () => {};
 
 ```js
 // ✅ 默认参数
-function setThreshold(temp = 75) { ... }
+function setThreshold(temp = 75) { return temp; }
 
-// ❌ 错误 — 函数默认参数只在参数为 undefined 时生效。null 在 JS 里被当作“一个主动传进来的有效值”，所以它不会触发默认，直接原样赋值为 null
+// 注意：默认参数只在参数为 undefined 或未传入时生效，null 不会触发默认值
 setThreshold(null); // temp = null
 
 // ✅ 对象解构参数，直观
@@ -410,7 +410,7 @@ function updateSensor({ id, value = 0 }) {
 updateSensor({ id: 'T1', value: 22 });
 
 // 原写法（拆解后）
-function updateSensor(obj) {
+function updateSensorExpanded(obj) {
   let id = obj.id;          // 从对象里取 id
   let value = obj.value;    // 从对象里取 value
   if (value === undefined) {
@@ -501,7 +501,7 @@ for (var i = 1; i <= 3; i++) {
 <details><summary>答案</summary>`4,4,4`，因为 var 没有块作用域，循环完后 i 变为 4，回调执行时访问同一个 i。用 let 可解决。</details>
 
 **Q2** 闭包可能引起什么问题？  
-<details><summary>答案</summary>内存泄漏，因为闭包保持着对外部变量的引用，这些变量不会被垃圾回收。需及时释放不必要的闭包引用。</details>
+<details><summary>答案</summary>闭包会延长其仍然引用的数据的生命周期，但闭包本身不等于内存泄漏。只有不再需要的数据仍被定时器、监听器或缓存等可达引用保留时，才可能造成不必要的内存占用。应清理不再需要的引用和副作用。</details>
 
 **Q3** 如何设计一个函数，既能被 `new` 调用又能普通调用？  
 <details><summary>答案</summary>内部用 `if (!new.target)` 判断，若普通调用则返回 new 实例。但通常避免混合使用，保持单一职责。</details>
@@ -600,16 +600,18 @@ const onlineData = rawStations
   .map(({ name, temp, pressure }) => ({ name, temp, pressure }));
 
 // 2. 计算平均温度
-const avgTemp = onlineData.reduce((sum, s) => sum + s.temp, 0) / onlineData.length;
+const avgTemp = onlineData.length
+  ? onlineData.reduce((sum, s) => sum + s.temp, 0) / onlineData.length
+  : null;
 
-// 3. 找出压力最高的站
+// 3. 找出压力最高的站；没有在线站时保留 null
 const maxPressureStation = onlineData.reduce((prev, curr) =>
-  prev.pressure > curr.pressure ? prev : curr
+  !prev || curr.pressure > prev.pressure ? curr : prev, null
 );
 
 console.log("在线站:", onlineData);
-console.log("平均温度:", avgTemp.toFixed(1));
-console.log("压力最高站:", maxPressureStation.name);
+console.log("平均温度:", avgTemp === null ? "暂无在线数据" : avgTemp.toFixed(1));
+console.log("压力最高站:", maxPressureStation?.name ?? "暂无在线数据");
 ```
 
 ### ⚠️ 易错点清单
@@ -619,7 +621,7 @@ console.log("压力最高站:", maxPressureStation.name);
 | 修改了作为props传入的对象 | 使用解构创建新对象或浅拷贝 | 组件间数据传递 |
 | `arr.length = 0` 清空数组但多处引用 | 确认无其他引用，或重新赋值 | 重置数据列表 |
 | `for...in` 遍历数组 | 用 `for...of` 或 `forEach` | 遍历测点列表 |
-| 对象键隐式转换为字符串 | 如果需非字符串键用Map | 用对象做缓存 |
+| 把任意对象直接当普通对象的键 | 普通对象的属性键是字符串或 Symbol；需要对象身份作为键时用 Map | 用对象做缓存 |
 | 解构时变量名冲突 | 使用重命名 `{ name: stationName }` | 提取数据 |
 
 ### 🏭 项目应用场景
@@ -639,7 +641,7 @@ console.log("压力最高站:", maxPressureStation.name);
 <details><summary>答案</summary>`const` 限制的是变量引用不可变，但数组内容（堆内存）可以修改。</details>
 
 **Q3** 解构时如何避免未定义属性报错？  
-<details><summary>答案</summary>提供默认值 `{ key = 'default' }` 或结合可选链先判断对象存在。</details>
+<details><summary>答案</summary>对象存在但属性为 undefined 时，可用 `{ key = 'default' }`；属性为 null 时不会触发此默认值。对象本身可能为 null/undefined 时，先用 `const { key = 'default' } = obj ?? {}`，或读取 `obj?.key ?? 'default'`。</details>
 
 ---
 
@@ -728,9 +730,9 @@ newAlarm.className = 'alarm-item';
 newAlarm.textContent = '超温报警';
 list.appendChild(newAlarm);
 
-// ❌ 错误 — 频繁操作DOM导致回流
+// 大量 DOM 操作可能增加开销；并非每次 appendChild 都立即触发一次布局
 for (let i=0; i<100; i++) { list.appendChild(...); }
-// ✅ 使用DocumentFragment或先拼接字符串再一次性插入
+// 可批量使用 DocumentFragment；避免读写布局属性交错，不把用户输入直接拼成 HTML
 ```
 
 ### 🔬 代码实验室：实时温度仪表盘更新
@@ -770,7 +772,7 @@ setInterval(() => {
 |--------|--------|------|
 | 在DOM加载前访问元素 | 把脚本放底部或 `DOMContentLoaded` | 初始化页面 |
 | 用 `innerHTML` 拼接用户输入 | 使用 `textContent` 或转义 | 显示备注信息 |
-| 事件处理器内误用 `this` | 箭头函数不绑定this，需要用e.target | 动态列表项事件 |
+| 把 this、target 与 currentTarget 混为一谈 | 普通监听函数的 this 对应 currentTarget；箭头函数继承外层 this。target 是实际触发事件的元素，currentTarget 是当前监听元素 | 动态列表项事件 |
 | 未移除不必要的事件监听 | `removeEventListener` 或在元素销毁时 | 单页应用组件卸载 |
 | 直接修改 `style` 太多 | 改为添加/移除 class | 状态样式切换 |
 
@@ -812,7 +814,7 @@ setInterval(() => {
 
 ```js
 // ❌ 回调地狱
-// 回调地狱本质就是异步任务的‘单向阻塞流水线’——上一道工序不交付，下一道工序只能干瞪眼，整个业务流被时序依赖彻底焊死，毫无弹性
+// 多层回调会让依赖关系与错误处理难以维护；异步回调本身不等于阻塞主线程。
 getStationData(1, function(data) {      // 步骤1：去服务器拿1号站的数据
   updateUI(data, function() {           // 步骤2：拿到数据后，更新页面UI（可能带动画）
     checkAlarms(function(alarms) {      // 步骤3：UI更新完后，再去检查有没有警报
@@ -830,8 +832,8 @@ getStationData(1, function(data) {      // 步骤1：去服务器拿1号站的�
 | :--- | :--- | :--- |
 | **1. 金字塔缩进（Pyramid of Doom）** | 每多一层异步，缩进就往右推一格，业务复杂时能推到屏幕外面去。 | 现在才3层，看着还行。要是加个“保存日志”“发送通知”，直接变成向右的三角形。 |
 | **2. 错误处理无处安放（Try-Catch失效）** | `try-catch` 只能抓同步错误，抓不住异步回调里的报错。如果 `updateUI` 崩了，外面根本不知道。 | 你没法在外面用 `try` 包住整个链条，只能每个回调里单独写 `if(err)`，代码瞬间翻倍。 |
-| **3. 流程无法“中断”或“跳过”** | 如果步骤2（`updateUI`）发现数据非法，想直接结束不往下走，你没法 `return` 或 `break`。 | 你必须在 `updateUI` 的回调里判断，如果错了，就别调用 `checkAlarms`，但代码结构极其拧巴。 |
-| **4. 变量作用域污染** | 内层函数能拿到外层变量，但外层拿不到内层。如果你想在最后把 `data` 和 `alarms` 合并，只能把它们挂在全局对象上，极其危险。 | 最终 `// ...` 里想同时用 `data` 和 `alarms`？抱歉，`data` 在外层，`alarms` 在内层，你得写闭包传参，超级麻烦。 |
+| **3. 提前结束与错误传播分散** | 回调可以通过 return 提前结束，也可以不再调用后续步骤；跨层错误传播需要明确约定。 | 多层回调中容易遗漏失败分支或重复调用回调。 |
+| **4. 嵌套层级增加维护成本** | 内层回调可以通过闭包读取外层变量，无需挂到全局。 | 本例最内层可同时访问 data 和 alarms；问题是嵌套较深时数据依赖和职责不易梳理。 |
 </details>
 
 #### 2. Promise —— “承诺未来给结果”
@@ -883,8 +885,9 @@ async function getAlarms(stationId) {
   return alarms;
 }
 
-// ❌ 错误 — 未检查 response.ok
-const data = await fetch(url).then(res => res.json()); // 可能4xx解析出错
+// 易错：未检查 response.ok。fetch 收到 4xx/5xx 通常仍会兑现 Promise；
+// 如果错误响应是合法 JSON，json() 也会成功，不能据此认为业务成功。
+const data = await fetch(url).then(res => res.json());
 ```
 
 ### 🔬 代码实验室：自动轮询换热站数据
@@ -919,6 +922,8 @@ updateAllStations();
 setInterval(updateAllStations, REFRESH_INTERVAL);
 ```
 
+此示例按固定间隔触发；如果请求耗时超过间隔，会出现重叠请求。需要保证串行轮询时，在每轮 await 完成后再用 setTimeout 安排下一轮，并在页面卸载时清理定时器。
+
 ### ⚠️ 易错点清单
 
 | ❌ 错误 | ✅ 正确 | 场景 |
@@ -940,7 +945,7 @@ setInterval(updateAllStations, REFRESH_INTERVAL);
 ### 📝 自测问题
 
 **Q1** `Promise.all` 中一个失败会怎样？  
-<details><summary>答案</summary>整体 reject，立即返回第一个失败原因。若想忽略失败用 `Promise.allSettled`。</details>
+<details><summary>答案</summary>整体以最先发生的拒绝原因 reject，但其他已启动任务不会自动取消。需要获得每个任务的成功或失败结果时用 Promise.allSettled，再逐项处理失败。</details>
 
 **Q2** `setTimeout(fn, 0)` 一定立即执行吗？  
 <details><summary>答案</summary>不会，它只是将回调放入宏任务队列，需等待当前执行栈和微任务清空。</details>
@@ -1042,7 +1047,7 @@ function checkRules(data, rules) {
 
 // 使用时
 const data1 = { temp: 82, pressure: 1.0 };
-console.log(checkRules(data1, station1Rules)); // temp超温
+console.log(checkRules(data1, station1Rules)); // { tempStatus: '超温', pressureStatus: '正常' }
 ```
 
 ### ⚠️ 易错点清单
@@ -1171,9 +1176,13 @@ async function safeRefresh() {
       }
     } catch (error) {
       console.warn(`站${id}刷新失败:`, error.message);
-      showStationError(id, '数据获取失败'); // 显示离线状态
+      showStationError(id, '数据获取失败'); // 交给界面层处理错误状态
     }
   }
+}
+
+function showStationError(id, message) {
+  console.error(`站${id}: ${message}`); // 演示错误出口；实际项目在这里更新对应卡片
 }
 
 function updateStationCard(id, data) {
@@ -1216,3 +1225,5 @@ function updateStationCard(id, data) {
 <details><summary>答案</summary>隐藏了真实问题，导致数据不一致或难以排查，至少应记录日志。只捕获预期内的特定错误。</details>
 
 ---
+
+核对依据：[MDN 闭包](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures)、[Fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch)、[Promise.all](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)。

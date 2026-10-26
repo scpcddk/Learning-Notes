@@ -18,7 +18,7 @@
 5. **键必须用双引号 `"` 包裹**（单引号不允许）
 6. 值的类型必须是合法的 JSON 数据类型（见下节）
 7. 不支持注释
-8. 整体必须是一个对象 `{}` 或数组 `[]`（不能是原始值直接裸露，但早期有些实现允许，标准要求最外层为对象或数组）
+8. 顶层可以是任意合法 JSON 值，包括对象、数组、字符串、数字、布尔值和 `null`。例如 `42`、`"hello"`、`true` 都是合法 JSON 文本；只允许对象或数组的是部分旧规范或接口自身的约定。
 
 ---
 
@@ -90,8 +90,8 @@ JSON 支持以下 6 种数据类型：
 
 **相互转换：**
 
-- `JSON.parse(jsonString)` → 将`JSON`字符串解析为`JavaScript`对象
-- `JSON.stringify(jsObject)` → 将`JavaScript`对象序列化为`JSON`字符串
+- `JSON.parse(jsonString)` → 将 JSON 文本解析为对应的 JavaScript 值，不一定是对象。
+- `JSON.stringify(value)` → 将可序列化的 JavaScript 值转换为 JSON 文本；顶层为 `undefined`、函数或 Symbol 时返回 `undefined`，而不是字符串。
 
 ---
 
@@ -142,6 +142,7 @@ JSON.stringify(data, null, 2);
 - `NaN`、`Infinity` 转为 `null`
 - Date 对象会调用 `toJSON()` 转为 ISO 字符串
 - 对象定义了 `toJSON()` 方法时，会序列化其返回值
+- 默认情况下，遇到 `BigInt` 或循环引用会抛出 `TypeError`；需要明确转换策略，不能认为所有 JavaScript 对象都能直接转为 JSON。
 
 ---
 
@@ -174,8 +175,8 @@ JSON.stringify(data, null, 2);
 
 ## 9. Java/Spring 中的 JSON
 
-- Spring Boot 默认集成 **Jackson**，自动配置 `ObjectMapper`
-- 无需额外依赖，直接使用
+- 常见 Spring Boot 3 MVC 项目通过 `spring-boot-starter-web` 引入 Jackson，并自动配置 `ObjectMapper`。
+- 不是所有 Spring Boot 项目都默认包含 JSON 库；应结合所用 Boot 版本、Starter 和依赖确认。下例按 Boot 3 / Jackson 2 编写。
 
 ### (1) 全局配置（application.yml）
 
@@ -225,13 +226,14 @@ User user = objectMapper.readValue(jsonStr, User.class);
 ### (4) 注意事项
 
 - `@RequestBody` 自动反序列化，`@RestController` 自动序列化
-- 日期全局配置，局部特殊用 `@JsonFormat`
+- `spring.jackson.date-format` 主要作用于 `java.util.Date` 等传统日期类型；`LocalDate`、`LocalDateTime` 通常通过 Java Time 模块、`@JsonFormat` 或相应序列化器配置，不能认为一个全局格式对所有日期类型都生效。
 - 开启 `non_null` 减少传输量
 - Long 大数加 `@JsonSerialize(using = ToStringSerializer.class)` 防精度丢失
 - 实体加 `@JsonIgnoreProperties(ignoreUnknown = true)` 防未知字段报错
 - 禁止用 `eval` 解析，禁止 Jackson 的 `enableDefaultTyping`
 
 ---
+
 
 ## 10. JSON Schema（扩展了解）
 
@@ -255,3 +257,5 @@ User user = objectMapper.readValue(jsonStr, User.class);
 ```
 
 ---
+
+核对依据：[RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-2)、[JSON.stringify](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify)。

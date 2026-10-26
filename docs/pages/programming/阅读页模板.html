@@ -8,6 +8,7 @@
   <title><!--TITLE--> · <!--READER_TITLE--></title>
   <link rel="icon" href="<!--HOME_URL-->favicon.svg" type="image/svg+xml">
   <script>try{if(localStorage.getItem('<!--THEME_KEY-->')==='dark')document.documentElement.dataset.theme='dark'}catch{}</script>
+  <!--MATH_ASSETS-->
   <style>
     :root{color-scheme:light;--bg:#fafbf8;--paper:#fff;--sidebar:#f1f4ee;--ink:#25362f;--muted:#707e73;--green:#286249;--soft:#e7efe5;--line:#e0e7dd;--sand:#f5f2e8;--code:#1e2d26;--code-ink:#e3ebdf;--serif:'Noto Serif SC','Songti SC','SimSun',serif;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
     html[data-theme=dark]{color-scheme:dark;--bg:#171f1b;--paper:#1e2822;--sidebar:#1b251f;--ink:#dce6dc;--muted:#a0afa3;--green:#a0c9a1;--soft:#2b4031;--line:#344237;--sand:#333329;--code:#111d16}
@@ -68,7 +69,7 @@
     const save=(key,value)=>{try{localStorage.setItem('programming-'+config.slug+'-'+key,value)}catch{}};
     const labels={note:'笔记',practice:'习题',diagram:'图解',pdf:'PDF',resource:'资料',...(config.kindLabels||{})};
     if(config.kindLabels){document.querySelector('[data-filter=practice]').hidden=true;document.querySelector('[data-filter=material]').hidden=!pages.some(p=>['pdf','resource'].includes(p.kind));document.querySelector('[data-filter=note]').textContent='计划';document.querySelector('[data-filter=diagram]').textContent='HTML';document.querySelector('#document').setAttribute('aria-label','当前计划');document.querySelector('#search').placeholder='搜索计划、任务与学习方向'}
-    let active='overview', filter='all', mode=get('mode')||'full', currentPage=null, currentSection=null, currentTopic=null, tocNodes=[], pendingQuery='';
+    let active='overview', filter='all', mode=get('mode')||'full', currentPage=null, currentSection=null, currentTopic=null, tocNodes=[], pendingQuery='', renderVersion=0;
     if(!['guide','full'].includes(mode))mode='full';
     const groups=[...new Set(pages.map(p=>p.group))];
     const sections=config.sections||[], topics=sections.flatMap(section=>section.topics||[]);
@@ -124,6 +125,8 @@
       target.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});
     }
     function render(){
+      const version=++renderVersion;
+      if(window.MathJax?.typesetClear)MathJax.typesetClear([$('note-body')]);
       let hash;try{hash=decodeURIComponent(location.hash.slice(1))}catch{hash='overview'}
       hash=config.redirects?.[hash]||hash;
       const selectedTopic=topics.find(topic=>topic.id===hash);
@@ -165,6 +168,7 @@
       $('pager').innerHTML='<a href="#'+(previous?.id||back)+'">← '+escape(previous?.title||backTitle)+'</a><a href="#'+(next?.id||back)+'">'+escape(next?.title||backTitle)+' →</a>';
       document.querySelectorAll('[data-mode]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.mode===mode)));
       highlight();tocNodes=[...$('note-body').querySelectorAll('h1,h2,h3')];catalog();menu(false);window.scrollTo(0,0);progress();
+      if(page.math&&window.MathJax?.startup?.promise){MathJax.startup.promise.then(()=>{if(version===renderVersion)return MathJax.typesetPromise([...$('note-body').querySelectorAll('.math-inline,.math-display')])}).then(()=>{if(version===renderVersion)progress()})}
       if(headingTarget)requestAnimationFrame(()=>anchor(hash));
       if(pendingQuery){const terms=pendingQuery.toLocaleLowerCase().split(/\s+/).filter(Boolean);pendingQuery='';requestAnimationFrame(()=>{const found=[...$('note-body').querySelectorAll('h1,h2,h3,h4,p,li,pre')].find(node=>terms.every(term=>node.textContent.toLocaleLowerCase().includes(term)));if(found){let details=found.closest('details');while(details){details.open=true;details=details.parentElement.closest('details')}found.scrollIntoView({block:'center'});found.classList.add('read-highlight');setTimeout(()=>found.classList.remove('read-highlight'),4000)}})}
     }
@@ -192,6 +196,7 @@
     window.addEventListener('afterprint',()=>{printState.forEach(([d,open])=>d.open=open);if(printGuide){$('guide').hidden=false;$('note-body').hidden=true}printState=[]});$('print').addEventListener('click',()=>window.print());
     let scheduled=false;window.addEventListener('scroll',()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;progress()})},{passive:true});
     window.addEventListener('resize',()=>{menu(matchMedia('(max-width:840px)').matches&&document.body.classList.contains('nav-open'));progress()});$('note-body').addEventListener('toggle',progress,true);window.addEventListener('hashchange',render);
+    window.addEventListener('load',()=>{if(currentPage?.math)render()},{once:true});
     themeButton();menu(false);render();
   })();
   </script>

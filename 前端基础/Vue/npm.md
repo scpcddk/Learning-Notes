@@ -7,8 +7,8 @@
 | 文件 | 作用 | 是否提交 Git |
 | :--- | :--- | :--- |
 | **`package.json`** | 项目配置入口，记录**依赖范围**和**脚本命令** | ✅ 必须提交 |
-| **`package-lock.json`** | 锁定**精确版本号**和**依赖树**，保证团队环境一致性 | ✅ 必须提交 |
-| **`.npmrc`** | **npm 配置**文件（源地址、缓存路径等） | ⚠️ 视情况（通常提交基础配置） |
+| **`package-lock.json`** | 记录已解析的**精确版本号**和**依赖树**，提高安装可复现性；仍需匹配 Node/npm 版本、平台与安装配置 | ✅ 必须提交 |
+| **`.npmrc`** | **npm 配置**文件（源地址、缓存路径等） | ⚠️ 可提交非敏感配置；令牌等凭证通过环境或本机配置注入 |
 | **`node_modules`** | 实际**存放代码**的文件夹，体积巨大 | ❌ **绝不提交**（.gitignore 忽略） |
 
 ---
@@ -20,23 +20,23 @@
 | 命令 | 说明 |
 | :--- | :--- |
 | `npm init -y` | 快速生成默认`package.json` |
-| `npm i` / `npm install` | ==根据`package.json` 安装**所有**依赖== |
+| `npm i` / `npm install` | ==根据 package.json 与可用的 lock 文件解析和安装依赖==；生产模式或 --omit=dev 等配置会省略开发依赖 |
 | `npm i <包名>` | 安装生产依赖（默认写入`dependencies`） |
 | `npm i <包名> -D` | 安装开发依赖（写入 `devDependencies`，如测试/打包工具） |
 | `npm i <包名> -g` | 全局安装（命令行工具，如 `pm2`、`yarn`） |
 | `npm uninstall <包名>` | 卸载依赖（自动移除 `package.json` 记录） |
-| `npm ci` | **严格按 lock 文件安装**（比 `npm i` 更快，常用于 CI/CD 流水线） |
+| `npm ci` | 要求已有 lock 文件且与 package.json 一致；清理现有 node_modules 后安装，不改写 lock；常用于 CI/CD |
 
 ### 🚀 版本与更新
 
 | 命令 | 说明 |
 | :--- | :--- |
 | `npm outdated` | 查看哪些依赖有可用更新 |
-| `npm update` | 更新到 `package.json` 允许的最高版本（受 Semver 限制） |
+| `npm update` | 在版本范围和依赖约束允许的范围内更新；不等于无条件升级到所有最新版本 |
 | `npm i <包名>@latest` | 无视版本限制，直接安装最新版 |
 | `npm view <包名> versions` | 查看某个包的所有历史版本号 |
 | `npm audit` | 检查依赖的安全漏洞 |
-| `npm audit fix` | 自动修复可修复的安全漏洞（不破坏兼容性） |
+| `npm audit fix` | 尝试在允许的依赖范围内修复；仍需检查差异和运行测试，--force 可能越过版本范围并引入破坏性更新 |
 | `npm ls <包名>` | 查看依赖树中某包的版本（厘清为什么安装它） |
 
 ### 🛠 脚本运行
@@ -46,7 +46,7 @@
 | `npm run <脚本名>` | ==**执行** `package.json` 中 `scripts` 定义的命令== |
 | `npm start` | 特殊脚本，可简写（无需 `run`） |
 | `npm test` | 特殊脚本，可简写（无需 `run`） |
-| `npx <包名>` | 无需安装，直接执行本地或远程命令（推荐代替全局安装调试工具） |
+| `npx <包名>` | 执行本地包提供的命令；缺少对应包时可能提示下载并安装到 npm 缓存，不等于完全不安装 |
 
 <details><summary>深入理解npm run</summary>
 
@@ -56,7 +56,7 @@
 
 1.  **临时把 `node_modules/.bin` 加入系统 PATH**  
     这样就能直接调用项目本地安装的各种命令行工具（如 `webpack`、`eslint`、`vite`），而不需要全局安装
-2.  **继承所有 npm 环境变量**  
+2.  **提供当前 npm 版本支持的脚本环境变量**<br>
     脚本内可直接使用 `$npm_package_name`、`$npm_package_version` 等变量
 3.  **支持前置/后置钩子**  
     自动执行 `pre<script>` 和 `post<script>` 脚本
@@ -134,12 +134,12 @@ npm run
 
 | 符号 | 含义 | 示例匹配规则 |
 | :--- | :--- | :--- |
-| `^2.5.1` | **兼容主版本**（最常用） | 可更新到 `2.x.x`（`3.0.0` 不行） |
-| `~2.5.1` | **兼容补丁版本** | 只更新到 `2.5.x`（`2.6.0` 不行） |
+| `^2.5.1` | **兼容主版本**（最常用） | 通常允许 `>=2.5.1 <3.0.0` 的稳定版本 |
+| `~2.5.1` | **兼容补丁版本** | 通常允许 `>=2.5.1 <2.6.0` 的稳定版本 |
 | `>=2.5.1` | 大于等于该版本 | 任意高于 `2.5.1` 的版本 |
-| `*` / `x` | 最新版本（极不稳定，**不推荐**） | 始终安装最新 |
+| `*` / `x` | 通配版本范围 | 单独 * 或 x 通常匹配任意稳定版本；已有 lock 时不会因此每次都安装最新版本 |
 
-> ⚠️ 特例：对于 `0.x.x` 版本，`^` 会退化为 `~`，只允许补丁版本更新（例如 `^0.2.1` 仅允许 `0.2.x`）。
+> `^` 保留最左侧非零版本位：`^0.2.1` 通常允许 `>=0.2.1 <0.3.0`，而 `^0.0.3` 只允许 0.0.3 的稳定版本；不能把所有 0.x.x 都理解成与 ~ 相同。预发布版本还有单独的匹配规则。
 
 ---
 
@@ -150,7 +150,7 @@ npm run
 npm config get registry
 ```
 
-### 切换为淘宝镜像（推荐，速度极快）
+### 可选：切换 npmmirror 镜像
 ```bash
 npm config set registry https://registry.npmmirror.com
 ```
@@ -160,7 +160,7 @@ npm config set registry https://registry.npmmirror.com
 npm config set registry https://registry.npmjs.org
 ```
 
-### 使用 nrm 一键切换源（强烈推荐安装）
+### 可选：使用 nrm 管理源
 ```bash
 npm i -g nrm          # 安装
 nrm ls                # 列出所有源
@@ -187,9 +187,9 @@ nrm use npm           # 切回官方
 
 | 报错信息 | 大概率原因 | 解决方案 |
 | :--- | :--- | :--- |
-| `ERESOLVE unable to resolve dependency tree` | 依赖版本冲突（常见于 React/Vue 生态） | `npm i --force`（强制）或 `npm i --legacy-peer-deps`（**仅限临时绕过**，生产环境应修复冲突） |
-| `npm ERR! code EACCES` | 权限不足（Mac/Linux） | 不要用 `sudo`！可暂时修正权限：`sudo chown -R $USER /usr/local/lib/node_modules`，更推荐下方“进阶修复” |
-| `npm install` 卡死/极慢 | 源被墙或缓存问题 | 换淘宝源；或清缓存：`npm cache clean --force` |
+| `ERESOLVE unable to resolve dependency tree` | 依赖版本冲突（常见于 React/Vue 生态） | 先根据冲突报告核对 peerDependencies 和版本组合；--legacy-peer-deps 会忽略 peer 依赖约束，仅在明确原因时临时使用，不默认加 --force |
+| `npm ERR! code EACCES` | 权限不足（Mac/Linux） | 按下方方法使用 Node 版本管理器或用户级全局目录；不要把递归修改系统目录所有权当作通用修复 |
+| `npm install` 卡死/极慢 | 源被墙或缓存问题 | 先检查网络、registry 和代理，再运行 npm cache verify；缓存清理不是常规第一步 |
 | `command not found: xxx`（本地包命令） | 环境变量未加载本地 bin | 使用 `npx <包名>` 执行（如 `npx webpack`），或 `./node_modules/.bin/xxx` |
 
 ### 🛠 权限问题进阶修复（一劳永逸）
@@ -203,13 +203,14 @@ nrm use npm           # 切回官方
   # 然后将 ~/.npm-global/bin 加入 PATH（写入 .bashrc 或 .zshrc）
   ```
 
-### 💣 终极核武器（依赖死活装不上时）
+### 根据报错重新安装
 
 ```bash
-rm -rf node_modules package-lock.json && npm install
+npm cache verify
+npm ci
 ```
 
-清空所有依赖与锁文件后重装，可解决绝大部分玄学问题。
+上例要求已有且一致的 package-lock.json。若提示 lock 与 package.json 不一致，先确认依赖修改，再运行 npm install 并审查锁文件差异。不要把删除锁文件作为通用修复，否则可能改变整棵依赖树，掩盖原问题。
 
 ---
 
@@ -218,10 +219,12 @@ rm -rf node_modules package-lock.json && npm install
 1. 登录：`npm login`
 2. 修改版本号：`npm version patch`（自动升补丁号）
 3. 发布：`npm publish`
-4. 撤销（24小时内）：`npm unpublish <包名> --force`（慎用！）
-> 📌 注意：包名需在 npm 官网未被占用，且必须包含 `package.json`。
+4. 撤包前先检查官方策略：新包发布未满 72 小时且没有其他 npm 公共包依赖它时通常可撤；超过 72 小时还需同时满足无包依赖、最近一周下载少于 300 次、只有一位所有者/维护者等条件。`npm unpublish <包名>@<版本>` 删除指定版本，删除整包另需 --force；该参数不能绕过撤包政策。
+> 📌 注意：新包名需可用，发布现有包需具备权限；项目必须有 package.json，已发布的同一版本号不能复用。
 
 ---
 
 > [!TIP]
 > 💡 **终极建议**：尽量使用 `npm ci` 替代 `npm i` 用于部署环境；写脚本时多用 `||` 和 `&&` 组合命令（如 `npm run build && npm run test`）。将此笔记收藏，遇到问题时先对照第 6 条
+
+核对依据：[npm install](https://docs.npmjs.com/cli/v11/commands/npm-install/)、[npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/)、[node-semver](https://github.com/npm/node-semver#caret-ranges-123-025-004)、[npm 撤包策略](https://docs.npmjs.com/policies/unpublish/)。

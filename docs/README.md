@@ -13,7 +13,8 @@
   <a href="https://scpcddk.github.io/Learning-Notes/programming-languages/">编程语言</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/cloud-native/">云原生</a> ·
-  <a href="https://scpcddk.github.io/Learning-Notes/learning-plans/">学习计划</a>
+  <a href="https://scpcddk.github.io/Learning-Notes/learning-plans/">学习计划</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/front-end/">前端基础</a>
 </p>
 
 <p align="center">
@@ -62,6 +63,7 @@
 │       ├── programming/                                      # 编程语言共用阅读模板、四张封面与提示词
 │       ├── cloud-native/                                     # 云原生阅读页说明、封面与提示词
 │       ├── learning-plans/                                   # 学习计划阅读页说明、唯一总封面与提示词
+│       ├── front-end/                                        # 前端基础阅读页说明、唯一总封面与提示词
 │       └── vendor/                                           # PDF 阅读器与许可证
 ├── 编程语言/
 │   ├── C与C++/

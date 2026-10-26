@@ -42,15 +42,15 @@
 
 | 编译器 | 特点 | 适用场景 |
 |--------|------|----------|
-| **pdflatex** | 速度快，不支持中文 | 纯英文文档 |
+| **pdflatex** | 配合 CTeX/CJK 与合适字体也可排中文，但字体配置方式与 XeLaTeX 不同 | 按模板和字体环境选择 |
 | **xelatex** | 支持中文，字体处理现代 | 中文文档（推荐） |
 | **lualatex** | 功能最强，支持复杂字体操作 | 高级排版需求 |
 
 ### 文档类选项
 
 ```latex
-\documentclass[11pt,a4paper]{article}  % 11号字，A4纸
-\documentclass[12pt]{report}          % 12号字，report（含章节）
+\documentclass[11pt,a4paper]{article}  % 基准字号 11pt（不是中文“11号字”），A4纸
+\documentclass[12pt]{report}          % 基准字号 12pt，report（含章 chapter）
 \documentclass{book}                   % 书籍结构（part/chapter）
 \documentclass{beamer}                 % 幻灯片
 ```
@@ -62,7 +62,7 @@
 ### 📘 章节命令层级
 
 ```latex
-\part{部}        % 仅 book/report
+\part{部}        % article/book/report 都支持
 \chapter{章}     % 仅 book/report
 \section{节}
 \subsection{小节}
@@ -71,7 +71,7 @@
 \subparagraph{子段落}
 ```
 
-> ⚠️ **注意**：`article` 类没有 `chapter` 和 `part`！`book/report` 类才有 `chapter`。
+> **注意**：标准 article 类没有 chapter，但支持 part；标准 book/report 类支持 chapter 和 part。
 
 ### 目录与摘要
 
@@ -223,7 +223,7 @@ x^2, x_i, x_i^j, x^{i+j}
 > \end{align*}
 > ```
 
-> ⚠️ **注意**：`align` 中每行只能有一个 `&` 对齐点！多对齐点用 `alignat` 环境。
+> **注意**：align 每行可以有多组对齐列，例如 `a &= b & c &= d`。align 会自动安排列组间距；需要显式控制列组间距时可选 alignat，不能认为 align 每行只能写一个 &。
 
 ### 📘 定理环境
 
@@ -274,7 +274,12 @@ x^2, x_i, x_i^j, x^{i+j}
 > ```latex
 > \usepackage{enumitem}
 > \begin{itemize}[leftmargin=2em,itemsep=3pt]
+>   \item 第一项
+> \end{itemize}
+>
 > \begin{enumerate}[label=(\arabic*)]
+>   \item 第一步
+> \end{enumerate}
 > ```
 
 ### 📘 基础表格
@@ -462,9 +467,9 @@ x^2, x_i, x_i^j, x^{i+j}
 | 问题 | 解决方案 |
 |------|----------|
 | **中文显示不出来？** | 用 `xelatex` 编译，并加载 `ctex` 或 `xeCJK` |
-| **公式编号乱了？** | 使用 `amsmath` 的 `\eqref` 代替 `\ref` |
+| **公式引用或编号不对？** | 在编号公式内设置唯一 label，用 eqref 引用并检查计数器设置，重新编译；eqref 主要添加括号，不会自动修复编号逻辑 |
 | **图片位置乱跑？** | 浮动体特性，用 `[H]`（需 `float` 宏包）强制固定 |
-| **参考文献不显示？** | 确认编译了四次：xelatex → bibtex → xelatex → xelatex |
+| **参考文献不显示？** | BibTeX 工作流检查 xelatex → bibtex → xelatex → xelatex；使用 biblatex + Biber 的项目改用相应 Biber 流程 |
 | **表格太宽？** | 用 `tabularx` 或 `resizebox` 缩放 |
 | **如何插入代码？** | 用 `listings` 或 `minted`（后者需 Python pygments） |
 | **编译报错找不到字体？** | 检查系统字体，或用 `\setCJKmainfont{SimSun}` 显式指定 |
@@ -478,3 +483,5 @@ x^2, x_i, x_i^j, x^{i+j}
 >
 > 本手册涵盖 LaTeX 核心用法，建议边查边练。
 > 遇到新问题及时补充，形成个人专属速查手册。
+
+核对依据：[LaTeX 标准文档类源码](https://github.com/latex3/latex2e/blob/develop/base/classes.dtx)、[amsmath 用户手册](https://www.latex-project.org/help/documentation/amsldoc.pdf)、[CTeX 支持的引擎](https://ctan.org/pkg/ctex)。

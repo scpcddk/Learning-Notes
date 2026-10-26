@@ -13,7 +13,7 @@
 ## 📌 核心要点
 
 ### 1️⃣ 创建项目
-`npm create vue@latest` 是官方推荐方式，比老 `vue create` 快几十倍。
+`npm create vue@latest` 调用官方 create-vue 脚手架，生成基于 Vite 的 Vue 3 项目；不要把脚手架创建速度与开发服务器启动速度混为一谈。
 
 **✅ 正确**
 ```bash
@@ -24,10 +24,10 @@ npm run dev
 ```
 
 **❌ 错误**  
-仍使用 `vue create` 或忘记安装依赖。
+把 Vue CLI 的旧项目流程与当前 create-vue 流程混用，或创建后忘记安装依赖。已有 Vue CLI 项目仍可维护，并非命令本身无效。
 
 **🔧 修正**  
-改用 `npm create vue@latest`，并确保 Node.js ≥ 16。
+新项目使用 `npm create vue@latest`，并按所用 create-vue / Vite 版本检查 Node.js 要求。2026-10-26 核对的 Vue 官方快速开始要求 `^22.18.0 || >=24.12.0`；后续以官方页面与依赖 engines 字段为准，不能继续按“Node ≥16”安装最新工具链。
 
 ### 2️⃣ 插值 `{{ }}`
 只能放表达式，不能写语句。
@@ -66,9 +66,10 @@ npm run dev
 ## 🔬 代码实验室：换热站卡片
 ```vue
 <script setup>
+import { ref } from 'vue'
 const station = '2号站'
 const temp = 68.3
-let online = true
+const online = ref(true)
 </script>
 <template>
   <div class="card">
@@ -91,7 +92,7 @@ let online = true
 | `{{ var a=1 }}` | 表达式放 script，模板只渲染 | 插值 |
 | `src="imgUrl"` 动态路径 | `:src="imgUrl"` | 图片 |
 | `@click="fn"` 未定义 | 先在 script 里定义函数 | 事件 |
-| `<style>` 没加 scoped | 添加 scoped 隔离样式 | 组件 |
+| 本想限制组件样式，却写了全局选择器 | 按需求使用 scoped、CSS Modules 或明确的全局样式；scoped 不是必需语法 | 组件 |
 
 ## 🏭 项目应用场景
 - 站点卡片动态显示温度、压力
@@ -123,8 +124,8 @@ let online = true
 
 ## 📌 核心要点
 
-### 1️⃣ `ref` —— 基本类型响应式盒子
-访问或修改都需要 `.value`，模板中自动解包。
+### 1️⃣ `ref` —— 响应式值容器
+ref 可以保存基本类型或对象；在 JavaScript 中通过 .value 访问，模板中作为顶层绑定通常会自动解包。
 
 **✅ 正确**
 ```js
@@ -143,22 +144,26 @@ let temperature = 75.2   // 非响应式
 使用 `const` 声明，修改 `.value`。
 
 ### 2️⃣ `reactive` —— 对象响应式外衣
-不能整体替换，不能解构。
+reactive 返回对象的代理。应保持需要追踪的代理引用；不能把“重新赋值变量”和“更新代理属性”混为一谈。解构基本类型属性会丢失与原属性的响应式联系，嵌套对象的代理则另当别论。
 
 **✅ 正确**
 ```js
+import { reactive, toRefs } from 'vue'
 const station = reactive({ name: '1号站', temp: 70 })
 station.temp = 72
 ```
 
 **❌ 错误**
 ```js
-station = { name: '2号站', temp: 80 } // 失去响应
+// station 用 const 声明，直接重新赋值会先抛出 TypeError。
+// 即使用 let 声明，换成普通对象也会脱离原代理：
+let replacement = reactive({ temp: 70 })
+replacement = { temp: 80 }
 let { name } = station // 解构后不是响应式
 ```
 
 **🔧 修正**  
-用 `toRefs()` 解构，或直接用 `ref` 包裹对象属性。
+需要保持与原对象属性的联系时使用 `const { name, temp } = toRefs(station)` 或 toRef。`ref(station.temp)` 只取得当时的值，不能代替 toRef；若需要整体替换对象，可以一开始使用 ref 包裹整个对象。
 
 ### 3️⃣ `computed` —— 智能计算属性
 依赖变化才重新求值，有缓存。
@@ -186,7 +191,7 @@ watch(supplyTemp, (newVal, oldVal) => {
 ```
 
 **❌ 错误**  
-监听对象属性时没写 getter 函数或没有 `deep:true`。
+把普通属性值直接交给 watch，例如 `watch(station.temp, ...)`，不是有效的响应式监听源；deep:true 不能修复这一点。
 
 **🔧 修正**  
 ```js
@@ -224,7 +229,7 @@ watch(temp, (newVal) => {
 | ref 忘记 .value | 在 JS 里加 .value | 数据读取 |
 | 直接整体替换 reactive 对象 | 修改属性或使用 ref | 对象更新 |
 | computed 里执行副作用 | 副作用放 watch | 预警触发 |
-| watch 深度监听忘写 {deep:true} | 监听对象内部属性时加 deep:true | 复杂对象 |
+| 混淆对象监听与 getter 监听 | watch(reactiveObject, ...) 默认深层监听；watch(() => obj.child, ...) 通常只监听 child 被替换，深层变更按需加 deep:true | 复杂对象 |
 
 ## 🏭 项目应用场景
 - 实时温度、压力数据绑定
@@ -264,15 +269,21 @@ DOM 渲染完毕，此时可获取元素、发起请求、启动定时器。
 import { onMounted, ref } from 'vue'
 const data = ref(null)
 onMounted(async () => {
-  data.value = await fetch('/api/station')
+  try {
+    const response = await fetch('/api/station')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    data.value = await response.json()
+  } catch (error) {
+    console.error('站点加载失败', error)
+  }
 })
 ```
 
 **❌ 错误**  
-在 setup 顶层直接发请求，此时组件未挂载，可能引起 SSR 问题。
+在 setup 顶层直接读取尚未创建的 DOM。与 DOM 无关的数据请求可以在 setup 中发起；SSR 项目应按框架的数据获取机制处理，而不是一律放进 onMounted。
 
 ### 2️⃣ `onUnmounted` —— 清理资源
-组件销毁前执行，避免内存泄漏。
+组件卸载后执行，适合清理手动创建的副作用；卸载前的钩子是 onBeforeUnmount。
 
 **✅ 正确**
 ```js
@@ -328,7 +339,7 @@ onUnmounted(() => {
 |--------|--------|------|
 | setup 内直接操作 DOM | 在 onMounted 中操作 DOM | 需要获取元素 |
 | 定时器不清理 | onUnmounted 中 clearInterval | 定时更新数据 |
-| watch 监听后未停止 | 使用返回的 stop 函数或 watchEffect | 手动控制 |
+| 在异步回调里创建 watcher，却忘了停止 | setup 中同步创建的 watch/watchEffect 会随组件卸载自动停止；异步创建或需要提前停止时使用返回的 stop | 手动控制 |
 
 ## 🏭 项目应用场景
 - 页面加载时获取所有换热站列表
@@ -340,7 +351,7 @@ onUnmounted(() => {
 <details><summary>答案</summary>setup 同步执行，onMounted 在 DOM 挂载后执行。数据请求放在 onMounted 可保证已有容器。</details>
 
 **Q2: 为什么要在 onUnmounted 里清理？**  
-<details><summary>答案</summary>组件卸载后仍持有引用会造成内存泄漏，且可能对已销毁组件更新数据报错。</details>
+<details><summary>答案</summary>手动创建的定时器、连接和全局监听若继续运行，可能保留不再需要的数据或发起无意义请求。清理这些副作用；同步创建于 setup 的响应式 watcher 通常会自动停止。</details>
 
 ---
 
@@ -378,7 +389,7 @@ const props = defineProps({
 子组件尝试 `props.temp = 80` 会警告。
 
 **🔧 修正**  
-如需修改，应在子组件内拷贝一份到本地响应式变量。
+如需修改父组件数据，通常发送事件让父组件更新；仅需本地草稿时再复制。props 是浅只读，嵌套对象仍可能被修改，不能因此绕过单向数据流。
 
 ### 2️⃣ `emit` —— 子传父电话
 子组件触发事件，父组件监听。
@@ -397,10 +408,18 @@ emit('update', newValue)
 
 **✅ 正确**
 ```vue
+<!-- 父组件模板片段，text 应在父组件中声明 -->
 <MyInput v-model="text" />
-<!-- 子组件内 -->
+```
+
+```vue
+<!-- 子组件内：此写法同时适用于 Vue 3.4 之前的版本 -->
+<script setup>
+defineProps({ modelValue: String })
+const emit = defineEmits(['update:modelValue'])
+</script>
 <template>
-  <input :value="modelValue" @input="$emit('update:modelValue', $event.target.value)" />
+  <input :value="modelValue" @input="emit('update:modelValue', $event.target.value)" />
 </template>
 ```
 
@@ -433,8 +452,11 @@ function handleDelete(id) {
     <template #footer>🔧 操作</template>
   </StationItem>
 </template>
+```
 
-<!-- 子组件 StationItem.vue -->
+子组件 `StationItem.vue`（与父组件分别保存）：
+
+```vue
 <script setup>
 const props = defineProps({ station: Object })
 const emit = defineEmits(['delete'])
@@ -462,7 +484,7 @@ const emit = defineEmits(['delete'])
 
 ## 📝 自测问题
 **Q1: 如何将父组件的所有属性批量传给子组件？**  
-<details><summary>答案</summary>使用 v-bind="$attrs" 并设置 inheritAttrs: false。</details>
+<details><summary>答案</summary>在父组件中批量绑定一个属性对象可用 `v-bind="propsObject"`。`$attrs` 只包含当前组件未声明为 props/emits 的透传属性和监听器，并不是“全部 props”；`inheritAttrs: false` 配合 `v-bind="$attrs"` 用于自行控制透传位置。</details>
 
 **Q2: v-model 如何绑定多个值？**  
 <details><summary>答案</summary>使用具名 v-model:title="title" 等。</details>
@@ -506,7 +528,7 @@ key 是 Vue 的身份证，帮助 diff 算法高效更新。
 ```
 
 **❌ 错误**  
-v-if 和 v-for 在同一元素上使用（v-if 优先级更高，会导致每次循环都判断）。
+Vue 3 中同一元素的 v-if 优先于 v-for，v-if 因而无法使用该 v-for 才声明的循环变量；不是“每次循环都判断”。
 
 **🔧 修正**  
 用 `<template>` 包裹 v-for，内部使用 v-if。
@@ -544,7 +566,7 @@ const alarms = ref([
 
 ## 📝 自测问题
 **Q1: 为什么更新数组后视图没变？**  
-<details><summary>答案</summary>可能使用了非变异方法(如 filter 返回新数组需要重新赋值)，或直接通过索引修改数组没触发响应式(需用 reactive 包裹或 ref 整体替换)。</details>
+<details><summary>答案</summary>先确认操作的是响应式数组。Vue 3 对响应式数组的索引赋值和 length 修改都能追踪；“索引赋值不响应”是常见的 Vue 2 旧限制。filter 返回新数组，需要接收结果，例如 `list.value = list.value.filter(...)`；操作原始普通数组或丢失响应式引用也可能导致视图不更新。</details>
 
 ---
 
@@ -570,7 +592,7 @@ const alarms = ref([
 ```
 
 **❌ 错误**  
-忘记加 `.number` 导致获取字符串。
+认为 type="number" 还必须再加 .number 才会转换。Vue 会为这种输入框自动应用数字转换；文本框可显式使用 .number。无法解析时仍保留原字符串，清空后通常是空字符串，因此仍需验证输入。
 
 ### 2️⃣ 表单元素全覆盖
 文本框、多行文本、复选框、单选框、下拉框。
@@ -609,7 +631,7 @@ const stations = [{id:1,name:'1号站'},{id:2,name:'2号站'}]
 ## ⚠️ 易错点清单
 | ❌ 错误 | ✅ 正确 |
 |--------|--------|
-| 中文输入法下 v-model 延迟 | 使用 @input 直接处理或 lazy |
+| 把输入法组合输入期间暂不更新当成故障 | 如需逐次读取组合输入，显式处理 input/composition 事件；.lazy 改为 change 时同步，不是实时输入修复方案 |
 | 复选框 true-value 未定义 | 可用 :true-value="1" :false-value="0" |
 
 ## 🏭 项目应用场景
@@ -638,12 +660,15 @@ const stations = [{id:1,name:'1号站'},{id:2,name:'2号站'}]
 ```js
 // stores/station.js
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 export const useStationStore = defineStore('station', () => {
   const list = ref([])
   const activeId = ref(null)
   const activeStation = computed(() => list.value.find(s => s.id === activeId.value))
   async function fetchAll() {
-    list.value = await api.getStations()
+    const response = await fetch('/api/stations')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    list.value = await response.json()
   }
   return { list, activeId, activeStation, fetchAll }
 })
@@ -651,6 +676,8 @@ export const useStationStore = defineStore('station', () => {
 
 **❌ 错误**  
 直接在组件里维护全局共享数据，导致不同页面数据不一致。
+
+使用前先在应用入口安装 Pinia：`app.use(createPinia())`，其中 createPinia 从 pinia 导入；再挂载应用、调用 useStationStore。
 
 ### 2️⃣ 在组件中使用
 ```js
@@ -662,9 +689,13 @@ store.fetchAll()  // 调用 action
 ## 🔬 代码实验室：全局站点切换
 ```vue
 <script setup>
+import { onMounted } from 'vue'
 import { useStationStore } from '@/stores/station'
 const store = useStationStore()
-onMounted(() => store.fetchAll())
+onMounted(async () => {
+  try { await store.fetchAll() }
+  catch (error) { console.error('站点加载失败', error) }
+})
 </script>
 <template>
   <select v-model="store.activeId">
@@ -677,7 +708,7 @@ onMounted(() => store.fetchAll())
 ## ⚠️ 易错点清单
 | ❌ 错误 | ✅ 正确 |
 |--------|--------|
-| 直接解构 store 失去响应 | 使用 storeToRefs(store) 解构 |
+| 直接解构 store 的 state/getter，丢失响应式联系 | state/getter 用 storeToRefs；action 可以直接解构 |
 | action 异步不等待 | 适当使用 await 并处理 loading |
 
 ## 🏭 项目应用场景
@@ -707,7 +738,7 @@ onMounted(() => store.fetchAll())
 ```js
 const routes = [
   { path: '/', component: () => import('@/views/Dashboard.vue') },
-  { path: '/detail/:id', component: () => import('@/views/Detail.vue') }
+  { path: '/detail/:id', name: 'detail', component: () => import('@/views/Detail.vue') }
 ]
 ```
 
@@ -717,8 +748,16 @@ const routes = [
 **✅ 正确**
 ```vue
 <router-link :to="{ name:'detail', params:{ id: station.id }}">详情</router-link>
-<!-- 编程式 -->
-router.push({ name:'detail', params:{ id:1 } })
+```
+
+编程式导航（在 setup 中获取 router）：
+
+```js
+import { useRouter } from 'vue-router'
+const router = useRouter()
+function openDetail(id) {
+  router.push({ name:'detail', params:{ id } })
+}
 ```
 
 ## 🔬 代码实验室：大屏路由切换
@@ -739,8 +778,8 @@ router.push({ name:'detail', params:{ id:1 } })
 ## ⚠️ 易错点清单
 | ❌ 错误 | ✅ 正确 |
 |--------|--------|
-| params 刷新后丢失 | 使用 query 或持久化 store |
-| 路由钩子未正确放行 | next() 调用或 return true |
+| 把未声明在路径中的对象塞进 params | 动态路径参数会编码进 URL，正常配置服务器回退后刷新仍可恢复；额外状态用 store/持久化，查询条件用 query |
+| 旧式 next 分支重复调用或漏调用 | 优先使用守卫返回值；使用 next 时每条逻辑路径只调用一次 |
 
 ## 🏭 项目应用场景
 - 大屏总览、站点详情、报警页面切换
@@ -822,7 +861,7 @@ const tableData = [
 ## 📌 核心要点
 
 ### 1️⃣ `keep-alive` —— 缓存组件状态
-切换路由时保留表单和滚动位置。
+缓存切换出去的组件实例和局部状态，例如表单数据；窗口滚动位置不由 KeepAlive 自动保证，需要配合路由 scrollBehavior 或激活钩子处理。
 
 **✅ 正确**
 ```vue
@@ -835,6 +874,7 @@ const tableData = [
 
 ### 2️⃣ 异步组件 + 路由懒加载
 ```js
+import { defineAsyncComponent } from 'vue'
 const Detail = defineAsyncComponent(() => import('./Detail.vue'))
 // 路由中直接 () => import(...)
 ```
@@ -848,9 +888,11 @@ const Detail = defineAsyncComponent(() => import('./Detail.vue'))
   <el-container>
     <el-aside width="200px">菜单</el-aside>
     <el-main>
-      <keep-alive :max="10">
-        <router-view />
-      </keep-alive>
+      <router-view v-slot="{ Component }">
+        <keep-alive :max="10">
+          <component :is="Component" />
+        </keep-alive>
+      </router-view>
     </el-main>
   </el-container>
 </template>
@@ -860,8 +902,8 @@ const Detail = defineAsyncComponent(() => import('./Detail.vue'))
 | ❌ 错误 | ✅ 正确 |
 |--------|--------|
 | 全部组件同步加载 | 路由懒加载 |
-| keep-alive 不写 include/exclude | 精细控制缓存 |
-| 大列表不解构 props | 使用 computed 减少渲染 |
+| 把 include/exclude 当成路由路径匹配 | 它们按组件名匹配；不配置表示缓存符合条件的组件，可结合 max 限制数量 |
+| 超大列表一次渲染全部行 | 按需求分页或使用虚拟列表；computed 缓存派生数据，不会自动减少 DOM 行数 |
 
 ## 🏭 项目应用场景
 - 切换换热站详情保留之前查询条件
@@ -869,3 +911,5 @@ const Detail = defineAsyncComponent(() => import('./Detail.vue'))
 - 实时数据使用节流避免频繁渲染
 
 ---
+
+核对依据：[Vue 快速开始](https://vuejs.org/guide/quick-start.html)、[响应式基础](https://vuejs.org/guide/essentials/reactivity-fundamentals.html)、[表单绑定](https://vuejs.org/guide/essentials/forms.html)、[生命周期](https://vuejs.org/api/composition-api-lifecycle.html)、[Vue Router 命名路由](https://router.vuejs.org/guide/essentials/named-routes.html)。

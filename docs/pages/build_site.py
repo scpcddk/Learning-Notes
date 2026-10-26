@@ -1165,12 +1165,21 @@ def build_learning_plans(output, github, branch):
                          profile="learning-plans")[0]
 
 
+def build_frontend(output, github, branch):
+    readers = [dict(slug="front-end", title="前端基础", label="FRONTEND",
+                    description="从页面结构到交互组件，在语法、示例与项目中理解前端。",
+                    cover="frontend-hero.png", folder=REPO / "前端基础")]
+    return build_readers(output, github, branch, readers, PAGE_ROOT / "front-end", output,
+                         profile="front-end")[0]
+
+
 def build_readers(output, github, branch, languages, source, destination, *, profile="programming"):
     """Generate readers from source notes; keep templates and all outputs in docs."""
     destination.mkdir(parents=True, exist_ok=True)
     cloud = profile == "cloud-native"
     plans = profile == "learning-plans"
-    standalone = cloud or plans
+    frontend = profile == "front-end"
+    standalone = cloud or plans or frontend
     resource_root = destination / languages[0]["slug"] if standalone else destination
     shutil.copytree(source / "阅读资源", resource_root / "阅读资源", dirs_exist_ok=True)
     routes, headings = {}, {}
@@ -1181,6 +1190,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         group_order = ["Docker", "DevOps", "数据库与中间件", "运维与服务部署", "Kubernetes", "可观测性", "微服务"]
     elif plans:
         group_order = ["进行中", "阶段性完成", "已结束或舍弃", "学习方法"]
+    elif frontend:
+        group_order = ["标记语言", "JavaScript", "Vue"]
     group_names = {name.casefold(): index for index, name in enumerate(group_order)}
 
     def original(path):
@@ -1253,6 +1264,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     for language in languages:
         target_folder = destination / language["slug"]
         target_folder.mkdir(parents=True, exist_ok=True)
+        if frontend:
+            copy_mathjax(target_folder)
         language["notes"] = 0
         language["resources"] = 0
         for page in language["entries"]:
@@ -1276,6 +1289,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             language["notes"] += not page["pending"]
             page["search"] = text
             md = MarkdownIt("commonmark", {"html": True}).enable("table")
+            if frontend:
+                md.enable("strikethrough")
             if plans:
                 tasks = []
 
@@ -1321,6 +1336,10 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             md.renderer.rules["heading_open"] = heading
             md.renderer.rules["fence"] = fence
             markup = md.render(text)
+            if frontend and path.stem.casefold() == "latex":
+                page["math"] = True
+                markup = re.sub(r'(<pre\b[\s\S]*?</pre>)|(<code\b[^>]*>[\s\S]*?</code>)|(?<!\\)\$([^$\n<>]+?)\$',
+                                lambda match: match[1] or match[2] or '<span class="math-inline">\\(' + match[3] + '\\)</span>', markup)
             if plans:
                 page["tasks"] = dict(done=sum(tasks), total=len(tasks))
             markup = re.sub(r"(<figure class=\"code-block\">[\s\S]*?</figure>)|(<code\b[^>]*>[\s\S]*?</code>)|==([^\n]+?)==",
@@ -1334,7 +1353,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     markup = markup[:answer.start()] + '<details class="answers"><summary>展开参考答案与解析</summary>' + markup[answer.start():] + '</details>'
             page["full"] = markup
 
-    if cloud:
+    if cloud or frontend:
         for language in languages:
             for page in language["entries"]:
                 original_section = page["section"]
@@ -1344,7 +1363,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 if page["pending"]:
                     page["topic"] = "待学"
                     page["subgroup"] = "待学主题"
-                elif original_section in ("数据库与中间件", "运维与服务部署") and len(parts) > 1:
+                elif cloud and original_section in ("数据库与中间件", "运维与服务部署") and len(parts) > 1:
                     page["topic"] = parts[1] if len(parts) > 2 else page["title"]
                     subgroup = " / ".join(parts[2:-1]) or "基础笔记"
                     page["subgroup"] = {
@@ -1412,6 +1431,9 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "阶段性完成": "保留已经阶段性完成的学习路线，按需要回顾与复习。",
                 "已结束或舍弃": "查阅旧版安排与历史方向；当前执行以进行中的计划为准。",
                 "学习方法": "回顾 AI 辅助学习的方法、独立实践与复盘要求。",
+                "标记语言": "查阅 Markdown 与 LaTeX 的表达和排版方法，逐步补充 HTML 与 CSS。",
+                "JavaScript": "从变量、函数和异步到 DOM 操作，结合 JSON 理解数据交互。",
+                "Vue": "连接响应式、组件与项目工具，查阅 Vue 3 与 npm 的使用方法。",
             }
             section_keys = list(dict.fromkeys(page["section"] for page in language["entries"]))
             if cloud:
@@ -1423,13 +1445,13 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     raise FileNotFoundError(f"Missing section cover: {cover}")
                 config["sections"].append(dict(
                     key=key, id="section-"+hashlib.sha256(key.casefold().encode()).hexdigest()[:12],
-                    title="Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
+                    title="标记与排版" if frontend and key == "标记语言" else "Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
                     description=descriptions.get(key, "沿着这个板块的目录，继续阅读与实践。"),
                     count=len(entries), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in entries),
                     pending=sum(page["pending"] for page in entries),
                     cover="阅读资源/" + cover if cover else "",
                     resources=sum(page["kind"] not in ("note", "practice") for page in entries)))
-                if cloud:
+                if cloud or frontend:
                     topic_order = ["MySQL", "Nginx", "EMQX", "MinIO", "SRS", "换热站项目", "ANIC项目"]
                     topic_keys = sorted({page["topic"] for page in entries if page["topic"] and page["topic"] != "待学"},
                                         key=lambda name: (topic_order.index(name) if name in topic_order else len(topic_order), name))
@@ -1450,11 +1472,13 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
         config["coverUrl"] = ("阅读资源/" if standalone else "../阅读资源/") + language["cover"]
-        config["heroLines"] = ["从一个目标，", "到一步步做到。"] if plans else ["从部署一个服务，", "到理解整个系统。"] if cloud else ["从读懂代码，", "到写出自己的理解。"]
+        config["heroLines"] = ["从页面到交互，", "把想法呈现出来。"] if frontend else ["从一个目标，", "到一步步做到。"] if plans else ["从部署一个服务，", "到理解整个系统。"] if cloud else ["从读懂代码，", "到写出自己的理解。"]
         config["noteNoun"] = "篇计划记录" if plans else "篇学习笔记"
         config["sectionNoun"] = "个计划分类" if plans else "个学习板块"
         config["resourceNoun"] = "份 HTML 指南" if plans else "份图解与资料"
         config["itemNoun"] = "篇计划" if plans else "篇笔记"
+        if frontend:
+            config["sectionIntro"] = "选择标记与排版、JavaScript 或 Vue，沿着原笔记继续阅读。"
         if plans:
             config["kindLabels"] = dict(note="计划", practice="计划", diagram="HTML", pdf="PDF", resource="资料")
             config["sectionHeading"] = "按当前状态，查看学习安排。"
@@ -1468,11 +1492,12 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                            "HOME_URL": "../" if standalone else "../../", "PARENT_CRUMB": "" if standalone else '<a href="../">编程语言</a><span>/</span>',
                            "BACK_TEXT": "返回学习导航 ↗" if standalone else "返回编程语言总览 ↗",
                            "BACK_SHORT": "← 学习导航" if standalone else "全部语言 ↗",
-                           "READER_TITLE": "学习计划与记录" if plans else "云原生学习笔记" if cloud else "编程语言学习笔记",
-                           "DIRECTORY_LABEL": "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
-                           "BRAND_SYMBOL": "✓" if plans else "☁" if cloud else "&lt;/&gt;",
-                           "BRAND_TAGLINE": "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
+                           "READER_TITLE": "前端学习笔记" if frontend else "学习计划与记录" if plans else "云原生学习笔记" if cloud else "编程语言学习笔记",
+                           "DIRECTORY_LABEL": "前端阅读目录" if frontend else "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
+                           "BRAND_SYMBOL": "▤" if frontend else "✓" if plans else "☁" if cloud else "&lt;/&gt;",
+                           "BRAND_TAGLINE": "STRUCTURE. STYLE. INTERACT." if frontend else "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
                            "SWITCH_HIDDEN": "hidden" if standalone else "", "THEME_KEY": profile + "-theme",
+                           "MATH_ASSETS": ('<script>window.MathJax={startup:{typeset:false},loader:{paths:{mathjax:"./mathjax"}},tex:{inlineMath:[["\\\\(","\\\\)"]]},svg:{fontCache:"local"},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script><script defer src="mathjax/tex-svg.js"></script>') if frontend else "",
                            "PDF_BASE": "../" if standalone else "../../"}.items():
             text = text.replace("<!--" + key + "-->", value)
         (target_folder / "index.html").write_text(text, encoding="utf-8", newline="\n")
@@ -1510,7 +1535,7 @@ def build_catalogs(output, github, branch, programming):
                   "SOURCE_URL": escape(repository_url(source), quote=True),
                   "INTRO_CLASS": "with-cover" if hero else "",
                   "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024">' if hero else "",
-                  "READING_TIP": "数学、算法、编程语言、Linux、云原生与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
+                  "READING_TIP": "数学、算法、编程语言、前端基础、Linux、云原生与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
@@ -1576,6 +1601,11 @@ def build_catalogs(output, github, branch, programming):
             root_cards.append(card(path.name, "查看当前学习路线、阶段成果与历史计划，沿着任务持续实践。", "learning-plans/", "查看学习计划",
                                    ("进行中", "阶段性完成", "历史计划"), "learning-plans/阅读资源/learning-plans-hero.png",
                                    number=str(index).zfill(2)+" / LEARNING PLANS"))
+            continue
+        if path.name=="前端基础":
+            root_cards.append(card(path.name, "从页面结构、脚本交互到 Vue 组件，结合笔记与示例逐步理解。", "front-end/", "进入前端阅读",
+                                   ("标记与排版", "JavaScript 与 JSON", "Vue 与 npm"), "front-end/阅读资源/frontend-hero.png",
+                                   number=str(index).zfill(2)+" / FRONTEND"))
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
@@ -1649,6 +1679,7 @@ def build(output, repository, branch):
     programming = build_programming(output, github, branch)
     build_cloud_native(output, github, branch)
     build_learning_plans(output, github, branch)
+    build_frontend(output, github, branch)
     build_catalogs(output, github, branch, programming)
     shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")

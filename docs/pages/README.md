@@ -2,7 +2,7 @@
 
 [学习首页](https://scpcddk.github.io/Learning-Notes/) · [数学科目页](https://scpcddk.github.io/Learning-Notes/math/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/) · [编程语言](https://scpcddk.github.io/Learning-Notes/programming-languages/) · [Linux](https://scpcddk.github.io/Learning-Notes/linux/)
 
-网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页；[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/) 先选择学习板块，再进入笔记。其他板块展示现有目录，子项链接到仓库原笔记。
+网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页；[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/) 和 [前端基础](https://scpcddk.github.io/Learning-Notes/front-end/) 先选择学习板块，再进入笔记。[学习计划](https://scpcddk.github.io/Learning-Notes/learning-plans/) 按当前状态分类。其他板块展示现有目录，子项链接到仓库原笔记。
 
 访客可从仓库 README 进入 [数学导航](../../数学/README.md) 或 [算法导航](../../算法/README.md)，选择内容后打开在线阅读页。
 
@@ -22,6 +22,7 @@
 | [programming/](programming/) | 编程语言共用阅读模板、四张封面及提示词；自动收录各语言目录的笔记、图解与资料 |
 | [cloud-native/](cloud-native/) | 云原生封面、提示词与说明；与编程语言共用阅读模板，按原目录自动收录 |
 | [learning-plans/](learning-plans/) | 学习计划阅读页说明与唯一总封面；按计划状态组织目录并保留原文任务记录 |
+| [front-end/](front-end/) | 前端基础阅读页说明与唯一总封面；自动收录原笔记，每个板块保留待学目录 |
 | [vendor/](vendor/README.md) | Mozilla PDF.js 5.4.624 官方发行包及许可证 |
 
 每页专用的样式和交互代码并入对应 HTML 模板，不再另设科目生成脚本或 CSS、JS 配置文件。第三方公式组件与 PDF 阅读器保持原有资源结构和许可证。
