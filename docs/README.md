@@ -14,7 +14,8 @@
   <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/cloud-native/">云原生</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/learning-plans/">学习计划</a> ·
-  <a href="https://scpcddk.github.io/Learning-Notes/front-end/">前端基础</a>
+  <a href="https://scpcddk.github.io/Learning-Notes/front-end/">前端基础</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/ai/">AI</a>
 </p>
 
 <p align="center">
@@ -64,6 +65,7 @@
 │       ├── cloud-native/                                     # 云原生阅读页说明、封面与提示词
 │       ├── learning-plans/                                   # 学习计划阅读页说明、唯一总封面与提示词
 │       ├── front-end/                                        # 前端基础阅读页说明、唯一总封面与提示词
+│       ├── ai/                                               # AI 阅读页、芯片封面与提示词
 │       └── vendor/                                           # PDF 阅读器与许可证
 ├── 编程语言/
 │   ├── C与C++/

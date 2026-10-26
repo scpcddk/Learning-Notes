@@ -38,7 +38,7 @@
 一个单词 ≠ 必然一个 Token
 ```
 
-**例**：`playing = play + ing`
+**例**：`playing` 在某种分词规则下可能拆成 `play` 和 `ing`，具体结果由所用 Tokenizer 决定。
 
 ---
 
@@ -87,7 +87,7 @@
 
 ✅ 正确理解：
 
-> Embedding 提供 Token 的向量表示；Attention 根据上下文动态计算 Token 之间的关系。
+> 这里的 Embedding 指输入端的 Token Embedding 查表：它提供初始向量；Attention 基于当前层表示计算信息交互。经过模型计算的上下文化表示、文本 Embedding 则可以包含上下文信息，不能一概当成静态词向量。
 
 简单记：
 
@@ -106,16 +106,16 @@ Attention → “你应该关注谁？”
 
 ✅ 正确理解：
 
-> V1 的 Attention Weight 更高，所以 V1 对最终结果的贡献更大。
+> 在单个 Attention 头的加权求和中，输出是 `z = Σ αᵢVᵢ`。权重 `αᵢ` 是乘在 `Vᵢ` 上的系数，不能仅凭权重大小判断输出离哪个 V 更近，也不能直接比较各项向量的大小。
 
 核心：
 
 ```text
-Weight 越大
-→ 对最终结果贡献越大
+加权项 = Weight × V
+→ 结果同时取决于权重和 Value 向量
 ```
 
-不要用“距离”解释 Attention Weight。
+例如 `α₁=0.9`、`α₂=0.1`，但 `V₁=[1,0]`、`V₂=[100,0]` 时，两项分别为 `[0.9,0]` 和 `[10,0]`。权重更大的项并不一定有更大的范数。后续投影、残差等还会继续改变表示，不能把注意力权重当成最终回答的完整解释。
 
 ---
 
@@ -199,7 +199,7 @@ Residual
 
 **易错点：**
 
-LayerNorm 通常是在进入后续子层之前，对当前表示进行归一化，而不是“只要有数据就进行归一化”。
+在这里的 Pre-Norm 结构中，LayerNorm 放在 Attention/FFN 子层之前；Post-Norm 则在残差相加之后归一化。具体位置由架构决定，而不是“只要有数据就进行归一化”。
 
 ---
 
@@ -479,8 +479,10 @@ print(old_messages[0]["content"])  # 修改后的内容：第一个字典仍然�
 
 `dict.get(key, default)` 只有在键不存在时才返回默认值，不会因为键对应的值为空而使用默认值。
 
-```
-{}.get("choices", [{}])                       # [{}]{"choices": []}.get("choices", [{}])          # []{"choices": [None]}.get("choices", [{}])[0]   # None
+```python
+{}.get("choices", [{}])                       # [{}]
+{"choices": []}.get("choices", [{}])          # []
+{"choices": [None]}.get("choices", [{}])[0]    # None
 ```
 
 - 空列表访问 `[0]`：触发 `IndexError`。
@@ -490,7 +492,7 @@ print(old_messages[0]["content"])  # 修改后的内容：第一个字典仍然�
 
 AI API 项目通过 `json.loads(content)` 解析流式响应，再从 `choices → delta → content` 提取文本。
 
-当前 `except` 捕获了 `IndexError`，但没有捕获 `AttributeError`。如果出现 `AttributeError`，当前异常处理分支不会执行，因而无法通过该分支恢复 `messages`。
+历史上直接链式取值时，`choices = [None]` 会触发未被捕获的 `AttributeError`。当前 [错误处理.py](AI实践记录/错误处理.py) 已在访问前逐层检查 `chunk`、`choices`、`choices[0]` 与 `delta`；这些字段类型不对时会主动抛出 `ValueError`，由现有异常分支恢复历史。改进重点是先校验结构，不能只靠给 `.get()` 配默认值或不断增加异常捕获。
 
 4\. 核心记忆
 

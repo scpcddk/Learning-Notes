@@ -622,6 +622,72 @@ def copy_mathjax(destination):
     shutil.copytree(CALCULUS_ASSETS / "input", math / "input", dirs_exist_ok=True)
 
 
+def enable_reader_math(md):
+    """Parse math as Markdown tokens so examples in code remain literal."""
+    def inline(state, silent):
+        start = state.pos
+        opening = r"\(" if state.src.startswith(r"\(", start) else "$"
+        if not state.src.startswith(opening, start) or state.src.startswith("$$", start):
+            return False
+        closing = r"\)" if opening == r"\(" else "$"
+        content_start = start + len(opening)
+        if content_start >= state.posMax or state.src[content_start].isspace():
+            return False
+        end = content_start
+        while True:
+            end = state.src.find(closing, end)
+            if end < 0 or end >= state.posMax:
+                return False
+            if state.src[end - 1] != "\\":
+                break
+            end += len(closing)
+        content = state.src[content_start:end]
+        if not content or "\n" in content or content[-1].isspace():
+            return False
+        if not silent:
+            token = state.push("math_inline", "", 0)
+            token.content = content
+        state.pos = end + len(closing)
+        return True
+
+    def block(state, start_line, end_line, silent):
+        if state.sCount[start_line] - state.blkIndent >= 4:
+            return False
+        line = state.src[state.bMarks[start_line] + state.tShift[start_line]:state.eMarks[start_line]]
+        opening = r"\[" if line.startswith(r"\[") else "$$"
+        if not line.startswith(opening):
+            return False
+        closing = r"\]" if opening == r"\[" else "$$"
+        content = line[len(opening):]
+        next_line = start_line
+        if content.rstrip().endswith(closing):
+            parts = [content.rstrip()[:-len(closing)]]
+        else:
+            parts = [content]
+            for next_line in range(start_line + 1, end_line):
+                line = state.src[state.bMarks[next_line] + state.tShift[next_line]:state.eMarks[next_line]]
+                if line.strip() == closing:
+                    break
+                parts.append(line)
+            else:
+                return False
+        if silent:
+            return True
+        token = state.push("math_block", "", 0)
+        token.block = True
+        token.map = [start_line, next_line + 1]
+        token.content = "\n".join(parts).strip()
+        state.line = next_line + 1
+        return True
+
+    md.inline.ruler.before("escape", "reader_math", inline)
+    md.block.ruler.before("fence", "reader_math", block, {"alt": ["paragraph", "reference", "blockquote", "list"]})
+    md.renderer.rules["math_inline"] = lambda tokens, index, options, env: (
+        '<span class="math-inline">' + escape(r"\(" + tokens[index].content + r"\)") + '</span>')
+    md.renderer.rules["math_block"] = lambda tokens, index, options, env: (
+        '<div class="math-display">' + escape(r"\[" + tokens[index].content + r"\]") + '</div>\n')
+
+
 def render_discrete(text, ident):
     text = re.sub(r"\A---\n[\s\S]*?\n---\n", "", text)
     protected = []
@@ -1173,18 +1239,29 @@ def build_frontend(output, github, branch):
                          profile="front-end")[0]
 
 
+def build_ai(output, github, branch):
+    readers = [dict(slug="ai", title="AI", label="ARTIFICIAL INTELLIGENCE",
+                    description="从模型原理到应用开发，在笔记、代码与复盘中理解人工智能。",
+                    cover="ai-hero-v2.png", folder=REPO / "AI")]
+    return build_readers(output, github, branch, readers, PAGE_ROOT / "ai", output,
+                         profile="ai")[0]
+
+
 def build_readers(output, github, branch, languages, source, destination, *, profile="programming"):
     """Generate readers from source notes; keep templates and all outputs in docs."""
     destination.mkdir(parents=True, exist_ok=True)
     cloud = profile == "cloud-native"
     plans = profile == "learning-plans"
     frontend = profile == "front-end"
-    standalone = cloud or plans or frontend
+    ai = profile == "ai"
+    standalone = cloud or plans or frontend or ai
     resource_root = destination / languages[0]["slug"] if standalone else destination
     shutil.copytree(source / "阅读资源", resource_root / "阅读资源", dirs_exist_ok=True)
     routes, headings = {}, {}
     aliases = {}
     supported = {".md", ".html", ".pdf", ".ppt", ".pptx", ".doc", ".docx", ".zip"}
+    if ai:
+        supported.add(".py")
     group_order = ["Java基础语法", "Python基础语法", "MyBatis", "Spring", "Python后端", "环境与依赖管理", "补充理解", "实战日志", "习题", "课件"]
     if cloud:
         group_order = ["Docker", "DevOps", "数据库与中间件", "运维与服务部署", "Kubernetes", "可观测性", "微服务"]
@@ -1192,6 +1269,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         group_order = ["进行中", "阶段性完成", "已结束或舍弃", "学习方法"]
     elif frontend:
         group_order = ["标记语言", "JavaScript", "Vue"]
+    elif ai:
+        group_order = ["基础知识", "AI实践记录", "提示词模板", "错题与易错点"]
     group_names = {name.casefold(): index for index, name in enumerate(group_order)}
 
     def original(path):
@@ -1204,11 +1283,15 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     def slug_heading(value):
         return re.sub(r"[^\w\-\s]", "", plain(value).lower()).replace(" ", "-")
 
+    def ai_section(path):
+        return path.parts[0] if len(path.parts) > 1 else "错题与易错点" if "错题" in path.stem else "其他笔记"
+
     for language in languages:
         folder = language["folder"]
         entries = language["entries"] = []
         files = [p for p in folder.rglob("*") if p.is_file() and (p.suffix.lower() in supported or plans and not p.suffix)
-                 and not any(part.startswith('.') for part in p.relative_to(folder).parts)]
+                 and not any(part.startswith('.') for part in p.relative_to(folder).parts)
+                 and not (ai and p.suffix.lower() == ".py" and (p.stem.startswith("test_") or p.name == "conftest.py"))]
         if cloud:
             # Keep one entry for identical deployment manuals, preferring project records.
             fingerprints = {}
@@ -1227,6 +1310,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         def order(path):
             relative = path.relative_to(folder)
             top = relative.parts[0] if len(relative.parts) > 1 else "学习方法" if plans else path.stem if cloud else ""
+            if ai:
+                top = ai_section(relative)
             suborder = {"核心语法": 0, "知识笔记": 0, "Spring Core": 0, "Spring MVC": 1,
                         "Spring Boot": 2, "补充理解": 1, "习题": 2, "期末复习": 3}
             parents = tuple((suborder.get(part, 4), part.casefold()) for part in relative.parts[1:-1])
@@ -1244,7 +1329,9 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             kind = {".md": "note", ".html": "diagram", ".pdf": "pdf"}.get(path.suffix.lower(), "resource")
             if plans and not path.suffix:
                 kind = "note"
-            if kind == "note" and not plans and any(word in relative for word in ("习题", "练习", "题目")):
+            if ai and path.suffix.lower() == ".py":
+                kind = "note"
+            if kind == "note" and not plans and not ai and any(word in relative for word in ("习题", "练习", "题目")):
                 kind = "practice"
             entry = dict(id=ident, title=path.stem, group=path.parent.relative_to(folder).as_posix(),
                          kind=kind, format=path.suffix[1:].upper() or "MD", source=original(path), relative=relative,
@@ -1255,6 +1342,13 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             entry["group"] = "基础笔记" if entry["group"] == "." else entry["group"].replace("/", " / ")
             if plans and not parents:
                 entry["group"] = "学习方法"
+            if ai:
+                entry["section"] = ai_section(path.relative_to(folder))
+                if not parents:
+                    entry["group"] = entry["section"]
+                if path.suffix.lower() == ".py":
+                    entry["title"] = path.name
+                    entry["sourceLabel"] = "查看 Python 源码 ↗"
             entries.append(entry)
             routes[path.resolve()] = (language["slug"], ident)
 
@@ -1264,8 +1358,11 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     for language in languages:
         target_folder = destination / language["slug"]
         target_folder.mkdir(parents=True, exist_ok=True)
-        if frontend:
+        if frontend or ai:
             copy_mathjax(target_folder)
+        if ai:
+            shutil.copyfile(PAGE_ROOT / "vendor/mermaid-11.12.1.min.js", target_folder / "阅读资源/mermaid.min.js")
+            shutil.copyfile(PAGE_ROOT / "vendor/LICENSE-mermaid", target_folder / "阅读资源/LICENSE-mermaid")
         language["notes"] = 0
         language["resources"] = 0
         for page in language["entries"]:
@@ -1284,11 +1381,16 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     page["embed" if page["kind"] == "diagram" else "pdf"] = "resources/" + name
                 continue
             text = path.read_text(encoding="utf-8-sig")
-            text = re.sub(r"\A---\r?\n[\s\S]*?\r?\n---\r?\n", "", text)
+            is_code = ai and path.suffix.lower() == ".py"
+            if not is_code:
+                text = re.sub(r"\A---\r?\n[\s\S]*?\r?\n---\r?\n", "", text)
             page["pending"] = not bool(text.strip())
             language["notes"] += not page["pending"]
             page["search"] = text
             md = MarkdownIt("commonmark", {"html": True}).enable("table")
+            if ai:
+                enable_reader_math(md)
+                md.enable("strikethrough")
             if frontend:
                 md.enable("strikethrough")
             if plans:
@@ -1328,14 +1430,25 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             def fence(tokens, index, options, env):
                 token = tokens[index]
                 code_language = token.info.strip().split()[0].lower() if token.info.strip() else "text"
-                return ('<figure class="code-block"><figcaption><span>' + escape(code_language.upper()) +
+                code = ('<figure class="code-block"><figcaption><span>' + escape(code_language.upper()) +
                         '</span><button class="copy-code" type="button" aria-label="复制代码">复制代码</button></figcaption>' +
                         '<pre><code class="language-' + escape(code_language, quote=True) + '">' +
                         escape(token.content) + '</code></pre></figure>\n')
+                if ai and code_language == "mermaid":
+                    page["diagrams"] = True
+                    return '<section class="diagram-block"><div class="mermaid-diagram" role="img" aria-label="知识流程图"></div><details><summary>查看流程图源码</summary>' + code + '</details></section>\n'
+                return code
 
             md.renderer.rules["heading_open"] = heading
             md.renderer.rules["fence"] = fence
-            markup = md.render(text)
+            if is_code:
+                token = Token("fence", "code", 0)
+                token.info, token.content = "python", text
+                markup = fence([token], 0, {}, {})
+            else:
+                markup = md.render(text)
+            if ai:
+                page["math"] = bool(re.search(r'class="math-(?:inline|display)"', markup))
             if frontend and path.stem.casefold() == "latex":
                 page["math"] = True
                 markup = re.sub(r'(<pre\b[\s\S]*?</pre>)|(<code\b[^>]*>[\s\S]*?</code>)|(?<!\\)\$([^$\n<>]+?)\$',
@@ -1434,6 +1547,10 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "标记语言": "查阅 Markdown 与 LaTeX 的表达和排版方法，逐步补充 HTML 与 CSS。",
                 "JavaScript": "从变量、函数和异步到 DOM 操作，结合 JSON 理解数据交互。",
                 "Vue": "连接响应式、组件与项目工具，查阅 Vue 3 与 npm 的使用方法。",
+                "基础知识": "理解模型原理、核心组件与应用开发，结合补充笔记理清易混淆概念。",
+                "AI实践记录": "直接阅读 Python 实践代码，回顾 API 调用、流式输出与错误处理。",
+                "提示词模板": "查阅笔记整理、知识点练习与学习计划模板，按需要复制使用。",
+                "错题与易错点": "回顾曾经出错的概念、原因与正确理解，在复习中巩固知识。",
             }
             section_keys = list(dict.fromkeys(page["section"] for page in language["entries"]))
             if cloud:
@@ -1445,7 +1562,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     raise FileNotFoundError(f"Missing section cover: {cover}")
                 config["sections"].append(dict(
                     key=key, id="section-"+hashlib.sha256(key.casefold().encode()).hexdigest()[:12],
-                    title="标记与排版" if frontend and key == "标记语言" else "Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
+                    title="实践记录" if ai and key == "AI实践记录" else "标记与排版" if frontend and key == "标记语言" else "Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
                     description=descriptions.get(key, "沿着这个板块的目录，继续阅读与实践。"),
                     count=len(entries), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in entries),
                     pending=sum(page["pending"] for page in entries),
@@ -1472,19 +1589,38 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
         config["coverUrl"] = ("阅读资源/" if standalone else "../阅读资源/") + language["cover"]
-        config["heroLines"] = ["从页面到交互，", "把想法呈现出来。"] if frontend else ["从一个目标，", "到一步步做到。"] if plans else ["从部署一个服务，", "到理解整个系统。"] if cloud else ["从读懂代码，", "到写出自己的理解。"]
+        config["heroLines"] = ["从理解模型，", "到构建智能应用。"] if ai else ["从页面到交互，", "把想法呈现出来。"] if frontend else ["从一个目标，", "到一步步做到。"] if plans else ["从部署一个服务，", "到理解整个系统。"] if cloud else ["从读懂代码，", "到写出自己的理解。"]
         config["noteNoun"] = "篇计划记录" if plans else "篇学习笔记"
         config["sectionNoun"] = "个计划分类" if plans else "个学习板块"
         config["resourceNoun"] = "份 HTML 指南" if plans else "份图解与资料"
         config["itemNoun"] = "篇计划" if plans else "篇笔记"
         if frontend:
             config["sectionIntro"] = "选择标记与排版、JavaScript 或 Vue，沿着原笔记继续阅读。"
+        if ai:
+            config["sectionHeading"] = "沿着原理、实践与复盘，继续学习。"
+            config["sectionIntro"] = "选择基础知识、实践记录、提示词模板或错题，连接理解与动手。"
+            config["stats"] = [
+                dict(value=sum(page["format"] == "MD" and not page["pending"] for page in language["entries"]), label="篇学习笔记"),
+                dict(value=len(config["sections"]), label="个学习板块"),
+                dict(value=sum(page["format"] == "PY" for page in language["entries"]), label="份实践代码"),
+            ]
         if plans:
             config["kindLabels"] = dict(note="计划", practice="计划", diagram="HTML", pdf="PDF", resource="资料")
             config["sectionHeading"] = "按当前状态，查看学习安排。"
             config["sectionIntro"] = "先看进行中的计划，再按需要回顾阶段成果和历史路线。"
             config["diagramDescription"] = "保留这份指南的原始排版，可在下方阅读或独立打开。"
         config["pending"] = sum(page["pending"] for page in language["entries"])
+        math_assets = ""
+        if frontend or ai:
+            math_assets = ('<script>window.MathJax={startup:{typeset:false},loader:{paths:{mathjax:"./mathjax"}},'
+                           'tex:{inlineMath:[["\\\\(","\\\\)"]],displayMath:[["\\\\[","\\\\]"]]},'
+                           'svg:{fontCache:"local"},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script>'
+                           '<script defer src="mathjax/tex-svg.js"></script>')
+        if ai:
+            math_assets += ('<script defer src="阅读资源/mermaid.min.js"></script><style>'
+                            '.math-display,.mermaid-diagram{max-width:100%;overflow-x:auto;margin:1.5rem 0}'
+                            '.mermaid-diagram svg{max-width:100%;height:auto}.diagram-block{margin:1.5rem 0}'
+                            '.diagram-block>details>summary{cursor:pointer;font-size:.85rem;opacity:.75}</style>')
         payload = json.dumps(language["entries"], ensure_ascii=False).replace("</", r"<\/")
         text = (PAGE_ROOT / "programming" / "阅读页模板.html").read_text(encoding="utf-8")
         for key, value in {"TITLE": escape(language["title"]), "DESCRIPTION": escape(language["description"], quote=True),
@@ -1492,12 +1628,12 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                            "HOME_URL": "../" if standalone else "../../", "PARENT_CRUMB": "" if standalone else '<a href="../">编程语言</a><span>/</span>',
                            "BACK_TEXT": "返回学习导航 ↗" if standalone else "返回编程语言总览 ↗",
                            "BACK_SHORT": "← 学习导航" if standalone else "全部语言 ↗",
-                           "READER_TITLE": "前端学习笔记" if frontend else "学习计划与记录" if plans else "云原生学习笔记" if cloud else "编程语言学习笔记",
-                           "DIRECTORY_LABEL": "前端阅读目录" if frontend else "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
-                           "BRAND_SYMBOL": "▤" if frontend else "✓" if plans else "☁" if cloud else "&lt;/&gt;",
-                           "BRAND_TAGLINE": "STRUCTURE. STYLE. INTERACT." if frontend else "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
+                           "READER_TITLE": "AI 学习笔记" if ai else "前端学习笔记" if frontend else "学习计划与记录" if plans else "云原生学习笔记" if cloud else "编程语言学习笔记",
+                           "DIRECTORY_LABEL": "AI 阅读目录" if ai else "前端阅读目录" if frontend else "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
+                           "BRAND_SYMBOL": "✧" if ai else "▤" if frontend else "✓" if plans else "☁" if cloud else "&lt;/&gt;",
+                           "BRAND_TAGLINE": "UNDERSTAND. BUILD. REFLECT." if ai else "STRUCTURE. STYLE. INTERACT." if frontend else "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
                            "SWITCH_HIDDEN": "hidden" if standalone else "", "THEME_KEY": profile + "-theme",
-                           "MATH_ASSETS": ('<script>window.MathJax={startup:{typeset:false},loader:{paths:{mathjax:"./mathjax"}},tex:{inlineMath:[["\\\\(","\\\\)"]]},svg:{fontCache:"local"},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script><script defer src="mathjax/tex-svg.js"></script>') if frontend else "",
+                           "MATH_ASSETS": math_assets,
                            "PDF_BASE": "../" if standalone else "../../"}.items():
             text = text.replace("<!--" + key + "-->", value)
         (target_folder / "index.html").write_text(text, encoding="utf-8", newline="\n")
@@ -1535,7 +1671,7 @@ def build_catalogs(output, github, branch, programming):
                   "SOURCE_URL": escape(repository_url(source), quote=True),
                   "INTRO_CLASS": "with-cover" if hero else "",
                   "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024">' if hero else "",
-                  "READING_TIP": "数学、算法、编程语言、前端基础、Linux、云原生与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
+                  "READING_TIP": "数学、算法、编程语言、前端基础、Linux、云原生、AI 与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
@@ -1606,6 +1742,11 @@ def build_catalogs(output, github, branch, programming):
             root_cards.append(card(path.name, "从页面结构、脚本交互到 Vue 组件，结合笔记与示例逐步理解。", "front-end/", "进入前端阅读",
                                    ("标记与排版", "JavaScript 与 JSON", "Vue 与 npm"), "front-end/阅读资源/frontend-hero.png",
                                    number=str(index).zfill(2)+" / FRONTEND"))
+            continue
+        if path.name == "AI":
+            root_cards.append(card(path.name, "从模型原理到 API 实践，在笔记、代码与复盘中理解人工智能。", "ai/", "进入 AI 阅读",
+                                   ("基础知识", "实践与模板", "错题与易错点"), "ai/阅读资源/ai-hero-v2.png",
+                                   number=str(index).zfill(2)+" / ARTIFICIAL INTELLIGENCE"))
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
@@ -1680,6 +1821,7 @@ def build(output, repository, branch):
     build_cloud_native(output, github, branch)
     build_learning_plans(output, github, branch)
     build_frontend(output, github, branch)
+    build_ai(output, github, branch)
     build_catalogs(output, github, branch, programming)
     shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")

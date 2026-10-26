@@ -11,7 +11,8 @@ if not api_key:
     raise RuntimeError("未设置 DEEPSEEK_API_KEY")
 
 url = "https://api.deepseek.com/chat/completions"
-model = "deepseek-chat"
+# 可通过环境变量选择账号可用的模型；默认值按 2026-10-26 官方文档核对。
+model = os.environ.get("DEEPSEEK_MODEL", "deepseek-flash")
 
 # Bearer 认证通过请求头传递密钥；请求正文使用 JSON 格式。
 headers = {
@@ -30,6 +31,29 @@ timeout = httpx.Timeout(
 
 # 保存多轮对话，每条消息包含 role（角色）和 content（内容）。
 messages = []
+
+def iter_sse_data(lines):
+    # SSE 以空行结束事件，多个 data 字段要先拼成一份数据再解析。
+    data_lines = []
+    first = True
+    for line in lines:
+        if first:
+            line = line.removeprefix("\ufeff")
+            first = False
+        if line == "":
+            if data_lines:
+                yield "\n".join(data_lines)
+            data_lines = []
+            continue
+        if line.startswith(":"):
+            continue
+        field, separator, value = line.partition(":")
+        if separator and value.startswith(" "):
+            value = value[1:]  # 冒号后的一个空格可有可无，只移除这一个。
+        if field == "data":
+            data_lines.append(value)
+    # EOF 前没有空行结束的事件不完整，不派发给调用方。
+
 
 def trim_messages(messages):
     # 只保留最近的消息，限制发送给模型的上下文长度。
@@ -61,7 +85,9 @@ def ask_ai(question):
         "messages": messages,
         "temperature": 0.1,
         "max_tokens": 500,
-        "stream": True
+        "stream": True,
+        # DeepSeek 专属参数：本练习只处理普通文本，不启用思考模式。
+        "thinking": {"type": "disabled"}
     }
 
     # 最多重试两次，加上首次请求，总共最多发送三次；这里只重试 429。
@@ -71,6 +97,7 @@ def ask_ai(question):
     for attempt in range(max_retries + 1):
         # 每次尝试都重新记录结束状态和回答内容。
         completed = False
+        finish_reason = None
         answer = ""
         try:
             # 使用上下文管理器，退出时会关闭响应并释放连接资源。
@@ -81,17 +108,10 @@ def ask_ai(question):
                 json=data,
                 timeout=timeout
             ) as response:
-                # 遇到 4xx 或 5xx 状态码时抛出 HTTPStatusError，交给下方处理。
+                # 非 2xx 状态（包括 3xx/4xx/5xx）交给下方 HTTP 错误分支处理。
                 response.raise_for_status()
     
-                for line in response.iter_lines():
-                    # 按行读取 SSE（服务器发送事件），忽略空行等非数据行。
-                    if not line.startswith("data: "):
-                        continue
-    
-                    # 去掉 "data: " 前缀，取得事件正文。
-                    content = line[6:]
-    
+                for content in iter_sse_data(response.iter_lines()):
                     # [DONE] 是流式响应的结束标记，不是 JSON 数据。
                     if content == "[DONE]":
                         completed = True
@@ -114,9 +134,16 @@ def ask_ai(question):
                     
                     if not isinstance(delta, dict):
                         raise ValueError("delta 不是字典")
+
+                    # length 等结束原因表示生成被截断；[DONE] 本身不保证答案完整。
+                    reason = choices[0].get("finish_reason")
+                    if reason is not None:
+                        finish_reason = reason
                     
-                    # 部分数据块仅包含角色或结束信息，没有 content 时按空文本处理。
-                    text = delta.get("content", "")
+                    # 角色、思考或结束片段的 content 可以缺失或为 null。
+                    text = delta.get("content")
+                    if text is None:
+                        text = ""
                     
                     if not isinstance(text, str):
                         raise ValueError("content 不是字符串")
@@ -128,14 +155,17 @@ def ask_ai(question):
                     
             print()
     
-            # 只有收到结束标记才保存回答；流提前关闭时恢复原历史。
-            if completed:
+            # 同时检查协议结束、业务结束原因和正文，避免保存截断或空回答。
+            if completed and finish_reason == "stop" and answer.strip():
                messages.append({
                    "role": "assistant",
                    "content": answer
                })
             else:
-                print("流式响应未正常结束：未收到结束标记，本轮对话未保存")
+                print(
+                    "流式回答不完整或为空："
+                    f"completed={completed}，finish_reason={finish_reason!r}，本轮对话未保存"
+                )
                 messages = old_messages
                 return None
     

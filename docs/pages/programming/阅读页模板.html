@@ -107,6 +107,7 @@
       const start=sections.length&&!get('last')?sections[0].id:last?.id;
       const cards=sections.length?'<div class="folders section-cards">'+sections.map((item,index)=>'<a class="folder section-card'+(item.cover?' has-cover':'')+'" href="#'+item.id+'">'+(item.cover?'<img class="section-cover" src="'+escape(item.cover)+'" alt="" width="1536" height="1024" loading="lazy" decoding="async"><div class="section-copy">':'')+'<div class="folder-top"><span>SECTION '+String(index+1).padStart(2,'0')+'</span><span aria-hidden="true">↗</span></div><h3>'+escape(item.title)+'</h3><p>'+escape(item.description)+'</p><div class="section-bottom"><span>'+item.notes+' '+escape(config.itemNoun||'篇笔记')+' · '+item.resources+' 份资料'+(item.pending?' · '+item.pending+' 篇待补充':'')+'</span><b>进入板块 →</b></div>'+(item.cover?'</div>':'')+'</a>').join('')+'</div>':folderGrid(pages,false);
       $('overview').innerHTML='<section class="hero"><div><div class="eyebrow">'+escape(config.label)+' / LEARNING NOTES</div><h1>'+escape(config.heroLines[0])+'<br><em>'+escape(config.heroLines[1])+'</em></h1><p>'+escape(config.description)+'</p><div class="hero-links">'+(start?'<a class="primary" href="#'+start+'">'+(get('last')?'继续阅读':sections.length?'选择学习板块':'开始阅读')+' <span aria-hidden="true">↗</span></a>':'')+'<a class="text-link" href="'+escape(config.source)+'" target="_blank" rel="noopener">查看原笔记 ↗</a></div></div><img src="'+escape(config.coverUrl)+'" alt="" width="1536" height="1024"></section><div class="stats"><div><strong>'+config.notes+'</strong><span>'+escape(config.noteNoun||'篇学习笔记')+'</span></div><div><strong>'+(sections.length||groups.length)+'</strong><span>'+(sections.length?(config.sectionNoun||'个学习板块'):'个内容分类')+'</span></div><div><strong>'+config.resources+'</strong><span>'+escape(config.resourceNoun||'份图解与资料')+'</span></div></div><section aria-labelledby="folder-heading"><div class="section-heading"><div><div class="eyebrow">FOLLOW THE NOTES / 沿着目录阅读</div><h2 id="folder-heading">'+(config.sectionHeading||(sections.length?'选择一个板块，继续学习。':'把知识，一点点连起来。'))+'</h2><p>'+(config.sectionIntro||(sections.length?'先理清方向，再进入具体的笔记与练习。':'从基础语法到补充理解，再在习题与实践中检验。'))+'</p></div><span class="text-link">'+(sections.length?sections.length+' 个板块':pages.length+' 个阅读条目')+'</span></div>'+cards+'</section>'+(sections.length?'':'<section class="study-note"><h2>学会一个概念，<br>也试着写一段代码。</h2><p>先理解例子，再独立实现。遇到疑问时回到笔记，把使用条件、错误原因和自己的解释一起留下来。</p></section>');
+      if(config.stats)$('overview').querySelector('.stats').innerHTML=config.stats.map(item=>'<div><strong>'+escape(item.value)+'</strong><span>'+escape(item.label)+'</span></div>').join('');
     }
     function highlight(){
       const keywords=new Set('abstract assert async await auto boolean break byte case catch char class const continue def default delete do double elif else enum except extends false final finally float for from if implements import in int interface is lambda let long namespace new None nonlocal not null or package pass private protected public raise record return short sizeof static String struct super switch synchronized template this throw throws true try typedef typename union unsigned using var virtual void volatile while with yield and as bool self select from where insert update delete join into values set create table'.split(' '));
@@ -123,6 +124,25 @@
       const target=document.getElementById(id);if(!target)return;
       let details=target.closest('details');while(details){details.open=true;details=details.parentElement.closest('details')}
       target.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});
+    }
+    async function renderDiagrams(version){
+      if(!window.mermaid)return;
+      const dark=document.documentElement.dataset.theme==='dark';
+      mermaid.initialize({startOnLoad:false,securityLevel:'strict',suppressErrorRendering:true,theme:dark?'dark':'base',fontFamily:'system-ui, "Microsoft YaHei", sans-serif',themeVariables:dark?{}:{primaryColor:'#e3eddf',primaryTextColor:'#173d2d',primaryBorderColor:'#829e88',lineColor:'#52755f'}});
+      const diagrams=[...$('note-body').querySelectorAll('.mermaid-diagram')];
+      for(const [index,container] of diagrams.entries()){
+        if(version!==renderVersion)return;
+        const source=container.parentElement.querySelector('code').textContent;
+        try{
+          const {svg}=await mermaid.render('reader-diagram-'+version+'-'+index,source);
+          if(version!==renderVersion||!container.isConnected)return;
+          container.innerHTML=svg;
+        }catch{
+          if(version!==renderVersion||!container.isConnected)return;
+          container.textContent='流程图暂时无法显示，可展开下方源码查看。';
+        }
+      }
+      if(version===renderVersion)progress();
     }
     function render(){
       const version=++renderVersion;
@@ -147,8 +167,8 @@
       save('last',page.id);$('doc-title').textContent=page.title;$('doc-group').textContent=page.group;
       $('document-back').hidden=!currentSection;
       if(currentSection){const parent=currentTopic||currentSection;$('document-back').href='#'+parent.id;$('document-back').textContent='← 返回 '+parent.title}
-      $('doc-meta').innerHTML='<span>'+labels[page.kind]+'</span>'+(!isNote?'<span>'+escape(page.format)+'</span>':'')+(page.pending?'<span>内容待补充</span>':'')+(page.tasks?.total?'<span>原文勾选记录 '+page.tasks.done+' / '+page.tasks.total+' 项</span>':'');
-      $('source').href=page.source;$('source').textContent=isNote?'查看 Markdown 原笔记 ↗':'查看与下载原文件 ↗';
+      $('doc-meta').innerHTML='<span>'+labels[page.kind]+'</span>'+(!isNote||page.format!=='MD'?'<span>'+escape(page.format)+'</span>':'')+(page.pending?'<span>内容待补充</span>':'')+(page.tasks?.total?'<span>原文勾选记录 '+page.tasks.done+' / '+page.tasks.total+' 项</span>':'');
+      $('source').href=page.source;$('source').textContent=page.sourceLabel||(isNote?'查看 Markdown 原笔记 ↗':'查看与下载原文件 ↗');
       $('mode-switch').hidden=!isNote||page.pending;$('guide').hidden=!isNote||page.pending||mode!=='guide';
       $('note-body').hidden=!isNote||(!page.pending&&mode==='guide');$('resource').hidden=isNote;
       $('note-body').innerHTML=page.pending?'<div class="resource-panel"><p>这篇笔记还在整理中。先阅读其他内容，之后再回来补上这一部分。</p><a href="#overview">返回目录 ↗</a></div>':page.full;
@@ -168,8 +188,9 @@
       $('pager').innerHTML='<a href="#'+(previous?.id||back)+'">← '+escape(previous?.title||backTitle)+'</a><a href="#'+(next?.id||back)+'">'+escape(next?.title||backTitle)+' →</a>';
       document.querySelectorAll('[data-mode]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.mode===mode)));
       highlight();tocNodes=[...$('note-body').querySelectorAll('h1,h2,h3')];catalog();menu(false);window.scrollTo(0,0);progress();
-      if(page.math&&window.MathJax?.startup?.promise){MathJax.startup.promise.then(()=>{if(version===renderVersion)return MathJax.typesetPromise([...$('note-body').querySelectorAll('.math-inline,.math-display')])}).then(()=>{if(version===renderVersion)progress()})}
-      if(headingTarget)requestAnimationFrame(()=>anchor(hash));
+      const mathReady=page.math&&window.MathJax?.startup?.promise?MathJax.startup.promise.then(()=>{if(version===renderVersion)return MathJax.typesetPromise([...$('note-body').querySelectorAll('.math-inline,.math-display')])}).then(()=>{if(version===renderVersion)progress()}).catch(()=>{}):Promise.resolve();
+      const diagramsReady=page.diagrams&&mode==='full'?renderDiagrams(version):Promise.resolve();
+      if(headingTarget)Promise.all([mathReady,diagramsReady]).then(()=>{if(version===renderVersion)requestAnimationFrame(()=>anchor(hash))});
       if(pendingQuery){const terms=pendingQuery.toLocaleLowerCase().split(/\s+/).filter(Boolean);pendingQuery='';requestAnimationFrame(()=>{const found=[...$('note-body').querySelectorAll('h1,h2,h3,h4,p,li,pre')].find(node=>terms.every(term=>node.textContent.toLocaleLowerCase().includes(term)));if(found){let details=found.closest('details');while(details){details.open=true;details=details.parentElement.closest('details')}found.scrollIntoView({block:'center'});found.classList.add('read-highlight');setTimeout(()=>found.classList.remove('read-highlight'),4000)}})}
     }
     function progress(){
@@ -196,7 +217,7 @@
     window.addEventListener('afterprint',()=>{printState.forEach(([d,open])=>d.open=open);if(printGuide){$('guide').hidden=false;$('note-body').hidden=true}printState=[]});$('print').addEventListener('click',()=>window.print());
     let scheduled=false;window.addEventListener('scroll',()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;progress()})},{passive:true});
     window.addEventListener('resize',()=>{menu(matchMedia('(max-width:840px)').matches&&document.body.classList.contains('nav-open'));progress()});$('note-body').addEventListener('toggle',progress,true);window.addEventListener('hashchange',render);
-    window.addEventListener('load',()=>{if(currentPage?.math)render()},{once:true});
+    window.addEventListener('load',()=>{if(currentPage?.math||currentPage?.diagrams)render()},{once:true});
     themeButton();menu(false);render();
   })();
   </script>
