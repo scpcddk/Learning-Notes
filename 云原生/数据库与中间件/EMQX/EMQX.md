@@ -10,7 +10,7 @@
 
 ### 1.2 Docker 安装 EMQX
 
-服务器已安装 Docker，直接拉取镜像运行。**生产环境建议锁定小版本号（如 `emqx / emqx:5.7.2`），避免 `latest` 自动升级引入兼容性问题。**
+服务器已安装 Docker，直接拉取镜像运行。**生产环境建议锁定小版本号（如 `emqx/emqx:5.7.2`），避免 `latest` 自动升级引入兼容性问题。**
 
 ```bash
 # 拉取指定版本（推荐）
@@ -43,7 +43,7 @@ docker run -d --name emqx \
 
 **感性认识：传输层与应用层的关系**
 
-MQTT 是**应用层**协议，依赖 TCP（**传输层**）提供可靠的双向字节流。TCP 保证数据不丢失、顺序到达，MQTT 在此基础上定义“主题”“服务质量”“遗嘱”等语义。可以把 TCP 看作“电话线路”，MQTT 就是通话时的“语言规则”——线路通了，双方才能按规则对话。
+MQTT 是**应用层**协议，依赖 TCP（**传输层**）提供可靠的双向字节流。TCP 在连接有效时提供有序可靠的字节流，但不能保证断连后消息或业务处理一定成功，MQTT 在此基础上定义“主题”“服务质量”“遗嘱”等语义。可以把 TCP 看作“电话线路”，MQTT 就是通话时的“语言规则”——线路通了，双方才能按规则对话。
 
 - **MQTT 客户端**：每个换热站控制器是一个客户端，有唯一 Client ID
 - **主题（Topic）**：如 `station/1/temperature`，用 `/` 分层，可用通配符订阅：
@@ -92,10 +92,11 @@ MQTT 是**应用层**协议，依赖 TCP（**传输层**）提供可靠的双向
 
 #### 2.3.1 报文总览与分组
 
-MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文分为三大类：
+MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文可分为以下几组：
 
 - **连接与断开**：CONNECT, CONNACK, DISCONNECT
 - **心跳保活**：PINGREQ, PINGRESP
+- **增强认证（仅 v5.0）**：AUTH
 - **主题订阅/取消**：SUBSCRIBE, SUBACK, UNSUBSCRIBE, UNSUBACK
 - **消息发布**：PUBLISH, PUBACK, PUBREC, PUBREL, PUBCOMP
 
@@ -107,14 +108,14 @@ MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文分为三大类�
 
 **编码规则**：
 
-- 将数值反复除以 128，每次取余数作为当前字节的低 7 位，若还有除尽则当前字节最高位置 1，否则置 0。
-- **示例**：数值 321 → 321 / 128 = 2 余 65 → 第一个字节 0x41 (bit7=0? 实际需继续) 正确过程：
+- 将数值反复除以 128，每次取余数作为当前字节的低 7 位，若商仍大于 0 则当前字节最高位置 1，否则置 0。
+- **示例**：数值 321 的编码过程：
   - 先取 321 & 0x7F = 65 (0x41)，321 >> 7 = 2，因为 2 > 0，所以第一个字节最高位置 1 → 0xC1；再取 2 & 0x7F = 2，无需继续 → 0x02。最终编码为 `C1 02`。
 
 **解码规则**：
 
 - 从第一个字节开始，读取低 7 位，检查最高位：若为 1，则继续读取下一个字节，将低 7 位左移相应位数（第一个字节移 0，第二个移 7，第三个移 14，第四个移 21）再累加；若最高位为 0，则结束。
-- 最大有效值为 268,435,455 (256MB)，超出则为协议错误。
+- 最大有效值为 268,435,455 字节（256 MiB − 1），超出则为协议错误。
 
 #### 2.3.3 连接与断连报文（CONNECT / CONNACK / DISCONNECT）
 
@@ -125,34 +126,34 @@ MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文分为三大类�
 #### 2.3.4 心跳报文（PINGREQ / PINGRESP）
 
 - **PINGREQ**：客户端在 Keep Alive 周期内无其他报文时发送，用于检测网络存活。
-- **PINGRESP**：服务端必须立即回复，确认连接有效。若服务端未收到 PINGREQ 或客户端未收到 PINGRESP，将关闭连接。
+- **PINGRESP**：服务端收到 PINGREQ 后返回响应。Keep Alive 非零时，若服务端在 1.5 倍 Keep Alive 内未收到任何 MQTT 控制报文，应断开连接；不要求周期内必须有 PINGREQ。客户端未在合理时间内收到 PINGRESP 时应断开。
 
 #### 2.3.5 订阅/取消订阅报文（SUBSCRIBE / SUBACK / UNSUBSCRIBE / UNSUBACK）
 
-- **SUBSCRIBE**：客户端发送（QoS 必须为 1 或 2），携带一个或多个主题过滤器及其请求的最大 QoS。服务端根据 ACL 规则授权。
+- **SUBSCRIBE**：客户端发送（固定报头标志必须为 `0010`，按 QoS 1 交互；订阅请求的最大消息 QoS 可为 0/1/2），携带一个或多个主题过滤器及其请求的最大 QoS。服务端根据 ACL 规则授权。
 - **SUBACK**：服务端返回每个订阅请求的授予 QoS（可能被降级），以及原因码。
 - **UNSUBSCRIBE**：取消订阅指定主题，UNSUBACK 为确认。
 
 #### 2.3.6 发布报文（PUBLISH）与服务质量等级
 
-**数据传输方向**：PUBLISH 始终由发布者客户端发往服务端，服务端再转发给匹配的订阅者（跨节点转发由 EMQX 内部路由处理）。
+**数据传输方向**：发布端向服务端发送 PUBLISH，服务端也向匹配的订阅客户端发送 PUBLISH；两段 QoS 交互彼此独立（跨节点转发由 EMQX 内部路由处理）。
 
 **QoS 等级**：
 
 - **QoS 0（最多一次）**：只发一次，不重试，不确认，适合高频传感器数据（少量丢失可容忍）。
-- **QoS 1（至少一次）**：服务端响应 PUBACK，若超时未收到 ACK，发送方会重发 PUBLISH，可能产生重复消息（需业务侧去重）。
-- **QoS 2（恰好一次）**：四次握手（PUBLISH → PUBREC → PUBREL → PUBCOMP），保证不重不漏，开销最大，适合关键控制指令。
+- **QoS 1（至少一次）**：接收方响应 PUBACK，可能产生重复消息，需业务侧去重。MQTT 5.0 的未确认消息在恢复会话重连时重发，不能简单描述为连接内按超时重发。
+- **QoS 2（恰好一次）**：四次握手（PUBLISH → PUBREC → PUBREL → PUBCOMP），保证一次协议交付中的重复消除，开销最大；不能保证端到端业务副作用恰好执行一次，关键指令仍需幂等、回执与重试机制。
 
 **各等级报文详解**：
 
-- **等级0 PUBLISH**：无可变报头中的 Packet ID，服务端直接转发，不存储离线消息。
-- **等级1 PUBLISH + PUBACK**：发布者保存 Packet ID，等待 PUBACK，超时重发；服务端收到后存储并转发给订阅者，返回 PUBACK。
+- **等级0 PUBLISH**：无 Packet ID，不要求确认；离线 QoS 0 消息可按服务端实现选择丢弃或排队。
+- **等级1 PUBLISH + PUBACK**：发送方保存 Packet ID 并等待 PUBACK，恢复会话时重发未确认消息；服务端收到后存储并转发给订阅者，返回 PUBACK。
 - **等级2 PUBLISH / PUBREC / PUBREL / PUBCOMP**：
 
   1. 发布者发送 PUBLISH（QoS=2, Packet ID = N）。
   2. 服务端回复 PUBREC（N），表示已接收。
   3. 发布者收到 PUBREC 后回复 PUBREL（N），表示可以分发。
-  4. 服务端分发完成后回复 PUBCOMP（N），整个流程结束。
+  4. 服务端回复 PUBCOMP（N），这一段 QoS 2 交互结束；不代表订阅端已完成业务处理。
 
 #### 2.3.7 保留消息功能详解
 
@@ -160,12 +161,13 @@ MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文分为三大类�
 
 #### 2.3.8 会话的清理与保留
 
-- **Clean Start (v5) / Clean Session (v3.1.1)**：若为 true，连接时丢弃之前会话；若为 false，则重用之前会话，恢复未确认的 QoS 1/2 消息和订阅关系。
+- **MQTT 3.1.1 Clean Session**：false 时使用持久会话，重连使用相同 ClientID 才能恢复。
+- **MQTT 5.0 Clean Start**：只决定连接开始时是否清理旧会话；断连后的保留时间由 Session Expiry Interval 决定，缺省为 0。要跨连接保留会话，需设置大于 0 的过期间隔。
 - **会话保留与 ClientID 的关系**：服务端以 ClientID 为键存储会话数据。同一 ClientID 重连时，若 Clean Session = false，则恢复会话；若使用不同的 ClientID，则无法恢复。**生产环境中每个设备必须使用固定且唯一的 ClientID**。
 
 #### 2.3.9 遗嘱功能详解
 
-遗嘱在 CONNECT 报文中指定（Will Topic, Will Payload, Will QoS, Will Retain）。当服务端检测到**客户端异常断开**（如 TCP 连接异常、心跳超时），会立即发布遗嘱消息。若客户端正常 DISCONNECT，则不会触发遗嘱。该功能常与保留消息配合，实现设备状态自动更新（参见 2.2 节）。
+遗嘱在 CONNECT 报文中指定（Will Topic, Will Payload, Will QoS, Will Retain）。当服务端检测到**客户端异常断开**（如 TCP 连接异常、心跳超时），按协议和配置发布遗嘱；MQTT 5.0 的 Will Delay Interval 可延迟发布。正常 DISCONNECT 通常不发布遗嘱，但 v5 原因码 `0x04` 明确请求发布遗嘱。该功能常与保留消息配合，实现设备状态自动更新（参见 2.2 节）。
 
 > **注**：理解上述报文交互后，可使用 Wireshark 抓包或 MQTTX 的“调试”模式观察报文细节，辅助排障。
 
@@ -193,17 +195,17 @@ MQTT v5.0（EMQX 5.x 同时支持 v3.1.1）定义的控制报文分为三大类�
 http://your-backend:8080/mqtt/auth
 ```
 
-EMQX 在客户端连接时 POST 请求该接口，根据返回状态码决定是否允许连接。
+EMQX 在客户端连接时 POST 请求该接口，按 EMQX 5.x 的 HTTP 认证响应协议判定：例如 HTTP 200 配合 JSON `{"result":"allow","is_superuser":false}` 放行，`{"result":"deny"}` 拒绝。不能沿用 4.x 只看 200/403 的规则。
 
 授权（ACL）同理，可限制哪些客户端能发布/订阅哪些主题。
 
 ### 3.3 安全增强
 
-- **强制 TLS 加密**：为 `8883` 端口配置证书，关闭公网 `1883` 明文端口或仅限内网使用。可通过环境变量挂载证书：
+- **强制 TLS 加密**：为 `8883` 端口配置证书，关闭公网 `1883` 明文端口或仅限内网使用。先通过卷挂载证书，再用环境变量指定容器内路径：
   
   ```bash
-  -e EMQX_LISTENERS__SSL__DEFAULT__KEYFILE=/etc/certs/key.pem
-  -e EMQX_LISTENERS__SSL__DEFAULT__CERTFILE=/etc/certs/cert.pem
+  -e EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__KEYFILE=/etc/certs/key.pem
+  -e EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CERTFILE=/etc/certs/cert.pem
   ```
 
 - **客户端证书认证**：在 PLC/RTU 无法输入密码时，可启用 X.509 证书认证，EMQX 支持基于客户端证书的主题白名单。
@@ -224,7 +226,7 @@ EMQX 在客户端连接时 POST 请求该接口，根据返回状态码决定是
 
 假设设备上报 JSON 格式：`{"temperature": 55.2, "pressure": 1.2, "flow": 30}`
 
-**更健壮的 SQL**（先解码 JSON，避免 payload 为二进制时报错）：
+**SQL 示例**（假定 payload 是合法 JSON；解码失败会导致规则执行失败，需在设备端校验并监控失败日志）：
 
 ```sql
 SELECT
@@ -233,8 +235,6 @@ SELECT
   clientid
 FROM
   "data/#"
-WHERE
-  is_json(payload)
 ```
 
 动作选择“数据转发到 InfluxDB”，填写连接信息，数据写入指令：
@@ -252,7 +252,7 @@ temperature,station=${clientid} value=${data.temperature},pressure=${data.pressu
 在规则引擎中添加**条件动作**：当检测到告警或定时批量转存时，将原始消息保存为 JSON 文件并上传到对象存储。
 
 - 创建 MinIO 的 Bucket `heat-station-archive`
-- 在 EMQX 规则动作中，选择“发送到 WebHook”，调用 MinIO 的 S3 API 或通过后端中转，把消息保存为 `archive/2025/03/station1_161200.json`
+- 在 EMQX 规则动作中调用后端 Webhook，由后端使用 MinIO SDK 签名上传（普通 Webhook 不会自动生成 S3 签名），或使用当前版本支持的 S3 数据集成，把消息保存为 `archive/2025/03/station1_161200.json`
 - 后端也可定期从 InfluxDB 导出历史数据转存 MinIO，利用对象存储低成本存放冷数据。
 
 **效果**：热数据在 InfluxDB 供实时查询，冷数据在 MinIO 里可供审计和模型训练，降低时序数据库存储压力。
@@ -261,7 +261,7 @@ temperature,station=${clientid} value=${data.temperature},pressure=${data.pressu
 
 ## 5. 高可用与集群运维（Docker Compose）
 
-生产环境单节点风险大，需要集群。使用 Docker Compose 启动两节点集群。
+以下用单机 Compose 的两节点演示集群通信，不能提供宿主机故障容错。生产需多主机部署并验证节点数、故障模型和负载均衡。
 
 ### 5.1 目录结构
 
@@ -282,7 +282,7 @@ services:
     image: emqx/emqx:5.7.2
     container_name: emqx1
     environment:
-      - EMQX_NODE_NAME=emqx@emqx1
+      - EMQX_NODE__NAME=emqx@emqx1
       - EMQX_CLUSTER__DISCOVERY_STRATEGY=static
       - EMQX_CLUSTER__STATIC__SEEDS=[emqx@emqx1,emqx@emqx2]
     ports:
@@ -308,7 +308,7 @@ services:
     image: emqx/emqx:5.7.2
     container_name: emqx2
     environment:
-      - EMQX_NODE_NAME=emqx@emqx2
+      - EMQX_NODE__NAME=emqx@emqx2
       - EMQX_CLUSTER__DISCOVERY_STRATEGY=static
       - EMQX_CLUSTER__STATIC__SEEDS=[emqx@emqx1,emqx@emqx2]
     ports:
@@ -352,7 +352,7 @@ stream {
 ### 5.3 运维备忘
 
 - 备份 `data/` 目录和 `etc/` 配置
-- 升级时逐个节点替换：`docker-compose up -d --no-deps emqx1` 滚动更新，保证集群不中断
+- 升级时逐个节点替换：先更新镜像标签，再用 `docker compose up -d --no-deps emqx1` 重建单节点；需验证升级路径、剩余容量和客户端重连，不能保证现有 TCP 连接不中断
 - 监控 Dashboard 或 API 获得连接数、消息速率
 - 日志持久化到宿主并配合 `logrotate` 切割，防止磁盘写满
 
@@ -370,7 +370,7 @@ stream {
 
 通过 Dashboard 或 `etc/emqx.conf` 修改（挂载配置卷）：
 
-- 最大连接数：`listener.tcp.external.max_connections`
+- 最大连接数：`listeners.tcp.default.max_connections`（5.x 格式）
 - 节点间通信缓冲区：`rpc.tcp_buffer_size`
 - 开启共享订阅以实现消息派发负载均衡
 
@@ -380,12 +380,7 @@ Dashboard → 监控 提供节点状态、收发字节、消息速率、连接�
 
 ### 6.4 集成 Prometheus
 
-EMQX 提供了 Prometheus 指标端点，在 Docker 环境变量开启：
-
-```yaml
-environment:
-  - EMQX_PROMETHEUS__ENABLE=true
-```
+EMQX 5.7 可由 Prometheus 拉取 `/api/v5/prometheus/stats`，按实例配置提供认证；不需要用不适用的 `EMQX_PROMETHEUS__ENABLE` 开关开启拉取端点。若使用 Pushgateway，则单独配置该版本的推送参数。
 
 用 Prometheus + Grafana 可视化监控，模板 ID 可在 Grafana 官网找。
 

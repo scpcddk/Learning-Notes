@@ -1,6 +1,6 @@
 # SRS 流媒体服务器通用操作手册
 
-> **定位**：SRS 是一个开源的流媒体服务器，核心作用就是**协议转换**——把摄像头/推流端的 RTMP/RTSP 流，转成网页浏览器能直接播放的 FLV/HLS/WebRTC 格式。  
+> **定位**：SRS 是一个开源的流媒体服务器，核心作用就是**协议转换**——接收并分发 RTMP 等流，可转封装为 HLS/HTTP-FLV 或接入 WebRTC；RTSP 摄像头通常需 FFmpeg 等先转推，HTTP-FLV 通常需网页播放器库。
 > **学习目标**：掌握 50% 可以检查别人部署的 SRS 是否正确，掌握 80% 可以独立完成部署与排错。
 
 ---
@@ -15,7 +15,7 @@ SRS 在项目中扮演的角色就是 **“视频格式翻译官”**。你不�
 | **拉流地址（FLV）** | `http://服务器IP:8080/live/流名.flv` | 前端网页（延迟 1-3 秒） |
 | **拉流地址（HLS）** | `http://服务器IP:8080/live/流名.m3u8` | 前端网页（延迟 5-10 秒，兼容性好） |
 
-**关键理解**：推流协议（RTMP/RTSP）和播放协议（FLV/HLS）是两套不同的东西，SRS 在**中间自动转换**。推流端和播放端互不关心对方用的是什么协议。
+**关键理解**：推流协议（RTMP/RTSP）和播放协议（FLV/HLS）是两套不同的东西，SRS 在启用对应配置后转封装或桥接；不支持的编码仍需转码。推流端和播放端互不关心对方用的是什么协议。
 
 ---
 
@@ -26,10 +26,10 @@ SRS 在项目中扮演的角色就是 **“视频格式翻译官”**。你不�
 ```bash
 docker run -d --name srs \
   --restart=always \
-  -p 1935:1935 \      # RTMP 推流端口
-  -p 8080:8080 \      # HTTP 服务端口（FLV/HLS/API 共用）
-  -p 1985:1985 \      # HTTP API 端口（查询状态、WebRTC 协商）
-  -p 8000:8000/udp \  # WebRTC UDP 端口（可选）
+  -p 1935:1935 \
+  -p 8080:8080 \
+  -p 1985:1985 \
+  -p 8000:8000/udp \
   ossrs/srs:5
 ```
 
@@ -58,19 +58,19 @@ services:
       - "8000:8000/udp"
 ```
 
-之后只需 `docker-compose up -d` 即可启动。
+之后只需 `docker compose up -d` 即可启动。
 
 ### 2.3 端口说明
 
 | 端口 | 协议 | 用途 |
 |------|------|------|
 | `1935` | TCP | RTMP 推流/播放 |
-| `8080` | TCP | HTTP-FLV、HLS、HTTP API |
+| `8080` | TCP | HTTP-FLV、HLS 文件服务；管理 API 通常在 1985 |
 | `1985` | TCP | HTTP API（查询、控制） |
 | `8000` | UDP | WebRTC 媒体传输（可选） |
 
 > [!WARNING]
-> **云服务器务必在安全组中放行以上端口**，否则所有推流/播放操作都会失败。这是新手最容易忘记的一步。
+> 按实际启用的协议放行所需端口；管理 API 1985 应限制来源，使用 Nginx 统一入口时不一定需要公开 8080。这是新手最容易忘记的一步。
 
 ### 2.4 常见问题：端口冲突
 
@@ -80,7 +80,7 @@ services:
 docker run -d --name srs \
   --restart=always \
   -p 1935:1935 \
-  -p 8081:8080 \      # 把容器内的 8080 映射到宿主机的 8081
+  -p 8081:8080 \
   -p 1985:1985 \
   -p 8000:8000/udp \
   ossrs/srs:5
@@ -102,7 +102,7 @@ rtmp://服务器IP:1935/live/流名
 - 用 FFmpeg 推流示例：
   
   ```bash
-  ffmpeg -re -i /dev/video0 -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://39.102.213.11:1935/live/camera01
+  ffmpeg -f v4l2 -i /dev/video0 -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://39.102.213.11:1935/live/camera01
   ```
 
 - 用 OBS 推流：设置 → 推流 → 服务选“自定义” → 服务器填 `rtmp://39.102.213.11:1935/live/` → 串流密钥填 `camera01`
@@ -115,7 +115,7 @@ rtmp://服务器IP:1935/live/流名
 | HLS | `http://服务器IP:8080/live/流名.m3u8` | `hls.js` 或 `video.js` |
 | WebRTC | 需通过 API 获取 | SRS WebRTC SDK |
 
-**注意**：Chrome/Edge 不能直接用 `<video src="...m3u8">` 播放 HLS，必须引入 `hls.js`。HTTP-FLV 同理需要 `mpegts.js`。
+**注意**：先用 video.canPlayType 检测原生 HLS 支持；不支持时再用 hls.js（需浏览器具备相应能力）。HTTP-FLV 通常需 mpegts.js/flv.js，且编码必须为浏览器支持的格式；转封装不等于转码。
 
 ---
 
@@ -139,14 +139,7 @@ location /live/ {
 
 配置后，播放地址变成 `http://服务器IP/live/流名.flv`，不再需要带端口号。
 
-> **如启用 WebRTC**，反向代理需额外配置 WebSocket 支持：
-```nginx
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
-```
-
-且建议直接暴露 8000 UDP 端口或配置 TURN 服务，否则信令协商可能失败。
+> SRS 常用 WebRTC 信令走 `/rtc/v1/play/`、WHIP/WHEP 等 HTTP API，并不要求 WebSocket 升级。需另外代理对应信令路径；媒体链路还需正确的 candidate、公网地址及 UDP/TCP 可达性，必要时配置 TURN。HTTP 代理成功不代表媒体链路已通。
 
 ---
 
@@ -220,8 +213,8 @@ hls {
 
 | 功能 | 关键配置/API | 用途 |
 |------|-------------|------|
-| 录制直播流 | `record` 块配置 | 把直播流保存为 MP4 文件 |
-| 推流认证 | `security` 块配置 | 防止未授权推流 |
+| 录制直播流 | `dvr` 块配置 | 把直播流保存为 MP4 文件 |
+| 推流认证 | `security` IP 访问控制或 `http_hooks.on_publish` 业务鉴权 | 防止未授权推流 |
 | WebRTC 播放 | 调用 `http://IP:1985/rtc/v1/play/` API | 超低延迟（<1 秒） |
 | HTTP API 查询 | `http://IP:1985/api/v1/clients` | 查看当前连接数、推流状态 |
 | 回调通知 | `http_hooks` 块配置 | 推流/断流时通知后端接口 |
@@ -240,7 +233,7 @@ hls {
 **给前端同学**：
 
 - 播放地址模板：`http://服务器IP/live/设备编号.flv`（或 `.m3u8`）
-- 必须用 `mpegts.js`（FLV）或 `hls.js`（HLS），不能裸用 `<video>` 标签
+- FLV 通常用 mpegts.js；HLS 优先检测原生支持，否则使用 hls.js
 - 推荐让后端提供一个接口，返回播放地址，前端调用接口获取，而不是前端硬编码拼接
 
 **给后端同学**：
@@ -259,7 +252,7 @@ hls {
 | 查看谁在推流 | `curl http://IP:1985/api/v1/clients \| python3 -m json.tool` |
 | 测试播放地址 | `curl -I http://IP:8080/live/流名.flv` |
 | 降低 HLS 延迟 | 改配置：`hls_fragment 2; hls_window 6;` |
-| 安全组放行 | 1935（RTMP）、8080（HTTP）、1985（API）、8000（WebRTC，可选） |
+| 安全组放行 | 按需放行 1935、HTTP 入口和 WebRTC 媒体端口；1985 管理 API 限制来源 |
 
 ---
 > [!IMPORTANT]

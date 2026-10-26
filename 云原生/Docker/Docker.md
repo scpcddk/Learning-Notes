@@ -27,8 +27,8 @@
 - **怎么用**：
 
   ```bash
-  docker build -t 我的应用名 .   # 打包成镜像
-  docker run -p 8080:8080 我的应用名  # 运行
+  docker build -t my-app .   # 打包成镜像
+  docker run -p 8080:8080 my-app  # 运行
   ```
 
 - **示例**：
@@ -59,14 +59,12 @@
   | **services** | 声明“我要开几个店” | 下面缩进的都是你要启动的容器 |
   | **build** | “现场用 Dockerfile 现做” | `build: .` 代表用当前目录的 Dockerfile 现打包 |
   | **image** | “去网上直接下载现成的” | `image: redis` 代表直接去官方仓库拽一个 Redis 过来用，连 Dockerfile 都不用写！ |
-  | **depends_on** | “启动顺序” | 数据库必须先开，后端代码才能连上去，否则报错 |
+  | **depends_on** | “启动顺序” | 短语法只控制启动顺序，不等待数据库就绪；需 healthcheck 与 service_healthy，应用仍应支持重试 |
 
 - **`docker-compose.yml`示例**（注意后缀是 `.yml`）：
 
   ```yaml
-  # 1. 版本号，基本固定写 3
-  version: '3'
-  
+  # 使用当前 Compose Specification，无需 version 字段
   # 2. 核心：定义所有需要启动的“服务”
   services:
   
@@ -82,7 +80,7 @@
     db:
       image: postgres:15      # 意思是：“去网上下载 Postgres 15 这个成品”
       environment:            # 设置数据库的密码（环境变量）
-        POSTGRES_PASSWORD: 123456
+        POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?请先设置数据库密码}"
       ports:
         - "5432:5432"         # 把数据库端口暴露出来
   ```
@@ -94,13 +92,13 @@
 
   ```bash
   # 一键启动所有服务（-d 代表后台运行，像开机一样）
-  docker-compose up -d
+  docker compose up -d
   
   # 一键停止所有服务
-  docker-compose down
+  docker compose down
   
   # 查看所有服务的运行日志（看哪里报错）
-  docker-compose logs -f
+  docker compose logs -f
   ```
 
 - **什么时候用**：你的项目需要多个容器配合工作（比如后端要连数据库、缓存、AI模型等）
@@ -113,8 +111,8 @@
 | :--- | :--- | :--- |
 | **管什么** | 管 **“怎么做”**（如何打包一个镜像） | 管 **“怎么跑”**（如何启动一堆镜像） |
 | **文件类型** | 无后缀名，叫 `Dockerfile` | 叫 `docker-compose.yml` |
-| **干活的** | 只负责造出 1 个容器 | 负责同时管理和连接 N 个容器 |
-| **是否必须** | **必须**（你要自定义环境就得写） | **非必须**（但项目一复杂就是神器） |
+| **干活的** | 描述镜像构建过程；镜像可启动多个容器 | 负责同时管理和连接 N 个容器 |
+| **是否必须** | 通常用于自定义镜像；使用现成镜像可不写 | **非必须**（但项目一复杂就是神器） |
 
 > [!TIP]
 > **“Dockerfile 负责把代码装进箱子（镜像），Compose 负责把箱子和数据库、Redis 一起通上电、插上网线（运行）”**
@@ -125,10 +123,10 @@
 
 | 场景 | 命令 |
 | :--- | :--- |
-| 把 Dockerfile 打包成镜像 | `docker build -t 我的应用名 .` |
-| 运行镜像 | `docker run -p 8080:8080 我的应用名` |
-| 启动 compose 全家桶 | `docker-compose up -d` |
-| 关停 compose 全家桶 | `docker-compose down` |
+| 把 Dockerfile 打包成镜像 | `docker build -t my-app .` |
+| 运行镜像 | `docker run -p 8080:8080 my-app` |
+| 启动 compose 全家桶 | `docker compose up -d` |
+| 关停 compose 全家桶 | `docker compose down` |
 | 查看容器日志（找报错） | `docker logs 容器名 --tail 50` |
 | 查看容器退出码 | `docker inspect 容器名 --format='{{.State.ExitCode}}'` |
 
@@ -138,7 +136,7 @@
 
 - **镜像（Image）**：一个只读的**模板**，包含运行环境（如 JDK + 应用 jar）
 - **容器（Container）**：镜像的**运行实例**，可启动、停止、删除，相互隔离
-- **仓库（Repository）**：**存放镜像**的地方，如`Docker Hub`
+- **镜像仓库（Repository）**：同名镜像及其标签的集合；Docker Hub 是托管仓库的注册服务（Registry）
 
 ---
 
@@ -166,11 +164,11 @@
 | `docker exec -it` | 进入容器的交互式终端 | `docker exec -it container_name /bin/bash` |
 | `docker network ls` | 列出所有`Docker`**网络** | `docker network ls` |
 | `docker volume ls` | 列出所有`Docker`**卷** | `docker volume ls` |
-| `docker-compose up -d` | 后台启动多容器应用（从 docker-compose.yml 文件） | `docker-compose up -d` |
-| `docker-compose down` | 停止并删除由`docker-compose`启动的容器、网络等 | `docker-compose down` |
-| `docker-compose logs -f` | 实时查看`compose`服务日志 | `docker-compose logs -f backend` |
-| `docker-compose restart` | 重启`compose`中的某个服务 | `docker-compose restart backend` |
-| `docker-compose ps` | 列出`compose`管理的容器状态 | `docker-compose ps` |
+| `docker compose up -d` | 后台启动多容器应用（从 docker-compose.yml 文件） | `docker compose up -d` |
+| `docker compose down` | 停止并删除由`docker-compose`启动的容器、网络等 | `docker compose down` |
+| `docker compose logs -f` | 实时查看`compose`服务日志 | `docker compose logs -f backend` |
+| `docker compose restart` | 重启`compose`中的某个服务 | `docker compose restart backend` |
+| `docker compose ps` | 列出`compose`管理的容器状态 | `docker compose ps` |
 | `docker info` | 显示`Docker`系统的**详细信息** | `docker info` |
 | `docker version` | 显示`Docker`客户端和守护进程的**版本信息** | `docker version` |
 | `docker stats` | 显示容器的实时资源使用情况 | `docker stats` |
@@ -240,7 +238,7 @@
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
-| `docker attach` | **附着**到正在运行容器的主进程（与 `exec` 不同，直接进主线程） | `docker attach container_name` |
+| `docker attach` | 连接容器主进程的标准输入/输出/错误流，不会启动新 shell | `docker attach container_name` |
 | `docker pause` | **暂停**容器内所有进程（挂起状态，不占用 CPU） | `docker pause container_name` |
 | `docker unpause` | 恢复被暂停的容器 | `docker unpause container_name` |
 | `docker wait` | 阻塞当前终端，直到容器停止并返回退出码 | `docker wait container_name` |
@@ -271,7 +269,7 @@
 | `docker volume create` | 创建一个数据卷 | `docker volume create my-data` |
 | `docker volume inspect` | 查看数据卷的挂载路径与元数据 | `docker volume inspect my-data` |
 | `docker volume rm` | 删除一个数据卷 | `docker volume rm my-data` |
-| `docker volume prune` | 删除所有未被容器挂载的数据卷 | `docker volume prune -f` |
+| `docker volume prune` | 默认删除未使用的匿名卷；加 `-a` 才包含未使用的命名卷 | `docker volume prune -f` |
 
 ---
 
@@ -283,7 +281,7 @@
 | `docker events` | 实时打印 Docker 守护进程的**事件流**（调试利器） | `docker events --since 1h` |
 | `docker port` | 查看容器**端口映射**情况 | `docker port container_name` |
 | `docker system df` | 查看 Docker 磁盘占用详情（镜像/容器/卷/构建缓存） | `docker system df -v` |
-| `docker system prune` | 清理未使用的**镜像、容器、网络**（不加 `-a` 保留最新层） | `docker system prune -f` |
+| `docker system prune` | 清理停止的容器、未使用网络、悬空镜像和未使用构建缓存；`-a` 扩大镜像清理范围，卷需另加 `--volumes` | `docker system prune -f` |
 | `docker system events` | （同 `docker events`，系统级事件查看） | `docker system events` |
 
 ---
@@ -292,12 +290,12 @@
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
-| `docker-compose exec` | 在 compose 运行中的服务里执行命令（与 `run` 区分） | `docker-compose exec web bash` |
-| `docker-compose build` | 重新构建 compose 中的服务镜像 | `docker-compose build --no-cache web` |
-| `docker-compose pull` | 拉取 compose 服务依赖的最新镜像 | `docker-compose pull backend` |
-| `docker-compose stop` | 停止 compose 服务（不删除容器） | `docker-compose stop web` |
-| `docker-compose rm` | 删除 compose 已停止的服务容器 | `docker-compose rm -v web` |
-| `docker-compose config` | 验证并查看合并后的 compose 配置（排错用） | `docker-compose config` |
+| `docker compose exec` | 在 compose 运行中的服务里执行命令（与 `run` 区分） | `docker compose exec web bash` |
+| `docker compose build` | 重新构建 compose 中的服务镜像 | `docker compose build --no-cache web` |
+| `docker compose pull` | 拉取 compose 服务依赖的最新镜像 | `docker compose pull backend` |
+| `docker compose stop` | 停止 compose 服务（不删除容器） | `docker compose stop web` |
+| `docker compose rm` | 删除 compose 已停止的服务容器 | `docker compose rm -v web` |
+| `docker compose config` | 验证并查看合并后的 compose 配置（排错用） | `docker compose config` |
 
 ---
 
@@ -318,7 +316,7 @@
 | 查看容器详细配置 | `docker inspect 容器名` |
 | 查看容器内文件系统变化 | `docker diff 容器名` |
 | 复制容器内文件到宿主机 | `docker cp 容器名:/app/logs .` |
-| 进入已停止的容器 | `docker commit 容器名 临时镜像 && docker run -it 临时镜像 bash` |
+| 进入已停止的容器 | `docker commit 容器名 debug-image && docker run --rm -it --entrypoint sh debug-image` |
 | 查看容器退出码 | `docker inspect 容器名 --format='{{.State.ExitCode}}'` |
 
 ---
@@ -340,8 +338,8 @@
    ```
    - **0**：正常退出（没事）
    - **1**：程序内部报错（去看日志）
-   - **137**：被系统强制 Kill（**绝大多数是因为内存超了**，赶紧去调大 `mem_limit` 或检查 JVM `-Xmx`）
-   - **143**：收到了 SIGTERM 正常关机（说明优雅停机生效了）
+   - **137**：通常表示 SIGKILL；可能是 OOM、手动 kill 或停止超时。结合 `.State.OOMKilled` 和宿主机日志定位
+   - **143**：通常表示因 SIGTERM 退出；是否完成优雅停机还需检查应用日志和请求结果
 
 3. **进入容器内部（第三板斧）**：
    ```bash
@@ -365,7 +363,7 @@
 | **ENV** | **设置环境变量**，运行时可用 `-e` 覆盖 | `ENV JAVA_OPTS="-Xmx512m"` |
 | **EXPOSE** | 声明容器内**服务端口**（仅文档作用） | `EXPOSE 8080` |
 | **CMD** | ==容器== 启动时的**默认命令**，可被 `docker run` 后面的命令覆盖（如果需要运行命令过多，可以创建**启动脚本**，直接运行脚本，如：CMD ["./start.sh"]） | `CMD ["java", "-jar", "app.jar"]` |
-| **ENTRYPOINT** | 容器启动时的**入口命令**，不会被覆盖，但可追加参数 | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
+| **ENTRYPOINT** | 容器启动时的**入口命令**，可用 `--entrypoint` 覆盖；exec 形式可接收追加参数 | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
 
 #### -e
 
@@ -416,14 +414,13 @@
 
 ### 3.2 镜像分层与构建缓存
 
-- Docker 镜像采用**分层存储**（Union File System），Dockerfile 中每条指令都会创建一个新的只读层
+- Docker 镜像采用**分层存储**（Union File System），`RUN`、`COPY`、`ADD` 等通常生成文件系统层，`ENV`、`CMD`、`ENTRYPOINT` 等主要设置镜像元数据，并非每条指令都产生文件系统层
 
   ```dockerfile
-  FROM eclipse-temurin:21-jre-alpine    # 第1层：基础镜像层
-  WORKDIR /app                          # 第2层
-  COPY target/app.jar app.jar           # 第3层（若jar变化，此层及之后缓存失效）
-  RUN chmod +x app.jar                  # 第4层
-  ENTRYPOINT ["java", "-jar", "app.jar"] # 第5层
+  FROM eclipse-temurin:21-jre-alpine    # 引入基础镜像已有的层
+  WORKDIR /app                          # 设置工作目录
+  COPY target/app.jar app.jar           # 复制 JAR，内容变化影响后续缓存
+  ENTRYPOINT ["java", "-jar", "app.jar"] # 设置启动元数据
   ```
 
 - **关键规则：**
@@ -508,7 +505,7 @@ RUN chown -R app:app /app
 USER app
 
 # 4. JVM 参数（容器感知）
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx512m"
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0"
 
 EXPOSE 8080
 
@@ -543,8 +540,8 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 ```bash
 # 构建镜像
 docker build -t my-spring-app .
-# 运行容器（带资源限制）
-docker run -d -p 8080:8080 --name spring-app -m 512m --cpus="1.5" my-spring-app
+# 运行容器（停机等待时间大于 Spring 的 30s 超时）
+docker run -d --stop-timeout 40 -p 8080:8080 --name spring-app -m 512m --cpus="1.5" my-spring-app
 ```
 
 ---
@@ -553,6 +550,10 @@ docker run -d -p 8080:8080 --name spring-app -m 512m --cpus="1.5" my-spring-app
 
 ```dockerfile
 FROM python:3.10-slim
+
+# 健康检查与时区文件需要这些系统包
+RUN apt-get update && apt-get install -y --no-install-recommends curl tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置时区
 ENV TZ=Asia/Shanghai
@@ -596,7 +597,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends 包名 \
     && rm -rf /var/lib/apt/lists/*
 ```
 
-- **添加 `.dockerignore`**：排除 `.git`、`target`（若外部构建）、`node_modules` 等无关内容（参考下方 3.8）
+- **添加 `.dockerignore`**：排除 `.git`、`target`（仅容器内多阶段构建时）、`node_modules` 等无关内容（参考下方 3.8）
 - **固定依赖版本**：Python 用 `requirements.txt` 锁定版本，Maven 在 `pom.xml` 中明确版本号
 
 ---
@@ -623,12 +624,12 @@ trivy image my-spring-app
 
 ---
 
-### 3.8 📁 `.dockerignore` 文件（必须创建）
+### 3.8 📁 `.dockerignore` 文件（按构建方式选择）
 
 在项目根目录新建 `.dockerignore`，防止把本地编译产物和 IDE 配置误拷进镜像，导致缓存失效或镜像臃肿：
 
 ```dockerignore
-# 构建产物（外部 Maven 已经打好了，禁止重复复制）
+# 适用于容器内多阶段 Maven 构建；外部构建后 COPY JAR 时不可排除该产物
 target/
 *.jar
 *.war
@@ -653,7 +654,9 @@ Thumbs.db
 
 ---
 
-## 4. docker-compose 模板（多服务编排）
+外部先运行 Maven、再 `COPY target/app.jar` 时，删除上面三条产物排除规则；也可在末尾添加 `!target/`、`!target/app.jar` 放行目标文件。
+
+## 4. Docker Compose 模板（多服务编排）
 
 ### 4.1 **核心字段说明**
 
@@ -703,7 +706,10 @@ volumes:
 ```yaml
 volumes:
   - app-logs:/app/logs
+# 上面的 volumes 是服务内片段；下方顶层声明需另写在 Compose 根节点：
+```
 
+```yaml
 volumes:
   app-logs:          # 顶层声明
 ```
@@ -748,19 +754,15 @@ services:
 | **host** | 容器共享宿主机网络栈，无 NAT 隔离 | 性能敏感（如高并发网关），但端口会冲突 |
 | **none** | 禁用所有网络，仅 lo 回环 | 完全隔离场景 |
 | **container** | 与另一个容器共享网络栈 | 如 Sidecar 模式（日志采集、代理） |
-| **自定义 bridge** | 用户创建的 bridge 网络，支持 DNS 自动解析（服务名互访） | docker-compose 默认使用 |
+| **自定义 bridge** | 用户创建的 bridge 网络，支持 DNS 自动解析（服务名互访） | docker compose 默认使用 |
 
 ```bash
 # 查看容器网络详情
 docker inspect 容器名 | grep -A 20 "NetworkSettings"
 
-# 容器间通信本质：通过 docker0 网桥（172.17.0.1/16）转发
+# 默认 bridge 通常使用 docker0；自定义 bridge 使用各自网桥，网段以 inspect 为准
 # 自定义网络额外提供：内置 DNS，容器间可用服务名 ping 通
 ```
-
-下面是你贴的 `4.4.0` 的**完整整合版**，已把 `-p` 绑定 IP 的内容插进去，并重新编号。直接整体替换你原来的 `4.4.0` 即可。
-
----
 
 ### 4.4.0 回环地址（loopback）与容器网络
 
@@ -775,10 +777,10 @@ docker inspect 容器名 | grep -A 20 "NetworkSettings"
 
 特点：**只有本机自己能访问，外部机器访问不到**。
 
-#### 4.4.0.1 关键：每个容器都有自己的回环地址
+#### 4.4.0.1 关键：默认 bridge 网络中的容器有独立回环地址
 
 - **宿主机**的 `127.0.0.1` = 宿主机自己
-- **容器内**的 `127.0.0.1` = **容器自己**，不是宿主机
+- **默认 bridge 容器内**的 `127.0.0.1` = **容器自己**，不是宿主机；host 模式或 container 模式会共享相应网络栈
 
 所以容器里写：
 
@@ -802,7 +804,7 @@ bind-address = 127.0.0.1
 bind-address = 0.0.0.0
 ```
 
-或至少允许 Docker 网桥网段（如 `172.17.0.0/16`）访问。
+也可绑定容器可达的宿主机网卡地址。`bind-address` 接受监听地址，不接受 CIDR 网段；网段访问限制需配置防火墙及 MySQL 账号授权。以上是原生 Linux bridge 场景，Docker Desktop 的宿主机转发机制不同，应实测。
 
 #### 4.4.0.3 `-p` 绑定 IP：`127.0.0.1` vs `0.0.0.0`
 
@@ -817,7 +819,7 @@ bind-address = 0.0.0.0
 | `-p 8081:8080` | `0.0.0.0:8081` | 本机 + 局域网 + 外网（受防火墙影响） |
 | `-p 0.0.0.0:8081:8080` | `0.0.0.0:8081` | 同上，显式写法 |
 | `-p 127.0.0.1:8081:8080` | `127.0.0.1:8081` | **只有宿主机自己** |
-| `-p 192.168.1.10:8081:8080` | 指定网卡 IP | 只有该网段能访问 |
+| `-p 192.168.1.10:8081:8080` | 指定网卡 IP | 绑定该宿主机地址，来源是否可达取决于路由和防火墙 |
 
 注意：**这里的 `127.0.0.1` 是宿主机的绑定地址**，不是容器内的回环。含义是：
 
@@ -889,7 +891,7 @@ spring:
 | :--- | :--- |
 | Windows / Mac Docker Desktop | 默认支持 `host.docker.internal` |
 | Linux | 需要在 Compose 服务中加 `extra_hosts` |
-| 宿主机 MySQL | 必须监听 `0.0.0.0:3306`，不能只监听 `127.0.0.1` |
+| 宿主机 MySQL | 原生 Linux bridge 下须监听容器可达的宿主机地址，并配置防火墙及账号权限；Docker Desktop 需按其转发机制验证 |
 
 **Linux 下 Compose 配置**：
 
@@ -924,7 +926,8 @@ docker network create app-net
 docker run -d --name backend --network app-net myapp:1.0
 
 # 3. 同一网络内的另一个容器，可直接用容器名访问
-docker run -d --name mysql --network app-net mysql:8
+docker run -d --name mysql --network app-net \
+  -e MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:?请先设置数据库密码}" mysql:8
 ```
 
 此时 `backend` 容器内可以直接连接：
@@ -992,7 +995,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms256m -Xmx512m
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0
       - SPRING_PROFILES_ACTIVE=docker
       - AI_SERVICE_URL=http://inference:5000/predict
     volumes:
@@ -1000,6 +1003,7 @@ services:
     networks:
       - app-net
     restart: unless-stopped
+    stop_grace_period: 40s
     depends_on:
       - inference
     
@@ -1090,13 +1094,13 @@ logging:
 
 | 命令 | 作用 |
 | ------ | ------ |
-| `docker-compose up -d` | **后台启动所有服务** |
-| `docker-compose down` | **停止并删除容器、网络** |
-| `docker-compose logs -f [服务名]` | **实时查看日志** |
-| `docker-compose restart [服务名]` | 重启指定服务 |
-| `docker-compose ps` | 查看所有服务状态 |
-| `docker-compose up -d --build` | 重新构建镜像并启动 |
-| `docker-compose build` | 只构建镜像，不启动 |
+| `docker compose up -d` | **后台启动所有服务** |
+| `docker compose down` | **停止并删除容器、网络** |
+| `docker compose logs -f [服务名]` | **实时查看日志** |
+| `docker compose restart [服务名]` | 重启指定服务 |
+| `docker compose ps` | 查看所有服务状态 |
+| `docker compose up -d --build` | 重新构建镜像并启动 |
+| `docker compose build` | 只构建镜像，不启动 |
 
 ---
 
@@ -1115,6 +1119,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -1132,7 +1139,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           
       - name: Build and Push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -1151,7 +1158,7 @@ jobs:
 | **jar 名称固定** | 在 `pom.xml` 中设置 `<finalName>app</finalName>`，避免 `COPY target/*.jar` 多文件报错 |
 | **多阶段构建优先** | 编译与运行分离，最终镜像不含 Maven 和源码，更小更安全 |
 | **非 root 用户运行** | 务必创建普通用户并`USER`切换，降低安全风险 |
-| **健康检查** | 配合 Actuator 接口，让编排工具感知服务状态，实现自愈 |
+| **健康检查** | 先添加 spring-boot-starter-actuator 并启用 probes，让工具获取健康状态，标记健康状态；普通 Docker/Compose 不会仅因 unhealthy 自动重启 |
 | **时区设置** | Alpine 默认 UTC，需手动设置为`Asia/Shanghai`或其他时区 |
 | **日志与模型持久化** | 使用 volumes 挂载到宿主机，容器删除数据不丢 |
 | **网络互联** | 自定义网络下用**服务名**互访，如 `inference:5000`，不要硬编码 IP |
@@ -1162,9 +1169,9 @@ jobs:
 | **Compose 版本字段** | Docker Compose V2 不再需要 `version`，写上可能报警告，可移除 |
 | **JVM 容器感知** | Java 8u191+ / 11+ 默认开启 `-XX:+UseContainerSupport`，JVM 自动读取 cgroup 内存限制；早期版本需显式配置，否则按宿主机总内存分配导致 OOM |
 | **日志轮转** | 生产必配 `logging` 的 `max-size` 和 `max-file`，防止日志撑满磁盘 |
-| **`.dockerignore` 必备** | 创建 `.dockerignore` 排除 `target/`、`.git/` 等，防止构建缓存失效和镜像臃肿（已在本笔记 3.8 提供模板 ✅） |
+| **`.dockerignore` 必备** | 创建 `.dockerignore` 排除无关文件；多阶段构建可排除宿主机 target，外部构建再 COPY JAR 时须保留目标产物（已在本笔记 3.8 提供模板 ✅） |
 | **`--network` 参数** | `docker run` 时用 `--network app-net` 加入自定义网络；同一自定义网络内容器可用**容器名**互访。`docker network connect/disconnect` 可动态连接/断开已运行容器。Compose 中用 `networks:` 字段，不是 `--network`。 |
-| **回环地址** | `127.0.0.1` / `localhost` / `::1` / `lo` 都是回环地址，**只有本机自己能访问**。容器内的 `localhost` 指容器自己，不是宿主机；容器连宿主机 MySQL 要用 `host.docker.internal`，且宿主机 MySQL 需监听 `0.0.0.0` 而非仅 `127.0.0.1`。 |
+| **回环地址** | `127.0.0.1` 和 `::1` 是回环地址，`localhost` 是主机名，`lo` 是回环接口，**只有本机自己能访问**。容器内的 `localhost` 指容器自己，不是宿主机；容器连宿主机 MySQL 要用 `host.docker.internal`，原生 Linux bridge 下宿主机 MySQL 需监听容器可达地址，并按需授权。 |
 
 ---
 

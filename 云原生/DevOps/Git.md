@@ -5,7 +5,7 @@
 ### 1. 初始化 Git 仓库
 
 ```bash
-git init
+git init -b main
 ```
 
 ### 2. 将所有文件添加到暂存区
@@ -25,7 +25,7 @@ git commit -m "feat: 上传Java相关代码与练习文件"
 先在 GitHub 等平台创建一个**空仓库**（不勾选 README、.gitignore、License），然后执行：
 
 ```bash
-git remote add origin [https://github.com/你的用户名/你的仓库名.git](https://github.com/你的用户名/你的仓库名.git)
+git remote add origin https://github.com/你的用户名/你的仓库名.git
 ```
 
 ### 5. 推送到远程仓库
@@ -50,7 +50,7 @@ git commit -m "描述本次更新的内容"
 git push
 ```
 
-+ `git add .`：将所有变更添加到暂存区
++ `git add .`：将当前目录及其子目录中的新增、修改和删除添加到暂存区（忽略未跟踪且被忽略的文件）；在仓库根目录执行才覆盖全仓库
 + `git commit -m "xxx"`：提交到本地仓库，建议填写有意义的提交信息
 + `git push`：推送至已关联的远程仓库（已建立追踪关系后可省略远程名和分支名）
 
@@ -99,7 +99,7 @@ git checkout -b 分支名
 git switch -c 分支名
 ```
 
-+ -b 是 --branch 的简写,代表创建并切换
++ `git checkout -b` 表示创建并切换分支；`-b` 不是 `--branch` 的简写
 + -c 是 --create 的简写,代表创建并切换
 
 ### 3.切换分支
@@ -218,7 +218,8 @@ git show 提交哈希             # 查看某次提交的详细内容
 ### 1.拉取并合并
 
 ```bash
-git pull                     # 相当于 git fetch + git merge
+git pull --no-rebase          # 获取远程更新，再合并到当前分支
+# git pull --rebase           # 获取远程更新，再变基本地提交
 ```
 
 ### 2.仅获取远程更新不合并
@@ -250,8 +251,9 @@ git stash pop
 临时保存当前修改，以便切换分支处理急事：
 
 ```bash
-git stash                 # 暂存所有修改
-git stash pop             # 恢复最近一次暂存并删除记录
+git stash                 # 保存已跟踪文件的工作区和暂存区修改
+git stash push -u          # 同时保存未跟踪文件（不含被忽略的文件）
+git stash pop             # 恢复最近一次保存；成功后删除记录，冲突时保留记录
 git stash list            # 查看暂存列表
 ```
 

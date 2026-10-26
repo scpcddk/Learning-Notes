@@ -158,8 +158,8 @@
             <tr><td><code>docker start/stop/restart 容器</code></td><td>启停重启容器</td></tr>
             <tr><td><code>docker rm / rmi</code></td><td>删除容器 / 镜像</td></tr>
             <tr><td><code>docker logs -f 容器</code></td><td>查看日志</td></tr>
-            <tr><td><code>docker-compose up -d</code></td><td>后台启动多服务</td></tr>
-            <tr><td><code>docker-compose down</code></td><td>停止并删除 compose 服务</td></tr>
+            <tr><td><code>docker compose up -d</code></td><td>后台启动多服务</td></tr>
+            <tr><td><code>docker compose down</code></td><td>停止并删除 compose 服务</td></tr>
         </table>
 
         <div class="tip">常用选项：<code>-d</code> 后台运行 | <code>-p 宿主机:容器</code> 端口映射 | <code>-v</code> 挂载卷 | <code>--name</code> 命名 | <code>--restart=always</code> 自动重启</div>
@@ -174,7 +174,7 @@
             <tr><td><code>ENV</code></td><td>设置环境变量</td></tr>
             <tr><td><code>EXPOSE</code></td><td>声明端口（仅文档作用）</td></tr>
             <tr><td><code>CMD</code></td><td>容器启动默认命令，可被覆盖</td></tr>
-            <tr><td><code>ENTRYPOINT</code></td><td>入口命令，不会被覆盖，可追加参数</td></tr>
+            <tr><td><code>ENTRYPOINT</code></td><td>入口命令，可用 --entrypoint 覆盖；exec 形式可追加参数</td></tr>
         </table>
 
         <div class="warn"><strong>CMD vs ENTRYPOINT</strong>：Spring Boot 推荐只用 <code>ENTRYPOINT</code>，避免误覆盖启动命令。组合用法：ENTRYPOINT 固定命令 + CMD 提供默认参数。</div>
@@ -182,7 +182,7 @@
         <h3>多阶段构建（Java 项目必用）</h3>
         <div class="highlight">
             构建阶段用 Maven + JDK 编译 → 运行阶段只保留 JRE + jar<br>
-            效果：镜像体积从 600MB+ 降至 200MB 以内
+            运行镜像不包含构建工具与源码；实际大小取决于基础镜像及依赖
         </div>
 
         <h3>生产级 Dockerfile 要点</h3>
@@ -192,10 +192,10 @@
             <li>创建非 root 用户运行（<code>USER app</code>）</li>
             <li>设置时区 <code>Asia/Shanghai</code></li>
             <li>添加 <code>HEALTHCHECK</code> 健康检查（配合 Actuator）</li>
-            <li>JVM 参数通过 <code>ENV JAVA_OPTS</code> 注入</li>
+            <li>JAVA_OPTS 需启动脚本展开；也可用 JVM 识别的 JAVA_TOOL_OPTIONS</li>
         </ul>
 
-        <h2>四、docker-compose 核心</h2>
+        <h2>四、docker compose 核心</h2>
         <table>
             <tr><th>字段</th><th>作用</th></tr>
             <tr><td><code>services</code></td><td>定义所有服务</td></tr>

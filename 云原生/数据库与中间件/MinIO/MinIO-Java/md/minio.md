@@ -234,14 +234,14 @@ public class UploadFileController {
     @GetMapping("getUrl")
     public ResponseEntity<String> getFileUrl(@RequestParam String objectName) {
         try {
-            String url = minioService.getFileUrl(objectName, 3600);
+            String url = minioService.getFileUrl(objectName, 60);
             return ResponseEntity.ok(url);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("获取文件URL失败: " + e.getMessage());
         }
     }
     // 删除文件
-    @GetMapping("/delete")
+    @DeleteMapping("/delete")
     public ResponseEntity<String> deleteFile(@RequestParam String objectName) {
         try {
             minioService.deleteFile(objectName);

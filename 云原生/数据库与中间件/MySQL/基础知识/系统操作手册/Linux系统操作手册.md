@@ -218,7 +218,7 @@ GRANT SELECT, INSERT, UPDATE ON mydb.* TO 'newuser'@'localhost';
 
 ### 6.4 刷新权限
 
-修改权限后必须执行：
+通过 CREATE USER、ALTER USER、GRANT、REVOKE 修改后即时生效，无需额外刷新。仅直接修改授权表等特殊情况需要：
 
 ```sql
 FLUSH PRIVILEGES;
@@ -416,24 +416,25 @@ sudo netstat -tuln | grep 3306
 
 ### 9.3 忘记 root 密码
 
-**重置步骤**：
+**重置步骤**（以下服务名按 RHEL 的 mysqld 示例；Ubuntu 通常改为 mysql，并使用原服务配置和数据目录）：
 
 ```bash
 # 1. 停止 MySQL 服务
 sudo systemctl stop mysqld
 
 # 2. 跳过授权表启动
-sudo mysqld_safe --skip-grant-tables &
+sudo mysqld_safe --skip-grant-tables --skip-networking &
 
 # 3. 无密码登录
 mysql -u root
 
-# 4. 在 MySQL 中重置密码
-FLUSH PRIVILEGES;
-ALTER USER 'root'@'localhost' IDENTIFIED BY '新密码';
+# 4. 进入 MySQL 后执行 SQL：
+# FLUSH PRIVILEGES;
+# ALTER USER 'root'@'localhost' IDENTIFIED BY '新密码';
+# EXIT;
 
-# 5. 退出并正常重启服务
-exit;
+# 5. 在 shell 停止临时实例，确认退出后再启动正常服务
+mysqladmin -u root -p shutdown
 sudo systemctl start mysqld
 ```
 

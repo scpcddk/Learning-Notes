@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **目标**：为 Jetson 摄像头提供推流接收服务，并将 RTMP 流转换为 HLS 格式，使前端可通过网页直接播放 
-> **环境**：实验室 Ubuntu 22.04 服务器（内网 IP `202.199.6.249`），已运行 Spring Boot 后端（占用 8080）、Nginx 容器（占用 80）、MySQL 等。 
+> **环境**：实验室 Ubuntu 22.04 服务器（校园网地址 `202.199.6.249`），已运行 Spring Boot 后端（占用 8080）、Nginx 容器（占用 80）、MySQL 等。
 > **约束**：服务器无外网，需离线部署；不能影响已有服务；最终通过统一入口（80 端口）提供播放地址
 
 ---
@@ -53,7 +53,7 @@ docker load -i /home/neu/srs.tar
 docker run -d --name srs \
   --restart=always \
   -p 1935:1935 \
-  -p 8080:8080 \      # ← 这里出问题了
+  -p 8080:8080 \
   -p 1985:1985 \
   -p 8000:8000/udp \
   ossrs/srs:5
@@ -72,10 +72,10 @@ Error starting userland proxy: listen tcp4 0.0.0.0:8080: bind: address already i
 docker rm srs   # 删除失败的容器
 docker run -d --name srs \
   --restart=always \
-  -p 1935:1935 \      # RTMP 推流端口
-  -p 8081:8080 \      # 将 SRS HTTP 服务映射到宿主机的 8081 端口
-  -p 1985:1985 \      # SRS API 端口
-  -p 8000:8000/udp \  # WebRTC 候选端口（UDP）
+  -p 1935:1935 \
+  -p 8081:8080 \
+  -p 1985:1985 \
+  -p 8000:8000/udp \
   ossrs/srs:5
 ```
 
@@ -153,7 +153,7 @@ exit
 curl -I http://localhost/live/
 ```
 
-返回 `HTTP/1.1 404 Not Found` 说明请求已到达 SRS（因为还没有流，所以 404），但 **Nginx 代理链路已通**。
+单凭 `404` 不能确认响应来自 SRS；需结合 Nginx 上游日志和直连 SRS 的结果。推流后用实际 `.m3u8` 路径及分片请求完成验证。
 
 ### 4.7 代理前后的播放地址对比
 
@@ -174,7 +174,7 @@ curl -I http://localhost/live/
 
 ```java
 @RestController
-@RequestMapping("/stream")
+@RequestMapping("/api/stream")
 public class StreamController {
 
     @Value("${stream.base-url:http://202.199.6.249/live}")
@@ -201,12 +201,12 @@ public class StreamController {
 
 ### 5.3 解决 Spring Security 403 拦截
 
-项目使用了 Spring Security，新增的 `/stream/**` 路径未被放行，导致 403。
+项目使用了 Spring Security，新增的 `/api/stream/**` 路径未被放行（本例 Nginx 将 `/iot-api/` 重写为 `/api/`，且应用未另设 context-path），导致 403。
 
 在 `SecurityConfig.java` 中新增一行：
 
 ```java
-.requestMatchers("/stream/**").permitAll()
+.requestMatchers("/api/stream/**").permitAll()
 ```
 
 ### 5.4 重新打包部署
@@ -259,8 +259,8 @@ Nginx 容器 (:80)  location /live/
 | 问题 | 原因 | 解决 |
 |------|------|------|
 | SRS 启动失败（端口冲突） | 8080 被 Spring Boot 占用 | 映射 8081:8080 避开冲突 |
-| Nginx 容器内无法连宿主机 8080 | Docker 默认网桥 `172.17.0.1` 不通 | 使用宿主机真实内网 IP `202.199.6.249` |
-| 新增 `/live/` 代理后 404 | 只是没有流推上来，非配置错误 | 推流后验证 `m3u8` 文件下载正常 |
+| Nginx 容器内无法连宿主机 8080 | Docker 默认网桥 `172.17.0.1` 不通 | 使用宿主机真实校园网地址 `202.199.6.249` |
+| 新增 `/live/` 代理后 404 | 可能尚无流，也可能路径或配置错误；需比较上游日志与直连结果 | 推流后验证 `m3u8` 文件下载正常 |
 | 后端接口 403 | Spring Security 未放行 `/stream/**` | 在 SecurityConfig 中 permitAll |
 | 服务器无外网 | 校园网限制 | 离线 docker save/load + scp 传输 |
 

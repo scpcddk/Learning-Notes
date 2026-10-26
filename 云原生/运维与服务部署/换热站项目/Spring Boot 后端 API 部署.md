@@ -5,13 +5,13 @@
 ## 1. 项目背景与核心需求
 
 **项目**：换热站边缘计算平台（CloudPlatform）  
-**硬件**：实验室一台 Ubuntu 22.04 服务器（内网 IP `202.199.6.249`），校园网内可路由  
+**硬件**：实验室一台 Ubuntu 22.04 服务器（校园网地址 `202.199.6.249`），校园网内可路由
 **成员分布**：后端开发、前端开发、边缘设备调试，分散在实验室和宿舍  
 **核心目标**：为前端页面和 Jetson 边缘盒子提供一个**稳定、可路由、长期可用**的后端 API 地址，使得所有人无论在实验室还是宿舍，都能像调用线上服务一样调用后端接口，且整个过程不花一分钱。
 
 **面临的约束**：
 
-- 服务器无公网 IP，且校园网出口限制导致**无法访问外网**（Docker Hub、apt 源均不可达）
+- 该校园网地址不代表校外一定可达，且当时的校园网出口限制导致**无法访问外网**（Docker Hub、apt 源均不可达）
 - 服务器上已运行大量 Docker 容器（Dify 平台、Nginx、MySQL 等），**不能影响现有业务**
 - 零预算，不允许购买云服务器、域名等
 
@@ -64,7 +64,7 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-**原因**：普通用户直接运行 `docker ps` 会报权限错误，每次加 `sudo` 太麻烦。把自己加入 `docker` 组后，当前会话立即生效，不再需要 `sudo`。
+**原因**：普通用户直接运行 `docker ps` 会报权限错误，每次加 `sudo` 太麻烦。加入组后需 newgrp 或重新登录刷新组成员身份，随后会话生效，不再需要 `sudo`。
 
 ### 3.2 **离线安装 JDK 17**
 
@@ -108,8 +108,8 @@ newgrp docker
 
 在项目根目录 `D:\换热站\CloudPlatform\CloudPlatform` 下打开 PowerShell：
 
-```bash
-./mvnw clean package -DskipTests
+```powershell
+.\mvnw.cmd clean package -DskipTests
 ```
 
 - `clean`：清空上次构建产物
@@ -161,11 +161,11 @@ WantedBy=multi-user.target
 
 **逐行解释**：
 
-- `After=network.target`：确保网络启动后才启动服务，避免数据库连不上。
+- `After=network.target`：仅规定启动顺序，不保证网络或数据库已就绪；应用需连接重试，必要时结合 network-online.target 与对应 wait-online 服务。
 - `User=neu`：以普通用户而非 root 运行，安全。
 - `WorkingDirectory`：设置工作目录，某些应用可能依赖相对路径。
 - `ExecStart`：指定 Java 17 路径，避免使用系统 Java 11。
-- `SuccessExitStatus=143`：Java 程序收到 `SIGTERM`（正常停止信号）时会返回 143，systemd 默认认为非 0 就是失败。加上这行告诉 systemd：143 也是正常退出，不必无限重启。
+- `SuccessExitStatus=143`：Java 程序收到 `SIGTERM`（正常停止信号）时会返回 143，systemd 默认认为非 0 就是失败。加上这行将 143 归类为成功退出；Restart=always 仍会重启自行退出的进程，但 systemctl stop 主动停止不会触发它。
 - `Restart=always`：进程崩溃或异常退出后，自动在 10 秒后重启。
 - `RestartSec=10`：重启间隔，防止疯狂重启造成日志风暴。
 - `WantedBy=multi-user.target`：开机自启。
@@ -332,7 +332,7 @@ GRANT ALL PRIVILEGES ON cloud_platform.* TO 'clouduser'@'%';
 docker exec -i mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform < /home/neu/cloud_platform2.sql
 ```
 
-无报错即导入成功。
+检查导入命令退出码，并核对表数、关键行数和业务查询，不能仅凭无输出认定完整导入成功。
 
 **验证表结构**：
 
@@ -354,7 +354,7 @@ spring.datasource.url=jdbc:mysql://127.0.0.1:3306/cloud_platform?...
 
 ```bash
 sudo systemctl restart iot-api
-curl http://localhost:8080/   # 仍然返回 success，说明连接新库成功
+curl http://localhost:8080/   # 只验证该端点可响应；另查实际读写 cloud_platform 的业务接口
 ```
 
 ---
@@ -392,7 +392,10 @@ cat /etc/nginx/conf.d/default.conf
 ```nginx
 location /iot-api/ {
     proxy_pass http://202.199.6.249:8080/;
-    include proxy.conf;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
 
@@ -456,7 +459,7 @@ curl http://localhost/iot-api/
 **关键特性**：
 
 - **零成本**：未购买任何云服务。
-- **高可用**：systemd 自动重启，开机自启。
+- **进程自动恢复**：systemd 可自动重启并随系统启动；单机故障、网络中断和应用持续报错仍会导致不可用，不能等同高可用。
 - **配置分离**：数据库、密钥等敏感信息外部化，修改无需重打包。
 - **统一入口**：Nginx 反向代理，隐藏内部端口，支持路径隔离。
 - **安全**：数据库使用专用用户，最小权限。
@@ -469,8 +472,8 @@ curl http://localhost/iot-api/
 
 1. **本地打包**
    
-   ```bash
-   ./mvnw clean package -DskipTests
+   ```powershell
+   .\mvnw.cmd clean package -DskipTests
    ```
 
 2. **上传 JAR**
@@ -504,7 +507,7 @@ curl http://localhost/iot-api/
 - **受限环境下的部署能力**：在无公网、无外网的校园网环境，利用离线方式安装 JDK、传输镜像，保障服务上线
 - **复用已有资源**：不破坏现有 Dify 系统，利用已有 Nginx 和 MySQL 容器，通过路径前缀 `/iot-api/` 实现多服务共存
 - **配置外部化实践**：通过 `--spring.config.additional-location` 实现数据库连接与代码分离，体现 DevOps 思维
-- **生产级进程管理**：采用 `systemd` 替代 `nohup`，实现自动重启、开机自启，保障服务 7×24 小时在线
+- **生产级进程管理**：采用 `systemd` 替代 `nohup`，实现自动重启、开机自启，改善进程恢复能力，实际可用性仍需监控、健康检查与冗余
 - **故障排查方法论**：从日志入手（`journalctl`），结合网络测试（`curl`），快速定位数据库连接和反向代理问题
 
 ### 12.2 个人技术成长

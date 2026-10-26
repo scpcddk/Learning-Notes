@@ -29,10 +29,10 @@ server {
     listen 80;
     server_name _;
 
-    # 精确匹配 /iot-api/ 根路径，直接返回 200（防止 Spring Security 403）
+    # 此静态响应仅检测 Nginx 入口，不代表后端、数据库或鉴权正常
     location = /iot-api/ {
         return 200 '{"status":"ok"}';
-        add_header Content-Type application/json;
+        default_type application/json;
     }
 
     # 后端 API 代理（将 /iot-api/ 重写为 /api/）
@@ -95,8 +95,8 @@ ss -tlnp | grep 8080
 docker exec docker-nginx-1 curl -s -o /dev/null -w "%{http_code}" http://172.27.119.137:8080/
 ```
 
-- 返回 `200`：IP 未变，只需重载 Nginx 配置。
-- 返回 `000` 或超时：IP 已变，需要更新配置。
+- 返回 `200`：该目标 HTTP 路径可达，需继续核对实际失败路径及当前配置，不代表必须重载。
+- 返回 `000`：curl 未取得 HTTP 状态码；检查退出码、DNS、连接拒绝、路由、防火墙和服务状态，不能直接断定 IP 改变。
 
 **解决方法**：
 
@@ -109,10 +109,10 @@ sed -i "s/172\.[0-9.]*:8080/$NEW_IP:8080/g" /opt/nginx/conf.d/default.conf
 sed -i "s/172\.[0-9.]*:8081/$NEW_IP:8081/g" /opt/nginx/conf.d/default.conf
 
 # 重载 Nginx
-docker exec docker-nginx-1 nginx -s reload
+docker exec docker-nginx-1 nginx -t && docker exec docker-nginx-1 nginx -s reload
 ```
 
-**预防**：尽量使用 `127.0.0.1` 或 Docker 网关 `172.17.0.1`，但云环境网络复杂时宿主机真实 IP 更可靠。每次服务器重启后执行一次连通性检查。
+**预防**：bridge 容器内 `127.0.0.1` 指向容器自身。可为 Linux 容器配置 `--add-host=host.docker.internal:host-gateway`，或让相关服务加入同一自定义网络并使用服务名；网关地址以实际网络为准。每次服务器重启后执行一次连通性检查。
 
 ---
 
@@ -124,7 +124,7 @@ docker exec docker-nginx-1 nginx -s reload
 
 **原因 A：Spring Security 拦截根路径**
 
-前端可能会对 `/iot-api/` 做健康检查，后端 Spring Security 未放行根路径，返回 403，导致前端误判无权限。
+前端若用业务根路径探测服务，可能遇到鉴权拒绝。应区分 Nginx 入口存活、后端健康和用户权限；静态 200 不能验证后端健康。
 
 **解决**：在 Nginx 中精确匹配根路径，直接返回 200，不再转发给后端：
 
@@ -135,7 +135,7 @@ location = /iot-api/ {
 }
 ```
 
-或者让后端在 `SecurityConfig` 中添加 `.requestMatchers("/api/").permitAll()`。
+后端健康检查应使用专门的健康端点，并按访问范围配置权限；不要通过放行业务路径来掩盖鉴权问题。
 
 **原因 B：静态文件权限不足**
 
@@ -149,7 +149,7 @@ chmod -R 755 /opt/iot-frontend/CloudPlatform/
 
 **原因 C：文件被锁定（`chattr +i`）**
 
-之前为了防止误覆盖，对某些文件设置了不可变属性，导致 Nginx 无法读取或配置更新失败。
+不可变属性会阻止文件修改、删除或替换，但本身不会禁止 Nginx 读取；403 应检查路径权限、访问规则和安全模块。
 
 **解决**：
 
@@ -212,21 +212,9 @@ docker exec docker-nginx-1 nginx -s reload
 
 **常见原因及解决**：
 
-**原因 A：Nginx 容器只读挂载**
+**原因 A：实际挂载目录或文件与更新目标不一致**
 
-容器以 `:ro` 方式挂载宿主机目录，宿主机文件更新后容器内未同步。
-
-**解决**：重建容器时去掉 `:ro`：
-
-```bash
-docker rm -f docker-nginx-1
-docker run -d --name docker-nginx-1 \
-  --restart=always \
-  -p 80:80 \
-  -v /opt/nginx/conf.d:/etc/nginx/conf.d \
-  -v /opt/iot-frontend:/opt/iot-frontend \
-  nginx:latest
-```
+`:ro` 不阻止宿主机更新。先检查 `docker inspect docker-nginx-1` 中的 Mounts，再对比宿主机与容器内目标文件的 `sha256sum`。若只挂载了单个文件，编辑器原子替换文件可能令容器仍引用旧 inode，可改为挂载父目录。更新 Nginx 配置后执行 `nginx -t`，通过后 reload；更新静态文件通常无需重启。
 
 **原因 B：浏览器顽固缓存**
 
@@ -335,7 +323,8 @@ docker exec docker-nginx-1 nginx -s reload
 
 ```bash
 # 后端 API
-curl -I http://localhost/iot-api/
+# 仅测 Nginx 静态入口；后端健康需另查实际健康端点
+curl -i http://localhost/iot-api/
 
 # 前端
 curl -I http://localhost/CloudPlatform/
@@ -344,7 +333,10 @@ curl -I http://localhost/CloudPlatform/
 curl -I http://localhost/live/
 
 # WebSocket
-curl -I -H "Upgrade: websocket" -H "Connection: Upgrade" http://localhost/ws/events
+curl --http1.1 -i --max-time 5 \
+  -H "Upgrade: websocket" -H "Connection: Upgrade" \
+  -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" http://localhost/ws/events
 ```
 
 ### 4.5 恢复备份
@@ -378,7 +370,7 @@ docker exec docker-nginx-1 nginx -s reload
 2. **502 几乎都是 IP 变化或后端未启动**，先用 `docker exec` 测试连通性再改配置。
 3. **403 先从权限和锁定排查**，再检查后端安全配置。
 4. **前端缓存问题用无痕模式验证**，如果无痕正常就是浏览器缓存。
-5. **只读挂载导致配置不更新**，重构容器时务必去掉 `:ro`。
+5. **只读目录挂载仍会反映宿主机修改**；配置更新后先 `nginx -t` 再 reload，静态文件还需排查缓存与发布目录。
 6. **不要轻易 `chattr +i`**，除非确实需要防止误覆盖，否则增加维护成本。
 7. **统一前端 API 前缀**（如 `/iot-api`），避免与已有服务路径冲突。
 

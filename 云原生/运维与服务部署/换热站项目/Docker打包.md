@@ -37,7 +37,7 @@ npm run build   # 生成生产环境静态文件（默认输出到 dist 目录�
 **原因**：`chunk-vendors.js` 等第三方库（如 Element Plus、ECharts）体积较大，超过了 Webpack 默认的建议大小。
 
 <details><summary>解决方法</summary>
-`chunk-vendors.js` 文件过大，是因为 Webpack 在打包时，默认会将 `node_modules` 里所有的第三方依赖都打包进这一个文件里。当项目依赖了 Element Plus、ECharts 等大型库时，这个文件就会变得非常庞大。
+`chunk-vendors.js` 文件过大，是因为 Webpack 在打包时，会按模块引用、tree shaking 和 splitChunks 配置打包项目用到的依赖，不会无条件打包 node_modules 中全部文件。当项目依赖了 Element Plus、ECharts 等大型库时，这个文件就会变得非常庞大。
 
 通常可以按下面的思路来解决，你可以根据实际情况选择最合适的几种。
 
@@ -68,7 +68,7 @@ const Home = () => import(/* webpackChunkName: "home" */ '@/views/Home.vue')
 **2. 组件库按需引入（精准打击）**
 像 Element Plus 这类组件库，**全量引入**会打包所有组件，造成巨大浪费。
 
-推荐使用 `unplugin-vue-components` 和 `unplugin-auto-import` 这两个插件，它们能自动识别并只引入你用到的组件，无需手动配置。
+推荐使用 `unplugin-vue-components` 和 `unplugin-auto-import` 这两个插件，它们能自动识别并只引入你用到的组件，仍需按 Vue CLI/Webpack 环境配置插件与对应 resolver。
 
 **3. 使用 `splitChunks` 拆包（更精细的控制）**
 如果希望更精细地控制分包，可以在 `vue.config.js` 中配置 `splitChunks`，将 `node_modules` 中的包按规则拆分成多个小文件。
@@ -184,7 +184,7 @@ module.exports = defineConfig({
 >1. `const { defineConfig } = require('@vue/cli-service')`
 >
 >- 从 `@vue/cli-service` 包中解构出 `defineConfig` 函数。
->- **作用**：`defineConfig` 是 Vue CLI 3+ 提供的辅助函数，主要用来提供**智能提示**（TypeScript 类型支持）和**配置校验**，避免手写对象时出现拼写错误或格式问题。虽然直接用普通对象也行，但官方推荐使用它。
+>- **作用**：`defineConfig` 是较新 Vue CLI 提供的辅助函数（需核对所用 @vue/cli-service 版本），主要用来提供**智能提示**（TypeScript 类型支持）和**配置校验**，避免手写对象时出现拼写错误或格式问题。虽然直接用普通对象也行，但官方推荐使用它。
 >
 >2. `module.exports = defineConfig({ ... })`
 >
@@ -207,7 +207,7 @@ module.exports = defineConfig({
 >
 >5. 为什么注释强调“前后斜杠不能少”？
 >
->- `publicPath` 的值必须**以斜杠开头和结尾**。
+>- 项目子路径部署常写成 `/仓库名/`；也支持绝对 URL 或部分场景的相对路径，不能一律要求前导斜杠。
 >  - **前导斜杠**：表示绝对路径（从域名根开始），例如 `/CloudPlatform/` 表示从 `https://xxx.github.io/CloudPlatform/` 开始。
 >  - **末尾斜杠**：表示这是一个目录，确保路径拼接时正确，比如 `/CloudPlatform/js/app.js` 而不是 `/CloudPlatformjs/app.js`（缺少斜杠会导致路径错误）。
 >- 如果部署在子路径下，末尾斜杠尤为重要，否则可能会出现资源 404 或路由匹配异常。
@@ -251,7 +251,7 @@ module.exports = defineConfig({
 
 > [!NOTE]
 > 1. `"homepage": "https://用户名.github.io/仓库名"`
-> - **作用**：给项目贴上一个“线上地址”的标签。它主要被 `gh-pages` 插件读取，用来确认最终要部署到的具体网址。
+> - **作用**：给项目贴上一个“线上地址”的标签。它是 package.json 中的项目主页元数据；Vue CLI 的构建路径由 publicPath 决定，gh-pages 推送目标通常由 Git origin 或 repo 参数决定。
 > - **关键关联**：这个网址中的 **`/仓库名`** 部分，**必须**和你在 `vue.config.js` 里配置的 `publicPath: '/仓库名/'` **保持完全一致**。否则部署上去后，页面会白屏或资源 404。
 > 2. `"deploy": "gh-pages -d dist"`
 > - **作用**：这是你敲 `npm run deploy` 时实际执行的命令。
@@ -260,9 +260,9 @@ module.exports = defineConfig({
 当你在终端依次执行：
 >  1. `npm run build` → 根据 `production` 模式，生成带有 `/仓库名/` 路径的静态文件到 `dist` 文件夹。
 >  2. `npm run deploy` → 执行这段脚本，把 `dist` 里的文件推送到 GitHub 的 `gh-pages` 分支。
->  3. GitHub Pages 会自动读取该分支并托管，最终用户通过 `homepage` 里的地址访问。
+>  3. 在仓库 Settings → Pages 已选择从 gh-pages 分支发布的前提下，GitHub Pages 会读取该分支并托管，最终用户通过 `homepage` 里的地址访问。
 >
->**简单一句话**：`homepage` 是告诉插件“要发到哪”，`deploy` 脚本是“实际动手发送”的指令。两者配合 `publicPath`，保证发上去的文件路径都能找得到。
+>**简单一句话**：`homepage` 记录主页地址，`deploy` 脚本调用 gh-pages 将文件推到目标 Git 仓库分支。两者配合 `publicPath`，保证发上去的文件路径都能找得到。
 </details>
 
 ### ❌ 踩坑 3：package.json 格式错误（对象重复）
@@ -273,10 +273,10 @@ module.exports = defineConfig({
 ### ❌ 踩坑 4：`npm run deploy` 显示 "Published" 但远程无分支
 
 执行后终端显示成功，但 `git branch -r` 看不到 `origin/gh-pages`。
-**原因**：`gh-pages` 包可能存在网络或内部解析问题，导致实际未推送。
+**先核对**：git branch -r 是本地远程跟踪引用缓存，不会自动反映 gh-pages 包另一个工作目录的推送。用 `git ls-remote --heads origin gh-pages` 检查远程实际状态，再 git fetch origin；不能据此直接认定推送失败。
 **修复（Windows 环境）**：放弃 `gh-pages` 包，改为**手动推送**：
 
-```bash
+```powershell
 # 1. 复制 dist 到临时目录
 Copy-Item -Recurse cloud-platform-frontend/dist temp-deploy
 cd temp-deploy
@@ -340,6 +340,6 @@ Remove-Item -Recurse -Force temp-deploy
 
 ### 5. 为什么选择 `nginx:alpine` 作为基础镜像？
 
-**答**：`alpine` 版本基于 Alpine Linux，体积非常小（仅 5MB 左右），安全性高，且包含了 Nginx 核心功能，非常适合前端静态资源的部署，能显著减小最终镜像的体积，提升拉取和启动速度。
+**答**：`alpine` 版本基于 Alpine Linux，体积通常小于完整发行版镜像（5MB 常是 Alpine 基础系统的旧量级，不能代表 Nginx 镜像），安全性仍取决于版本、漏洞修复及配置，且包含了 Nginx 核心功能，非常适合前端静态资源的部署，能显著减小最终镜像的体积，提升拉取和启动速度。
 
 ---

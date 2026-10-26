@@ -13,13 +13,13 @@ sudo apt install mysql-server -y
 ```
 
 - WSL安装 **不会** 弹出密码设置
-- `root` 默认无密码，使用系统权限登录
+- Ubuntu 仓库安装的 root 通常使用 auth_socket，可用 sudo mysql 登录；以实际账号认证插件为准
 
 ---
 
 ## 二、WSL2 专属服务命令（重点）
 
-> WSL 禁止使用 `systemctl`，全部用 `service`！
+> 现代 WSL 支持 systemd。先执行 `ps -p 1 -o comm=`：PID 1 为 systemd 时可用 `sudo systemctl start mysql`、`sudo systemctl enable mysql`；未启用时使用下面的 service 命令。
 
 ```bash
 sudo service mysql start
@@ -28,8 +28,8 @@ sudo service mysql restart
 sudo service mysql status
 ```
 
-- WSL 无开机自启
-- 每次新开终端必须执行 `start`
+- 启用 systemd 后，已 enable 的服务可随 WSL 发行版启动；这不等于 Windows 开机自动启动 WSL。
+- 同一个 WSL 实例新开终端不会停止已有 MySQL，无需每次重复 start。
 
 ---
 
@@ -43,16 +43,15 @@ sudo service mysql status
 sudo mysql
 ```
 
-2. 设置可被 Java/SpringBoot 识别的密码
+2. 保留 Ubuntu 的 root socket 管理方式，为应用创建专用账号（以下适用于 MySQL 8.0/8.4）：
 
 ```sql
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Root@123456';
-FLUSH PRIVILEGES;
-exit;
+CREATE DATABASE IF NOT EXISTS testdb CHARACTER SET utf8mb4;
+CREATE USER 'app_user'@'localhost' IDENTIFIED WITH caching_sha2_password BY '替换为强密码';
+GRANT SELECT, INSERT, UPDATE, DELETE ON testdb.* TO 'app_user'@'localhost';
 ```
 
-> [!TIP]
-> 必须使用 `mysql_native_password`，否则 Java 连不上
+Java 使用兼容的 Connector/J，无需强制改为 mysql_native_password。该旧插件在 8.4 默认禁用，9.0 移除。
 
 ---
 
@@ -70,51 +69,17 @@ exit;
 /etc/mysql/mysql.conf.d/mysqld.cnf
 ```
 
-3. 抢救专用文件
+3. 发行版维护配置（旧版本可能存在）
 
-```
-/etc/mysql/debian.cnf
-```
-> [!TIP]
-> 这个文件就是“查看默认账号密码”文件
+`/etc/mysql/debian.cnf` 的内容取决于发行版和安装版本，不能假设一定保存了可用的 debian-sys-maint 账号密码。
 
 ---
 
-## 五、`debian.cnf` 抢救登录法
+## 五、无法登录时的恢复思路
 
-**使用场景**：
+先尝试 `sudo mysql`。如果 root 使用 auth_socket，这依赖系统用户身份，不等于数据库对任意用户开放空密码登录。旧版维护账号只有在实际存在且拥有相应权限时才可用于恢复。
 
-当你 `root` 密码乱改、锁住、`sudo mysql` 进不去时使用（正常情况不用，是修复手段）。
-
-1. 查看系统隐藏维护账号密码
-
-```bash
-sudo cat /etc/mysql/debian.cnf
-```
-
-可以看到固定账号：
-
-- `user`：`debian-sys-maint`
-- `password`：一串自动生成的密码
-
-2. 登录 MySQL
-
-```bash
-mysql -u debian-sys-maint -p
-```
-
-粘贴刚刚看到的密码。
-
-3. 登录成功后重置 `root` 密码
-
-```sql
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Root@123456';
-FLUSH PRIVILEGES;
-exit;
-```
-
-> [!WARNING]
-> `debian.cnf` 文件绝对不要手动修改！只允许查看！
+若仍无法登录，按 [MySQL 官方密码重置流程](https://dev.mysql.com/doc/refman/8.0/en/resetting-permissions.html) 操作：停止正常实例，使用相同配置和数据目录启动隔离的临时实例，在本地重置密码，停止临时实例，再启动正常服务。不能把 --skip-grant-tables 传给 mysql 客户端。
 
 ---
 
@@ -124,14 +89,13 @@ exit;
 spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/testdb?useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: Root@123456
+    username: app_user
+    password: ${DB_PASSWORD}
 ```
 
-- WSL2 直接用 `127.0.0.1`
-- 不需要改 `bind-address=0.0.0.0`
-- 不需要防火墙
-- 不需要查看 WSL IP
+- 应用与 MySQL 都在同一 WSL 实例时，可用 127.0.0.1。
+- Windows 访问 WSL 中的 MySQL 通常可用 localhost 转发；失败时核对 WSL 网络模式、监听地址、端口冲突及防火墙。
+- Docker 容器或其他电脑访问 WSL 时，应按实际路由和来源配置监听、账号权限与防火墙，不能一概认为无需配置。
 
 ---
 
@@ -146,7 +110,7 @@ exit;
 ```
 
 > [!TIP]
-> **提示**：`FLUSH PRIVILEGES;` 不属于日常查询命令，仅修改账号/权限时才执行，不要随便敲。
+> **提示**：正常执行 CREATE USER、ALTER USER、GRANT、REVOKE 后无需 FLUSH PRIVILEGES。跳过授权表重置密码等特殊流程才需要。
 
 ### 📌 1. 查看端口相关变量
 
@@ -155,11 +119,11 @@ show variables like '%port%';
 ```
 
 - `port=3306`：业务程序、JDBC、普通客户端连接端口（日常使用）
-- `mysqlx_port=33060`：X-API文档协议端口，普通开发不用
-- `admin_port=33062`：管理员故障抢救端口，业务程序不使用
+- `mysqlx_port=33060`：MySQL X Protocol 端口，普通开发不用
+- `admin_port=33062`：管理接口端口默认值，只有配置了 admin_address 等条件时才监听
 
 > [!WARNING]
-> ⚠️ SpringBoot连接填写端口固定写 `3306`，不要填 `33060` 或 `33062`，填错会连不上数据库。
+> Spring Boot 的普通 JDBC URL 使用 MySQL classic protocol 的实际监听或映射端口，默认是 3306，可能被修改；33060 通常是 X Protocol 端口。
 
 ### 📌 2. 查看账号允许登录 IP（host）
 
@@ -170,17 +134,12 @@ select user, host from mysql.user where user='root';
 - `host='localhost'`：只允许本机访问（WSL本地开发推荐，安全）
 - `host='%'`：百分号代表允许任意IP连接该账号，生产环境 `root` 禁止设置为 `%`
 
-**方式1：直接更新系统表（旧写法，必须 `FLUSH PRIVILEGES`）**
+**不要直接 UPDATE mysql.user 修改账号主机范围**。使用账号管理语句，并先确认目标账号不存在，避免覆盖已有的 root@localhost。
+
+**修改账号主机范围：`RENAME USER`（无需 FLUSH PRIVILEGES）**
 
 ```sql
-update mysql.user set host='localhost' where user='root';
-FLUSH PRIVILEGES;
-```
-
-**方式2：`ALTER USER` 官方语法（MySQL 8 推荐，不需要强制 `FLUSH`）**
-
-```sql
-ALTER USER 'root'@'%' RENAME TO 'root'@'localhost';
+RENAME USER 'root'@'%' TO 'root'@'localhost';
 ```
 
 ### 📌 3. bind-address 监听IP配置
@@ -196,9 +155,7 @@ mysqlx-bind-address = 127.0.0.1
 - `0.0.0.0`：监听全部网卡，允许其他机器访问。
 
 > [!NOTE]
-> ✨ 外部机器访问数据库两个条件必须同时成立：
-> 1. `bind-address` 设置为 `0.0.0.0`
-> 2. 数据库账号 `host='%'`，允许任意IP登录
+> 远程连接需要：监听可达的网卡地址、路由及防火墙放行、匹配客户端来源的 MySQL 账号及正确凭据。不必监听全部网卡，也不必把账号 host 设为 `%`。
 
 修改配置后，**一定要重启服务才生效**：
 
@@ -247,33 +204,21 @@ sudo mysql_secure_installation
 
 ---
 
-## 十、关键区分（考试 + 面试 + 上课必懂）
+## 十、关键区分与常见排查
 
-1. **正常安装** → 使用 `sudo mysql` 登录改密码（正规方式）
-2. **弄坏 root 密码** → 使用网课 `debian.cnf` 方式抢救（修复方式）
-3. WSL 永远不用 `systemctl`
-4. 本地开发永远不用改 `0.0.0.0`
-5. `FLUSH PRIVILEGES`：使用 `ALTER USER`、`GRANT` 等官方语句时，MySQL 8.0 可自动刷新，但建议加上；直接修改 `mysql.user` 系统表时必须执行。
+1. `sudo mysql` 常使用 auth_socket 管理身份，应用另建最小权限账号。
+2. systemctl 是否可用取决于 WSL 是否启用 systemd；未启用时可使用 service。
+3. 连接失败先检查服务、监听端口、网络与账号来源，再检查 JDBC 驱动及认证。
+4. debian.cnf 不是所有 Ubuntu 版本都可用的密码恢复入口。
 
----
-
-## 十一、常见报错解决
-
-1. `systemd not supported`  
-   → 不用 `systemctl`，全部用 `service`
-
-2. Java 连接不上  
-   → 必须设置 `mysql_native_password`
-
-3. `root` 拒绝登录  
-   → 用上面网课 `debian-sys-maint` 方式重置
+参考：[WSL 的 systemd 支持](https://learn.microsoft.com/en-us/windows/wsl/systemd)。
 
 ---
 
 ## 十二、`FLUSH PRIVILEGES` 使用原则
 
-- **什么时候必须写**：当你直接使用 `UPDATE`、`INSERT`、`DELETE` 修改 `mysql.user` 或 `mysql.db` 等系统权限表时，**必须**执行 `FLUSH PRIVILEGES;` 才能使更改生效。
-- **什么时候可以不写（但建议写上）**：使用 `ALTER USER`、`CREATE USER`、`GRANT`、`REVOKE` 等官方语句时，MySQL 8.0 会自动刷新权限缓存，理论上可以省略。但为了兼容旧版本（如 MySQL 5.7）并避免遗忘，**习惯性加上是最稳妥的做法**。
-- **一句话记忆**：凡是对用户权限做了修改，就在后面跟一句 `FLUSH PRIVILEGES;`，版本兼容，万无一失。
+- `CREATE USER`、`ALTER USER`、`RENAME USER`、`GRANT`、`REVOKE` 会即时更新权限，无需额外执行 FLUSH PRIVILEGES，MySQL 5.7/8.0 都如此。
+- 正常管理使用账号语句，不直接修改 mysql.user 等权限系统表。
+- 临时以 `--skip-grant-tables` 启动后，重置密码前执行 FLUSH PRIVILEGES，随后 ALTER USER，并停止临时实例、恢复正常服务。
 
----
+参考：[MySQL 权限生效规则](https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html)、[认证插件版本说明](https://dev.mysql.com/doc/refman/8.4/en/native-pluggable-authentication.html)。

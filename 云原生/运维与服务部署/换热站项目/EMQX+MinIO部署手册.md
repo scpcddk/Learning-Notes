@@ -60,7 +60,7 @@ sudo docker info | grep "Registry Mirrors"
 # 输出：https://docker.gh-proxy.com/
 ```
 
-但该代理已失效，Docker 仍尝试直连 Docker Hub 且优先走 IPv6。
+这表明本次镜像访问仍失败；需结合 DNS、镜像站和守护进程代理配置排查，单凭该日志不能断定代理失效或全局优先使用 IPv6。
 
 #### 尝试配置镜像加速 + 禁用 IPv6
 
@@ -74,6 +74,8 @@ EOF
 sudo systemctl restart docker
 ```
 
+`"ipv6": false` 只控制默认 bridge 的容器 IPv6，不会关闭宿主机或守护进程拉取镜像时的 IPv6。修改 daemon.json 前应保留现有配置，重启 Docker 需安排维护窗口。
+
 重启后 `docker pull` 仍失败，因为**校园网服务器根本不能访问外网**，加速器同样需要出校。
 
 #### 代理探测
@@ -85,7 +87,7 @@ curl -I --proxy http://202.199.6.249:8080 https://www.baidu.com   # 连接被拒
 curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒绝
 ```
 
-确认该地址并非 HTTP 代理，很可能仅是内网 IP。
+确认该地址并非 HTTP 代理，不能据此确定代理服务位置，且 `202.199.6.249` 不属于 RFC 1918 私有 IPv4 地址段。
 
 ### 3. 最终方案：离线镜像导入
 
@@ -100,10 +102,10 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
   docker save minio/minio:latest -o minio.tar
   ```
 
-- SCP 传输到服务器（跳过首次主机验证）：
+- SCP 传输到服务器（首次连接核对 SSH 主机指纹）：
   
   ```powershell
-  scp -o StrictHostKeyChecking=no emqx.tar neu@202.199.6.249:/home/neu/
+  scp emqx.tar neu@202.199.6.249:/home/neu/
   scp minio.tar neu@202.199.6.249:/home/neu/
   ```
 
@@ -185,7 +187,7 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 
 - 如果没有认证，**任何人只要知道你的 MQTT 服务器 IP 和端口，就能直接发布指令**（比如让 Jetson 重启、更改模型参数、甚至下发恶意代码）。
 - 配置用户名密码后，Jetson 连接 EMQX 时必须提供正确凭据，否则会被立刻拒绝。
-- **对应你的场景**：Jetson 作为边缘设备，需要定时上报传感器数据或图片，同时接收云端的模型更新指令。认证保证了这条通道是“专线”，不会混入干扰信息。
+- **对应你的场景**：Jetson 作为边缘设备，需要定时上报传感器数据或图片，同时接收云端的模型更新指令。认证验证客户端身份，授权（ACL）限制可操作的主题；用户名密码认证不提供加密，需配合 TLS。
 
 操作流程（通过 Web 界面）：
 
@@ -212,11 +214,11 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 - **为什么需要？**  
   Jetson 通常没有权限直接访问 MinIO 的后端管理账号。如果直接把 MinIO 的 `admin` 密码烧录到 Jetson 上，一旦设备被破解，整个存储系统就失控了。
 - **怎么做？**  
-  你的后端服务（用 MinIO 的管理账号）生成一个**带有效期、防篡改的 URL**，然后下发给 Jetson。Jetson 拿着这个 URL 就能在指定时间内下载最新的模型，或者上传一段视频。
+  你的后端服务（用仅有相应对象权限的专用账号）生成一个**带有效期、防篡改的 URL**，然后下发给 Jetson。Jetson 拿着这个 URL 就能在指定时间内下载最新的模型，或者上传一段视频。
 - **举例**：  
   你更新了 `yolov8.engine` 模型上传到 `models` Bucket。  
   后端调用 MinIO API 生成一个 24 小时有效的预签名 URL：  `http://202.199.6.249:9000/models/yolov8.engine?X-Amz-...&X-Amz-Expires=86400`  
-  Jetson 收到这个 URL 后直接下载，无需知道自己身在哪个 MinIO 实例，也不知道密码。24 小时后链接自动失效，别人即使抓包拿到链接也没用了。
+  Jetson 收到这个 URL 后直接下载，无需知道自己身在哪个 MinIO 实例，也不知道密码。链接到期后失效；有效期内任何持有链接的人均可能重复使用，应通过 HTTPS 传输并避免泄露。
 
 
 #### 操作：
@@ -226,7 +228,7 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 3. 点击文件右侧 `Share`，设置过期时间（如 1 小时），生成预签名 URL。
 4. 在新标签页访问该 URL，成功直接下载文件，无需凭证。
 
-**安全意义**：链接过期即失效，可防重放攻击。Jetson 只拿到一个“临时票”，永远不接触 MinIO 的 root 账号。
+**安全意义**：链接提供有期限的访问授权，不是一次性令牌；有效期内仍可重放。Jetson 只拿到一个“临时票”，永远不接触 MinIO 的 root 账号。
 
 ---
 
@@ -238,7 +240,7 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 │ 边缘盒子  │◀────────────────────────│ (MQTT)  │
 └────┬─────┘   ＜指令、数据同步＞       └────┬────┘
      │                                     │
-     │  HTTPS (9000)                       │ WebHook/REST
+     │  HTTP (9000，当前未配置 TLS)                       │ WebHook/REST
      │  上传图片 / 下载模型                 │
      ▼                                     ▼
 ┌─────────┐                          ┌─────────┐

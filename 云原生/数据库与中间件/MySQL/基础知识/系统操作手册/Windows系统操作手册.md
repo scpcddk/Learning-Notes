@@ -18,8 +18,7 @@
    - 选择 **Open Windows Firewall port for network access**（可选，本地开发可不勾）
 
 4. 在 **Authentication Method** 步骤：
-   - **必须选择** `Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)`  
-     这是因为 Java 的 JDBC 驱动（尤其是旧版）需要使用 `mysql_native_password` 插件。
+   - 优先采用当前版本默认的强认证方式（如 caching_sha2_password），并使用兼容的 Connector/J。MySQL 8.4 默认禁用 mysql_native_password，9.0 已移除，不能把 Legacy Authentication 作为 Java 的必需项。
 
 5. 在 **Accounts and Roles** 步骤：
    - 设置 `root` 密码（例如 `Root@123456`），牢记该密码。
@@ -33,7 +32,7 @@
 7. 完成安装，确保服务已启动。
 
 > [!TIP]
-> 如果安装时忘记选择 Legacy Authentication，后续可通过命令行修改认证插件，见第三节。
+> 安装器界面随版本不同；遇到认证错误先核对驱动和服务器版本，见第三节。
 
 ---
 
@@ -87,10 +86,10 @@ mysql -u root -p
 SELECT user, host, plugin FROM mysql.user WHERE user='root';
 ```
 
-如果 `plugin` 不是 `mysql_native_password`，执行以下命令修改：
+修改密码时保留兼容的认证方式；MySQL 8.0/8.4 可明确使用 caching_sha2_password：
 
 ```sql
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Root@123456';
+ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'Root@123456';
 FLUSH PRIVILEGES;
 exit;
 ```
@@ -138,22 +137,22 @@ exit;
 2. 以管理员身份打开一个新的 CMD 窗口，进入 MySQL 的 `bin` 目录（例如 `C:\Program Files\MySQL\MySQL Server 8.0\bin`），执行：
 
    ```cmd
-   mysqld --console --skip-grant-tables --shared-memory
+   mysqld --defaults-file="C:\ProgramData\MySQL\MySQL Server 8.0\my.ini" --console --skip-grant-tables --shared-memory
    ```
 
    > 该命令会启动一个临时的 MySQL 服务器，跳过权限检查。窗口保持打开，不要关闭。
 
-3. 另开一个管理员 CMD 窗口，无密码登录：
+3. 另开一个管理员 CMD 窗口，通过共享内存连接（跳过授权表时 TCP 默认被禁用）：
 
    ```cmd
-   mysql -u root
+   mysql --protocol=MEMORY -u root
    ```
 
 4. 登录成功后重置密码：
 
    ```sql
    FLUSH PRIVILEGES;
-   ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Root@123456';
+   ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'Root@123456';
    FLUSH PRIVILEGES;
    exit;
    ```
@@ -171,7 +170,7 @@ exit;
 1. 创建一个文本文件（如 `C:\mysql-init.txt`），内容为：
 
    ```
-   ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Root@123456';
+   ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'Root@123456';
    ```
 
 2. 停止 MySQL 服务。
@@ -179,7 +178,7 @@ exit;
 3. 以管理员身份运行：
 
    ```cmd
-   mysqld --init-file=C:\mysql-init.txt --console
+   mysqld --defaults-file="C:\ProgramData\MySQL\MySQL Server 8.0\my.ini" --init-file=C:\mysql-init.txt --console
    ```
 
    等待服务器启动并执行初始化文件后，按 Ctrl+C 停止。
@@ -187,7 +186,7 @@ exit;
 4. 正常启动服务，使用新密码登录。
 
 > [!WARNING]
-> 抢救过程中请确保没有其他程序占用 MySQL 端口，且操作完成后务必关闭临时启动的服务器进程。
+> 示例 my.ini 路径须替换为实际服务所用路径，--defaults-file 必须是第一个选项。操作完成后停止临时进程、删除含密码的初始化文件，再启动正常服务。
 
 ---
 
@@ -218,7 +217,7 @@ exit;
 ```
 
 > [!TIP]
-> **提示**：`FLUSH PRIVILEGES;` 不属于日常查询命令，仅修改账号/权限时才执行，不要随便敲。
+> **提示**：正常执行 CREATE USER、ALTER USER、GRANT、REVOKE 后无需 FLUSH PRIVILEGES。跳过授权表重置密码等特殊流程才需要。
 
 ### 📌 1. 查看端口相关变量
 
@@ -227,11 +226,11 @@ show variables like '%port%';
 ```
 
 - `port=3306`：业务程序、JDBC、普通客户端连接端口（日常使用）
-- `mysqlx_port=33060`：X-API文档协议端口，普通开发不用
-- `admin_port=33062`：管理员故障抢救端口，业务程序不使用
+- `mysqlx_port=33060`：MySQL X Protocol 端口，普通开发不用
+- `admin_port=33062`：管理接口端口默认值，只有配置了 admin_address 等条件时才监听
 
 > [!WARNING]
-> ⚠️ SpringBoot连接填写端口固定写 `3306`，不要填 `33060` 或 `33062`，填错会连不上数据库。
+> Spring Boot 的普通 JDBC URL 使用 MySQL classic protocol 的实际监听或映射端口，默认是 3306，可能被修改；33060 通常是 X Protocol 端口。
 
 ### 📌 2. 查看账号允许登录 IP（host）
 
@@ -242,17 +241,12 @@ select user, host from mysql.user where user='root';
 - `host='localhost'`：只允许本机访问（Windows本地开发推荐，安全）
 - `host='%'`：百分号代表允许任意IP连接该账号，生产环境 `root` 禁止设置为 `%`
 
-**方式1：直接更新系统表（旧写法，必须 `FLUSH PRIVILEGES`）**
+**不要直接 UPDATE mysql.user 修改账号主机范围**。使用账号管理语句，并先确认目标账号不存在，避免覆盖已有的 root@localhost。
+
+**修改账号主机范围：`RENAME USER`（无需 FLUSH PRIVILEGES）**
 
 ```sql
-update mysql.user set host='localhost' where user='root';
-FLUSH PRIVILEGES;
-```
-
-**方式2：`ALTER USER` 官方语法（MySQL 8 推荐，不需要强制 `FLUSH`）**
-
-```sql
-ALTER USER 'root'@'%' RENAME TO 'root'@'localhost';
+RENAME USER 'root'@'%' TO 'root'@'localhost';
 ```
 
 ### 📌 3. bind-address 监听IP配置
@@ -269,9 +263,7 @@ mysqlx-bind-address = 127.0.0.1
 - `0.0.0.0`：监听全部网卡，允许其他机器访问。
 
 > [!NOTE]
-> ✨ 外部机器访问数据库两个条件必须同时成立：
-> 1. `bind-address` 设置为 `0.0.0.0`
-> 2. 数据库账号 `host='%'`，允许任意IP登录
+> 远程连接需要：监听可达的网卡地址、路由及防火墙放行、匹配客户端来源的 MySQL 账号及正确凭据。不必监听全部网卡，也不必把账号 host 设为 `%`。
 
 修改配置后，**一定要重启服务才生效**：
 
@@ -296,13 +288,13 @@ show variables like 'bind_address';
 
 ## 八、备份与恢复
 
-**备份**（在 CMD 或 PowerShell 中执行）
+**备份**（以下在 CMD 执行，避免旧版 PowerShell 重定向改变编码；也可使用 mysqldump 的 --result-file）
 
 ```cmd
 mysqldump -uroot -p 库名 > C:\备份路径\备份名.sql
 ```
 
-**恢复**
+**恢复**（在 CMD 执行；PowerShell 不支持这种 `<` 输入重定向）
 
 ```cmd
 # 恢复前需要先手动创建目标数据库
@@ -332,7 +324,7 @@ mysql_secure_installation
 2. **忘记 root 密码** → 使用 `--skip-grant-tables` 或初始化文件抢救（修复方式）
 3. Windows 服务管理使用 `net start/stop` 或 `services.msc`，不使用 `systemctl`
 4. 本地开发默认 `bind-address=127.0.0.1`，不需要修改为 `0.0.0.0`
-5. `FLUSH PRIVILEGES`：使用 `ALTER USER`、`GRANT` 等官方语句时，MySQL 8.0 可自动刷新，但建议加上；直接修改 `mysql.user` 系统表时必须执行。
+5. `FLUSH PRIVILEGES`：账号管理语句即时生效，无需额外刷新；避免直接修改权限系统表。
 
 ---
 
@@ -342,7 +334,7 @@ mysql_secure_installation
    → 将 MySQL 的 `bin` 目录（如 `C:\Program Files\MySQL\MySQL Server 8.0\bin`）添加到系统环境变量 `Path` 中。
 
 2. Java 连接报错 `Client does not support authentication protocol requested by server`  
-   → 需要将用户认证插件改为 `mysql_native_password`，见第三节。
+   → 先检查并升级 MySQL Connector/J，核对 TLS/RSA 及账号认证配置，不应默认降级认证插件。
 
 3. `Can't connect to MySQL server on 'localhost' (10061)`  
    → MySQL 服务未启动，使用 `net start MySQL` 启动服务。
@@ -357,8 +349,8 @@ mysql_secure_installation
 
 ## 十二、`FLUSH PRIVILEGES` 使用原则
 
-- **什么时候必须写**：当你直接使用 `UPDATE`、`INSERT`、`DELETE` 修改 `mysql.user` 或 `mysql.db` 等系统权限表时，**必须**执行 `FLUSH PRIVILEGES;` 才能使更改生效。
-- **什么时候可以不写（但建议写上）**：使用 `ALTER USER`、`CREATE USER`、`GRANT`、`REVOKE` 等官方语句时，MySQL 8.0 会自动刷新权限缓存，理论上可以省略。但为了兼容旧版本（如 MySQL 5.7）并避免遗忘，**习惯性加上是最稳妥的做法**。
-- **一句话记忆**：凡是对用户权限做了修改，就在后面跟一句 `FLUSH PRIVILEGES;`，版本兼容，万无一失。
+- `CREATE USER`、`ALTER USER`、`RENAME USER`、`GRANT`、`REVOKE` 会即时更新权限，无需额外执行 FLUSH PRIVILEGES，MySQL 5.7/8.0 都如此。
+- 正常管理使用账号语句，不直接修改 mysql.user 等权限系统表。
+- 临时以 `--skip-grant-tables` 启动后，重置密码前执行 FLUSH PRIVILEGES，随后 ALTER USER，并停止临时实例、恢复正常服务。
 
----
+参考：[MySQL 权限生效规则](https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html)、[认证插件版本说明](https://dev.mysql.com/doc/refman/8.4/en/native-pluggable-authentication.html)。

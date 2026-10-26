@@ -26,12 +26,13 @@ MySQL 分为 **Server 层** 和 **存储引擎层**：
 +---------------------------+
 |      MySQL Server 层      |
 | 连接器/分析器/优化器/执行器 |
+| Binlog（复制与数据恢复）    |
 +----------------+----------+
                  |
 +----------------v------------------+
 |          InnoDB 存储引擎层         |
 | Buffer Pool / Change Buffer / AHI |
-|    Redo Log / Undo Log / Binlog   |
+|       Redo Log / Undo Log         |
 |         表空间 / 页 / 区 / 段      |
 +-----------------------------------+
 ```
@@ -66,9 +67,9 @@ MySQL 分为 **Server 层** 和 **存储引擎层**：
 ### 2. SQL 基础
 
 [SQL 基础参考网课](https://www.bilibili.com/video/BV1AX4y147tA/?p=10&spm_id_from=333.1007.top_right_bar_window_history.content.click&vd_source=e0c0ad2a316e90d4078b1131e8182407)
-[WSL2-Ubuntu MySQL操作手册](<../系统操作手册/WSL2-Ubuntu MySQL操作手册.md>)
-[Linux系统操作手册](../系统操作手册/Linux系统操作手册.md)
-[Windows系统操作手册](../系统操作手册/Windows系统操作手册.md)
+[WSL2-Ubuntu MySQL操作手册](<系统操作手册/WSL2-Ubuntu MySQL操作手册.md>)
+[Linux系统操作手册](系统操作手册/Linux系统操作手册.md)
+[Windows系统操作手册](系统操作手册/Windows系统操作手册.md)
 
 #### 2.0 前置知识
 
@@ -142,7 +143,7 @@ USE order_db;
 > **架构师提示**：生产环境复杂的 SQL 脚本中，建议直接用 `库名.表名`（如 `order_db.t_order`）代替 `USE`，避免跨库查询时搞混当前上下文。
 
 ```sql
-show database();查看当前数据库
+SELECT DATABASE(); -- 查看当前数据库
 ```
 
 **4. 查看当前库所有表（验表）**
@@ -211,9 +212,9 @@ DROP DATABASE IF EXISTS `order_db`;
 > [!NOTE]
 > **🚨 架构师生产红线（ALTER 三大铁律）**：
 > 
-> 1. **严禁随意加列位置**：MySQL 8.0 支持 `ALGORITHM=INSTANT`（秒级）仅在**表末尾**加列；若使用 `AFTER` 指定位置，会降级为 `INPLACE`（重建表），千万级数据直接锁表数小时。**默认不写位置，永远加在最后**。
-> 2. **大表 DDL 禁用 `ALTER` 直跑**：千万级数据执行 `ADD INDEX` 或 `MODIFY` 会导致主从延迟雪崩。生产环境必须借助 **`pt-online-schema-change`** 或 **`gh-ost`** 工具无锁变更（详见本手册第 25.5 节）。
-> 3. **DROP COLUMN 代价极大**：删除列会导致全表数据重建（即使只删一列），释放空间但回填成本极高。**设计阶段多花 5 分钟想清楚字段，比上线后删列救命省 5 小时**。
+> 1. **严禁随意加列位置**：MySQL 8.0.12 起支持部分 INSTANT 加列；8.0.29 起支持任意位置加列及部分即时删列，受行格式等限制。显式指定 ALGORITHM=INSTANT 时不支持的操作会报错，不能断言 AFTER 必然重建或锁表数小时。
+> 2. **大表 DDL 禁用 `ALTER` 直跑**：千万级数据执行 `ADD INDEX` 或 `MODIFY` 会导致主从延迟雪崩。生产环境按版本、操作类型与负载选择原生 Online DDL、**`pt-online-schema-change`** 或 **`gh-ost`**；这些方案在元数据锁和切换阶段仍可能等待或短暂阻塞（详见本手册第 25.5 节）。
+> 3. **DROP COLUMN 代价极大**：删除列是否重建取决于版本与操作；8.0.29+ 部分场景支持 INSTANT，即时删列不会立即回收已有数据页空间。**设计阶段多花 5 分钟想清楚字段，比上线后删列救命省 5 小时**。
 
 ---
 
@@ -227,7 +228,7 @@ DROP DATABASE IF EXISTS `order_db`;
 >    - `offset`：跳过多少行（从 0 开始）
 >    - `row_count`：返回多少行
 >    - `LIMIT n`：只取查询结果的**前 n 条**。
->      - **等价写法**：`LIMIT 0, 10`
+>      - **等价写法**：`LIMIT 0, n`；如 `LIMIT 10` 等价于 `LIMIT 0, 10`
 >      - 示例：
 >      ```sql
 >      SELECT * FROM student ORDER BY id LIMIT 10;
@@ -330,7 +331,7 @@ DELETE FROM `t_order` WHERE `id` = 1;
 -- 为什么要加 LIMIT（架构师红线）：
 -- ① 防手滑：就算 WHERE 条件写错了（比如忘写条件），也只会删掉前 100 行，
 --    不会把整张表清空。
--- ② 防锁表：分批删除（比如一次删 100 行），锁占用时间短，主从延迟可控。
+-- ② 分批并及时提交可缩短锁持有时间；是否扫描很多记录或产生复制延迟仍需检查。
 -- ③ 可中断：循环执行 DELETE ... LIMIT 100，随时可以停止，不影响业务。
 DELETE FROM `t_order` WHERE `status` = 0 LIMIT 100;
 ```
@@ -338,8 +339,8 @@ DELETE FROM `t_order` WHERE `status` = 0 LIMIT 100;
 > [!WARNING]
 > **🚨 架构师红线**：
 > 
-> - **生产环境 `DELETE` 必须带 `WHERE` + `LIMIT`**。`LIMIT` 能防止锁表、防止主从延迟雪崩，也能避免 `WHERE` 条件写错导致整个表被清空。
-> - **禁止用 `DELETE` 清全表**（`DELETE FROM t_order` 不走事务优化，会逐行加锁且记录 Undo，极其缓慢）。清全表必须用 `TRUNCATE TABLE t_order`（DDL，重置自增 ID，速度极快，但**不可回滚**，仅限测试环境）。
+> - **生产删除应先核对 WHERE、执行计划及影响行数**；大批量删除可分批 LIMIT 并及时提交。LIMIT 只约束删除数量，不保证扫描或锁定记录少，也不保证不会产生复制延迟。
+> - `DELETE` 在 InnoDB 事务中可于提交前回滚，清理大表应分批评估。TRUNCATE 通常更快并重置自增值，但隐式提交、不可由普通 ROLLBACK 撤销，且受外键等限制；按业务语义选择，不能一律替换。
 
 **3. 改（UPDATE）**—— 更新数据
 
@@ -363,7 +364,7 @@ UPDATE `t_order` SET `status` = 1 WHERE `id` = 2;
 -- 为什么要加 LIMIT 1（架构师红线）：
 -- ① 防手滑：如果 WHERE 条件写错了（比如忘写条件），只会更新 1 行，
 --    不会把整张表全部改错。
--- ② 减少锁范围：只锁一行，锁占用时间极短，不影响并发。
+-- ② LIMIT 1 只限制匹配/更新数量；锁范围仍取决于索引、扫描路径和隔离级别。
 -- ③ 通过唯一键（如 id）更新时，加 LIMIT 1 是冗余但安全的职业习惯。
 UPDATE `t_order` SET `status` = 1 WHERE `id` = 2 LIMIT 1;
 
@@ -406,7 +407,7 @@ UPDATE `t_order` SET `status` = DEFAULT WHERE `id` = 2;
 
 > [!WARNING]
 > **🚨 架构师红线**：
-> - **更新必须带 `WHERE`，且强烈建议加 `LIMIT 1`**（尤其是通过唯一键更新时），防止索引失效导致全表被锁。
+> - **更新前核对 WHERE、索引和影响行数**。唯一键等值更新最多匹配一行，LIMIT 1 通常冗余；LIMIT 不能修复错误索引，也不能保证只锁一行。
 > - **禁止先 `SELECT` 查出数据，在 Java 里算完再 `UPDATE`**（并发下会覆盖）。必须在 SQL 里做原子运算（如 `SET count = count - 1`），或使用乐观锁（`version` 字段）。
 
 **4. 查（SELECT）**—— 查询数据（最核心）
@@ -423,7 +424,7 @@ UPDATE `t_order` SET `status` = DEFAULT WHERE `id` = 2;
 -- 为什么不能写 SELECT *（架构师红线）：
 -- ① 用 * 会把表里所有列都拖出来，浪费网络带宽和内存。
 -- ② 如果表里有大字段（TEXT/BLOB），会拖垮 IO。
--- ③ 无法利用覆盖索引（需要回表），查询速度变慢。
+-- ③ 查询所有列通常难以利用二级索引覆盖，是否回表取决于实际列和索引。
 -- ④ 表结构一变（加列），应用代码可能报错，埋下隐患。
 SELECT `id`, `user_id`, `amount` FROM `t_order` WHERE `user_id` = 1001;
 
@@ -463,7 +464,7 @@ LIMIT 20;
 -- 业务上通常用 COUNT(*)，因为主键不可能为 NULL，结果最准确。
 --
 -- 为什么加 WHERE 条件能加速（架构师红线）：
--- ① 如果没有 WHERE，COUNT(*) 会走聚簇索引全表扫描，行数越大越慢。
+-- ① InnoDB 无 WHERE 的 COUNT(*) 通常扫描最小可用二级索引；无二级索引时才扫描聚簇索引。
 -- ② 加上 WHERE 条件后，如果能命中二级索引，MySQL 会走体积更小的二级索引，
 --    扫描行数少，速度更快。
 -- ③ 如果 WHERE 条件过滤后数据量极大（如 status=1 占 80%），
@@ -485,14 +486,14 @@ SELECT COUNT(*) FROM `t_order` WHERE `status` = 1;
 > **🚨 架构师红线**：
 > 
 > - **严禁使用 `SELECT *`**。必须手写字段名，**理由**：① 利用覆盖索引减少回表；② 避免 `TEXT/BLOB` 大字段拖垮 IO；③ 防止表结构变更导致应用报错。
-> - **线上查询必须带 `LIMIT`**。即使是 `SELECT COUNT` 这种聚合，也要确保 `WHERE` 条件走索引，否则数据库会全表扫描拖垮 CPU。
+> - 列表查询按需分页或 LIMIT；COUNT(*) 等单行聚合加外层 LIMIT 不能减少参与统计的行数。根据精确性要求、索引与实测成本选择实时统计或汇总。
 
 **总结（一句话记忆）**：
 
 - **增**：指定字段 + 批量提交。
 - **删**：`WHERE` + `LIMIT` 双保险。
 - **改**：原子运算 + `LIMIT 1`。
-- **查**：不用 `*` + 必须 `LIMIT` + 索引覆盖。
+- **查**：按需取列 + 按业务限制结果集 + 用执行计划核对索引。
 
 ---
 
@@ -521,8 +522,8 @@ WHERE `create_time` >= '2024-01-01';
 > [!WARNING]
 > **🚨 架构师红线**：
 > - **导出目录必须是 MySQL 进程有写权限的路径**（如 `/tmp`），且必须写**绝对路径**。
-> - 导出的文件属于 MySQL 用户（`mysql:mysql`），普通 Linux 用户无法直接查看，需要用 `sudo cat` 或 `sudo mv` 移动到其他目录。
-> - 此方式**无法远程导出**，必须登录到数据库服务器本地执行。
+> - 文件由 MySQL 服务端创建，实际可读性取决于文件及目录权限；同时需要 FILE 权限，路径还受 secure_file_priv 限制，目标文件不能已存在。
+> - 远程客户端也可发起 INTO OUTFILE，但文件写到数据库服务器文件系统，不会直接下载到客户端。
 
 **2. 导入**（LOAD DATA INFILE）
 
@@ -546,13 +547,15 @@ LINES TERMINATED BY '\n'
 > **🚨 架构师红线（性能调优三板斧）**：
 > 在导入千万级数据前，执行以下设置可**提升 5~10 倍速度**：
 > ```sql
+> SET @old_autocommit = @@autocommit;
 > SET autocommit = 0;                 -- 关闭自动提交，事务批量提交
 > SET unique_checks = 0;              -- 临时关闭唯一索引校验（确保数据本身无重复）
 > SET foreign_key_checks = 0;         -- 临时关闭外键校验（确保数据参照完整性无误）
 > -- 执行 LOAD DATA INFILE ...
 > COMMIT;                             -- 手动一次性提交
 > SET unique_checks = 1;              -- 恢复校验
-> SET foreign_key_checks = 1;         -- 恢复校验
+> SET foreign_key_checks = 1;         -- 恢复校验；不会自动重新验证导入期间写入的数据
+> SET autocommit = @old_autocommit;   -- 恢复原会话设置
 > ```
 
 **3. mysqldump**（逻辑导出/导入 - 跨版本迁移神器）
@@ -573,7 +576,7 @@ mysql -u root -p order_db < /backup/order_db.sql
 > **🚨 架构师红线**：
 > - **`--single-transaction`**：对于 InnoDB 表，使用一致性读导出，**不锁表**（生产导出必须加）。
 > - **`--master-data=2`**：在备份文件中记录 Binlog 位点，用于搭建从库或 PITR 时间点恢复。
-> - **大表禁用 `mysqldump`**：单表超过 1GB 时，`mysqldump` 导出和导入都极慢，**必须改用 `SELECT INTO OUTFILE` + `LOAD DATA INFILE`** 或 `mydumper` / `myloader` 并行工具。
+> - 大库备份按恢复时间目标选择 mysqldump、mydumper 或物理备份，没有 1GB 的硬性禁用线。OUTFILE 仅导出查询数据，不包含完整表结构、触发器及一致性恢复信息，不能等同于完整备份。
 
 **4. 工具选型总结**（架构师决策表）
 
@@ -626,7 +629,7 @@ CREATE TABLE emp (
     dept_id INT,                 
     
     -- ========================================
-    -- 外键约束定义（必须写在字段列表的末尾）
+    -- 外键表级约束（惯例放在列定义后，不要求必须处于末尾）
     -- ========================================
     CONSTRAINT fk_emp_dept        -- ① 约束名称（删除外键时必须使用此名称）
     FOREIGN KEY (dept_id)         -- ② 指定本表的外键列
@@ -638,7 +641,7 @@ CREATE TABLE emp (
     -- ON DELETE SET NULL  -- 如果部门被删除，该部门下员工的 dept_id 自动置为 NULL
 ) ENGINE=InnoDB;                 
 -- ⚠️ 关键注释：子表也必须使用 InnoDB，且 dept_id 与 dept(id) 的数据类型（INT）、
--- 长度、字符集必须完全一致，否则创建外键会报错（Error 1215）。
+-- 整数类型与符号等属性须兼容；非二进制字符串需匹配字符集和排序规则，字符串长度不必相同。
 ```
 
 **2. 修改表时**（ALTER TABLE）
@@ -664,9 +667,9 @@ FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
 
 **4. ⚠️ 关键避坑点**（针对 MySQL）
 
-1. **外键必须引用主键或唯一键**（被引用的列必须有 `PRIMARY KEY` 或 `UNIQUE` 约束）。
-2. **外键列与被引用列的数据类型、长度、字符集必须完全一致**（例如 `INT` 不能对应 `BIGINT`）。
-3. MySQL **仅 InnoDB 引擎支持外键**，MyISAM 引擎会解析语法但不生效。
+1. 新设计应引用 PRIMARY KEY 或 UNIQUE。MySQL 8.0 InnoDB 曾允许非唯一引用索引这一非标准扩展，较新版本已限制/弃用，不能依赖。
+2. **外键列类型须兼容**：整数大小与符号要一致，非二进制字符串的字符集与排序规则要一致，字符串长度不必相同。
+3. MySQL 常用的 InnoDB 支持外键，NDB 也支持（有其限制），MyISAM 引擎会解析语法但不生效。
 
 ---
 
@@ -681,11 +684,11 @@ FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
 
 | 分类 | 类型 | 字节 | 有符号范围 | 无符号范围 | **生产实战场景** | **⚠️ 架构师致命陷阱** |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **整数** | `TINYINT` | 1 | -128 ~ 127 | 0 ~ 255 | **状态码**（订单状态 0/1/2）、性别、开关标识。 | 别拿它存年龄（够用，但语义不清）；业务状态超过 5 种请用 `SMALLINT`。 |
+| **整数** | `TINYINT` | 1 | -128 ~ 127 | 0 ~ 255 | **状态码**（订单状态 0/1/2）、性别、开关标识。 | 别拿它存年龄（够用，但语义不清）；按实际取值范围选择，5 种状态不是改用 SMALLINT 的门槛。 |
 | | `SMALLINT` | 2 | -32768 ~ 32767 | 0 ~ 65535 | **省市区编码**、**评分（1~100）**、小范围枚举。 | 无符号最大 65535，别用它存用户ID（分分钟溢出）。 |
 | | `MEDIUMINT` | 3 | -838万 ~ 838万 | 0 ~ 1677万 | **博客阅读量**、**点赞数**（中小型网站）。 | 8 百万行以上的表不要用它做主键，留给 `INT`。 |
-| | `INT` | 4 | ±21亿 | 0 ~ 42亿 | **普通业务主键**（单表 < 21亿行）、用户ID、订单量不大的流水号。 | **能用 INT 绝不用 BIGINT**！主键变大，二级索引空间直接翻倍，Buffer Pool 命中率下降。 |
-| | `BIGINT` | 8 | ±922亿亿 | 0 ~ 1844亿亿 | **雪花ID主键**、**大厂订单号**、**分库分表全局ID**。 | 分布式系统必选；如果用了自增ID，分库分表后必须改雪花，否则ID冲突。 |
+| | `INT` | 4 | ±21亿 | 0 ~ 42亿 | **普通业务主键**（单表 < 21亿行）、用户ID、订单量不大的流水号。 | **能用 INT 绝不用 BIGINT**！主键变大会增加二级索引条目大小，但整个二级索引不一定直接翻倍，Buffer Pool 命中率下降。 |
+| | `BIGINT` | 8 | ±922亿亿 | 0 ~ 1844亿亿 | **雪花ID主键**、**大厂订单号**、**分库分表全局ID**。 | 分布式系统必选；如果用了自增ID，分库分表后可用雪花、号段或不重叠的 ID 分配方案保证全局唯一，不必强制雪花。 |
 | **定点数** | `DECIMAL(M,D)` | 变长 | 高精度十进制 | 高精度十进制 | **金额、价格、税率、汇率**（一切涉及钱的字段）。 | **🔴 绝对禁止用 `FLOAT`/`DOUBLE` 存金额！** 0.1+0.2 ≠ 0.3 是浮点数的天坑，金融系统会直接炸。 |
 | **浮点数** | `FLOAT` | 4 | 约 7 位精度 | 约 7 位精度 | **科学计算、温度、经纬度粗略值**。 | 业务系统**几乎禁用**，除非你明确知道自己在做纯数学计算。 |
 | | `DOUBLE` | 8 | 约 15 位精度 | 约 15 位精度 | **高精度科学计算**（如天文、物理模拟）。 | 比 FLOAT 精度高，但依然有误差。**严禁用于货币累计**。 |
@@ -695,12 +698,12 @@ FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
 | 分类 | 类型 | 最大长度 | 存储特点 | **生产实战场景** | **⚠️ 架构师致命陷阱** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **定长字符串** | `CHAR(n)` | 255 字符 | 固定长度，不够补空格 | **手机号（11位）**、**MD5（32位）**、**身份证（18位）**、固定编码。 | 长度必须精确，否则浪费空间；查询时 MySQL 会自动去掉尾部空格，存密码哈希没问题。 |
-| **变长字符串** | `VARCHAR(n)` | 65,535 字节（行限制） | 实际长度 + 1~2 字节前缀 | **用户名、标题、地址、邮箱**（长度波动大的文本）。 | **🔴 误区澄清**：`VARCHAR(255)` 不代表占用 255 字节，只代表最大限制，实际存多长占多长。但索引最大长度受限（`innodb_large_prefix` 默认 3072 字节），超长字段必须用前缀索引。 |
+| **变长字符串** | `VARCHAR(n)` | 65,535 字节（行限制） | 实际长度 + 1~2 字节前缀 | **用户名、标题、地址、邮箱**（长度波动大的文本）。 | **🔴 误区澄清**：`VARCHAR(255)` 不代表占用 255 字节，只代表最大限制，实际存多长占多长。但索引最大长度受限（MySQL 8.0 已移除 innodb_large_prefix；默认 16KB 页且 DYNAMIC 行格式时键长度上限通常为 3072 字节），超长字段必须用前缀索引。 |
 | **极短文本** | `TINYTEXT` | 255 字节 | 需要长度前缀 | 极少用，可被 `VARCHAR(255)` 完全替代。 | 建议直接弃用，统一用 `VARCHAR`。 |
-| **标准文本** | `TEXT` | 65,535 字节（64KB） | 单独存储，回表查询 | **文章摘要、中等长度评论、富文本源码**。 | 不能设置默认值（8.0 之前）；查询会创建临时表，**大文本必拆到附属表，不与主表高频查询混在一起**。 |
+| **标准文本** | `TEXT` | 65,535 字节（64KB） | 单独存储，回表查询 | **文章摘要、中等长度评论、富文本源码**。 | 不能设置默认值（8.0 之前）；普通 SELECT TEXT 不会必然创建临时表；是否拆表取决于访问频率、行格式与性能实测。 |
 | **中长文本** | `MEDIUMTEXT` | 16,777,215 字节（16MB） | 单独存储 | **博客正文、JSON 大对象、日志片段**。 | 超过 16MB 就别往 MySQL 里放了，改用 OSS 存文件路径。 |
 | **超长文本** | `LONGTEXT` | 4,294,967,295 字节（4GB） | 单独存储 | **超大文档、Base64 图片（极不推荐）**。 | **🔴 生产环境禁用**。会彻底拖垮 Buffer Pool 和主从延迟，请用对象存储。 |
-| **枚举** | `ENUM('a','b')` | 1~2 字节 | 内部存储为整数索引 | **固定选项（如性别、星期、季节）**，存储极省。 | **🔴 绝对禁忌**：新增选项需要 `ALTER TABLE`，会锁表！枚举值变更在 8.0 前代价巨大，建议用 `TINYINT` + 常量类代替。 |
+| **枚举** | `ENUM('a','b')` | 1~2 字节 | 内部存储为整数索引 | **固定选项（如性别、星期、季节）**，存储极省。 | **🔴 绝对禁忌**：新增选项需要 ALTER TABLE；末尾追加且存储大小不变时可有原地/即时优化，是否阻塞取决于操作和版本。频繁变化的业务枚举可用数值编码或字典表。 |
 | **集合** | `SET('a','b')` | 1~8 字节 | 位图存储，可多选 | **用户爱好、标签组合**（允许同时选多个值）。 | 查询语法反人类（`FIND_IN_SET` 无法走索引），**互联网项目基本弃用**，改用 JSON 或关联表。 |
 
 - **三、日期与时间类型**（Date & Time）
@@ -710,8 +713,8 @@ FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
 | `DATE` | 3 | 1000-01-01 ~ 9999-12-31 | 天 | **生日、合同到期日、统计日期（按天聚合）**。 | 没有时间部分，存 `DATETIME` 也可以，但 DATE 更省空间。 |
 | `TIME` | 3 | -838:59:59 ~ 838:59:59 | 秒 | **时长统计（如视频播放时长）、上班打卡时间**。 | 可以表示大于 24 小时的时间间隔（如 `838:59:59`）。 |
 | `YEAR` | 1 | 1901 ~ 2155 | 年 | **用户注册年份、年份维度统计**。 | 仅存 4 位数字，范围有限，**目前多数业务直接用 `DATETIME` 替代**，避免千年虫重演。 |
-| `DATETIME` | 8 | 1000-01-01 00:00:00 ~ 9999-12-31 23:59:59 | 微秒（8.0+） | **业务时间（订单创建时间、支付时间）**，**跨时区业务**。 | **🏆 推荐优先使用**。存储字面量，时区无关。存 UTC 时间，应用层转时区，永远不出错。 |
-| `TIMESTAMP` | 4 | 1970-01-01 00:00:01 UTC ~ 2038-01-19 03:14:07 UTC | 秒 | **自动记录修改时间**（`ON UPDATE CURRENT_TIMESTAMP`）。 | **🔴 2038 年问题（Y2K38）**！32 位系统时间溢出，虽然 MySQL 8.0 做了部分缓解，但业界仍视为定时炸弹。且受 `time_zone` 影响，迁移时区可能时间错乱。**新项目建议全用 `DATETIME`**。 |
+| `DATETIME` | 5（无小数秒，MySQL 5.6.4+；小数秒另加 0~3 字节） | 1000-01-01 00:00:00 ~ 9999-12-31 23:59:59 | 可选 0~6 位小数秒（MySQL 5.6.4+） | **业务时间（订单创建时间、支付时间）**，**跨时区业务**。 | **🏆 推荐优先使用**。存储字面量，时区无关。存 UTC 时间，应用层转时区，永远不出错。 |
+| `TIMESTAMP` | 4（小数秒另加 0~3 字节） | 1970-01-01 00:00:01 UTC ~ 2038-01-19 03:14:07 UTC | 可选 0~6 位小数秒 | **自动记录修改时间**（`ON UPDATE CURRENT_TIMESTAMP`）。 | **🔴 2038 年问题（Y2K38）**！这是该类型在所述 MySQL 版本中的范围限制，不能认为换成 64 位操作系统即可消除。且受 `time_zone` 影响，迁移时区可能时间错乱。**新项目建议全用 `DATETIME`**。 |
 
 - **四、二进制类型**（Binary & Blob）
 
@@ -727,8 +730,8 @@ FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
 
 | 类型 | 字节 | 说明 | **生产实战场景** | **⚠️ 架构师致命陷阱** |
 | :--- | :--- | :--- | :--- | :--- |
-| `GEOMETRY` / `POINT` / `LINESTRING` / `POLYGON` | 变长 | 存储地理坐标、形状 | **LBS 位置服务（附近的人）、GIS 地图围栏、轨迹存储**。 | 需要专用函数（`ST_Distance_Sphere`），索引要用 `SPATIAL`（仅 MyISAM/InnoDB 8.0 支持）。查询复杂，**非专业 GIS 团队不建议乱用**，可考虑 ES 或 PostGIS。 |
-| `JSON` | 变长 | 存储 JSON 文档（二进制格式，8.0 优化） | **动态扩展字段（如支付回调参数）、无 Schema 的业务数据、临时配置**。 | **不要用 JSON 替代列设计！** 查询依赖虚拟列索引（`GENERATED COLUMN`），性能远不如普通列。且无法使用覆盖索引，JSON 字段一多，全表扫描回表极其严重。 |
+| `GEOMETRY` / `POINT` / `LINESTRING` / `POLYGON` | 变长 | 存储地理坐标、形状 | **LBS 位置服务（附近的人）、GIS 地图围栏、轨迹存储**。 | 需要专用函数（`ST_Distance_Sphere`），索引要用 `SPATIAL`（MyISAM 支持，InnoDB 从 5.7 起支持）。查询复杂，**非专业 GIS 团队不建议乱用**，可考虑 ES 或 PostGIS。 |
+| `JSON` | 变长 | 存储 JSON 文档（二进制格式，8.0 优化） | **动态扩展字段（如支付回调参数）、无 Schema 的业务数据、临时配置**。 | **不要用 JSON 替代列设计！** JSON 路径查询可按版本使用生成列、函数索引或多值索引；是否覆盖、回表和性能如何取决于具体表达式及执行计划，不能由 JSON 列数量直接判断。 |
 
 > [!TIP]
 > 1.**主键铁律**：**单库单表用 `INT`，分库分表用 `BIGINT`（雪花ID）**。**绝对禁止 `UUID` 做主键**（随机插入导致 B+ 树页分裂，性能直接腰斩）。
@@ -769,8 +772,8 @@ FOREIGN KEY (dept_id) REFERENCES dept(id) ON UPDATE CASCADE;
 
 | 类型 | 字节 | 范围 | 时区 | 特点 |
 |------|------|------|------|------|
-| `DATETIME` | 8 | 1000-01-01 ~ 9999-12-31 | 不受时区影响 | 存储字面时间 |
-| `TIMESTAMP` | 4 | 1970-01-01 00:00:01 UTC ~ 2038-01-19 | 受 `time_zone` 影响 | 自动初始化和更新 |
+| `DATETIME` | 5（无小数秒，MySQL 5.6.4+；小数秒另加 0~3 字节） | 1000-01-01 ~ 9999-12-31 | 不受时区影响 | 存储字面时间 |
+| `TIMESTAMP` | 4 | 1970-01-01 00:00:01 UTC ~ 2038-01-19 | 受 `time_zone` 影响 | 按显式声明支持自动初始化和更新，DATETIME 也支持 |
 
 **生产建议**：
 
@@ -789,10 +792,11 @@ CREATE TABLE `order` (
 );
 
 -- 浮点数运算存在精度误差，禁止用 FLOAT/DOUBLE 存金额
-SELECT 0.1 + 0.2; -- 0.30000000000000004
+SELECT 0.1 + 0.2; -- MySQL 将这些精确数值字面量按 DECIMAL 运算，结果为 0.3
+-- FLOAT/DOUBLE 或科学计数法字面量才进入近似值运算，存在二进制舍入误差。
 ```
 
-`DECIMAL(M,D)` 内部使用**二进制编码的十进制定点数（Binary-Coded Decimal）**存储，本质是十进制存储，避免 `FLOAT/DOUBLE` 的二进制浮点误差。每 9 位十进制数约占用 4 字节。
+`DECIMAL(M,D)` 内部使用**压缩的十进制定点表示（按每组 9 位十进制数字编码，不是逐位 4-bit BCD）**存储，本质是十进制存储，避免 `FLOAT/DOUBLE` 的二进制浮点误差。每 9 位十进制数约占用 4 字节。
 
 ---
 
@@ -866,8 +870,8 @@ CREATE TABLE `order` (
 | :--- | :--- | :--- | :--- |
 | **`COUNT()`** | `COUNT(*)` / `COUNT(列名)` | 统计**行数**。 | **`COUNT(*)` 和 `COUNT(列名)` 完全不同！** `COUNT(*)` 统计所有行（**含 NULL**）；`COUNT(列名)` 只统计该列**非 NULL** 的行数。面试常考：统计总数用 `COUNT(*)`（走二级索引最优）。 |
 | **`SUM()`** | `SUM(列名)` | 计算某列的**总和**。 | 自动**忽略 NULL 值**（若全为 NULL 则返回 NULL）。务必搭配 `IFNULL(SUM(amount), 0)` 处理，防止 Java 接受到 null 导致 NPE。 |
-| **`AVG()`** | `AVG(列名)` | 计算某列的**平均值**。 | 自动**忽略 NULL 值**（分母只计非 NULL 行数）。若需要把 NULL 当 0 算平均，必须手动 `SUM(列) / COUNT(*)`。 |
-| **`MAX()`** | `MAX(列名)` | 返回**最大值**。 | 对字符串列也能用（按字典序）。配合 `ORDER BY ... LIMIT 1` 走索引更快。 |
+| **`AVG()`** | `AVG(列名)` | 计算某列的**平均值**。 | 自动**忽略 NULL 值**（分母只计非 NULL 行数）。若需要把 NULL 当 0 算平均，可使用 `AVG(COALESCE(列, 0))`；空结果集仍返回 NULL。 |
+| **`MAX()`** | `MAX(列名)` | 返回**最大值**。 | 对字符串列也能用（按字典序）。合适索引下可优化为少量索引访问；ORDER BY ... LIMIT 1 与 MAX/MIN 各有语义和优化方式，不能一概认定更快。 |
 | **`MIN()`** | `MIN(列名)` | 返回**最小值**。 | 同上。 |
 | **`GROUP_CONCAT()`** | `GROUP_CONCAT(列名)` | 将分组内的某列值**拼接成逗号分隔的字符串**。 | **默认最大长度只有 1024 字节！** 生产环境拼接长文本必须预先设置：`SET SESSION group_concat_max_len = 1000000;` |
 
@@ -902,7 +906,7 @@ GROUP BY user_id;
 
 **4. 底层机制与优化**：
 
-- `GROUP BY` 没有合适索引时，MySQL 会创建临时表（`Using temporary`）并排序（`Using filesort`），大表场景下性能极差。
+- `GROUP BY` 没有合适索引时，MySQL 可能创建内部临时表；8.0 的 GROUP BY 不保证隐式排序，是否 filesort 需看执行计划和 ORDER BY，不能必然推断。
 - 如果 `GROUP BY` 字段命中索引，且顺序与索引一致，可避免临时表。
 - **优化策略**：建立 `(user_id, status, amount)` 联合索引，让分组和聚合走索引覆盖。
 
@@ -938,7 +942,7 @@ HAVING 聚合函数(列名2) > 值;
 -- 统计每个用户的订单总额，只保留总额大于1000的用户
 SELECT user_id, SUM(amount) AS total_amount
 FROM `t_order`
-WHERE status = 'PAID'
+WHERE status = 1
 GROUP BY user_id
 HAVING SUM(amount) > 1000;
 ```
@@ -950,17 +954,14 @@ HAVING SUM(amount) > 1000;
 **1. SQL 逻辑执行顺序**：
 
 ```
-(8)  SELECT   (列名, 聚合函数)
-(1)  FROM     表名
-(2)  ON       JOIN 连接条件
-(3)  JOIN     关联表
-(4)  WHERE    行级过滤（分组前）
-(5)  GROUP BY 分组
-(6)  HAVING   分组级过滤（分组后）
-(7)  SELECT   计算表达式 / 别名
-(9)  DISTINCT 去重
-(10) ORDER BY 排序
-(11) LIMIT    截断
+FROM / JOIN / ON
+→ WHERE
+→ GROUP BY / 聚合
+→ HAVING
+→ 窗口计算 / SELECT 表达式
+→ DISTINCT
+→ ORDER BY
+→ LIMIT
 ```
 
 > [!IMPORTANT]
@@ -996,7 +997,7 @@ LIMIT 20;                                         -- ⑤ LIMIT：截断
 
 1. **聚合函数遇到 NULL**：`SUM/AVG/MAX/MIN` 都跳过 NULL；`COUNT(列名)` 跳过 NULL；`COUNT(*)` 不跳过。
 
-2. **SELECT 中既有聚合又有普通列**：必须带 `GROUP BY`，否则 `ONLY_FULL_GROUP_BY` 模式会报错。
+2. **SELECT 同时含聚合与非聚合列**：在 ONLY_FULL_GROUP_BY 下，非聚合列须满足分组、函数依赖或被 WHERE 限定为单值等规则；不能一概判断一定报错。
 
 3. **索引利用**：`MAX/MIN` 在有索引的列上极快；`COUNT(*)` 尽量走二级索引；`GROUP BY` 字段尽量放在联合索引中。
 
@@ -1032,8 +1033,8 @@ WHERE
 | 连接类型 | 驱动表规则 | 返回结果集 |
 |---------|-----------|-----------|
 | **INNER JOIN** | 优化器**基于成本**选择驱动表（通常选过滤后行数少、连接列有索引的表） | 仅返回两表**匹配成功**的记录，不匹配的丢弃 |
-| **LEFT JOIN** | **左表**强制为**驱动表**，右表为被驱动表 | 返回左表**全部**记录 + 右表匹配字段；右表无匹配时补 `NULL` |
-| **RIGHT JOIN** | **右表**强制为**驱动表**（建议统一改写为 `LEFT JOIN` 增强可读性） | 返回右表**全部**记录 + 左表匹配字段；左表无匹配时补 `NULL` |
+| **LEFT JOIN** | 逻辑上保留左表行；物理顺序受优化器约束与连接算法影响，空值拒绝条件可能使其转为内连接 | 返回左表**全部**记录 + 右表匹配字段；右表无匹配时补 `NULL` |
+| **RIGHT JOIN** | 逻辑上保留右表行，常改写为 LEFT JOIN 阅读；不能仅由语法断定最终物理驱动顺序 | 返回右表**全部**记录 + 左表匹配字段；左表无匹配时补 `NULL` |
 
 **3. Nested-Loop Join（NLJ）执行原理**
 
@@ -1058,13 +1059,13 @@ WHERE o.status = 'PAID';
 
 **5. EXPLAIN 关键信息**
 
-`EXPLAIN` 中 `rows` 小的通常是驱动表；`Using join buffer` 表示被驱动表无可用索引（需要优化）。MySQL 8.0 对连接算法进行过重构，目前仍以 Nested-Loop Join 为主，Hash Join 在特定场景下使用，不必深入展开。
+不能按 rows 大小直接认定驱动表，应查看计划中的访问顺序和连接算法；Using join buffer 可能是 Hash Join 或 BKA 等，需结合实际成本判断。MySQL 8.0 对连接算法进行过重构，目前仍以 Nested-Loop Join 为主，Hash Join 在特定场景下使用，不必深入展开。
 
 **6. 🚨 架构师红线**
 
 | 维度 | 核心规则 | 违反后果 |
 |------|----------|----------|
-| **逻辑红线（不丢数据）** | LEFT JOIN 中，**右表过滤条件必须放 `ON` 后**；放 `WHERE` 会直接丢弃左表无匹配的行（等同 INNER JOIN） | 数据丢失，业务报表算错，事故级 |
+| **逻辑红线（不丢数据）** | 想保留左表未匹配行时，右表匹配条件通常放 ON；WHERE 中若是右表空值拒绝条件可退化为内连接，但 WHERE right.id IS NULL 等条件有不同语义 | 数据丢失，业务报表算错，事故级 |
 | **性能红线（不崩库）** | **被驱动表（LEFT JOIN 即右表）的关联列必须有索引**；INNER JOIN 优化器选出的被驱动表同样必须有 | 全表扫描，大表并发直接打满 CPU，超时崩溃 |
 | **业务红线（不误判）** | LEFT/RIGHT JOIN 返回的 `NULL` 需区分是“无匹配”还是“原字段为空”；用 `IS NULL` 过滤前想清楚语义 | 业务逻辑错乱，对账永远对不平 |
 
@@ -1073,7 +1074,7 @@ WHERE o.status = 'PAID';
 > 代码中**禁止出现 `RIGHT JOIN`**，统一改写为 `LEFT JOIN`，避免优化器内部转换搞乱执行计划，也方便 Code Review 一眼看清驱动方向。
 
 > [!TIP]
-执行计划里看到 **`Using join buffer (Block Nested Loop)`** 或 **`Using where` 压在 JOIN 表上**，就是红线被踩了，必须立即回滚重写。
+`Using where` 是常见的过滤标记，Using join buffer 也可能是合理连接策略；应结合实际扫描行数、算法及耗时决定是否优化。
 
 ---
 
@@ -1104,13 +1105,13 @@ SELECT * FROM `t_user` WHERE `id` IN (SELECT `user_id` FROM `t_order` WHERE `amo
   - **铁律**：如果子查询列存在为 `NULL` 的可能，**绝对禁用 `NOT IN`**，必须改用 `NOT EXISTS` 替代。
     - **示例**：`SELECT * FROM t1 WHERE id NOT IN (SELECT uid FROM t2);` —— 如果 `t2.uid` 有一行是 `NULL`，主查询返回空。
 
-- **🔴 陷阱二：`IN` 常量列表过长会撑爆解析器**
-  - `IN (1,2,3,...,10000)` 这种写法会导致 SQL 解析树极其庞大，优化器耗时剧增，且无法有效利用索引。
-  - **铁律**：`IN` 列表超过 **500个值** 时，必须改为**临时表关联**（`JOIN tmp_table`）或分批查询。
+- **🔴 陷阱二：较长 IN 列表会增加解析和优化成本**
+  - `IN (1,2,3,...,10000)` 这种写法会导致 SQL 解析树极其庞大，优化器耗时剧增，但不意味着一定无法利用索引。
+  - **铁律**：500 个值不是 MySQL 硬限制；列表很长时结合实测考虑**临时表关联**（`JOIN tmp_table`）或分批查询。
 
 - **🔴 陷阱三：大数据量子查询，`IN` 不如 `EXISTS` 快（8.0前明显）**
   - 当**外部主表小**、**内部子查询大**时，`IN` 会先执行子查询（物化），生成临时表再匹配，性能极差。
-  - **铁律**：子查询数据量大的场景，优先改写为 `EXISTS` 或 `JOIN`（让驱动表主导执行计划）。MySQL 8.0 虽引入了半连接优化，但复杂场景下仍建议手动改写。
+  - **铁律**：子查询数据量大的场景，优先改写为 `EXISTS` 或 `JOIN`（让驱动表主导执行计划）。MySQL 5.6 起已有部分 IN 半连接优化，8.0 又有扩展；，但复杂场景下仍建议手动改写。
 
 > [!TIP]
 > **面试话术总结**：`IN` 适合**小列表**或**子查询结果集小**的场景；一旦遇到 **`NOT IN` + `NULL`** 直接原地爆炸，遇到**大列表**直接拉胯。架构设计上，优先用 `JOIN` 或 `EXISTS` 替代复杂的 `IN` 子查询。👍
@@ -1182,11 +1183,11 @@ SELECT * FROM `t_user` WHERE `name` LIKE '张_';   -- 只匹配"张三"（两个
 
 **🚨 唯一且致命红线**：
 
-- `%` 放在开头（如 `LIKE '%张三'`）→ **索引直接失效**，无条件全表扫描。
+- `%` 放在开头（如 `LIKE '%张三'`）→ 通常不能用该条件做 B+ 树前缀范围定位；仍可能索引全扫描、使用覆盖索引或利用其他条件的索引。
 - **铁律**：业务上如果必须查后缀（以某字结尾），请用 ES（Elasticsearch）或反转字段存储（如把 `name` 反转存为 `rev_name`，再查 `rev_name LIKE '三张%'`）。
 
 > [!TIP]
-> **面试话术**：`LIKE` 只有通配符**不在开头**时才能走索引（如 `name LIKE '张%'`），一旦 `%` 打头，B+ 树的有序性就废了，优化器必选全表扫描。👍
+> **面试话术**：`LIKE` 只有通配符**不在开头**时才能走索引（如 `name LIKE '张%'`），`%` 打头通常不能用于前缀定位，但最终访问路径仍需由 EXPLAIN 确认。👍
 
 ---
 
@@ -1199,9 +1200,9 @@ SELECT * FROM `t_user` WHERE `name` LIKE '张_';   -- 只匹配"张三"（两个
 | 元字符 | 含义 | 示例 | 匹配结果 |
 | :--- | :--- | :--- | :--- |
 | `.` | 匹配**任意单个字符**（除换行符外） | `'a.b'` | 匹配 `"aab"`、`"a1b"`、`"a+b"`，不匹配 `"ab"` |
-| `*` | 匹配前一个字符 **0 次或多次**（贪婪） | `'ba*'` | 匹配 `"b"`、`"ba"`、`"baa"`、`"baaa..."` |
-| `+` | 匹配前一个字符 **1 次或多次** | `'ba+'` | 匹配 `"ba"`、`"baa"`，不匹配 `"b"` |
-| `?` | 匹配前一个字符 **0 次或 1 次** | `'ba?'` | 匹配 `"b"`、`"ba"`，不匹配 `"baa"` |
+| `*` | 匹配前一个字符 **0 次或多次**（贪婪） | `'^ba*$'` | 匹配 `"b"`、`"ba"`、`"baa"`、`"baaa..."` |
+| `+` | 匹配前一个字符 **1 次或多次** | `'^ba+$'` | 匹配 `"ba"`、`"baa"`，不匹配 `"b"` |
+| `?` | 匹配前一个字符 **0 次或 1 次** | `'^ba?$'` | 匹配 `"b"`、`"ba"`，不匹配 `"baa"` |
 | `[]` | 匹配**括号内任意一个字符**（字符集合） | `'[abc]'` | 匹配 `"a"`、`"b"`、`"c"`，不匹配 `"d"` |
 | `[^]` | 匹配**不在括号内的任意一个字符**（取反） | `'[^0-9]'` | 匹配任意非数字字符 |
 | `[0-9]` | 匹配 **0~9 的任意一个数字**（范围简写） | `'[0-9]'` | 匹配 `"5"`，不匹配 `"A"` |
@@ -1224,7 +1225,7 @@ SELECT * FROM `t_user` WHERE `name` LIKE '张_';   -- 只匹配"张三"（两个
 SELECT * FROM `t_user` WHERE `mobile` REGEXP '^13[89][0-9]{8}$';
 
 -- 示例2：查询邮箱是 QQ 邮箱或 163 邮箱的用户
-SELECT * FROM `t_user` WHERE `email` REGEXP '@(qq|163)\.com$';
+SELECT * FROM `t_user` WHERE `email` REGEXP '@(qq|163)\\.com$';
 
 -- 示例3：查询名字包含数字的用户（比如 "张三123"）
 SELECT * FROM `t_user` WHERE `name` REGEXP '[0-9]';
@@ -1238,13 +1239,13 @@ SELECT * FROM `t_user` WHERE `name` REGEXP '[0-9]';
 
 - **🔴 陷阱二：默认不区分大小写**
   - `REGEXP` 在 MySQL 中默认是**大小写不敏感**的（受 `collation` 影响）。
-  - 如需强制区分大小写，使用 `REGEXP BINARY`：
+  - MySQL 8.0 可用 REGEXP_LIKE 的 match_type 指定大小写，不应依赖 BINARY 字符串与 ICU 正则的兼容性：
     ```sql
-    SELECT * FROM `t_user` WHERE `name` REGEXP BINARY '^Tom';  -- 只匹配 "Tom"，不匹配 "tom"
+    SELECT * FROM `t_user` WHERE REGEXP_LIKE(`name`, '^Tom', 'c');  -- 只匹配 "Tom"，不匹配 "tom"
     ```
 
-- **🔴 陷阱三：正则写错不报错，只返回空集**
-  - `REGEXP '['`（括号未闭合）不会报错，只返回 0 行。
+- **🔴 陷阱三：非法正则会报错**
+  - `REGEXP '['`（括号未闭合）会报正则解析错误，不是正常的无匹配结果。
   - **铁律**：写复杂正则前，先在测试环境用小数据集验证，或用在线正则工具校验。
 
 **4. `REGEXP` vs `LIKE` 选型总结**
@@ -1498,17 +1499,17 @@ SELECT
     END AS order_level,
     COUNT(*) AS order_count
 FROM `t_order`
-WHERE status = 'PAID'
+WHERE status = 1
 GROUP BY order_level;
 ```
 
 **补充：在 UPDATE 中批量修改状态（不用多次查询）**
 ```sql
 UPDATE `t_order`
-SET status = CASE 
-    WHEN amount >= 10000 THEN 'VIP'
-    WHEN amount >= 5000 THEN '高级'
-    ELSE '普通'
+SET amount = CASE
+    WHEN amount >= 10000 THEN amount * 0.95
+    WHEN amount >= 5000 THEN amount * 0.98
+    ELSE amount
 END
 WHERE create_time > '2026-01-01';
 ```
@@ -1551,7 +1552,7 @@ ROLLBACK   COMMIT
 
 ##### 2.3.16 子查询速查表
 
-- **本质**：嵌套在 SQL 内部的查询（先算内层，再算外层）
+- **本质**：嵌套在 SQL 内部的查询；实际执行次序可被优化器改写，不一定先执行内层
 
 **1. 语法**
 
@@ -1559,7 +1560,7 @@ ROLLBACK   COMMIT
 | :--- | :--- | :--- |
 | **WHERE**（过滤条件）(把子查询当成**一个值**) | **模板**：`WHERE 列名 比较运算符 (子查询)` <br> **示例**：`SELECT * FROM table1 WHERE column = (SELECT column FROM table2 WHERE condition);` <br> *（运算符也可为 `>`, `IN`, `EXISTS` 等）* | 子查询必须返回与运算符兼容的结果（标量或集合）；最常用。 |
 | **FROM**（派生表）(把子查询当成**一张临时表**) | **模板**：`FROM (子查询) AS 别名` <br> **示例**：`SELECT * FROM (SELECT column FROM table2) AS alias;` | **必须加别名**（`AS alias` 不可省略），否则数据库报错。 |
-| **SELECT**（标量子查询） | **模板**：`SELECT 列名, (子查询) AS 别名` <br> **示例**：`SELECT id, (SELECT column FROM table2 WHERE table2.id = table1.id) AS alias FROM table1;` | **子查询必须返回 1 行 1 列**（标量），通常需关联外层表。 |
+| **SELECT**（标量子查询） | **模板**：`SELECT 列名, (子查询) AS 别名` <br> **示例**：`SELECT id, (SELECT column FROM table2 WHERE table2.id = table1.id) AS alias FROM table1;` | **标量子查询最多返回 1 行 1 列**，0 行时值为 NULL，通常需关联外层表。 |
 | **HAVING**（分组后过滤） | **模板**：`HAVING 聚合函数(列名) 比较运算符 (子查询)` <br> **示例**：`SELECT group_col, agg_func(col) FROM table1 GROUP BY group_col HAVING agg_func(col) > (SELECT agg_func(col) FROM table1);` | 子查询在 `GROUP BY` 之后执行，结果用于比较分组后的聚合值。 |
 
 > [!tip]
@@ -1573,8 +1574,8 @@ ROLLBACK   COMMIT
 
 **3. 核心性能区分**
 
-- **非相关子查询**：先内后外，**只执行 1 次**（快）。
-- **相关子查询**：外层每行循环执行内层（慢），常用于 `EXISTS`。
+- **非相关子查询**：不引用外层列，优化器可能缓存、物化或改写，不能仅据此断定性能快。
+- **相关子查询**：引用外层列，可能逐行执行，也可能转为半连接等；需看实际计划。
 
 **4. 致命陷阱**
 
@@ -1706,7 +1707,7 @@ FROM xxx AS xxx   → 给表/子查询起别名
 
 **避坑指南**  
 1. 不用 `SELECT *`，只取需要的列，利用覆盖索引。  
-2. `VARCHAR` 长度不是越大越好，索引长度受 `max_index_key_length` 限制。  
+2. `VARCHAR` 长度不是越大越好，索引长度受存储引擎、行格式、页大小等限制，MySQL 没有名为 max_index_key_length 的通用系统变量。
 3. 金额计算用 `DECIMAL`，禁止浮点。  
 4. 分布式环境不要依赖自增主键，分库分表优先雪花或号段。  
 5. JOIN 前先过滤，尽量用小结果集做驱动表。
@@ -1801,7 +1802,7 @@ SELECT * FROM seq;
 
 ##### 2.5.4 原子 DDL 与即时加列
 
-- **原子 DDL**：DDL 操作要么全部成功，要么全部回滚，避免中途失败导致表损坏。
+- **原子 DDL**：受支持的 DDL 在字典、引擎和 binlog 间原子完成，支持崩溃一致性；不代表用户可用 ROLLBACK 撤销已执行的 DDL。
 - **即时加列**：`ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INSTANT;` 只修改元数据，秒级完成。
 
 ---
@@ -1835,37 +1836,19 @@ CLONE INSTANCE FROM 'user'@'host':3306 IDENTIFIED BY 'password';
 
 ---
 
-#### 2.6 视图（VIEW）生产级规范
+#### 2.6 视图（VIEW）使用要点
 
-**1. 语法本质**  
-视图是一张**虚拟表**，底层是封装好的 SELECT 语句。创建不占物理数据空间（不含索引），查询时会临时合并执行。
-
-**2. 三大生产禁忌（切记）**
-
-- **性能陷阱**：视图关联 3 张以上大表时，优化器极易估算偏差，导致临时表暴增。**线上复杂查询严禁使用视图**，应直写 SQL 并 EXPLAIN 验证。
-- **不可滥用 `SELECT *`**：视图字段随基表变更会报错（`CR_VIEW_WRONG_LIST`），必须显式列出字段。
-- **禁止嵌套视图**：视图套视图超过 2 层，执行计划将完全失控，MySQL 官方不推荐。
-
-**3. 唯一推荐使用场景**
-
-- **安全隔离**：对敏感字段（如 `salary`、`phone`）脱敏，给 BI 或只读账号开放视图，限制底层表访问。
-- **兼容旧接口**：老系统表结构重构（如分表），用视图将多张物理表 union 成旧表结构，平滑过渡。
-
-**4. 语法模板**
+普通视图保存查询定义，不单独保存结果数据；执行时可能合并到外层查询，也可能使用临时表。复杂或嵌套视图需检查执行计划，没有固定的三表或两层硬限制。
 
 ```sql
--- 标准创建（显式字段，限定条件）
 CREATE VIEW v_user_safe AS
 SELECT id, nickname, LEFT(mobile, 3) AS mobile_prefix
-FROM user
-WHERE status = 1;
-
--- 查看视图定义
+FROM user WHERE status = 1;
 SHOW CREATE VIEW v_user_safe;
-
--- 删除视图
-drop view 想要删除的视图名称
+DROP VIEW v_user_safe;
 ```
+
+创建时 SELECT * 的列会固定在视图定义中，后续基表新增列不会自动加入；删除/修改被引用列可能使视图失效。显式列名便于控制接口和敏感信息。
 
 ---
 
@@ -1901,7 +1884,7 @@ drop view 想要删除的视图名称
 - **Memory**：数据存内存，速度快，重启丢失，适合临时表。  
 - **CSV**：CSV 文件存储，便于数据交换。  
 - **Archive**：压缩存储，适合归档，只支持 INSERT/SELECT。  
-- **NDB**：分布式，适合数据仓库。
+- **NDB**：MySQL NDB Cluster 的分布式引擎，常用于低延迟、高可用 OLTP，不应简单归为数据仓库引擎。
 
 ---
 
@@ -1919,7 +1902,7 @@ drop view 想要删除的视图名称
 -- 普通索引（允许重复值）
 CREATE INDEX 索引名 ON 表名 (列名1, 列名2, ...);
 
--- 唯一索引（不允许重复值，加速查询+约束）
+-- 唯一索引（约束非 NULL 键值唯一；MySQL 通常允许多个 NULL）
 CREATE UNIQUE INDEX 索引名 ON 表名 (列名);
 
 -- 主键索引（在建表时指定，或通过 ALTER 添加）
@@ -1962,7 +1945,7 @@ SHOW INDEX FROM t_order\G
 | 字段 | 含义 | 架构师关注点 |
 | :--- | :--- | :--- |
 | `Table` | 表名 | — |
-| `Non_unique` | 0=唯一索引，1=非唯一索引 | 唯一索引比普通索引查询略快 |
+| `Non_unique` | 0=唯一索引，1=非唯一索引 | 按业务唯一性约束选择，查询开销取决于具体访问路径 |
 | `Key_name` | 索引名称 | 命名是否规范（见下方红线） |
 | `Seq_in_index` | 在联合索引中的位置（从1开始） | 用于确认最左前缀顺序 |
 | `Column_name` | 索引列名 | — |
@@ -1998,9 +1981,9 @@ DROP INDEX idx_user_status ON t_order;
   - **联合索引**：`idx_表名_字段1_字段2`（如 `idx_order_user_status`）
   > **目的**：运维看 `SHOW INDEX` 一眼就知道索引归属和用途，不用再反查表结构。
 
-- **🔴 大表创建索引必须走工具（致命红线）**：
-  - 千万级数据直接执行 `CREATE INDEX` 或 `ALTER TABLE ADD INDEX`，会锁表并导致主从延迟雪崩。
-  - **铁律**：生产环境大表加索引，禁止直跑 DDL，必须使用 `pt-online-schema-change` 或 `gh-ost` 工具无锁变更（详见本手册第 25.5 节）。
+- **大表创建索引需评估算法、元数据锁与复制负载**：
+  - InnoDB 多种二级索引创建支持原生 Online DDL，但仍有元数据锁与 IO/复制成本；不能仅由行数断定必然长时间锁表。
+  - **铁律**：生产环境按操作、版本和负载选择原生 Online DDL、pt-online-schema-change 或 gh-ost，工具也不能承诺完全无锁（详见本手册第 25.5 节）。
 
 - **🔴 索引不是越多越好**：
   - 每增加一个索引，`INSERT`/`UPDATE`/`DELETE` 都要多维护一棵 B+ 树，写入性能下降。
@@ -2042,15 +2025,13 @@ DROP INDEX idx_user_status ON t_order;
 
 #### 4.2.2 B+Tree 长什么样？（以聚簇索引为例）
 
-> **非叶子节点**存「主键值 + 子页指针」，**叶子节点**存「完整行数据」，叶子间用双向链表串联。
+非叶子页保存索引键和子页指针，叶子页保存行记录，并通过页链表按键顺序连接；页面在磁盘上不保证物理连续。
 
 ```text
-             [ 20 | 50 | 80 ]              ← 非叶子节点（只存键+指针，一页存上千个）
-            /     |     |     \
-        [10|15] [30|40] [60|70] [90|99]   ← 非叶子节点
-           |       |       |       |
-        (数据页) (数据页) (数据页) (数据页)  ← 叶子节点（存完整行，链表相连）
-         1~9行   21~29行  51~59行  81~89行
+          [分隔键 20 | 分隔键 50]
+           /           |          \
+    [1, 5, 10] <-> [20, 30] <-> [50, 70, 90]
+       叶子页           叶子页          叶子页
 ```
 
 ---
@@ -2059,9 +2040,9 @@ DROP INDEX idx_user_status ON t_order;
 
 | 优势 | 解释 | 架构师价值 |
 | :--- | :--- | :--- |
-| **树矮路宽** | 非叶子节点只存键（不存数据），一页（16KB）能放约 **1170** 个键。扇出极大，3 层即可支撑 **2000万+** 行。 | 查询永远只需 2~4 次 I/O，这是 InnoDB 快的根本原因。 |
-| **全值有序** | 叶子节点按主键升序排列，且物理上（逻辑上）相连。 | 不仅等值查询快，**范围查询**（`BETWEEN`、`>`）也极快，只需顺着链表扫。 |
-| **数据即索引** | 聚簇索引的叶子节点存的是**完整行**，无需回表（二级索引才需要）。 | 主键查询是全世界最快的查询方式。 |
+| **树矮路宽** | 非叶子节点只存键（不存数据），一页（16KB）能放约 **1170** 个键。扇出极大，3 层即可支撑 **2000万+** 行。 | 点查通常只遍历较少层级；范围扫描、溢出页和缓存状态会改变实际 I/O，这是 InnoDB 快的根本原因。 |
+| **全值有序** | 叶子节点按主键升序排列，且通过页链表逻辑相连，磁盘上不保证物理连续。 | 不仅等值查询快，**范围查询**（`BETWEEN`、`>`）也极快，只需顺着链表扫。 |
+| **数据即索引** | 聚簇索引的叶子节点存的是**完整行**，无需回表（二级索引才需要）。 | 主键点查通常无需二级索引回表；实际耗时仍受缓存、IO 和锁等待影响。 |
 
 > **一句话记忆**：B+Tree 靠「非叶子存指针，叶子存数据」把树压矮。**树矮 = I/O 少 = 查询快**。
 
@@ -2124,7 +2105,7 @@ SELECT * FROM user WHERE mobile = '13800000000';
 > [!note]
 > 多个 AND / OR 都可以；混合使用时，最好加括号
 
-联合索引 `(a, b, c)` 会建立 `a` → `a,b` → `a,b,c` 三层索引。  
+联合索引 `(a, b, c)` 是一棵按三列字典序组织的 B+ 树，可利用 a、(a,b)、(a,b,c) 最左前缀，并不是建立三棵树或三层分别对应三列。
 以下查询能命中索引：
 
 ```sql
@@ -2215,21 +2196,13 @@ SELECT * FROM t WHERE a > 10 AND b = 5;
 
 #### 5.5 前缀索引与索引选择
 
-长字符串列建立索引时可只取前 N 个字符：
+长字符串可按选择性建立前缀索引：
 
 ```sql
--- 为文章标题建立前缀索引，减少索引大小
 CREATE INDEX idx_title ON article(title(20));
 ```
 
-**缺点**：不支持范围查询和排序，精度会下降。
-
-**索引选择原则**：
-
-- 不要在区分度低的字段建索引（如性别、状态）。  
-- 联合索引注意顺序：区分度高、等值查询、范围查询字段依次靠前。  
-- 避免在小表上建索引，优化器可能不会使用。  
-- 索引不是越多越好，写操作会维护所有索引。
+它可帮助部分等值、前缀和范围过滤，但查询可能仍需核验完整值，不能依赖它完成整列排序或覆盖整列输出。联合索引按常见查询的等值、范围、排序、覆盖与数据分布综合设计，低区分度列或小表也并非一律不应建索引。
 
 ---
 
@@ -2297,7 +2270,7 @@ MySQL 8.0 引入，当联合索引 `(a,b)` 查询只涉及 `b` 时，若 `a` 区
 ```sql
 -- 假设 (gender, age) 联合索引，gender 只有 M/F，查询 age=20
 -- 优化器可能使用 index skip scan
-EXPLAIN SELECT * FROM user WHERE age = 20;
+EXPLAIN SELECT gender, age FROM user WHERE age = 20;
 -- type: range, Extra: Using index for skip scan
 ```
 
@@ -2309,7 +2282,7 @@ EXPLAIN SELECT * FROM user WHERE age = 20;
 
 ---
 
-### 6. 索引失效场景
+### 6. 索引访问受限与优化器选择
 
 #### 6.1 函数操作、运算、隐式转换
 
@@ -2321,17 +2294,17 @@ EXPLAIN SELECT * FROM user WHERE age = 20;
 | 4. 对索引列做运算 | `WHERE id + 1 = 100` | 改为 `WHERE id = 99` |
 | 5. 违反最左前缀 | 联合索引 `(a,b)` 只查 `b` | 调整索引顺序或补全条件 |
 | 6. OR 连接非索引列 | `WHERE a = 1 OR b = 2`（b 无索引） | 联合索引或 UNION |
-| 7. NOT IN / <> | `WHERE status <> 1` | 范围拆分或覆盖索引 |
-| 8. 索引列使用 IS NULL / IS NOT NULL | 视优化器而定 | 覆盖索引或默认值 |
+| 7. NOT IN / <> | 可能使用范围或覆盖索引，并非必然失效 | 根据选择性与计划评估 |
+| 8. IS NULL / IS NOT NULL | 可以使用索引，不是天然失效条件 | 保留正确 NULL 语义并检查选择性 |
 | 9. 字符集不一致 JOIN | 关联列 utf8mb4 vs utf8 | 统一字符集 |
-| 10. 优化器选择错误 | 数据分布不均，走全表扫描更快 | 强制索引/修改统计信息 |
+| 10. 成本选择 | 全表扫描可能实际更快，不等于优化器错误 | 对比真实耗时与统计信息后再决定 |
 
 ---
 
 #### 6.2 LIKE 前置百分号、OR 查询
 
-- `LIKE '%abc'` 无法使用索引，因为 B+ 树从左到右匹配。  
-- `OR` 连接不同列，如果任一列没有索引，则整句无法使用索引；可改写为 UNION 或建立联合索引。
+- `LIKE '%abc'` 通常不能做 B+ 树前缀范围定位，但仍可能使用覆盖索引扫描或其他条件的索引。
+- `OR` 跨不同列时需看每个分支及其他 AND 条件是否可索引；可评估分支索引、Index Merge 或保持去重语义的 UNION。单个 (a,b) 索引不保证 a=? OR b=? 高效。
 
 ---
 
@@ -2342,7 +2315,7 @@ EXPLAIN SELECT * FROM user WHERE age = 20;
 1. **统计信息错误**：表数据变化后未及时更新，优化器低估/高估行数。  
 2. **回表成本过高**：二级索引过滤性差，需要回表大量行，优化器认为全表扫描更优。  
 3. **选择性不足**：索引列区分度低（如 status 只有两个值），过滤后仍很多行。  
-4. **成本模型判断全表更优**：全表扫描是顺序 IO，回表是随机 IO，当回表行数超过一定比例（通常 20%~30%），优化器倾向全表扫描。  
+4. **成本模型判断全表更优**：全表扫描是顺序 IO，回表是随机 IO，匹配比例较高时可能选择全表扫描，但不存在通用的 20%~30% 切换阈值。
 5. **参数影响**：如 `eq_range_index_dive_limit` 影响范围估算，可能导致选择偏差。
 
 ---
@@ -2352,7 +2325,7 @@ EXPLAIN SELECT * FROM user WHERE age = 20;
 - 定期使用 `ANALYZE TABLE` 更新统计信息，或对倾斜列创建直方图。  
 - 对索引列不做任何函数/运算，保持“裸列”比较。  
 - 优化器选择错误时，可用 `FORCE INDEX` 临时干预，但需评估。  
-- 通过 `EXPLAIN` 验证索引是否生效，`type` 至少达到 `range` 级别。
+- 通过 `EXPLAIN` 验证索引是否生效，结合实际扫描量与耗时判断，不以 range 作为统一下限。
 
 ---
 
@@ -2549,7 +2522,7 @@ SHOW VARIABLES LIKE 'innodb_old_blocks_pct';
 SHOW VARIABLES LIKE 'innodb_old_blocks_time';
 ```
 
-**调优建议**：如果热点数据频繁被大扫描挤出，可增大 `innodb_old_blocks_pct` 或 `innodb_old_blocks_time`。
+**调优建议**：如果热点数据频繁被大扫描挤出，可结合实测调整 `innodb_old_blocks_pct`，或增加 `innodb_old_blocks_time`；盲目增大 old 区会挤压 young 区。
 
 ---
 
@@ -2557,7 +2530,7 @@ SHOW VARIABLES LIKE 'innodb_old_blocks_time';
 
 **作用**：当对**非唯一二级索引**做插入/更新/删除时，如果目标索引页不在 Buffer Pool 中，先写入 Change Buffer，后续通过 merge 写入磁盘。
 
-**为什么只支持非唯一索引？** 唯一索引必须读取磁盘判断是否冲突，无法缓冲。
+**为什么主要面向非唯一二级索引？** 正常启用唯一性检查时，唯一索引需访问目标页检查冲突；目标页若已在内存，并不意味着必须读取磁盘。Change Buffer 的可用性还取决于版本和配置。
 
 **参数**：`innodb_change_buffer_max_size` 默认 25% of Buffer Pool。
 
@@ -2579,7 +2552,7 @@ InnoDB 监控热点页的等值查询，自动在 Buffer Pool 上建立哈希索
 **关键参数**：
 
 ```sql
-SHOW VARIABLES LIKE 'innodb_max_dirty_pages_pct';     -- 脏页比例阈值，默认 75%
+SHOW VARIABLES LIKE 'innodb_max_dirty_pages_pct';     -- 脏页比例阈值，MySQL 8.0 默认 90%，以实际版本为准
 SHOW VARIABLES LIKE 'innodb_max_dirty_pages_pct_lwm'; -- 低水位线
 SHOW VARIABLES LIKE 'innodb_flush_neighbors';         -- 是否刷相邻脏页
 SHOW VARIABLES LIKE 'innodb_adaptive_flushing';       -- 自适应刷脏
@@ -2610,17 +2583,17 @@ SHOW VARIABLES LIKE 'innodb_io_capacity';             -- IO 能力，影响刷�
 
 #### 9.2 Redo Log 写入链路与 Checkpoint
 
-- **文件**：`ib_logfile0` / `ib_logfile1`，循环写入。  
+- **文件**：旧版常见 ib_logfile0/1；MySQL 8.0.30+ 使用 #innodb_redo 下的 #ib_redo*，由 innodb_redo_log_capacity 管理容量，循环复用。
 - **记录内容**：物理页的修改，保证持久性。  
 - **落盘时机**：由 `innodb_flush_log_at_trx_commit` 控制：
   - `1`：每次事务提交 fsync（最安全）  
-  - `0`：每秒刷（可能丢失 1s 数据）  
-  - `2`：写入 OS 缓存，每秒刷（可能丢失 1s 数据）
+  - `0`：通常按周期写日志并刷盘；系统调度及配置会改变周期，不能保证严格只丢 1s
+  - `2`：提交时写 OS 缓存，通常按周期刷盘；操作系统或断电故障可能丢失尚未持久化的日志
 
 **写入链路图**：
 
 ```
-事务提交 → 写 Redo Log Buffer → 写入 OS Cache → fsync 到 ib_logfile
+执行修改时产生 Redo 到日志缓冲 → 按策略写文件/刷盘 → 提交时确保所需日志持久化；数据页另行刷脏
 ```
 
 **Checkpoint**：记录 LSN，表示该点之前的 Redo 日志对应的脏页已全部刷盘，可被覆盖。Redo Log 文件循环使用，写满后触发 checkpoint。若 checkpoint 跟不上日志产生速度，会强制刷脏，导致性能下降。
@@ -2651,7 +2624,7 @@ SHOW VARIABLES LIKE 'innodb_io_capacity';             -- IO 能力，影响刷�
 
 #### 9.4 崩溃恢复机制
 
-崩溃后，InnoDB 读取 Redo Log，从 checkpoint 开始重放已提交但未刷盘的事务，保证持久性。对于 prepare 状态的事务，根据 Binlog 是否存在决定提交或回滚。
+崩溃后，InnoDB 读取 Redo Log，从 checkpoint 开始按日志恢复页状态，Redo 可能包含未提交修改，随后用 Undo 回滚未提交事务，保证持久性。对于 prepare 状态的事务，根据 Binlog 是否存在决定提交或回滚。
 
 ---
 
@@ -2673,7 +2646,7 @@ SHOW VARIABLES LIKE 'innodb_io_capacity';             -- IO 能力，影响刷�
 
 **Undo 为什么不能立即删除？**：
 
-MVCC 要求事务能够读取到事务开始时的数据快照。如果事务 A 开启后尚未结束，其他事务修改数据产生的旧版本必须保留，否则 A 无法获得一致性读。
+RC/RR 的一致性读需保留仍被 ReadView 引用的旧版本。RR 通常在第一次一致性读时创建快照，并非一律在 BEGIN 时；RC 每次一致性读创建新视图。
 
 **示例**：
 
@@ -2690,10 +2663,10 @@ MVCC 要求事务能够读取到事务开始时的数据快照。如果事务 A 
 - **history list**：由未清理的 Undo 日志组成的链表，可通过 `SHOW ENGINE INNODB STATUS\G` 查看 `History list length`。  
 - `history list length` 越大，说明积压的 Undo 越多，可能导致 undo 表空间膨胀。
 
-**清理条件**：一个 Undo 日志只有在以下条件都满足时才可被 purge：
+**清理条件（概念化说明）**：已提交 update undo 需在不再被任何活跃 ReadView 需要时才可 purge；回滚事务的 undo 在回滚处理中释放。不能只按事务开始先后判断。原理可记为：
 
-- 生成该 Undo 的事务已提交或回滚  
-- 所有在它之前开启的读视图（ReadView）已关闭
+- 生成该 update undo 的事务已提交
+- 没有活跃 ReadView 仍需要该历史版本
 
 ---
 
@@ -2711,7 +2684,7 @@ SELECT * FROM information_schema.innodb_trx\G
 
 - 找到长事务，尽快提交或回滚。  
 - 应用层避免在事务中进行外部调用（RPC、MQ、文件 IO）。  
-- 设置 `max_execution_time` 或超时监控。
+- 设置只读 SELECT 的 `max_execution_time`（不限制整个事务或一般 DML），配合事务超时监控 或超时监控。
 
 监控 `History list length`，超过阈值（如 10000）立即告警并排查长事务。
 
@@ -2725,7 +2698,7 @@ SELECT * FROM information_schema.innodb_trx\G
 - **ROW**：记录行级变更，体积大，但精确，推荐使用。  
 - **MIXED**：混合模式，默认使用 STATEMENT，必要时切换 ROW。
 
-**生产建议**：使用 ROW 格式，配合 `binlog_row_image=full` 保证数据一致性。
+**生产建议**：ROW 常用于复制和 CDC；FULL 记录更完整，便于审计/回滚工具，但它本身不是一致性的全部保证，需结合刷盘、复制和工具要求。
 
 ---
 
@@ -2825,7 +2798,7 @@ MySQL Master → Binlog dump → Canal Server（伪装从库）→ 解析 Binlog
 
 - `DB_TRX_ID`：最近修改的事务 ID  
 - `DB_ROLL_PTR`：指向 Undo Log 的回滚指针  
-- `DB_ROW_ID`：无主键时的隐藏主键
+- `DB_ROW_ID`：既无主键也无可用的全列 NOT NULL 唯一索引时，InnoDB 为聚簇索引生成的隐藏行 ID
 
 **版本链**：不同事务修改同一行会形成 Undo Log 链：
 
@@ -2850,7 +2823,7 @@ ReadView {
 }
 ```
 
-**可见性判断**：
+**可见性判断**（先判断本事务自己产生的版本可见，再应用以下边界规则）：
 
 - 行版本 `trx_id < min_trx_id` → 可见  
 - `trx_id >= max_trx_id` → 不可见  
@@ -2866,9 +2839,9 @@ ReadView {
 
 #### 13.3 一致性读与当前读
 
-- **一致性读（快照读）**：普通 `SELECT`，使用 MVCC 读取快照，不加锁。  
+- **一致性读（快照读）**：RC/RR 下普通 SELECT 通常使用 MVCC 快照，不加行锁，但仍涉及元数据锁；SERIALIZABLE 等场景另论。
 - **当前读**：`SELECT ... FOR UPDATE`、`UPDATE`、`DELETE`，读取**最新版本并加锁**。  
-- 两者不能混用，否则可能逻辑不一致。
+- 两者可以混用，但需明确快照视图与当前版本不同，并考虑本事务自身修改的可见性。
 
 ---
 
@@ -2932,20 +2905,22 @@ X锁
 | **Gap Lock** | 索引记录之间的**间隙** | 阻止在间隙插入 |
 | **Next-Key Lock** | **记录 + 前置间隙**（左开右闭） | 阻止插入和修改 |
 
-**RR 级别默认开启 Next-Key Lock**，可防止幻读。  
+RR 的范围锁定读常使用 Next-Key Lock；完整唯一键等值命中可退化为记录锁。锁定读通常应位于显式事务中，锁随事务结束释放。
 **示例**：
 
 ```sql
--- 表 t(id)，索引 id，数据：1,5,10
--- 事务 A
+-- 表 t(id INT PRIMARY KEY)，数据：1,5,10；事务 A
+START TRANSACTION;
 SELECT * FROM t WHERE id = 5 FOR UPDATE;
--- 锁住 (1,5] 和 (5,10] 的 Next-Key Lock
+-- 完整唯一键等值命中已有记录时，仅对 id=5 加记录锁，不锁相邻间隙
+COMMIT;
+-- 非唯一索引、范围查询或唯一键未命中时，可能加间隙锁/临键锁，范围需结合计划验证
 ```
 
 **陷阱**：
 
 - Gap Lock 会导致并发插入阻塞，即使插入的记录和锁定记录无关。  
-- RR 级别下普通 SELECT 不加锁，但 `FOR UPDATE` / `UPDATE` / `DELETE` 会加 Next-Key Lock。  
+- RR 级别下普通 SELECT 不加锁，但 `FOR UPDATE` / `UPDATE` / `DELETE` 的锁类型取决于唯一性、命中情况与扫描范围，并非总为 Next-Key Lock。
 - 如果 `UPDATE/DELETE` 的 `WHERE` 条件未命中任何索引，InnoDB 会扫描聚簇索引，并对扫描到的每一条记录加 Next-Key Lock，产生大量行锁和间隙锁，效果上类似表锁，阻塞大量并发。准确说法是：**未走索引的锁操作可能扫描大量记录并产生大量锁，造成类似表锁的阻塞效果**，但并非直接加表锁。
 
 ---
@@ -2964,8 +2939,9 @@ SHOW ENGINE INNODB STATUS;
 
 ```sql
 SELECT * FROM information_schema.innodb_trx;
-SELECT * FROM information_schema.innodb_locks; -- 8.0 用 performance_schema.data_locks
-SELECT * FROM information_schema.innodb_lock_waits;
+SELECT * FROM performance_schema.data_locks; -- MySQL 8.0
+SELECT * FROM performance_schema.data_lock_waits;
+-- MySQL 5.7 对应 information_schema.innodb_locks / innodb_lock_waits
 ```
 
 **案例：交叉更新**：
@@ -3055,7 +3031,7 @@ SELECT * FROM sys.innodb_lock_waits;
 - DDL（CREATE、ALTER、DROP 等）
 - `LOCK TABLES` / `UNLOCK TABLES`
 - `BEGIN` / `START TRANSACTION`
-- 加载数据 `LOAD DATA`（部分情况）
+- LOAD DATA 仅对 NDB 等特定引擎有隐式提交情形，普通 InnoDB 导入不应一概如此理解
 
 ##### 14.6.4 Group Commit 原理
 
@@ -3150,7 +3126,7 @@ SET optimizer_trace = 'enabled=off';
 **深度分析**：
 
 - 优化器通过 `mysql.innodb_index_stats` 中的 Cardinality 估算行数，如果该值因数据变更未更新，会误判。
-- 对于二级索引，访问路径成本 = 索引范围扫描成本 + 回表成本（随机 IO）。若回表行数超过约 20%~30%，全表顺序扫描可能更优。
+- 对于二级索引，访问路径成本 = 索引范围扫描成本 + 回表成本（随机 IO）。当匹配行较多时全表扫描可能更优，切换点受行宽、缓存、IO 与统计信息影响，没有固定 20%~30% 阈值。
 - 直方图缺失时，对倾斜列过滤率估算偏差大。
 - `eq_range_index_dive_limit` 影响范围扫描的采样精度，超出后使用平均值估算。
 - 可查看 `OPTIMIZER_TRACE` 确认具体成本对比，必要时用 `FORCE INDEX` 或调整统计信息。
@@ -3171,7 +3147,7 @@ SET optimizer_trace = 'enabled=off';
 EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 ```
 
-- MySQL 8.0 支持 `EXPLAIN ANALYZE`（实际执行并返回耗时统计）。
+- MySQL 8.0.18+ 支持 `EXPLAIN ANALYZE`（实际执行并返回耗时统计）。
 
 ---
 
@@ -3179,17 +3155,17 @@ EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 
 | 列名 | 含义 | 架构师关注点 |
 |------|------|-------------|
-| **id** | SELECT 的序号，越大越先执行；相同则从上往下 | 子查询/联合查询的执行顺序 |
+| **id** | 查询块标识，不能把数值大小直接当作实际执行时间顺序 | 子查询/联合查询的执行顺序 |
 | **select_type** | 查询类型：`SIMPLE`（简单查询）、`PRIMARY`（外层）、`SUBQUERY`、`DERIVED`（派生表）、`UNION`、`UNION RESULT` | 识别复杂查询是否可简化 |
 | **table** | 当前访问的表（或别名、派生表名） | — |
 | **partitions** | 匹配的分区（未分区显示 NULL） | 分区表查询是否裁剪 |
-| **type** | **访问方法**（见下文），性能从好到差排序 | **核心指标，至少达到 `range` 级别** |
+| **type** | **访问方法**（见下文），性能从好到差排序 | 结合实际扫描行数、查询语义和耗时评估，不能设置统一的 type 下限 |
 | **possible_keys** | 可能使用的索引列表 | 判断是否有合适的索引候选 |
 | **key** | **实际使用的索引** | 验证是否用上了预期索引 |
 | **key_len** | 使用的索引字节长度（可推算用了联合索引的哪几列） | 检查最左前缀是否充分发挥 |
 | **ref** | 与索引比较的对象（常量、列或函数） | 等值查询时的关联对象 |
 | **rows** | **预估扫描行数**（越少越好） | 与 `filtered` 结合判断估算准确度 |
-| **filtered** | 经过 `WHERE` 条件后剩余行数的百分比（越高越好） | 评估过滤效果，100% 表示全满足 |
+| **filtered** | 表条件过滤后预估保留百分比，不能单独认为越高越好 | 评估过滤效果，100% 表示全满足 |
 | **Extra** | **额外信息**（见下文），包含是否覆盖索引、是否排序、是否用临时表等 | 关键优化线索 |
 
 ---
@@ -3203,10 +3179,10 @@ EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 | `eq_ref` | JOIN 时使用主键或唯一索引，每驱动行匹配一行 | ✅ 很好 |
 | `ref` | 非唯一索引等值匹配，可能多行(**根据某个值去索引里找**) | ✅ 较好 |
 | `range` | 范围扫描（`>`、`<`、`BETWEEN`、`IN` 等）(**根据一个范围去索引里找**) | ✅ 可接受 |
-| `index` | 全索引扫描（**扫描整个索引树**）(把这个索引整体扫一遍) | ⚠️ 需优化（通常因无 `WHERE` 或索引不优） |
-| `ALL` | 全表扫描(**没有合适的索引访问方式，扫整个表**) | ❌ 必须优化 |
+| `index` | 全索引扫描（**扫描整个索引树**）(把这个索引整体扫一遍) | 需结合扫描量评估，覆盖索引的全扫描也可能合理 |
+| `ALL` | 全表扫描(**没有合适的索引访问方式，扫整个表**) | 需结合表大小、过滤比例与实际耗时评估 |
 
-> **生产红线**：核心查询 `type` 不得低于 `range`，且 `rows` 应控制在合理范围（如 < 10000）。
+> **评估原则**：type 是访问方法，不能单独给计划判优劣；全量统计或小表使用 ALL/index 也可能合理。结合真实行数、响应时间和业务容量判断。
 
 ---
 
@@ -3218,8 +3194,8 @@ EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 | `Using where` | 存储引擎返回后，Server 层再过滤（非索引下推） | 尽量通过索引下推减少回表 |
 | `Using index condition` | **索引下推（ICP）**，在存储引擎层提前过滤 | 好现象 |
 | `Using temporary` | 使用了**临时表**（常由 `GROUP BY`/`DISTINCT` 无索引引起） | 为分组/去重列加索引 |
-| `Using filesort` | 需要**外部排序**（无法利用索引排序） | 为 `ORDER BY` 列加索引，避免排序 |
-| `Using join buffer` | JOIN 时被驱动表无可用索引，使用连接缓冲区 | 被驱动表关联列必须加索引 |
+| `Using filesort` | 需要**额外排序**（未直接利用索引顺序；可在内存完成，并不必然写磁盘） | 为 `ORDER BY` 列加索引，避免排序 |
+| `Using join buffer` | 使用 Hash Join/BKA 等连接缓冲策略，含义依版本与算法而异 | 结合实际成本评估，不能仅据此判错 |
 | `Using union(...)` | 索引合并（同时用多个索引再合并） | 可能不如联合索引好，考虑优化 |
 | `Using index for skip scan` | MySQL 8.0 索引跳跃扫描 | 可接受，但不如正常 `range` |
 | `Using MRR` | 多范围读取，回表随机转顺序 | 好现象 |
@@ -3233,9 +3209,9 @@ EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 `key_len` 显示使用的索引字节数，可判断联合索引中实际用到了哪几列。  
 例如索引 `(a INT, b VARCHAR(10), c CHAR(2))`，不同字符集下长度不同，通过公式估算：
 
-- `a` INT → 4 字节
+- 假设三列均为 NOT NULL，字符集 utf8mb4：`a` INT → 4 字节
 - `b` 变长 + 字符集（如 utf8mb4 每字符 4 字节，最大 40 + 变长前缀 2 = 42）
-- `c` 定长 2 字节
+- `c` CHAR(2) → 最大按 8 字节估算；可 NULL 列还需计 NULL 标志
 实际 `key_len` 若为 4，说明只用了 `a`；若为 46，说明用了 `a` 和 `b`。
 
 ---
@@ -3260,17 +3236,17 @@ WHERE o.status = 1 AND o.create_time > '2026-01-01';
 #### 16.8. 扩展命令
 
 - **`EXPLAIN FORMAT=JSON`**：查看更详细的成本信息（`cost_info`）。
-- **`EXPLAIN ANALYZE`**（8.0+）：实际执行并输出每个步骤的耗时，用于验证估算准确性。
-- **`EXPLAIN ... FOR CONNECTION`**：查看某个正在执行的连接的执行计划（需权限）。
+- **`EXPLAIN ANALYZE`**（8.0.18+）：实际执行并输出每个步骤的耗时，用于验证估算准确性。
+- **`EXPLAIN FOR CONNECTION`**：查看某个正在执行的连接的执行计划（需权限）。
 
 ---
 
 #### 16.9. 生产规范
 
-- **上线前强制 `EXPLAIN` 审核**：`type` 不为 `ALL` 或 `index`，`rows` 不超过阈值。
-- **定期分析慢日志**，对高频 SQL 做 `EXPLAIN` 并优化。
-- **监控 `Extra` 中的 `Using temporary` 和 `Using filesort`**，它们是性能杀手。
-- **统计信息过时导致执行计划偏差**，定期执行 `ANALYZE TABLE` 或开启 `innodb_stats_auto_recalc`。
+- 上线前对关键 SQL 检查 EXPLAIN，并在合适环境比较实际耗时、扫描行数与结果正确性。
+- ALL、index、Using temporary、Using filesort 都不是自动判错标志，小表或大比例统计时可能合理。
+- EXPLAIN ANALYZE 会真实执行语句；在线环境使用前先评估负载。
+- 统计信息显著偏离实际时，再评估 ANALYZE TABLE、直方图或计划干预。
 
 ---
 
@@ -3314,7 +3290,7 @@ JOIN (SELECT id FROM article ORDER BY id LIMIT 1000000, 20) tmp ON tmp.id = a.id
 
 **生产实践**：
 - 定期分析慢查询日志，持续优化索引。  
-- 上线前 SQL 审核，`type` 不得低于 `range`，`rows` 不超过阈值。  
+- 上线前 SQL 审核，对照语义、扫描量和实际耗时验证访问路径。
 - 使用 `pt-index-usage` 或 `sys.schema_unused_indexes` 发现冗余索引。
 
 ---
@@ -3385,10 +3361,10 @@ UPDATE stock_0 SET count = count - 1 WHERE id = 1 AND count > 0;
 -- 使用 version 字段做乐观锁，更新时判断版本号
 UPDATE stock
 SET count = count - 1, version = version + 1
-WHERE id = 1 AND version = 10;
+WHERE id = 1 AND version = 10 AND count > 0;
 ```
 
-**优点**：无锁等待，失败重试即可。  
+**优点**：通过版本条件检测冲突；InnoDB 实际 UPDATE 仍会加锁和等待，不能理解为数据库无锁。
 **缺点**：冲突高时重试多，不适合超热点场景。
 
 **Java 代码示例**：
@@ -3534,7 +3510,7 @@ public void createOrder(Order order) {
 **订单系统**：
 
 - 按 `user_id` 水平拆分 64 片，订单号雪花 ID。  
-- 状态机：待支付 → 已支付 → 已发货 → 已完成/已取消。  
+- 状态机：待支付 → 已支付 → 已发货 → 已完成；待支付可取消，支付后取消需结合退款等业务流程。
 - 创建订单和扣库存通过本地消息表保证最终一致。  
 - 查询优化：覆盖索引，商家订单可冗余或 ES。
 
@@ -3602,7 +3578,7 @@ AT 模式自动生成反向 SQL 作为 undo log，通过全局锁保证隔离。
 
 #### 21.2 半同步复制与并行复制
 
-**半同步复制**：主库提交事务时，等待至少一个从库确认收到 Binlog 后才返回客户端。优点：数据强一致；缺点：增加提交延迟。
+**半同步复制**：正常启用时等待至少一个副本确认收到并持久化相应日志，再按等待点配置完成提交响应；ACK 不代表副本已应用事务，副本读取仍可能滞后，超时还可能退回异步模式。
 
 **并行复制**：
 
@@ -3638,7 +3614,7 @@ GTID（Global Transaction Identifier）是全局事务标识，简化主从切�
 - 拆分大事务，小批量提交  
 - 开启并行复制，增加 workers  
 - 延迟敏感业务走主库  
-- 半同步复制降低延迟
+- 半同步保证日志接收确认，不能代替副本应用提速或自动消除读延迟
 
 监控 `Seconds_Behind_Master`，设置告警阈值。
 
@@ -3654,7 +3630,7 @@ MHA（Master High Availability）由管理节点和数据节点组成，可在�
 
 #### 22.2 MGR 组复制
 
-MySQL Group Replication 是原生高可用方案，基于 Paxos 协议的多主/单主模式，数据强一致，自动选主，但性能有一定开销。
+MySQL Group Replication 是原生高可用方案，基于 Paxos 协议的多主/单主模式，可配置一致性等待，自动选主；默认模式不能简单保证任意副本读取立即看到最新提交，但性能有一定开销。
 
 ---
 
@@ -3674,7 +3650,7 @@ MySQL Group Replication 是原生高可用方案，基于 Paxos 协议的多主/
 **主从延迟解决方案**：
 | 方案 | 说明 |
 |------|------|
-| 半同步复制 | 主库等待从库确认，降低延迟 |
+| 半同步复制 | 等待副本日志接收确认，不保证已回放或立即可读 |
 | 并行复制 | 从库多线程回放，提升消费速度 |
 | 业务容忍 | 延迟敏感查询强制走主库 |
 | 缓存 | 读请求走缓存，降低从库压力 |
@@ -3856,7 +3832,7 @@ pt-table-sync --execute --host=127.0.0.1 --user=root --password=xxx D=test,t=use
 - 连接数（`Threads_connected`、`Threads_running`）  
 - 慢查询数、锁等待数  
 - 主从延迟（`Seconds_Behind_Master`）  
-- Buffer Pool 命中率（`Innodb_buffer_pool_read_requests` / `Innodb_buffer_pool_reads`）
+- Buffer Pool 命中率：`1 - ΔInnodb_buffer_pool_reads / ΔInnodb_buffer_pool_read_requests`，同一采样窗口且分母大于 0
 
 ---
 
@@ -3873,7 +3849,7 @@ pt-table-sync --execute --host=127.0.0.1 --user=root --password=xxx D=test,t=use
 
 - 使用 Yearning、Archery 集成 CI/CD。  
 - 规则：禁止 `SELECT *`、必须有索引、禁止深分页、DDL 需走 Online 流程等。  
-- 强制 `EXPLAIN` 输出，`type` 不得低于 `range`，`rows` 不超过阈值。  
+- 对关键查询保留 EXPLAIN 并对照实际负载验证，不把 ALL/index 一律视为错误。
 - 自动索引检测：`pt-index-usage`、`sys.schema_unused_indexes`。
 
 ---
@@ -3882,9 +3858,12 @@ pt-table-sync --execute --host=127.0.0.1 --user=root --password=xxx D=test,t=use
 
 ##### 24.3.1 多实例 Buffer Pool
 
-```sql
--- 设置 Buffer Pool 实例数，通常为 CPU 核数，减少锁竞争
-SET GLOBAL innodb_buffer_pool_instances = 8;
+```ini
+# MySQL 8.0 配置示例：减少 Buffer Pool 争用，需结合内存规模
+# 在 MySQL 8.0 配置文件的 [mysqld] 中设置并重启：
+[mysqld]
+innodb_buffer_pool_instances=8
+# 不是动态变量，不能 SET GLOBAL；实例数按内存与负载选择，不必等于 CPU 核数
 ```
 
 要求 `innodb_buffer_pool_size` >= 1GB 才能生效。
@@ -3921,7 +3900,7 @@ SET GLOBAL innodb_buffer_pool_instances = 8;
 ##### 24.3.6 max_connections 与连接池配比
 
 ```
-应用连接池总大小 = (数据库 max_connections - 预留) / 应用实例数
+每个应用实例的连接池上限 ≲ (数据库 max_connections - 管理及其他应用预留) / 本应用实例数
 ```
 
 预留约 10% 给管理连接，避免连接耗尽。
@@ -3950,9 +3929,9 @@ sysbench oltp_read_write --mysql-host=127.0.0.1 --mysql-user=root --mysql-passwo
 
 ##### 24.4.2 容量估算模型
 
-假设单条 SQL 平均耗时 1ms，CPU 核数 16，数据库可支撑约 `16 / 0.001 = 16000 QPS`（理想值）。实际需考虑锁等待、IO 等，通常打 5~7 折。
+只有把 1ms 明确为每条 SQL 的 CPU 服务时间且 CPU 为唯一瓶颈时，16 核才可用 16 / 0.001 粗估上限。不能直接用平均响应时间推算 QPS 或统一打折；应通过代表性压测测量 CPU、IO、锁与尾延迟。
 
-磁盘 IOPS 估算：每事务 2 次 IO，TPS=1000 则需要 2000 IOPS，SSD 通常提供 10000+ IOPS。
+每事务实际 IO 受缓存命中、redo/binlog 刷盘、组提交、读写比例和存储配置影响，应实测每事务 IO 与存储延迟，不能统一按 2 次计算。
 
 ---
 
@@ -4049,7 +4028,7 @@ Yearning、Archery 开源平台可集成 SQL 审核、工单、执行、审计�
 
 - 优化慢 SQL  
 - 合理配置连接池（不超过 `max_connections` 的 80%）  
-- 设置 `max_execution_time`
+- 设置只读 SELECT 的 `max_execution_time`（不限制整个事务或一般 DML），配合事务超时监控
 
 ---
 
@@ -4057,14 +4036,14 @@ Yearning、Archery 开源平台可集成 SQL 审核、工单、执行、审计�
 
 **风险**：传统 `ALTER TABLE` 会锁表；大表（千万级）可能耗时数小时。
 
-**Online DDL**：
+**Online DDL**（支持并发 DML 的操作仍需元数据锁，开始/结束阶段可能等待或阻塞）：
 
 ```sql
--- 在线添加索引，不阻塞读写
+-- 请求支持并发读写的索引创建；不支持时会报错，仍需评估 MDL、IO 与复制延迟
 ALTER TABLE `order` ADD INDEX idx_user_id (user_id), ALGORITHM=INPLACE, LOCK=NONE;
 ```
 
-**生产最佳实践**：使用 `pt-online-schema-change` 或 `gh-ost` 无阻塞变更。
+**生产最佳实践**：按条件选择原生 Online DDL、pt-online-schema-change 或 gh-ost；工具也有元数据锁、切表和复制负载限制，不能承诺零阻塞。
 
 ---
 
@@ -4205,7 +4184,7 @@ SELECT CONCAT(LEFT(mobile,3), '****', RIGHT(mobile,4)) FROM user;
 **深度分析**：
 
 - 优化器通过 `mysql.innodb_index_stats` 中的 Cardinality 估算行数，如果该值因数据变更未更新，会误判。
-- 对于二级索引，访问路径成本 = 索引范围扫描成本 + 回表成本（随机 IO）。若回表行数超过约 20%~30%，全表顺序扫描可能更优。
+- 对于二级索引，访问路径成本 = 索引范围扫描成本 + 回表成本（随机 IO）。当匹配行较多时全表扫描可能更优，切换点受行宽、缓存、IO 与统计信息影响，没有固定 20%~30% 阈值。
 - 直方图缺失时，对倾斜列过滤率估算偏差大。
 - `eq_range_index_dive_limit` 影响范围扫描的采样精度，超出后使用平均值估算。
 - 可查看 `OPTIMIZER_TRACE` 确认具体成本对比，必要时用 `FORCE INDEX` 或调整统计信息。
@@ -4340,3 +4319,5 @@ Cache Aside，先更新 DB 再删缓存，延迟双删或 Binlog 订阅。
 **评论系统**：按内容 ID 分表，游标分页，冷热分离。
 
 ---
+
+核对依据：[InnoDB 锁](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html)、[Online DDL 的版本限制](https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-operations.html)、[聚合函数](https://dev.mysql.com/doc/refman/8.0/en/aggregate-functions.html)、[正则表达式](https://dev.mysql.com/doc/refman/8.0/en/regexp.html)。

@@ -146,17 +146,14 @@ mvn -v
 
 ---
 
-### 5.2 最关键的区别：能不能直接运行
+### 5.2 最关键的区别：归档结构与部署方式
 
 | 类型 | 特点 | 用法 |
 | ------ | ------ | ------ |
-| **JAR（小背包）** | **能直接运行**。自带"跑起来"的能力 | 命令行敲 `java -jar xxx.jar` 就能启动 |
-| **WAR（行李箱）** | **不能直接运行**。必须丢进专门的"服务器"（如 Tomcat） | 复制到 Tomcat 的 `webapps` 文件夹，服务器自动部署 |
+| **JAR** | Java 类与资源的归档；普通库 JAR 通常不能独立运行 | 配有主类且依赖可用时可用 `java -jar`；Spring Boot 可执行 JAR 通常包含嵌入式服务器及运行依赖 |
+| **WAR** | 遵循 Web 应用结构（如 `WEB-INF`），通常部署到 Servlet 容器 | 普通 WAR 部署到 Tomcat 等容器；Spring Boot 正确配置的可执行 WAR 也可用 `java -jar` |
 
-**超级直白的类比：**
-
-- **JAR** 像一盒**自热米饭**（打开就能吃，独立运行）
-- **WAR** 像一包**挂面**（必须扔进锅（服务器）里煮，才能吃）
+是否能独立运行取决于主类、运行依赖和打包配置，不能只看扩展名。
 
 ---
 
@@ -172,11 +169,11 @@ mvn -v
 
 **第二步（看结果）**：
 
-- 打的是 **JAR** → 拿去 `java -jar` 启动（Spring Boot 默认）
-- 打的是 **WAR** → 复制到 Tomcat 的 `webapps` 文件夹，启动服务器
+- Spring Boot **可执行 JAR** → 使用 `java -jar` 启动；普通库 JAR 供其他项目依赖
+- 普通 **WAR** → 部署到兼容的 Servlet 容器；Spring Boot 外置容器部署还需配置 `SpringBootServletInitializer` 等
 
 > [!TIP]
-> **结论**：普通的写代码任务打 JAR，给外人看的网站项目打 WAR。Maven 打完给什么，你就按上面的规矩去用。这 10% 的知识够应付 90% 的工作
+> 网站也可以使用 Spring Boot 可执行 JAR。按部署环境是否要求外置 Servlet 容器选择 JAR 或 WAR。
 
 ---
 
@@ -186,7 +183,7 @@ mvn -v
 
 | scope | 作用范围 | 典型场景 |
 | ------- | --------- | --------- |
-| `compile` | **默认**，全阶段生效，打包进 JAR | 大部分依赖 |
+| `compile` | **默认**，进入编译、测试及运行类路径；普通 JAR 不会自动内嵌这些依赖 | 大部分依赖；Spring Boot `repackage` 可将运行依赖打入可执行归档 |
 | `provided` | 编译测试需要，**打包时排除** | `lombok`、Servlet API（容器已提供） |
 | `test` | 仅测试阶段使用 | `junit` |
 
@@ -214,12 +211,12 @@ mvn -v
 | `clean` | `maven-clean-plugin:clean` | 清理 target |
 | `compile` | `maven-compiler-plugin:compile` | 编译源码 |
 | `test` | `maven-surefire-plugin:test` | 执行测试 |
-| `package` | `maven-jar-plugin:jar`（或 `spring-boot:repackage`） | 打包 |
+| `package` | JAR 项目默认绑定 `maven-jar-plugin:jar`；配置后可再执行 `spring-boot:repackage` | 先生成普通归档，再重打包为 Boot 可执行归档 |
 | `install` | `maven-install-plugin:install` | 安装到本地仓库 |
-| `deploy` | — | 上传到私服 |
+| `deploy` | `maven-deploy-plugin:deploy` | 将构建产物发布到配置的远程 Maven 仓库，不等于启动应用 |
 
 > [!IMPORTANT]
-> **调用规则**：`mvn 阶段`会自动执行该阶段之前的所有阶段。例如 `mvn package` 会先执行 `compile` → `test` → `package`
+> **调用规则**：`mvn 阶段`会执行同一生命周期中此前的阶段。例如 `mvn package` 包含编译和测试，但不会执行独立 clean 生命周期中的 `clean`。
 
 ---
 
@@ -235,7 +232,7 @@ COPY target/app.jar /app.jar
 ENTRYPOINT ["java", "-jar", "/app.jar"]
 ```
 
-- **方案B（多阶段构建）**：在 Dockerfile 内安装 Maven 编译（不推荐，镜像太重）
+- **方案B（多阶段构建）**：构建阶段用 Maven + JDK，运行阶段只复制 JAR 并保留 JRE；最终镜像不会包含构建阶段的 Maven 和源码。
 
 ### 📌 场景2：如何用 Maven 管理不同环境配置（dev/prod）？
 
@@ -258,7 +255,9 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 </profiles>
 ```
 
-运行时：`mvn clean package -Pdev`
+构建时选择 Maven profile：`mvn clean package -Pdev`。上例只设置 Maven 属性 `env`，需要资源过滤或插件引用才会影响产物；不会自动激活 Spring profile。
+
+运行时激活 Spring profile：`java -jar target/app.jar --spring.profiles.active=dev`（将路径换为实际可执行 JAR）。
 
 ### 📌 场景3：为什么 Spring Boot 打包后 JAR 很大？
 
@@ -271,7 +270,7 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 | 错误信息 | 原因 | 解决方案 |
 | --------- | ------ | --------- |
 | `Could not find artifact` | 依赖下载失败 | 检查 mirror 配置，或手动下载到本地仓库 |
-| `Unsupported class file major version 61` | JDK 版本不匹配 | 修改 `properties` 中的 `java.version` |
+| `Unsupported class file major version 61` | 工具或字节码解析库不支持 Java 17 字节码；旧 JVM 运行新字节码通常报 `UnsupportedClassVersionError` | 用 `mvn -v` 检查构建 JDK，核对运行 JDK并升级相关插件/解析库；降低目标字节码前确认依赖和框架允许 |
 | `Main class not found` | 未指定启动类 | 在 `<properties>` 增加 `<start-class>` 或正常放置 `@SpringBootApplication` |
 | `Package XXX does not exist` | 依赖未引入或 scope 错误 | 运行 `mvn dependency:tree` 检查 |
 

@@ -66,7 +66,7 @@ http {
 | 中 | `~` `~*` | `~ \.php$` | **正则匹配**（`~` 区分大小写，`~*` 不区分） |
 | 低 | 无符号 | `/` | 普通前缀匹配，**最长匹配**优先 |
 
-**手写要求（70%）**：必须牢记 `=` 和 `^~` 会截断正则。**匹配顺序**：先精确前缀，再带 `^~` 的前缀，然后按配置顺序逐个尝试正则，最后用最长的普通前缀。
+**匹配顺序（同一层 location）**：精确匹配 `=` 命中即结束；否则先找最长前缀。仅当这个最长前缀带 `^~` 时跳过正则；否则按配置顺序尝试正则，首个命中者生效，无正则命中则使用最长前缀。嵌套 location 还需结合所在层级分析。
 
 ---
 
@@ -97,13 +97,13 @@ location /api/ {
     # 有 /  : /api/user → http://backend/user
     proxy_pass http://backend/;
 
-    # 无 /  : /api/user → http://backend/api/user
-    proxy_pass http://backend;
+    # 无 / 的替代写法：/api/user → http://backend/api/user
+    # proxy_pass http://backend;  # 与上面二选一，不能同时配置
 }
 ```
 
 > [!TIP]
-> **建议**：一律在 `proxy_pass` 目标 URL 后加 `/`，`location` 也写成带 `/` 的前缀，关系最清晰。
+> 按后端实际路由决定是否保留前缀；带 URI 的 proxy_pass 会替换匹配的前缀，不能一律加 `/`。
 
 ### 3.2 必须传递的请求头（后端获取真实信息的关键）
 
@@ -208,17 +208,16 @@ server:
   forward-headers-strategy: native
 ```
 
-这样 Spring Boot 会自动使用 `X-Forwarded-For`、`X-Forwarded-Proto` 等头来修正 `request.getRemoteAddr()`、`request.isSecure()` 等。
+容器可根据受信任代理配置解析这些头。只信任已知代理，并限制后端直接暴露；不能直接信任客户端可伪造的 X-Forwarded-For。若 Nginx 前还有代理，$remote_addr 是上一跳，需按可信链配置 real_ip/转发头处理。
 
 ##### 方法二：手动获取
 
 也可以在代码中手动读取：
 
 ```java
-String clientIp = request.getHeader("X-Forwarded-For");
-if (clientIp == null || clientIp.isEmpty()) {
-    clientIp = request.getRemoteAddr();
-}
+// 前提：容器已按已知代理配置 RemoteIpValve 等处理，且后端禁止绕过代理直接访问
+String clientIp = request.getRemoteAddr();
+// 不直接信任任意客户端提供的 X-Forwarded-For 字符串作为审计或权限依据。
 ```
 
 ---
@@ -241,10 +240,10 @@ location /api/ {
     # 连接后端超时时间（默认 60s，建议调小）
     proxy_connect_timeout 2s;
 
-    # 等待后端响应超时时间（默认 60s）
+    # 两次读取上游数据之间的空闲超时（默认 60s），不是请求总耗时
     proxy_read_timeout 10s;
 
-    # 发送请求体到后端的超时时间
+    # 两次向上游写数据之间的空闲超时，不是上传总耗时
     proxy_send_timeout 10s;
 }
 ```
@@ -373,7 +372,7 @@ server {
         # 若所有节点均失败，则返回最后一次尝试的错误响应给客户端
         proxy_next_upstream_tries 2;
 
-        # 重试的总时间限制（10 秒），如果在这段时间内所有重试均未成功，则终止重试并返回错误
+        # 继续切换节点的时间窗口（10 秒），不等于整个请求的硬超时
         proxy_next_upstream_timeout 10s;
     }
 }
@@ -388,13 +387,13 @@ server {
 | `backup` | 备用节点，平时不参与调度；仅当所有非 `backup` 节点均不可用时才启用。 |
 | `proxy_next_upstream` | 允许在遇到指定错误时自动重试下一个节点，提高可用性。 |
 | `proxy_next_upstream_tries` | 限制重试次数（含首次），避免无限重试。 |
-| `proxy_next_upstream_timeout` | 限制整个重试过程的最大耗时，超时则直接返回错误。 |
+| `proxy_next_upstream_timeout` | 限制还能发起下一次重试的时间窗口，不会强制中止正在进行的上游尝试。 |
 
 ### 7.2 注意事项
 
 1. **超时与重试的关系**  
    - 当 `proxy_connect_timeout` 或 `proxy_read_timeout` 触发时，会被 `proxy_next_upstream` 捕获并触发重试。
-   - 重试的总时间受 `proxy_next_upstream_timeout` 限制，若所有重试均超时，最终响应时间可能接近此值。
+   - `proxy_next_upstream_timeout` 限制是否继续尝试下一个节点；单次连接/读写超时仍各自生效，总耗时可能超过此值。
 
 2. **故障恢复机制**  
    - 节点被摘除后，Nginx 会在 `fail_timeout` 结束后，尝试将请求转发给它（相当于探测），若探测成功则恢复权重，否则再次开始计数。
@@ -488,7 +487,6 @@ Prometheus 会通过 exporter 将这些数字转成时序数据。
 docker run -d \
   --name nginx-exporter \
   --network host \
-  -p 9113:9113 \
   nginx/nginx-prometheus-exporter:latest \
   -nginx.scrape-uri=http://127.0.0.1:80/nginx_status
 ```
@@ -573,8 +571,8 @@ server {
     # 防止 MIME 类型嗅探
     add_header X-Content-Type-Options "nosniff" always;
 
-    # 启用浏览器 XSS 过滤
-    add_header X-XSS-Protection "1; mode=block" always;
+    # 旧式 XSS 过滤已废弃，以 CSP 等机制为主
+    add_header X-XSS-Protection "0" always;
 
     # 内容安全策略（CSP），按需调整
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;
@@ -626,7 +624,7 @@ http {
 > - `server_tokens off;` 建议放在 `http` 块，全局隐藏版本号
 > - 限制请求方法通常放在 `server` 或具体 `location` 中，注意避免误伤正常请求
 > - 防盗链的 `valid_referers` 需根据你的实际域名调整白名单
-> - 限流使用 `limit_req_zone` 定义内存区域，`limit_req` 应用规则，`burst` 允许突发流量，`nodelay` 表示超出部分立即丢弃
+> - 限流使用 `limit_req_zone` 定义内存区域，`limit_req` 应用规则，`burst` 允许突发流量，`nodelay` 表示 burst 容量内的突发请求立即处理，超过 burst 才拒绝
 
 ### 12.5 与 Spring Boot 配合的注意事项
 
@@ -691,8 +689,7 @@ gzip_types text/plain text/css application/json application/javascript image/svg
 # 在响应头中添加 Vary: Accept-Encoding，告知缓存服务器根据编码区分缓存
 gzip_vary on;
 
-# 4. 每个 worker 进程可打开的最大文件描述符数
-worker_rlimit_nofile 65535;
+# worker_rlimit_nofile 65535; 必须放在 nginx.conf 最外层 main 上下文，不能放在 http 内
 ```
 
 > [!TIP]
@@ -700,7 +697,7 @@ worker_rlimit_nofile 65535;
 
 ### 13.2 上游连接复用（降低后端延迟）
 
-默认 Nginx 每次转发请求都要新建 TCP 连接，高并发时开销大。配置 `upstream keepalive` 复用连接：
+未启用上游连接复用的配置下，Nginx 转发请求通常需要新建 TCP 连接，高并发时开销大。配置 `upstream keepalive` 复用连接：
 
 ```nginx
 upstream backend {
@@ -726,7 +723,7 @@ server {
 
 ### 13.3 缓冲区大小调整（防止大响应报错）
 
-后端返回较大的响应头或响应体时，默认缓冲区可能不够，导致 502 或截断：
+响应头超过首部缓冲区可能导致 502；大响应体通常可缓冲到临时文件或流式发送，不会仅因总大小超过内存缓冲区就必然截断：
 
 ```nginx
 location /api/ {
@@ -735,7 +732,7 @@ location /api/ {
     proxy_buffer_size 16k;
     proxy_buffers 8 32k;
     proxy_busy_buffers_size 64k;
-    proxy_max_temp_file_size 0;  # 禁止写临时文件，直接转发
+    proxy_max_temp_file_size 0;  # 禁止响应缓冲写临时文件，但不等于关闭内存缓冲；流式响应可按需 proxy_buffering off
 }
 ```
 
@@ -789,7 +786,7 @@ location ~* \.(jpg|png|css|js)$ {
 
 ### 13.6 故障排查：504 Gateway Timeout
 
-**含义**：Nginx 已与后端建立 TCP 连接，但后端处理耗时超过 `proxy_read_timeout` 阈值。
+**含义**：网关等待上游超时，可能发生在连接阶段，也可能发生在读取上游响应阶段；`proxy_read_timeout` 约束两次读取之间的空闲时间。
 
 **定位与优化**：
 
@@ -810,8 +807,8 @@ location ~* \.(jpg|png|css|js)$ {
 
 | 错误码 | 连接状态 | 核心原因 | 口诀 |
 |--------|----------|----------|------|
-| 502 Bad Gateway | 连接失败 | 后端未启动、端口错误、网络阻断 | 后端不可达 |
-| 504 Gateway Timeout | 连接成功，但响应超时 | 后端处理太慢（慢 SQL、高负载） | 后端太慢 |
+| 502 Bad Gateway | 连接被拒、提前断开或响应无效等 | 上游通信或响应异常 | 查上游错误日志 |
+| 504 Gateway Timeout | 连接或响应阶段超时 | 网络、上游处理慢或长时间无数据 | 查具体超时阶段 |
 
 ### 13.7 故障排查：403 和 404
 
@@ -845,14 +842,16 @@ cat /var/log/nginx/access.log | jq -r '[.request_time, .request, .upstream_respo
 #### 13.9.1 Worker 调优三件套（核心配置）
 
 ```nginx
-worker_processes auto;          # 自动匹配 CPU 物理核数，充分利用多核
-worker_connections 10240;       # 单 worker 最大并发连接（默认 1024 过小）
-worker_cpu_affinity auto;       # 绑定 CPU 核心，减少上下文切换开销
+worker_processes auto;          # 按可用 CPU 数自动配置，不特指物理核
+worker_cpu_affinity auto;       # main 上下文，可按实测决定是否启用
+events {
+    worker_connections 10240;   # 必须放在 events 内，值按资源与负载规划
+}
 ```
 
 **理论并发公式**：
 `worker_processes × worker_connections / 2`  
-（除 2 是因为通常一个连接占用两个文件描述符，或考虑长连接比例）
+（这是 HTTP 反向代理的一种粗略估算：一次活动请求通常占用客户端与上游两个连接；不是每个 TCP 连接都占两个描述符。静态服务、连接复用、HTTP/2 等需另行估算）
 
 > **示例**：4 核 × 10240 / 2 = 20,480 并发连接。
 
@@ -917,7 +916,7 @@ worker_cpu_affinity auto;       # 绑定 CPU 核心，减少上下文切换开�
 **阶段建议**：
 - **当前**：收藏本手册。你已在项目实战中完成反向代理、静态托管和跨域解决，阶段一圆满收官。（2026-08）
 - **大二上**：学习 Prometheus 和微服务时，花 1–2 小时配置第 8–11 节，直接将 Nginx 接入可观测性体系。
-- **大二下 / 面试前**：重点回顾第 2 节（匹配规则）、第 12 节（平滑重启）和第 7 节（容灾策略），足以应对大厂云原生岗位的 Nginx 理论题。
+- **大二下 / 面试前**：重点回顾第 2 节（匹配规则）、第 14 节（平滑重启）和第 7 节（容灾策略），足以应对大厂云原生岗位的 Nginx 理论题。
 
 ---
 
