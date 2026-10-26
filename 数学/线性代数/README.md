@@ -4,7 +4,7 @@
 
 > **在线阅读**：[打开线性代数速查与完整阅读页](https://scpcddk.github.io/Learning-Notes/linear-algebra/)。
 >
-> **离线文件**：[速查笔记.html](../../学习笔记阅读页面/linear-algebra/速查笔记.html)。下载后保留完整的 学习笔记阅读页面/linear-algebra 文件夹，用浏览器打开；GitHub 上的此文件链接显示源码。
+> **离线文件**：[速查笔记.html](../../docs/pages/linear-algebra/速查笔记.html)。下载后保留完整的 docs/pages/linear-algebra 文件夹，用浏览器打开；GitHub 上的此文件链接显示源码。
 
 七章笔记沿着“矩阵与向量 → 秩与方程组 → 基与线性变换”的主线展开，配有完整例题、公式速查与拓展阅读。
 
@@ -31,7 +31,7 @@
 修改 Markdown 后，在仓库根目录运行以下命令更新阅读页：
 
 ~~~powershell
-python 学习笔记阅读页面/build_site.py --output "$env:TEMP/LearningNotes-math-site"
+python docs/pages/build_site.py --output "$env:TEMP/LearningNotes-math-site"
 ~~~
 
 生成需要 Python 与 markdown-it-py，浏览器阅读生成结果不需要 Python 或服务器。

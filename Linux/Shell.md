@@ -8,7 +8,7 @@
 
 ### 1.1什么是shell
 
-- Shell 是一个用 C 语言编写的程序，是用户使用 Linux 的桥梁。Shell 既是一种**命令语言**，又是一种**程序设计语言**
+- Shell 是一类命令解释器，常见实现有 Bash、dash、Zsh；“Shell”并不限定实现语言。本文主要讲 **Bash** 语法，数组、`[[ ]]`、`&>` 等不能假定适用于所有 `sh`
 - Shell 是指一种**应用程序**，这个应用程序提供了一个界面，用户通过这个界面**访问操作系统内核**的服务
 
 ---
@@ -31,8 +31,11 @@
 写在脚本第一行，行首无空格
 
 ```bash
-#!/bin/bash          # 告诉系统用 Bash 解释器
+#!/bin/bash
+# 告诉系统用 Bash 解释器；说明文字另起一行
 ```
+
+不要在 Shebang 行尾追加注释：Linux 可能将后面的文字当作解释器参数，导致 `./script.sh` 执行失败。
 
 ---
 
@@ -40,7 +43,7 @@
 
 ```bash
 name="ClashRoyale"   # 等号两边不能有空格
-echo $name           # 使用变量加 $
+echo "$name"         # 使用变量加 $，加双引号避免分词与通配符展开
 readonly VERSION=1.0 # 只读变量
 unset name           # 删除变量
 ```
@@ -54,7 +57,7 @@ unset name           # 删除变量
 | `$0` | 脚本文件名 |
 | `$1`~`$9` | 第1~9个参数 |
 | `$#` | **参数个数** |
-| `$@` | **所有参数** |
+| `"$@"` | **所有参数**，每个原参数保持为独立参数 |
 | `$?` | 上一条命令的退出状态（0成功，非0失败） |
 
 示例：
@@ -72,29 +75,29 @@ echo "参数个数: $#"
 
 ```bash
 str="Hello"
-echo ${#str}          # 输出长度：5
-echo ${str:1:2}       # 从下标1截取2个：el
+echo "${#str}"        # 输出长度：5
+echo "${str:1:2}"     # 从下标1截取2个：el
 ```
 
 - **单引号**:字符会**原样输出**，里面的**变量**是**无效**的,不能出现单独一个的单引号（对单引号使用转义符后也不行）
-- **双引号**:里面**可以有变量**,可以出现转义字符
+- **双引号**：仍会进行变量展开和命令替换；反斜杠只对部分字符有特殊作用，`\n` 不会自动变成换行，可用 `printf` 输出
 - **拼接字符串**:
 
   ```bash
   your_name="runoob"
   # 使用双引号拼接
-  greeting="hello, "$your_name" !"
+  greeting="hello, ""$your_name"" !"
   greeting_1="hello, ${your_name} !"
-  echo $greeting  $greeting_1
+  printf '%s %s\n' "$greeting" "$greeting_1"
   
   # 使用单引号拼接
-  greeting_2='hello, '$your_name' !'
+  greeting_2='hello, '"$your_name"' !'
   greeting_3='hello, ${your_name} !'
-  echo $greeting_2  $greeting_3
+  printf '%s %s\n' "$greeting_2" "$greeting_3"
   
-  输出结果为：
-  hello, runoob ! hello, runoob !
-  hello, runoob ! hello, ${your_name} !
+  # 输出结果为：
+  # hello, runoob ! hello, runoob !
+  # hello, runoob ! hello, ${your_name} !
   ```
 
 ---
@@ -103,9 +106,9 @@ echo ${str:1:2}       # 从下标1截取2个：el
 
 ```bash
 arr=("apple" "banana" "orange")
-echo ${arr[0]}        # 第一个元素
-echo ${arr[@]}        # 所有元素
-echo ${#arr[@]}       # 数组长度
+echo "${arr[0]}"      # 第一个元素
+printf '%s\n' "${arr[@]}" # 所有元素，每个元素一行
+echo "${#arr[@]}"     # 数组长度
 ```
 
 ---
@@ -130,11 +133,11 @@ fi
   | -------- | ------ |
   | `[ -f file ]` | 文件存在且为普通文件 |
   | `[ -d dir ]` | 目录存在 |
-  | `[ -z str ]` | 字符串长度为0 |
-  | `[ -n str ]` | 字符串长度非0 |
-  | `[ str1 = str2 ]` | 字符串相等 |
+  | `[ -z "$str" ]` | 字符串长度为0 |
+  | `[ -n "$str" ]` | 字符串长度非0 |
+  | `[ "$str1" = "$str2" ]` | 字符串相等 |
   | `[ a -eq b ]` | 整数相等（-ne, -gt, -lt, -ge, -le） |
-  | `[ condition1 -a condition2 ]` | 与运算（-o 或） |
+  | `[ 条件1 ] && [ 条件2 ]` | 两个条件都成立；或运算用 `[ 条件1 ] \|\| [ 条件2 ]` |
 
 - **示例**：
 
@@ -161,12 +164,13 @@ done
 
 # 使用 {start..end}
 for i in {1..10}; do
-    echo $i
+    echo "$i"
 done
 
 # 遍历文件
 for file in *.txt; do
-    echo $file
+    [ -f "$file" ] || continue  # 没有匹配时跳过字面量 *.txt
+    echo "$file"
 done
 ```
 
@@ -176,7 +180,7 @@ done
 
 ```bash
 count=1
-while [ $count -le 5 ]; do
+while [ "$count" -le 5 ]; do
     echo "Count: $count"
     count=$((count + 1))
 done
@@ -246,7 +250,7 @@ greet "World"
   ```bash
   echo "hello" > output.txt
   ./my.sh 2> error.log
-  ls -l | grep ".jar"
+  find . -maxdepth 1 -type f -name '*.jar'
   ```
 
 ---
@@ -264,21 +268,24 @@ done
 
 ---
 
-### 6.2 查找并杀死进程
+### 6.2 查找并请求终止进程
 
 ```bash
-PID=$(ps -ef | grep "my-app.jar" | grep -v grep | awk '{print $2}')
-if [ -n "$PID" ]; then
-    kill -9 $PID
-fi
+# 先查看匹配的 PID 和完整命令行，核对目标
+pgrep -af 'my-app[.]jar'
+
+# 将 1234 替换为确认后的目标 PID，优先请求正常退出
+kill -TERM -- 1234
 ```
+
+不要将模糊匹配得到的多个 PID 直接交给 `kill -9`；受服务管理器管理的程序优先用对应的停止服务命令。
 
 ---
 
 ### 6.3 实时查看日志并过滤
 
 ```bash
-tail -f app.log | grep ERROR
+tail -f app.log | grep --line-buffered ERROR
 ```
 
 ---
@@ -294,8 +301,9 @@ sed -i 's/old/new/g' *.java
 ## 7. 调试与安全
 
 - **调试模式**：`bash -x script.sh` 逐行执行并显示变量值
-- **严格模式**：在脚本开头加 `set -e`（遇到错误退出）和 `set -u`（使用未定义变量时报错）
-- **避免注入**：使用 `"$var"` 双引号包裹变量
+- **错误处理**：`set -e` 会在部分失败场景退出，但 `if` 条件、`&&`/`||` 等场景有例外；管道默认只取最后一条命令的状态，Bash 可用 `set -o pipefail` 检查前面命令的失败。关键步骤仍应显式检查结果
+- **未定义变量**：`set -u` 会使多数未定义变量展开报错；可选参数使用 `${1:-}` 等默认值
+- **变量传参**：使用 `"$var"` 避免分词和通配符展开，必要时使用 `--` 分隔选项与文件名；这不等于能防止所有注入，避免将不可信输入传给 `eval` 或拼入 `sh -c`
 
 ---
 
@@ -315,7 +323,7 @@ sed -i 's/old/new/g' *.java
 | -------- | ------ |
 | 0 | 成功 |
 | 1 | 通用错误 |
-| 2 | 误用 Shell 命令 |
+| 2 | Bash 内置命令通常用它表示用法错误；其他程序可自行定义 |
 | 126 | 命令不可执行 |
 | 127 | 命令未找到 |
 | 130 | 通过 Ctrl+C 终止 |
@@ -323,3 +331,5 @@ sed -i 's/old/new/g' *.java
 ---
 
 **参考链接**：[https://www.runoob.com/linux/linux-shell.html]
+
+语义核对：[Bash 官方手册](https://www.gnu.org/software/bash/manual/bash.html)、[Linux execve(2)：解释器脚本](https://man7.org/linux/man-pages/man2/execve.2.html)。

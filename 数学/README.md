@@ -30,4 +30,4 @@
 - [在线阅读线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/)
 - [在线阅读离散数学与课件](https://scpcddk.github.io/Learning-Notes/discrete-math/)
 
-高等数学、线性代数下载后分别保留完整的 学习笔记阅读页面/calculus、学习笔记阅读页面/linear-algebra 文件夹，即可用浏览器离线打开。离散数学的 PDF 阅读器通过网站或本地 HTTP 服务使用。普通 GitHub HTML 文件链接显示源码，在线入口则直接显示排版后的阅读页。
+高等数学、线性代数下载后分别保留完整的 docs/pages/calculus、docs/pages/linear-algebra 文件夹，即可用浏览器离线打开。离散数学的 PDF 阅读器通过网站或本地 HTTP 服务使用。普通 GitHub HTML 文件链接显示源码，在线入口则直接显示排版后的阅读页。

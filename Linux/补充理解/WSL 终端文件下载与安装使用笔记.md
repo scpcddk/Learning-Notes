@@ -4,7 +4,11 @@
 
 ---
 
-## 一、核心下载命令（Ubuntu 自带，无需安装）
+## 一、核心下载命令
+
+是否预装取决于 Ubuntu/WSL 镜像。先用 `command -v wget`、`command -v curl` 检查；缺少时执行 `sudo apt update` 后再执行 `sudo apt install wget curl`。
+
+下面的 `example.com` 链接和中文文件名是语法示意，需要替换为实际下载地址。
 
 | 命令 | 特点 | 常用语法 |
 | ------ | ------ | ---------- |
@@ -20,17 +24,17 @@ wget https://example.com/jdk17-linux-x64.tar.gz
 wget https://example.com/jdk17-linux-x64.tar.gz -O jdk.tar
 
 # curl 保留原名
-curl -O https://example.com/package.zip
+curl -fLO https://example.com/package.zip
 
 # curl 自定义名
-curl -o mysql.deb https://example.com/mysql.deb
+curl -fL -o mysql.deb https://example.com/mysql.deb
 ```
 
 ---
 
 ## 二、完整操作流程（以安装包为例）
 
-1. **进入家目录**（保证文件存在 Linux 内部，读写速度快）
+1. **进入家目录**（默认通常位于 Linux 文件系统中；具体路径与性能取决于配置）
    ```bash
    cd ~
    ```
@@ -52,9 +56,8 @@ curl -o mysql.deb https://example.com/mysql.deb
      ```
    - 安装 `.deb` 包：
      ```bash
-     sudo dpkg -i xxx.deb
-     # 若提示缺依赖，执行修复
-     sudo apt -f install
+     sudo apt install ./xxx.deb
+     # ./ 表示本地包；apt 会尝试从已配置的软件源获取所需依赖
      ```
 
 ---
@@ -63,19 +66,19 @@ curl -o mysql.deb https://example.com/mysql.deb
 
 | 情形 | 解决方案 |
 | ------ | ---------- |
-| **网站需要登录/验证码/cookie** | `wget`/`curl` 无法直接下载，只能先用 Windows 浏览器下载，再通过方式1（复制文件到 WSL） |
-| **下载中断或慢** | `wget -c 链接` 可断点续传；`curl -C - -O 链接` 类似 |
+| **网站需要登录/验证码/cookie** | wget/curl 可通过认证参数或 Cookie 访问部分受保护资源；若流程依赖交互式登录、验证码或 JavaScript，可先用浏览器下载，再从 `/mnt/c/Users/你的用户名/Downloads/` 等位置复制到 WSL |
+| **下载中断** | 服务器支持续传且远端内容未变时，可用 `wget -c 链接` 或 `curl -fL -C - -O 链接`；续传不保证提速 |
 | **需要后台下载** | `wget -b 链接`（后台运行，日志写入 wget-log） |
 
 ---
 
-## 四、系统软件一键安装（无需下载包）
+## 四、从系统软件源安装（无需手动下载包）
 
 对于系统仓库自带的软件，直接使用 `apt`，全程终端操作，更方便：
 
 ```bash
 sudo apt update
-sudo apt install git vim gcc make nodejs npm ...
+sudo apt install git vim gcc make nodejs npm
 ```
 
 ---
@@ -109,12 +112,12 @@ ls -lh htop.tar.gz
 tar -tzf htop.tar.gz | head -5   # 仅查看内容，不实际解压
 ```
 
-执行后你会看到文件下载成功并列出压缩包内的前 5 个文件/目录，证明流程无误。
+网络和远端资源可用时，执行后可看到下载文件及压缩包内的前 5 个条目。这里只测试下载与读取归档；源码包解压后仍需编译安装，不能视为已安装 htop。
 
 ---
 
 ## 补充提醒
 
 - 下载前确认链接是 **Linux 版本**，不要误下 Windows `.exe` 或 `.msi`。
-- 若下载后权限不足，执行 `chmod +x 文件名` 赋予执行权限（针对二进制或脚本）。
+- 若二进制或脚本缺少执行权限，可用 `chmod u+x 文件名`；这不会解决架构不匹配、缺少解释器、依赖缺失或挂载点禁止执行等问题。
 - 推荐优先使用 `apt` 安装官方仓库软件，能自动处理依赖；第三方包再手动下载。

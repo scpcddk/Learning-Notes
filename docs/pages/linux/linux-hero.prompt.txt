@@ -1,0 +1,9 @@
+Generation mode: built-in image_gen
+
+Use case: stylized-concept
+Asset type: Linux subject cover for an existing personal learning-notes website, landscape 3:2 composition, opaque image.
+Primary request: A refined sculptural still life about Linux, command line literacy and the filesystem. Make a friendly recognizable Tux penguin the central subject, with classic black body, white belly and small muted golden feet and beak, rendered as a beautifully crafted small matte ceramic sculpture. Around it arrange a dark forest-green terminal panel with only the minimal prompt symbol "$ _", a few cream and sage directory-folder blocks in a clear hierarchy, and a small connected server stack. These are visual metaphors for the user's own Linux notes: core commands, Shell scripting, supplementary understanding and exercises.
+Style/medium: premium editorial 3D illustration, tactile cream travertine and glazed green ceramic, restrained brass connectors, subtle botanical accent, soft ambient studio light and believable shadows. Match a calm scholarly website whose existing covers have cream stone plinths, green ceramic mathematical objects, brass connectors, and warm ivory backgrounds.
+Composition: central compact arrangement on a low cream stone platform, clearly readable when cropped into a wide website card; comfortable margins, plain warm ivory background, penguin remains completely visible in both hero and thumbnail crops.
+Color palette: warm ivory, forest green, sage, charcoal black, restrained muted gold.
+Constraints: no title, no paragraphs, no decorative tiny text, no watermark, no browser or website mockup, no gradients that dominate, no neon cyberpunk imagery. Preserve the recognizable Tux silhouette. Deliver a finished polished illustration.

@@ -1,7 +1,7 @@
-"""Package the math and algorithms reading pages for GitHub Pages.
+"""Package the mathematics, algorithms and Linux reading pages for GitHub Pages.
 
 Generate and package every subject:
-    python 学习笔记阅读页面/build_site.py --output <site-directory>
+    python docs/pages/build_site.py --output <site-directory>
 
 The output is a static site. Repository links point back to GitHub, while the
 reading pages link to each other through stable, relative website routes.
@@ -25,17 +25,18 @@ from urllib.parse import quote, unquote, urlsplit
 from markdown_it import MarkdownIt
 
 
-REPO = Path(__file__).resolve().parents[1]
+PAGE_ROOT = Path(__file__).resolve().parent
+REPO = PAGE_ROOT.parents[1]
 SUBJECTS = (
-    ("calculus", REPO / "学习笔记阅读页面/calculus"),
-    ("linear-algebra", REPO / "学习笔记阅读页面/linear-algebra"),
+    ("calculus", PAGE_ROOT / "calculus"),
+    ("linear-algebra", PAGE_ROOT / "linear-algebra"),
 )
 DATA = re.compile(r'(<script type="application/json" id="chapter-data">)([\s\S]*?)(</script>)')
 HREF = re.compile(r'(?P<prefix>\bhref\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
 
 
 def generate_calculus():
-    ROOT = REPO / "学习笔记阅读页面/calculus"
+    ROOT = PAGE_ROOT / "calculus"
     NOTES = REPO / "数学/高等数学"
     CHAPTERS = [
         ("sec-limit", "第一章 极限与连续.md", "极限与连续", "从无限趋近，理解变化的起点。", ["极限方法", "无穷小", "连续性"]),
@@ -260,7 +261,7 @@ def generate_calculus():
 
 
 def generate_linear_algebra():
-    ROOT = REPO / "学习笔记阅读页面/linear-algebra"
+    ROOT = PAGE_ROOT / "linear-algebra"
     NOTES = REPO / '数学/线性代数/基础概念/笔记'
     CHAPTERS = [
         ('sec-det', '第一章 行列式.md', '行列式', '用一个数，理解可逆性与空间的伸缩。', ['余子式', '展开与变换', '计算方法']),
@@ -577,7 +578,8 @@ def generate_linear_algebra():
 
         out = re.sub(r'<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*', admonition, out)
         out = re.sub(r'<table>([\s\S]*?)</table>', r'<div class="table-scroll"><table>\1</table></div>', out)
-        out = re.sub(r'href="([^"#:/]+\.md)"', lambda m: 'href="../../数学/线性代数/基础概念/笔记/' + quote(unquote(m[1])) + '"', out)
+        note_prefix = quote(Path(os.path.relpath(NOTES, ROOT)).as_posix()) + "/"
+        out = re.sub(r'href="([^"#:/]+\.md)"', lambda m: 'href="' + note_prefix + quote(unquote(m[1])) + '"', out)
         return out
 
 
@@ -590,7 +592,7 @@ def generate_linear_algebra():
             text = re.sub(r'\n\*\*章节导航\*\*[^\n]*\n?', '\n', text)
             chapters.append({
                 'id': ident, 'number': f'{index+1:02}', 'title': title, 'description': desc, 'tags': tags,
-                'source': '../../数学/线性代数/基础概念/笔记/' + quote(filename),
+                'source': quote(Path(os.path.relpath(NOTES / filename, ROOT)).as_posix()),
                 'summary': render(SUMMARIES[ident], ident+'-quick'),
                 'full': render(text, ident+'-full'),
                 'search': re.sub(r'[#*$>\\{}]', ' ', text),
@@ -606,9 +608,9 @@ def generate_linear_algebra():
     build()
 
 
-DISCRETE = REPO / "学习笔记阅读页面/discrete-math"
+DISCRETE = PAGE_ROOT / "discrete-math"
 DISCRETE_NOTES = REPO / "数学/离散数学"
-CALCULUS_ASSETS = REPO / "学习笔记阅读页面/calculus/阅读资源"
+CALCULUS_ASSETS = PAGE_ROOT / "calculus/阅读资源"
 
 
 def copy_mathjax(destination):
@@ -877,20 +879,249 @@ def build_algorithms(output, github, branch):
                 '</h2><p>这份资料保留原始格式。打开原文件页面后，可下载到本地阅读。</p><a class="primary" href="'+entry["source"]+'" target="_blank" rel="noopener">查看与下载原文件 ↗</a></div>'
         pages.append(entry)
 
-    template = (REPO / "学习笔记阅读页面/algorithms/index.html").read_text(encoding="utf-8")
+    template = (PAGE_ROOT / "algorithms/index.html").read_text(encoding="utf-8")
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
     template = template.replace("<!--CHAPTER_DATA-->", payload)
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
     template = template.replace("<!--RESOURCE_COUNT-->", str(len(seen)))
     (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
-    shutil.copyfile(REPO / "学习笔记阅读页面/algorithms/algorithms-hero.png", destination / "algorithms-hero.png")
+    shutil.copyfile(PAGE_ROOT / "algorithms/algorithms-hero.png", destination / "algorithms-hero.png")
     copy_mathjax(destination)
     print(f"Packaged algorithms: {len(pages)} sections, {len(topics)} topics, 8 question lists, {len(seen)} unique resources.")
 
 
+def build_linux(output, github, branch):
+    """Read the Linux notes in their existing folders; keep Bash dollars literal."""
+    root = REPO / "Linux"
+    source = PAGE_ROOT / "linux"
+    destination = output / "linux"
+    destination.mkdir(parents=True, exist_ok=True)
+    pages, routes, heading_routes = [], {}, {}
+    summary_parts = re.split(r"(?m)^## \[([a-z0-9-]+)\] [^\n]*\n", (source / "精要速查.md").read_text(encoding="utf-8"))
+    summaries = {summary_parts[index]: summary_parts[index+1].strip() for index in range(1, len(summary_parts), 2)}
+    known = {
+        "核心知识/命令大全.md": "commands", "核心知识/知识图谱.html": "command-map",
+        "Shell.md": "shell", "补充理解/补充理解.md": "sticky-bit",
+        "补充理解/Linux优越性.md": "linux-benefits",
+        "补充理解/WSL 终端文件下载与安装使用笔记.md": "wsl-downloads",
+        "补充理解/curl命令图解.md": "curl",
+        "习题/命令习题1.md": "practice-1", "习题/命令习题2.md": "practice-2",
+    }
+    groups = [("核心知识", "core", root / "核心知识"),
+              ("Shell.md", "shell", root / "Shell.md"),
+              ("补充理解", "supplement", root / "补充理解"),
+              ("习题", "practice", root / "习题")]
+    descriptions = {
+        "commands": "文件、权限、网络与进程，从常用命令建立基础。",
+        "command-map": "按分类检索命令、参数和示例，交互式速查。",
+        "shell": "变量、条件、循环与函数，把重复操作写成脚本。",
+        "sticky-bit": "目录权限、删除规则与粘滞位的补充理解。",
+        "linux-benefits": "理解开源、资源管理与 Linux 的适用场景。",
+        "wsl-downloads": "在 WSL 中下载、解压与安装 Linux 软件。",
+        "curl": "请求控制、接口调试、认证与文件下载。",
+        "practice-1": "用户、用户组与文件权限；先作答，再核对答案。",
+        "practice-2": "常用命令、进程与系统管理；检验理解，回查笔记。",
+    }
+
+    def original(path):
+        return f"{github}/blob/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}"
+
+    for group, category, folder in groups:
+        files = [folder] if folder.is_file() else list(folder.rglob("*"))
+        files = [path for path in files if path.is_file() and path.suffix in (".md", ".html") and path.name != "README.md"]
+        files.sort(key=lambda path: (list(known).index(path.relative_to(root).as_posix())
+                                    if path.relative_to(root).as_posix() in known else len(known), path.as_posix()))
+        for path in files:
+            relative = path.relative_to(root).as_posix()
+            # The command map is now the quick mode of the command notes.
+            # Keep the original HTML in the notes tree without a duplicate web entry.
+            if relative == "核心知识/知识图谱.html":
+                continue
+            ident = known.get(relative, "note-"+hashlib.sha256(relative.encode()).hexdigest()[:10])
+            pages.append(dict(id=ident, title=path.stem, group=group, category=category,
+                              kind="diagram" if path.suffix == ".html" else "practice" if category == "practice" else "note",
+                              path=path, relative=relative, source=original(path),
+                              description=descriptions.get(ident, "沿原有目录阅读笔记，连接概念与实践。")))
+            routes[path.resolve()] = ident
+
+    def slug(title):
+        return re.sub(r"[^\w\-\s]", "", title.lower()).replace(" ", "-")
+
+    def command_cards(text, anchors):
+        """Derive compact cards from the same Markdown used for the full article."""
+        tokens = MarkdownIt("commonmark").enable("table").parse(text)
+        starts, group = [], "常用命令"
+        for index, token in enumerate(tokens):
+            if token.type == "heading_open" and token.tag == "h2":
+                group = tokens[index+1].content.replace("**", "")
+            if token.type == "heading_open" and token.tag == "h3":
+                starts.append((index, group))
+
+        def plain(value):
+            value = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", value)
+            return value.replace("**", "").replace("`", "").replace("==", "").strip()
+
+        cards = []
+        for position, (start, group) in enumerate(starts):
+            end = starts[position+1][0] if position+1 < len(starts) else len(tokens)
+            # Do not include the next category's introduction in this command.
+            end = next((i for i in range(start+1, end) if tokens[i].type == "heading_open" and tokens[i].tag == "h2"), end)
+            chunk = tokens[start:end]
+            title = tokens[start+1].content
+            name = re.sub(r"^\d+[.、]\s*", "", plain(title))
+            description = next((plain(chunk[i+1].content) for i, token in enumerate(chunk[:-1])
+                                if token.type == "paragraph_open" and chunk[i+1].type == "inline"), "查看常用语法与完整用法。")
+            usage, parameters = "", []
+            for index, token in enumerate(chunk[:-1]):
+                if token.type == "heading_open" and "语法" in chunk[index+1].content:
+                    stop = next((i for i in range(index+3, len(chunk)) if chunk[i].type == "heading_open"), len(chunk))
+                    for candidate_index in range(index+3, stop):
+                        candidate = chunk[candidate_index]
+                        codes = [child.content for child in (candidate.children or []) if child.type == "code_inline"]
+                        if codes:
+                            usage = " ".join(codes) if chunk[candidate_index-1].type == "td_open" else codes[0]
+                            break
+                        if candidate.type == "fence":
+                            usage = next((line.strip() for line in candidate.content.splitlines() if line.strip() and not line.lstrip().startswith("#")), "")
+                            break
+                    if usage:
+                        break
+            if not usage:
+                command = re.split(r"[/\s与]", name)[0]
+                usage = next((line.strip() for token in chunk if token.type == "fence"
+                              for line in token.content.splitlines()
+                              if re.match(r"^"+re.escape(command)+r"(?:\s|$)", line.strip())), "")
+            usage = re.split(r"\s+(?:#|//)\s", usage, maxsplit=1)[0]
+            for index, token in enumerate(chunk):
+                if token.type != "tr_open":
+                    continue
+                stop = next((i for i in range(index+1, len(chunk)) if chunk[i].type == "tr_close"), len(chunk))
+                cells = [plain(t.content) for t in chunk[index:stop] if t.type == "inline"]
+                if len(cells) >= 2 and re.match(r"^-[a-zA-Z-]", cells[0]):
+                    parameters.append(dict(option=cells[0], description=cells[1]))
+                if len(parameters) == 4:
+                    break
+            if len(parameters) < 4:
+                for token in chunk:
+                    if token.type != "inline":
+                        continue
+                    option = re.match(r"^(-{1,2}[A-Za-z][A-Za-z-]*)(?:\s|[:：])\s*(.*)", plain(token.content))
+                    if option and option[1] not in [item["option"] for item in parameters]:
+                        parameters.append(dict(option=option[1], description=option[2]))
+                    if len(parameters) == 4:
+                        break
+            cards.append(dict(name=name, group=plain(group), description=description,
+                              usage=usage, parameters=parameters, anchor=anchors[slug(title)]))
+        return cards
+
+    for page in pages:
+        path, ident = page["path"], page["id"]
+        if page["kind"] == "diagram":
+            resource = destination / "resources" / (ident+".html")
+            resource.parent.mkdir(exist_ok=True)
+            shutil.copyfile(path, resource)
+            page["embed"] = "resources/"+resource.name
+            page["full"] = ""
+            page["search"] = page["title"]+" "+" ".join(re.findall(r'(?:name|desc|tip):\s*"([^"\n]*)"', path.read_text(encoding="utf-8")))
+            continue
+
+        text = path.read_text(encoding="utf-8-sig")
+        text = re.sub(r"\A---\r?\n[\s\S]*?\r?\n---\r?\n", "", text)
+        page["search"] = text
+        md = MarkdownIt("commonmark", {"html": True}).enable("table")
+        anchors = heading_routes[ident] = {}
+        state = {"heading": 0, "mode": "full"}
+
+        def heading(tokens, index, options, env):
+            state["heading"] += 1
+            anchor = ident+("-quick" if state["mode"] == "summary" else "")+"-h"+str(state["heading"])
+            title = tokens[index+1].content
+            tokens[index].attrSet("id", anchor)
+            if state["mode"] == "full":
+                anchors.setdefault(slug(title), anchor)
+            return md.renderer.renderToken(tokens, index, options, env)
+
+        def fence(tokens, index, options, env):
+            token = tokens[index]
+            language = token.info.strip().split()[0] if token.info.strip() else "text"
+            return ('<figure class="code-block"><figcaption><span>'+escape(language.upper())+
+                    '</span><button class="copy-code" type="button" aria-label="复制代码">复制代码</button></figcaption>'+
+                    '<pre><code class="language-'+escape(language, quote=True)+'">'+escape(token.content)+
+                    '</code></pre></figure>\n')
+
+        md.renderer.rules["heading_open"] = heading
+        md.renderer.rules["fence"] = fence
+
+        def render(body):
+            markup = md.render(body)
+            markup = re.sub(r"(<pre\b[\s\S]*?</pre>)|==([^\n]+?)==",
+                            lambda m: m[1] if m[1] else "<mark>"+m[2]+"</mark>", markup)
+            markup = re.sub(r"<table>([\s\S]*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', markup)
+            return re.sub(r"\[!(NOTE|TIP|WARNING|IMPORTANT)\]", lambda m: {
+                "NOTE": "补充理解", "TIP": "使用提示", "WARNING": "易错提醒", "IMPORTANT": "关键结论"}[m[1]], markup)
+
+        if page["kind"] == "practice":
+            match = re.search(r"(?m)^## (?:[一二三四五六七八九十]+[、.]\s*)?参考答案[^\n]*\n", text)
+            if match:
+                answers = text[match.end():]
+                appendix = re.search(r"(?m)^# ==笔记==\s*$", answers)
+                tail = answers[appendix.start():] if appendix else ""
+                answers = answers[:appendix.start()] if appendix else answers
+                page["full"] = render(text[:match.start()])+('<details class="answers"><summary>展开参考答案与解析</summary>'+
+                                       render(answers)+'</details>')+render(tail)
+            else:
+                page["full"] = render(text)
+        else:
+            page["full"] = render(text)
+        if ident == "commands":
+            page["commands"] = command_cards(text, anchors)
+        if ident in summaries:
+            state.update(heading=0, mode="summary")
+            page["summary"] = render(summaries[ident])
+            page["search"] += "\n"+summaries[ident]
+
+    for page in pages:
+        path, ident = page.pop("path"), page["id"]
+
+        def local_link(match):
+            url = match["url"]
+            parts = urlsplit(url)
+            if parts.scheme or parts.netloc:
+                return match[0]
+            if not parts.path and parts.fragment in routes.values():
+                return match[0]
+            target = (path.parent / unquote(parts.path)).resolve() if parts.path else path.resolve()
+            target_id = routes.get(target)
+            if target_id:
+                fragment = unquote(parts.fragment)
+                url = "#"+heading_routes.get(target_id, {}).get(fragment, target_id)
+            elif parts.path:
+                if not target.is_relative_to(REPO) or not target.exists():
+                    raise FileNotFoundError(f"Linux note link is missing: {path}: {url}")
+                kind = "tree" if target.is_dir() else "blob"
+                url = f"{github}/{kind}/{quote(branch, safe='')}/{quote(target.relative_to(REPO).as_posix())}"
+                if parts.fragment:
+                    url += "#"+parts.fragment
+            return match["prefix"]+match["q"]+url+match["q"]
+
+        page["full"] = HREF.sub(local_link, page["full"])
+        if page.get("summary"):
+            page["summary"] = HREF.sub(local_link, page["summary"])
+    payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
+    template = (source / "index.html").read_text(encoding="utf-8")
+    values = {"CHAPTER_DATA": payload, "SOURCE_URL": f"{github}/tree/{quote(branch, safe='')}/Linux",
+              "NOTE_COUNT": str(sum(page["kind"] != "diagram" for page in pages)),
+              "COMMAND_COUNT": str(sum(len(page.get("commands", [])) for page in pages))}
+    for key, value in values.items():
+        template = template.replace("<!--"+key+"-->", value)
+    (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
+    shutil.copyfile(source / "linux-hero.png", destination / "linux-hero.png")
+    print(f"Packaged Linux: {len(pages)} entries, original directory groups, notes and interactive diagrams.")
+
+
 def build_catalogs(output, github, branch):
     """Show repository boards first, then the subjects inside each board."""
-    template = (REPO / "学习笔记阅读页面/index.html").read_text(encoding="utf-8")
+    template = (PAGE_ROOT / "index.html").read_text(encoding="utf-8")
 
     def repository_url(path):
         if path == REPO:
@@ -915,7 +1146,7 @@ def build_catalogs(output, github, branch):
                   "SECTION_LABEL": escape(title+"目录", quote=True), "CARDS": ''.join(cards),
                   "MORE_TITLE": "从目录，走向理解", "MORE_TEXT": escape(more or "沿着目录选择内容，再结合原笔记、代码与练习逐步阅读。"),
                   "SOURCE_URL": escape(repository_url(source), quote=True),
-                  "READING_TIP": "数学与算法已提供在线阅读。其他板块先展示现有目录，子项可进入 GitHub 查阅原笔记，后续继续补充阅读页面。"}
+                  "READING_TIP": "数学、算法与 Linux 已提供在线阅读。其他板块先展示现有目录，子项可进入 GitHub 查阅原笔记，后续继续补充阅读页面。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
@@ -943,7 +1174,7 @@ def build_catalogs(output, github, branch):
         "通识与拓展": ("general-studies", "跨学科阅读、通识知识与延伸思考。", "∞"),
     }
     root_cards = []
-    candidates = [p for p in REPO.iterdir() if p.is_dir() and not p.name.startswith('.') and p.name not in {"docs", "学习笔记阅读页面"}]
+    candidates = [p for p in REPO.iterdir() if p.is_dir() and not p.name.startswith('.') and p.name != "docs"]
     candidates.sort(key=lambda p: (list(boards).index(p.name) if p.name in boards else len(boards), p.name))
     for index, path in enumerate(candidates, 1):
         slug, description, symbol = boards.get(path.name, ("section-"+hashlib.sha256(path.name.encode()).hexdigest()[:8], "按目录查阅这个板块的学习笔记。", "·"))
@@ -952,6 +1183,9 @@ def build_catalogs(output, github, branch):
             continue
         if path.name=="算法":
             root_cards.append(card(path.name, description, "algorithms/", "进入算法阅读", ("9 章课程", "19 篇专题与源码", "8 份题单"), "algorithms/algorithms-hero.png", number="02 / ALGORITHMS"))
+            continue
+        if path.name=="Linux":
+            root_cards.append(card(path.name, "从文件与权限到 Shell 脚本，沿着命令、补充理解与习题逐步实践。", "linux/", "进入 Linux 阅读", ("核心知识", "Shell", "补充理解与习题"), "linux/linux-hero.png", number=str(index).zfill(2)+" / LINUX"))
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
@@ -1021,8 +1255,9 @@ def build(output, repository, branch):
         shutil.copytree(source / "阅读资源", destination / "阅读资源", dirs_exist_ok=True)
     build_discrete(output, github, branch)
     build_algorithms(output, github, branch)
+    build_linux(output, github, branch)
     build_catalogs(output, github, branch)
-    shutil.copyfile(REPO / "学习笔记阅读页面/favicon.svg", output / "favicon.svg")
+    shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")
     validate(output)
     print("Validated static resources and page links.")

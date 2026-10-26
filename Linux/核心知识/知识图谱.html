@@ -356,7 +356,7 @@
                         desc: "修改文件或目录的权限",
                         usage: "chmod [选项] <权限> <文件>",
                         params: ["数字: 755, 644", "符号: u+x, go-r", "-R 递归修改"],
-                        tip: "⚠️ 删除文件看父目录权限，修改内容看文件本身"
+                        tip: "删除通常需父目录 w+x，另受粘滞位等限制；修改内容看文件权限"
                     },
                     {
                         name: "重定向 & 管道",
@@ -504,7 +504,7 @@
                         desc: "检查并修复文件系统错误",
                         usage: "sudo fsck <设备>",
                         params: ["-A 检查所有分区", "-y 自动修复", "-f 强制检查"],
-                        tip: "⚠️ 需先卸载目标分区 (umount)"
+                        tip: "修复前卸载目标文件系统，并确认具体文件系统支持的检查工具"
                     }
                 ]
             },
@@ -577,8 +577,8 @@
                         icon: "🛑",
                         desc: "终止或发送信号给进程",
                         usage: "kill [选项] <PID>",
-                        params: ["-15 SIGTERM 正常终止", "-9 SIGKILL 强制终止", "-19 SIGSTOP 暂停"],
-                        tip: "kill -9 -PID 杀死整个进程组"
+                        params: ["-TERM 请求终止", "-KILL 强制终止", "-STOP 暂停", "-CONT 继续"],
+                        tip: "负目标编号表示 PGID：kill -TERM -- -1234 向整个组发送信号"
                     },
                     {
                         name: "systemctl",
@@ -692,7 +692,7 @@
                         name: "apt",
                         icon: "📦",
                         desc: "Debian/Ubuntu 包管理器",
-                        usage: "sudo apt <命令> <包名>",
+                        usage: "apt <查询命令> 或 sudo apt <修改命令> [包名]",
                         params: ["update 更新列表", "upgrade 升级", "install 安装", "remove 卸载", "search 搜索"],
                         tip: "sudo apt update && sudo apt upgrade -y 一键升级"
                     },

@@ -3,13 +3,24 @@
 </p>
 
 <p align="center">
+  <a href="https://scpcddk.github.io/Learning-Notes/"><img src="assets/read-online.svg" alt="进入学习笔记 · 在线阅读 →" width="280" height="58"></a>
+</p>
+
+<p align="center">
+  在浏览器中阅读笔记、搜索知识点、查看公式与课件<br>
+  <a href="https://scpcddk.github.io/Learning-Notes/math/">数学</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/algorithms/">算法</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a>
+</p>
+
+<p align="center">
   个人学习笔记 · 计算机基础 · 后端开发 · 云原生实践
 </p>
 
 <p align="center">
   <a href="../编程语言/">编程语言</a> ·
   <a href="../算法/README.md">算法</a> ·
-  <a href="../学习笔记阅读页面/README.md">阅读页面</a> ·
+  <a href="pages/README.md">阅读页面</a> ·
   <a href="../计算机组成原理/">计算机组成原理</a> ·
   <a href="../数学/README.md">数学</a> ·
   <a href="../前端基础/">前端基础</a> ·
@@ -24,28 +35,28 @@
 
 ## 目录结构
 
-[学习笔记阅读网站](https://scpcddk.github.io/Learning-Notes/)
-
 以下按实际目录整理，展开主要分类与代表性文件，课件、图片等资源不逐一列出。标注「计划补充」的条目是后续学习与整理的方向，内容会逐步完善。
 
 ```text
 ./
 ├── .github/workflows/
 │   └── pages.yml                                              # 学习笔记阅读网站的自动构建与发布
-├── 学习笔记阅读页面/                                          # 四个科目的统一阅读页面与配置
+├── docs/                                                       # 仓库介绍、配图与阅读网站
 │   ├── README.md
-│   ├── build_site.py                                         # 统一生成、打包与本地预览
-│   ├── index.html                                            # 一级板块与科目目录共用模板
-│   ├── calculus/                                             # 高等数学
-│   ├── linear-algebra/                                       # 线性代数
-│   ├── discrete-math/                                        # 离散数学
-│   ├── algorithms/                                           # 算法与数据结构
-│   └── vendor/                                               # PDF 阅读器与许可证
-├── docs/                                                       # 仓库介绍与配图
-│   ├── README.md
-│   └── assets/
-│       ├── readme-banner.png                                   # README 横幅
-│       └── readme-banner.prompt.txt                            # 横幅生成提示词
+│   ├── assets/
+│   │   ├── readme-banner.png                                   # README 横幅
+│   │   ├── readme-banner.prompt.txt                            # 横幅生成提示词
+│   │   └── read-online.svg                                    # 在线阅读入口
+│   └── pages/                                                # 阅读页面与统一构建配置
+│       ├── README.md
+│       ├── build_site.py                                     # 统一生成、打包与本地预览
+│       ├── index.html                                        # 一级板块与科目目录共用模板
+│       ├── calculus/                                         # 高等数学
+│       ├── linear-algebra/                                   # 线性代数
+│       ├── discrete-math/                                    # 离散数学
+│       ├── algorithms/                                       # 算法与数据结构
+│       ├── linux/                                            # Linux 阅读页、Tux 封面与提示词
+│       └── vendor/                                           # PDF 阅读器与许可证
 ├── 编程语言/
 │   ├── C与C++/
 │   │   ├── C语言头文件.md
@@ -291,8 +302,8 @@
 - **练习与复习**：查看「习题」「题目」「期末复习」及错题、易错点记录。
 - **项目实践**：查看 Java 实战日志、AI 实践记录，以及云原生下的中间件笔记与部署手册。
 - **文件阅读**：Markdown 用支持 LaTeX 公式的阅读器打开；HTML 图解与速查表下载后用浏览器打开；课件和试卷使用对应的 PDF、Office 阅读工具。
-- **在线阅读**：[数学阅读网站](https://scpcddk.github.io/Learning-Notes/) 首页展示仓库一级板块，数学板块下再提供高等数学、线性代数与离散数学入口，算法板块进入课程与专题，浏览器中可直接阅读排版后的笔记。相关 Markdown 更新并推送至 main 后，GitHub Actions 自动重新生成并发布。
-- **离线阅读**：下载高等数学或线性代数阅读页时，保留 学习笔记阅读页面 下对应科目的完整文件夹，即可离线阅读与搜索；普通 GitHub HTML 文件链接用于查看源码。
+- **在线阅读**：[学习笔记阅读网站](https://scpcddk.github.io/Learning-Notes/) 首页展示仓库一级板块，数学板块下提供高等数学、线性代数与离散数学入口，算法板块进入课程与专题，Linux 板块按核心知识、Shell、补充理解与习题阅读。相关 Markdown 更新并推送至 main 后，GitHub Actions 自动重新生成并发布。
+- **离线阅读**：下载高等数学或线性代数阅读页时，保留 docs/pages 下对应科目的完整文件夹，即可离线阅读与搜索；普通 GitHub HTML 文件链接用于查看源码。
 
 ## 使用与引用
 
