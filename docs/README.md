@@ -236,6 +236,7 @@
 ├── 云原生/
 │   ├── Docker/
 │   │   ├── Docker.md
+│   │   ├── 镜像仓库与版本管理.md
 │   │   └── Docker图解.html                                     # 同目录另有配图
 │   ├── 数据库与中间件/
 │   │   ├── MySQL/
@@ -259,7 +260,11 @@
 │   │   └── Prometheus+Grafana.md                               # 计划补充
 │   ├── DevOps/
 │   │   ├── Git.md
-│   │   └── Maven.md
+│   │   ├── Maven.md
+│   │   └── CI-CD.md
+│   ├── 可观测性/
+│   │   ├── OpenTelemetry.md                                    # 计划补充
+│   │   └── Loki.md                                             # 计划补充
 │   ├── 运维与服务部署/
 │   │   ├── 换热站项目/                                         # 打包、部署、迁移、备份与故障排查
 │   │   └── ANIC项目/
