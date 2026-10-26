@@ -1,5 +1,6 @@
 """Check automatic cloud-native discovery, duplicate routes and resource packaging."""
 import contextlib
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -54,7 +55,12 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.write("运维与服务部署/ANIC项目/环境.md", "# 环境\n\n实测记录。")
         text = self.build()
         self.assertEqual([s["title"] for s in self.config["sections"]],
-                         ["Docker", "DevOps", "数据库与中间件", "运维与服务部署", "Kubernetes", "可观测性", "微服务"])
+                         ["Docker", "DevOps", "运维与服务部署", "待学与拓展"])
+        pending = next(s for s in self.config["sections"] if s["title"] == "待学与拓展")
+        self.assertEqual(pending["count"], 4)
+        self.assertTrue(all(p["section"] == "待学与拓展" for p in self.pages if p["pending"]))
+        old_k8s = "section-" + hashlib.sha256("Kubernetes".casefold().encode()).hexdigest()[:12]
+        self.assertEqual(self.config["redirects"][old_k8s], pending["id"])
         self.assertEqual(self.config["pending"], 4)
         self.assertEqual(self.config["notes"], 3)
         self.assertNotIn("<!--HOME_URL-->", text)
@@ -74,7 +80,31 @@ class CloudNativeReaderTests(unittest.TestCase):
         new.unlink()
         self.build()
         self.assertNotIn("网络", [p["title"] for p in self.pages])
+        redis = next(p for p in self.pages if p["title"] == "Redis")
+        self.write("数据库与中间件/Redis.md", "# Redis\n\n开始补充正文。")
+        self.write("Kubernetes/Helm.md", "# Helm\n\n已有内容。")
+        self.build()
+        changed_redis = next(p for p in self.pages if p["title"] == "Redis")
+        self.assertEqual(changed_redis["id"], redis["id"])
+        self.assertEqual(changed_redis["section"], "数据库与中间件")
+        self.assertEqual(changed_redis["topic"], "Redis")
+        self.assertNotIn(old_k8s, self.config["redirects"])
+        database = next(s for s in self.config["sections"] if s["key"] == "数据库与中间件")
+        self.assertEqual([t["title"] for t in database["topics"]], ["Redis"])
         build_site.validate(self.output)
+
+    def test_database_topics_and_pending_are_separate(self):
+        for name in ("MySQL/基础知识/MySQL", "MySQL/基础知识/系统操作手册/Linux", "Nginx/Nginx",
+                     "EMQX/EMQX", "MinIO/MinIO", "MinIO/MinIO-Java/md/minio", "SRS/SRS"):
+            self.write("数据库与中间件/" + name + ".md", "# 笔记\n\n" + name)
+        self.write("数据库与中间件/Kafka.md", "")
+        self.build()
+        section = next(s for s in self.config["sections"] if s["key"] == "数据库与中间件")
+        self.assertEqual([t["title"] for t in section["topics"]], ["MySQL", "Nginx", "EMQX", "MinIO", "SRS"])
+        self.assertEqual(sum(t["count"] for t in section["topics"]), 7)
+        self.assertTrue(all(not p["pending"] for p in self.pages if p["section"] == section["key"]))
+        self.assertEqual(next(p for p in self.pages if p["title"] == "minio")["subgroup"], "Java 集成")
+        self.assertEqual(next(p for p in self.pages if p["title"] == "Linux")["subgroup"], "系统操作手册")
 
     def test_duplicate_aliases_headings_images_and_materials(self):
         manual = "# 部署\n\n## 验证\n\n相同的部署记录。"

@@ -10,7 +10,7 @@
 
 无扩展名的《数学建模编程手一月计划》也按 Markdown 收录。两份原 HTML 指南保留原有排版，在隔离的 iframe 中阅读，支持全文检索其文字内容。有外部资源的历史 HTML 仍可能需要网络。
 
-总封面使用内置 imagegen 生成，并按用户要求将铅笔替换为钢笔：[封面](阅读资源/learning-plans-hero.png) · [最终提示词与编辑记录](阅读资源/learning-plans-hero.prompt.txt)。所有图片保存在本目录，生成站点统一位于 Git 忽略的 `docs/site`。
+总封面使用内置 imagegen 生成，并按用户要求将铅笔替换为具有金属质感的钢笔：不透明墨绿色金属笔身、黄铜配件与金色笔尖。[封面](阅读资源/learning-plans-hero.png) · [最终提示词与编辑记录](阅读资源/learning-plans-hero.prompt.txt)。所有图片保存在本目录，生成站点统一位于 Git 忽略的 `docs/site`。
 
 构建：`python docs/pages/build_site.py --output docs/site`。
 检查：`python -m unittest discover -s docs/pages -p 'test_*.py'`。

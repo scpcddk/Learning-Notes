@@ -1334,6 +1334,24 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     markup = markup[:answer.start()] + '<details class="answers"><summary>展开参考答案与解析</summary>' + markup[answer.start():] + '</details>'
             page["full"] = markup
 
+    if cloud:
+        for language in languages:
+            for page in language["entries"]:
+                original_section = page["section"]
+                page["originalSection"] = original_section
+                parts = page["relative"].split("/")
+                page["topic"] = ""
+                if page["pending"]:
+                    page["section"] = "待学与拓展"
+                    page["subgroup"] = original_section
+                elif original_section in ("数据库与中间件", "运维与服务部署") and len(parts) > 1:
+                    page["topic"] = parts[1] if len(parts) > 2 else page["title"]
+                    subgroup = " / ".join(parts[2:-1]) or "基础笔记"
+                    page["subgroup"] = {
+                        "MinIO-Java / md": "Java 集成", "基础知识 / 小窍门": "补充理解",
+                        "基础知识 / 系统操作手册": "系统操作手册", "操作踩坑手册": "排错与易错点",
+                    }.get(subgroup, subgroup)
+
     attributes = re.compile(r'(?P<prefix>\b(?P<attribute>href|src)\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
     for language in languages:
         target_folder = destination / language["slug"]
@@ -1390,12 +1408,16 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "Kubernetes": "围绕工作负载、服务与配置，整理 Kubernetes 编排和 Helm 实践。",
                 "可观测性": "通过日志、指标与链路追踪，逐步看清服务的运行状态。",
                 "微服务": "理解服务的拆分、通信与协作，逐步建立系统视角。",
+                "待学与拓展": "集中查看尚未填写正文的主题，待补充内容后自动回到对应板块。",
                 "进行中": "从当前总路线与专项计划出发，按实际任务和阶段验收继续推进。",
                 "阶段性完成": "保留已经阶段性完成的学习路线，按需要回顾与复习。",
                 "已结束或舍弃": "查阅旧版安排与历史方向；当前执行以进行中的计划为准。",
                 "学习方法": "回顾 AI 辅助学习的方法、独立实践与复盘要求。",
             }
-            for key in dict.fromkeys(page["section"] for page in language["entries"]):
+            section_keys = list(dict.fromkeys(page["section"] for page in language["entries"]))
+            if cloud:
+                section_keys.sort(key=lambda key: (key == "待学与拓展", group_names.get(key.casefold(), len(group_order)), key))
+            for key in section_keys:
                 entries = [page for page in language["entries"] if page["section"] == key]
                 cover = language.get("section_covers", {}).get(key)
                 if cover and not (target_folder / "阅读资源" / cover).is_file():
@@ -1408,6 +1430,24 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     pending=sum(page["pending"] for page in entries),
                     cover="阅读资源/" + cover if cover else "",
                     resources=sum(page["kind"] not in ("note", "practice") for page in entries)))
+                if cloud:
+                    topic_order = ["MySQL", "Nginx", "EMQX", "MinIO", "SRS", "换热站项目", "ANIC项目"]
+                    topic_keys = sorted({page["topic"] for page in entries if page["topic"]},
+                                        key=lambda name: (topic_order.index(name) if name in topic_order else len(topic_order), name))
+                    topics = []
+                    for topic in topic_keys:
+                        members = [page for page in entries if page["topic"] == topic]
+                        topics.append(dict(key=topic, section=key, title=topic,
+                                           id="topic-" + hashlib.sha256((key+"/"+topic).casefold().encode()).hexdigest()[:12],
+                                           description="查看这个主题的笔记、操作手册与学习资料。",
+                                           count=len(members), notes=sum(page["kind"] in ("note", "practice") for page in members),
+                                           resources=sum(page["kind"] not in ("note", "practice") for page in members)))
+                    config["sections"][-1]["topics"] = topics
+        if cloud:
+            pending_id = "section-" + hashlib.sha256("待学与拓展".encode()).hexdigest()[:12]
+            current_keys = {section["key"] for section in config["sections"]}
+            config["redirects"] = {"section-" + hashlib.sha256(page["originalSection"].casefold().encode()).hexdigest()[:12]: pending_id
+                                   for page in language["entries"] if page["pending"] and page["originalSection"] not in current_keys}
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
         config["coverUrl"] = ("阅读资源/" if standalone else "../阅读资源/") + language["cover"]
