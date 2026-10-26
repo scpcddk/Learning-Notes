@@ -797,9 +797,40 @@ s.setName("李四");
 studentMapper.updateById(s);
 ```
 
-默认常见字段策略下，实体中值为 `null` 的字段通常**不会**被更新为 `NULL`。
+### 14.1 update(null, wrapper) 与 update(student, wrapper)
 
-### 14.1 显式更新为 NULL
+`update(null, wrapper)` 的第一个参数为 `null`，表示**没有提供更新实体**，更新值由 `wrapper.set(...)` 指定；并不是把某个数据库字段更新为 NULL。
+
+| 对比 | `update(null, wrapper)` | `update(student, wrapper)` |
+|---|---|---|
+| 更新字段来源 | `wrapper.set(...)` | 实体属性，也可结合 `wrapper.set(...)` |
+| 筛选条件来源 | Wrapper | Wrapper |
+| 是否需要提供实体 | 否 | 是，可以使用已有实体对象 |
+| Mapper 返回值 | `int`，影响行数 | `int`，影响行数 |
+
+例如，实体提供待更新的值，Wrapper 只负责筛选二班学生：
+
+```java
+Student student = new Student();
+student.setScore(new BigDecimal("95"));
+student.setGender("男");
+
+LambdaUpdateWrapper<Student> wrapper = new LambdaUpdateWrapper<>();
+wrapper.eq(Student::getClassName, "二班"); // WHERE 条件，不是要把班级改成二班
+
+int rows = studentMapper.update(student, wrapper);
+```
+
+SQL 语义类似（实际使用参数绑定）：
+
+```sql
+UPDATE student SET score = 95, gender = '男'
+WHERE class_name = '二班';
+```
+
+默认字段更新策略通常为 `NOT_NULL`，实体中未赋值、为 `null` 的普通属性不会进入 SET。**避免实体和 `wrapper.set(...)` 同时指定同一列，否则可能生成重复赋值。**
+
+### 14.2 显式更新为 NULL
 
 ```java
 // 这里只构造更新片段；还需传给 studentMapper.update(null, wrapper) 才会执行
