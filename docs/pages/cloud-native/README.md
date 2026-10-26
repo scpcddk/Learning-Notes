@@ -10,6 +10,18 @@
 
 封面由内置 imagegen 生成，以玻璃云朵、服务器、容器与数据库体现主题，与数学和编程语言页面的米白、墨绿、黄铜材质保持一致：[封面](阅读资源/cloud-native-hero.png) · [最终提示词](阅读资源/cloud-native-hero.prompt.txt)。
 
+七个板块另有独立的 imagegen 封面，采用与总封面一致的材质与配色，图片和最终提示词均保存在 `阅读资源/`。卡片保留完整图片比例，图片下方展示板块名称、介绍和笔记数量；小屏幕切换为单列。图片使用延迟加载。
+
+| 板块 | 封面 | 最终提示词 | 主题 |
+| --- | --- | --- | --- |
+| Docker | [图片](阅读资源/section-docker.png) | [提示词](阅读资源/section-docker.prompt.txt) | 鲸鱼与集装箱 |
+| DevOps | [图片](阅读资源/section-devops.png) | [提示词](阅读资源/section-devops.prompt.txt) | 无限循环与交付流水线 |
+| 数据库与中间件 | [图片](阅读资源/section-database-middleware.png) | [提示词](阅读资源/section-database-middleware.prompt.txt) | 数据库与消息路由 |
+| 运维与服务部署 | [图片](阅读资源/section-operations-deployment.png) | [提示词](阅读资源/section-operations-deployment.prompt.txt) | 服务器、扳手与部署箭头 |
+| Kubernetes | [图片](阅读资源/section-kubernetes.png) | [提示词](阅读资源/section-kubernetes.prompt.txt) | 七辐舵轮与容器节点 |
+| 可观测性 | [图片](阅读资源/section-observability.png) | [提示词](阅读资源/section-observability.prompt.txt) | 放大镜、指标、日志与链路 |
+| 微服务 | [图片](阅读资源/section-microservices.png) | [提示词](阅读资源/section-microservices.prompt.txt) | 独立服务模块与连接 |
+
 构建：`python docs/pages/build_site.py --output docs/site`。
 检查：`python -m unittest discover -s docs/pages -p 'test_*.py'`。
 

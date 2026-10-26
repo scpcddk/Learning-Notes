@@ -1145,7 +1145,13 @@ def build_programming(output, github, branch):
 def build_cloud_native(output, github, branch):
     readers = [dict(slug="cloud-native", title="云原生", label="CLOUD NATIVE",
                     description="从容器与服务出发，在部署、排障与项目中连接知识。",
-                    cover="cloud-native-hero.png", folder=REPO / "云原生")]
+                    cover="cloud-native-hero.png", folder=REPO / "云原生",
+                    section_covers={
+                        "Docker": "section-docker.png", "DevOps": "section-devops.png",
+                        "数据库与中间件": "section-database-middleware.png",
+                        "运维与服务部署": "section-operations-deployment.png",
+                        "Kubernetes": "section-kubernetes.png", "可观测性": "section-observability.png",
+                        "微服务": "section-microservices.png"})]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "cloud-native", output,
                          profile="cloud-native")[0]
 
@@ -1340,12 +1346,16 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             }
             for key in dict.fromkeys(page["section"] for page in language["entries"]):
                 entries = [page for page in language["entries"] if page["section"] == key]
+                cover = language.get("section_covers", {}).get(key)
+                if cover and not (target_folder / "阅读资源" / cover).is_file():
+                    raise FileNotFoundError(f"Missing section cover: {cover}")
                 config["sections"].append(dict(
                     key=key, id="section-"+hashlib.sha256(key.casefold().encode()).hexdigest()[:12],
                     title="Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
                     description=descriptions.get(key, "沿着这个板块的目录，继续阅读与实践。"),
                     count=len(entries), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in entries),
                     pending=sum(page["pending"] for page in entries),
+                    cover="阅读资源/" + cover if cover else "",
                     resources=sum(page["kind"] not in ("note", "practice") for page in entries)))
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
