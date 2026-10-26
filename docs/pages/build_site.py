@@ -1138,15 +1138,30 @@ def programming_languages():
 
 
 def build_programming(output, github, branch):
+    return build_readers(output, github, branch, programming_languages(), PAGE_ROOT / "programming",
+                         output / "programming-languages")
+
+
+def build_cloud_native(output, github, branch):
+    readers = [dict(slug="cloud-native", title="云原生", label="CLOUD NATIVE",
+                    description="从容器与服务出发，在部署、排障与项目中连接知识。",
+                    cover="cloud-native-hero.png", folder=REPO / "云原生")]
+    return build_readers(output, github, branch, readers, PAGE_ROOT / "cloud-native", output,
+                         profile="cloud-native")[0]
+
+
+def build_readers(output, github, branch, languages, source, destination, *, profile="programming"):
     """Generate readers from source notes; keep templates and all outputs in docs."""
-    source = PAGE_ROOT / "programming"
-    destination = output / "programming-languages"
     destination.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(source / "阅读资源", destination / "阅读资源", dirs_exist_ok=True)
-    languages = programming_languages()
+    cloud = profile == "cloud-native"
+    resource_root = destination / "cloud-native" if cloud else destination
+    shutil.copytree(source / "阅读资源", resource_root / "阅读资源", dirs_exist_ok=True)
     routes, headings = {}, {}
+    aliases = {}
     supported = {".md", ".html", ".pdf", ".ppt", ".pptx", ".doc", ".docx", ".zip"}
     group_order = ["Java基础语法", "Python基础语法", "MyBatis", "Spring", "Python后端", "环境与依赖管理", "补充理解", "实战日志", "习题", "课件"]
+    if cloud:
+        group_order = ["Docker", "DevOps", "数据库与中间件", "运维与服务部署", "Kubernetes", "可观测性", "微服务"]
     group_names = {name.casefold(): index for index, name in enumerate(group_order)}
 
     def original(path):
@@ -1164,10 +1179,24 @@ def build_programming(output, github, branch):
         entries = language["entries"] = []
         files = [p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in supported
                  and not any(part.startswith('.') for part in p.relative_to(folder).parts)]
+        if cloud:
+            # Keep one entry for identical deployment manuals, preferring project records.
+            fingerprints = {}
+            unique = []
+            for path in sorted(files, key=lambda p: ("运维与服务部署" not in p.parts, p.as_posix().casefold())):
+                text = path.read_text(encoding="utf-8-sig") if path.suffix.lower() == ".md" else ""
+                fingerprint = hashlib.sha256(text.encode()).hexdigest() if text.strip() else None
+                if fingerprint and fingerprint in fingerprints:
+                    aliases[path.resolve()] = fingerprints[fingerprint]
+                else:
+                    if fingerprint:
+                        fingerprints[fingerprint] = path.resolve()
+                    unique.append(path)
+            files = unique
 
         def order(path):
             relative = path.relative_to(folder)
-            top = relative.parts[0] if len(relative.parts) > 1 else ""
+            top = relative.parts[0] if len(relative.parts) > 1 else path.stem if cloud else ""
             suborder = {"核心语法": 0, "知识笔记": 0, "Spring Core": 0, "Spring MVC": 1,
                         "Spring Boot": 2, "补充理解": 1, "习题": 2, "期末复习": 3}
             parents = tuple((suborder.get(part, 4), part.casefold()) for part in relative.parts[1:-1])
@@ -1178,17 +1207,20 @@ def build_programming(output, github, branch):
             relative = path.relative_to(folder).as_posix()
             ident = "note-" + hashlib.sha256(relative.casefold().encode()).hexdigest()[:12]
             kind = {".md": "note", ".html": "diagram", ".pdf": "pdf"}.get(path.suffix.lower(), "resource")
-            if kind == "note" and any(word in relative for word in ("习题", "题目")):
+            if kind == "note" and any(word in relative for word in ("习题", "练习", "题目")):
                 kind = "practice"
             entry = dict(id=ident, title=path.stem, group=path.parent.relative_to(folder).as_posix(),
                          kind=kind, format=path.suffix[1:].upper(), source=original(path), relative=relative,
                          path=path, headings=[], full="", search="", pending=False)
             parents = path.parent.relative_to(folder).parts
-            entry["section"] = parents[0] if parents else ""
+            entry["section"] = parents[0] if parents else path.stem if cloud else ""
             entry["subgroup"] = " / ".join(parents[1:]) or "板块笔记"
             entry["group"] = "基础笔记" if entry["group"] == "." else entry["group"].replace("/", " / ")
             entries.append(entry)
             routes[path.resolve()] = (language["slug"], ident)
+
+    for alias, target in aliases.items():
+        routes[alias] = routes[target]
 
     for language in languages:
         target_folder = destination / language["slug"]
@@ -1260,7 +1292,7 @@ def build_programming(output, github, branch):
                 parts = urlsplit(url)
                 if parts.scheme or parts.netloc or url.startswith(("//", "data:")):
                     return match[0]
-                target = (path.parent / unquote(parts.path)).resolve() if parts.path else path.resolve()
+                target = (path.parent / unquote(parts.path).replace("\\", "/")).resolve() if parts.path else path.resolve()
                 if not target.is_relative_to(REPO):
                     return match[0]
                 if not target.exists() and parts.path:
@@ -1271,7 +1303,7 @@ def build_programming(output, github, branch):
                 route = routes.get(target)
                 if route and match["attribute"] == "href":
                     fragment = unquote(parts.fragment)
-                    anchor = headings.get(target, {}).get(fragment, route[1])
+                    anchor = headings.get(aliases.get(target, target), {}).get(fragment, route[1])
                     url = ("" if route[0] == language["slug"] else "../" + route[0] + "/") + "#" + anchor
                 elif target.is_file() and match["attribute"] == "src":
                     name = hashlib.sha256(target.relative_to(REPO).as_posix().encode()).hexdigest()[:12] + target.suffix.lower()
@@ -1286,7 +1318,7 @@ def build_programming(output, github, branch):
             page["full"] = attributes.sub(rewrite, page["full"])
         config = {key: language[key] for key in ("slug", "title", "label", "description", "cover", "notes", "resources")}
         config["sections"] = []
-        if language["slug"] in ("java", "python"):
+        if cloud or language["slug"] in ("java", "python"):
             descriptions = {
                 "Java基础语法": "从类与对象开始，掌握语法、集合与常用方法。",
                 "MyBatis": "连接 Java 与数据库，理解映射、查询与事务。",
@@ -1298,6 +1330,13 @@ def build_programming(output, github, branch):
                 "环境与依赖管理": "整理解释器、虚拟环境与项目依赖的使用方法。",
                 "习题": "先独立作答，再对照答案和补充理解。",
                 "课件": "按需要查阅课堂讲义、数据分析与建模资料。",
+                "Docker": "理解镜像、容器与网络，用 Dockerfile 和 Compose 交付服务。",
+                "DevOps": "从 Git 与 Maven 到 CI/CD，串起构建、验证与发布。",
+                "数据库与中间件": "查阅 MySQL、Nginx、EMQX、MinIO 与流媒体服务的原理和用法。",
+                "运维与服务部署": "沿着换热站与 ANIC 项目，回顾环境搭建、部署、迁移和排障。",
+                "Kubernetes": "围绕工作负载、服务与配置，整理 Kubernetes 编排和 Helm 实践。",
+                "可观测性": "通过日志、指标与链路追踪，逐步看清服务的运行状态。",
+                "微服务": "理解服务的拆分、通信与协作，逐步建立系统视角。",
             }
             for key in dict.fromkeys(page["section"] for page in language["entries"]):
                 entries = [page for page in language["entries"] if page["section"] == key]
@@ -1306,16 +1345,29 @@ def build_programming(output, github, branch):
                     title="Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
                     description=descriptions.get(key, "沿着这个板块的目录，继续阅读与实践。"),
                     count=len(entries), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in entries),
+                    pending=sum(page["pending"] for page in entries),
                     resources=sum(page["kind"] not in ("note", "practice") for page in entries)))
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
+        config["coverUrl"] = ("阅读资源/" if cloud else "../阅读资源/") + language["cover"]
+        config["heroLines"] = ["从部署一个服务，", "到理解整个系统。"] if cloud else ["从读懂代码，", "到写出自己的理解。"]
+        config["pending"] = sum(page["pending"] for page in language["entries"])
         payload = json.dumps(language["entries"], ensure_ascii=False).replace("</", r"<\/")
-        text = (source / "阅读页模板.html").read_text(encoding="utf-8")
+        text = (PAGE_ROOT / "programming" / "阅读页模板.html").read_text(encoding="utf-8")
         for key, value in {"TITLE": escape(language["title"]), "DESCRIPTION": escape(language["description"], quote=True),
-                           "CHAPTER_DATA": payload, "LANGUAGE_DATA": json.dumps(config, ensure_ascii=False).replace("</", r"<\/")}.items():
+                           "CHAPTER_DATA": payload, "LANGUAGE_DATA": json.dumps(config, ensure_ascii=False).replace("</", r"<\/"),
+                           "HOME_URL": "../" if cloud else "../../", "PARENT_CRUMB": "" if cloud else '<a href="../">编程语言</a><span>/</span>',
+                           "BACK_TEXT": "返回学习导航 ↗" if cloud else "返回编程语言总览 ↗",
+                           "BACK_SHORT": "← 学习导航" if cloud else "全部语言 ↗",
+                           "READER_TITLE": "云原生学习笔记" if cloud else "编程语言学习笔记",
+                           "DIRECTORY_LABEL": "云原生阅读目录" if cloud else "语言阅读目录",
+                           "BRAND_SYMBOL": "☁" if cloud else "&lt;/&gt;",
+                           "BRAND_TAGLINE": "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
+                           "SWITCH_HIDDEN": "hidden" if cloud else "", "THEME_KEY": profile + "-theme",
+                           "PDF_BASE": "../" if cloud else "../../"}.items():
             text = text.replace("<!--" + key + "-->", value)
         (target_folder / "index.html").write_text(text, encoding="utf-8", newline="\n")
-    print(f"Packaged programming: {len(languages)} languages, {sum(item['notes'] for item in languages)} notes, "
+    print(f"Packaged {profile}: {len(languages)} readers, {sum(item['notes'] for item in languages)} notes, "
           f"{sum(item['resources'] for item in languages)} diagrams and materials.")
     return languages
 
@@ -1349,7 +1401,7 @@ def build_catalogs(output, github, branch, programming):
                   "SOURCE_URL": escape(repository_url(source), quote=True),
                   "INTRO_CLASS": "with-cover" if hero else "",
                   "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024">' if hero else "",
-                  "READING_TIP": "数学、算法、编程语言与 Linux 已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
+                  "READING_TIP": "数学、算法、编程语言、Linux 与云原生已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
@@ -1405,6 +1457,11 @@ def build_catalogs(output, github, branch, programming):
             root_cards.append(card(path.name, "从语法、习题到框架与项目，在代码中积累理解。", "programming-languages/", "选择语言",
                                    tuple(item["title"] for item in programming), "programming-languages/阅读资源/programming-hero.png",
                                    number=str(index).zfill(2)+" / PROGRAMMING"))
+            continue
+        if path.name=="云原生":
+            root_cards.append(card(path.name, "从容器、数据库到项目部署，沿着实践记录理解系统。", "cloud-native/", "进入云原生阅读",
+                                   ("Docker 与 DevOps", "数据库与中间件", "项目部署与排障"), "cloud-native/阅读资源/cloud-native-hero.png",
+                                   number=str(index).zfill(2)+" / CLOUD NATIVE"))
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
@@ -1476,6 +1533,7 @@ def build(output, repository, branch):
     build_algorithms(output, github, branch)
     build_linux(output, github, branch)
     programming = build_programming(output, github, branch)
+    build_cloud_native(output, github, branch)
     build_catalogs(output, github, branch, programming)
     shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")

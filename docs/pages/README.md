@@ -2,7 +2,7 @@
 
 [学习首页](https://scpcddk.github.io/Learning-Notes/) · [数学科目页](https://scpcddk.github.io/Learning-Notes/math/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/) · [编程语言](https://scpcddk.github.io/Learning-Notes/programming-languages/) · [Linux](https://scpcddk.github.io/Learning-Notes/linux/)
 
-网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页。其他板块展示现有目录，子项链接到仓库原笔记。
+网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页；[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/) 先选择学习板块，再进入笔记。其他板块展示现有目录，子项链接到仓库原笔记。
 
 访客可从仓库 README 进入 [数学导航](../../数学/README.md) 或 [算法导航](../../算法/README.md)，选择内容后打开在线阅读页。
 
@@ -20,6 +20,7 @@
 | [algorithms/](algorithms/) | 算法阅读模板与封面；课程、专题、源码、题单、课件统一生成 |
 | [linux/](linux/) | Linux 阅读模板与封面；沿核心知识、Shell.md、补充理解、习题组织内容 |
 | [programming/](programming/) | 编程语言共用阅读模板、四张封面及提示词；自动收录各语言目录的笔记、图解与资料 |
+| [cloud-native/](cloud-native/) | 云原生封面、提示词与说明；与编程语言共用阅读模板，按原目录自动收录 |
 | [vendor/](vendor/README.md) | Mozilla PDF.js 5.4.624 官方发行包及许可证 |
 
 每页专用的样式和交互代码并入对应 HTML 模板，不再另设科目生成脚本或 CSS、JS 配置文件。第三方公式组件与 PDF 阅读器保持原有资源结构和许可证。
@@ -33,7 +34,7 @@ python -m pip install markdown-it-py==4.0.0
 python docs/pages/build_site.py --output docs/site
 ~~~
 
-统一脚本先更新高等数学和线性代数的离线 HTML，再打包数学与算法的在线站点。Markdown 原笔记链接转换为 GitHub 地址，科目阅读页之间保留网站内部跳转，最后检查页面和资源链接。
+统一脚本先更新高等数学和线性代数的离线 HTML，再打包各板块的在线站点。已收录笔记之间保留站内跳转，其他原笔记入口链接到 GitHub，最后检查页面和资源链接。
 
 [发布工作流](../../.github/workflows/pages.yml) 也只调用这一条构建命令。修改仓库笔记、目录或这里的模板后，提交并推送到 main，GitHub Actions 会自动生成并发布；发布成功后，线上显示新内容。尚未推送的本地修改不会影响网站。
 
@@ -94,3 +95,13 @@ Java 和 Python 采用“语言总览 → 学习板块 → 笔记”的三级阅
 四张封面使用内置图像生成工具制作，与数学页面保持同一视觉风格；Java 使用用户选定的第一版。查看 [封面与最终提示词](programming/阅读资源/README.md)。
 
 自动收录与 Markdown 渲染的回归检查：`python -m unittest discover -s docs/pages -p test_programming.py`。检查新增、修改和移除笔记，新增语言，站内锚点、跨语言链接、配图、空笔记，以及代码中的特殊字符。
+
+## 云原生阅读页
+
+访问 `/cloud-native/`，首页展示 Docker、DevOps、数据库与中间件、运维与服务部署、Kubernetes、可观测性、微服务七个板块。进入板块后再展开子目录与笔记，侧栏只展开当前板块；搜索覆盖全部云原生笔记。现有内容包含 32 篇非空 Markdown、10 篇待补充笔记、1 份 HTML 图解、2 份 PDF 与 1 份 PowerPoint 资料。
+
+正文直接读取 `云原生/`，新增笔记或目录后随下次构建自动加入。完全相同的非空 Markdown 合并阅读入口，优先展示项目部署目录中的版本；原文件保留，原笔记互链会转到同一阅读入口。有差异的同名手册分别收录。PDF 沿用 PDF.js，PowerPoint 提供原文件入口，图片随站点打包。
+
+页面复用编程语言阅读模板，提供全文搜索、目录速览与完整笔记、代码复制、本篇目录、深色模式、打印和上次阅读记录。空白笔记与板块明确标为“待补充”。[封面与提示词](cloud-native/README.md) 保存在 docs，使用内置 imagegen 生成。
+
+回归检查：`python -m unittest discover -s docs/pages -p 'test_*.py'`，包含自动更新、重复手册的锚点跳转、原目录配图及编程语言阅读页的已有行为。
