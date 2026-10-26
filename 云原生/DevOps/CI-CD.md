@@ -660,3 +660,5 @@ Java 与 AI 服务可以独立构建镜像，但接口、字段和错误约定�
 - [GitHub 工作流产物](https://docs.github.com/en/actions/tutorials/store-and-share-data)。
 - [setup-java](https://github.com/actions/setup-java)、[checkout](https://github.com/actions/checkout)、[Docker build-push-action](https://github.com/docker/build-push-action)。
 - 示例中的 Action 主版本为已核对的引用，不代表不可变化；使用自托管 Runner 或 GitHub Enterprise Server 时，需再核对各 Action 的支持范围与运行要求。
+
+---

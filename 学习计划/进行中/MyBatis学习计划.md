@@ -282,8 +282,8 @@
 ### 条件构造器
 
 - [x] `QueryWrapper`
-- [ ] `LambdaQueryWrapper`
-- [ ] `UpdateWrapper`
+- [x] `LambdaQueryWrapper`
+- [x] `UpdateWrapper`
 - [ ] `LambdaUpdateWrapper`
 
 ### 常用功能
