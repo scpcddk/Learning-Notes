@@ -799,11 +799,11 @@ studentMapper.updateById(s);
 
 ### 14.1 update(null, wrapper) 与 update(student, wrapper)
 
-`update(null, wrapper)` 的第一个参数为 `null`，表示**没有提供更新实体**，更新值由 `wrapper.set(...)` 指定；并不是把某个数据库字段更新为 NULL。
+`update(null, wrapper)` 的第一个参数为 `null`，表示**没有提供更新实体**，更新内容由 Wrapper 的 SET 设置提供；并不是把某个数据库字段更新为 NULL。
 
 | 对比 | `update(null, wrapper)` | `update(student, wrapper)` |
 |---|---|---|
-| 更新字段来源 | `wrapper.set(...)` | 实体属性，也可结合 `wrapper.set(...)` |
+| 更新字段来源 | Wrapper 的 `set(...)`、`setSql(...)` 等 | 实体属性，也可结合 Wrapper 的 SET 设置 |
 | 筛选条件来源 | Wrapper | Wrapper |
 | 是否需要提供实体 | 否 | 是，可以使用已有实体对象 |
 | Mapper 返回值 | `int`，影响行数 | `int`，影响行数 |
@@ -840,6 +840,26 @@ new LambdaUpdateWrapper<Student>()
 ```
 
 上面的显式 `set(..., null)` 则可表达“把列设置为 `NULL`”。
+
+### 14.3 setSql：使用 SQL 更新表达式
+
+`UpdateWrapper`、`LambdaUpdateWrapper` 都支持 `setSql()`，可以直接编写 SET 部分的赋值表达式，传入时不带 `SET` 关键字。例如，把某个学生的成绩在原值基础上增加 5 分：
+
+```java
+LambdaUpdateWrapper<Student> wrapper = new LambdaUpdateWrapper<>();
+wrapper.eq(Student::getId, 1L)
+       .setSql("score = score + {0}", new BigDecimal("5"));
+// 表达式使用数据库列名；{0} 绑定增量值，不是把用户输入拼进 SQL
+
+int rows = studentMapper.update(null, wrapper);
+```
+
+SQL 类似 `UPDATE student SET score = score + ? WHERE id = ?`。
+
+- `set(Student::getScore, new BigDecimal("5"))`：直接把成绩设为 5。
+- `setSql("score = score + {0}", new BigDecimal("5"))`：由数据库根据当前成绩计算新值。
+
+**普通赋值优先使用 `set()`；确实需要数据库表达式时，再考虑 `setSql()`。** SQL 片段由后端编写，值用 `{0}` 等占位符绑定，不要直接拼接未经验证的用户输入；同一列也应避免与实体属性、`set()` 重复指定。
 
 ⚠️ **易混淆**：
 
@@ -1295,7 +1315,7 @@ public class RegistrationService {
 | 普通比较、范围、集合、模糊查询 | 优先使用 `eq / gt / between / in / like` 等内置条件方法 |
 | 可选查询参数 | 使用 `condition` 参数控制是否添加条件 |
 | 多条件逻辑分组 | 使用 `and(...)`、`or(...)`、`nested(...)` 明确括号范围 |
-| 特殊数据库表达式 | 按需使用 `apply()`，值通过 `{0}` 等占位符绑定 |
+| 特殊数据库表达式 | 条件表达式用 `apply()`，更新表达式用 `setSql()`；值通过 `{0}` 等占位符绑定 |
 | SQL 尾部追加 | 谨慎使用 `last()`；常规分页优先使用 `Page` 与分页插件 |
 | 复杂关联、聚合业务 | 考虑 XML 或自定义查询，不强求全部用 Wrapper 表达 |
 | 动态字段名、SQL 片段 | 字段名通过服务端白名单映射，SQL 片段由后端控制；不能直接信任用户输入 |
