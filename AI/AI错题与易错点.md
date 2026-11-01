@@ -499,3 +499,92 @@ AI API 项目通过 `json.loads(content)` 解析流式响应，再从 `choices �
 > 键不存在才用默认值；空列表取 `[0]` 是 `IndexError`；`None` 调用 `.get()` 是 `AttributeError`。
 
 ---
+
+## 错题20：嵌套 JSON 逐层校验与 `dict.get()` 默认值混淆
+
+**1. 错误理解**
+
+- 认为 `delta` 字典中的 `content` 为 `None` 时，调用 `delta.get("content", "")` 会触发 `AttributeError`。
+- 认为空字典调用 `.get("content", "")` 时，由于键不存在，会触发 `KeyError`。
+- 分析嵌套 JSON 时，容易混淆外层字典与内部字段的类型，判断错误发生的位置。
+
+**2. 正确理解**
+
+`dict.get(key, default)` 只有在键不存在时才返回默认值；键存在但值为 `None` 时，仍然返回 `None`。
+
+```python
+{}.get("content", "")                    # ""
+{"content": None}.get("content", "")     # None
+{}["content"]                            # KeyError
+```
+
+**嵌套 JSON 必须逐层判断：**
+
+```python
+chunk = {
+    "choices": [
+        {
+            "delta": {
+                "content": None
+            }
+        }
+    ]
+}
+
+choices = chunk.get("choices")
+delta = choices[0].get("delta")
+text = delta.get("content", "")
+```
+
+此时：
+
+```python
+isinstance(choices, list)       # True
+isinstance(choices[0], dict)    # True
+isinstance(delta, dict)         # True
+isinstance(text, str)           # False
+```
+
+因此：
+
+```python
+if not isinstance(text, str):
+    raise ValueError("content 不是字符串")
+```
+
+这里主动抛出 `ValueError`，而不是 `AttributeError`。
+
+**3. 与当前 AI API 项目的联系**
+
+流式响应的数据提取路径：
+
+```text
+chunk
+  ↓
+choices
+  ↓
+choices[0]
+  ↓
+delta
+  ↓
+content
+```
+
+每一层都需要独立校验，不能因为外层是合法字典，就认为内部字段也一定合法。
+
+分析异常时，应按照代码实际执行顺序：
+
+1. 确定当前变量的实际值。
+2. 判断当前操作是否能够正常执行。
+3. 检查是否触发主动编写的 `raise`。
+4. 如果已经抛出异常，后续语句不再正常执行，而是进入匹配的异常处理流程。
+
+**4. 核心记忆**
+
+> `get()` 缺键才使用默认值；键存在但值为 `None` 时返回 `None`。
+>
+> 外层结构合法 ≠ 内部字段合法；逐层校验、逐行判断异常发生位置。
+>
+> `raise` 是抛出异常，`except` 才是捕获异常。
+
+---
