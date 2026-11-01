@@ -24,6 +24,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from PIL import Image
 
 
 PAGE_ROOT = Path(__file__).resolve().parent
@@ -34,6 +35,7 @@ SUBJECTS = (
 )
 DATA = re.compile(r'(<script type="application/json" id="chapter-data">)([\s\S]*?)(</script>)')
 HREF = re.compile(r'(?P<prefix>\bhref\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
+READER_CONFIG = re.compile(r'(<script type="application/json" id="language-data">)([\s\S]*?)(</script>)')
 
 
 def read_template(path, *, catalog=False):
@@ -49,6 +51,84 @@ def read_template(path, *, catalog=False):
     if path.name == "阅读页模板.html" and path.parent.name in ("calculus", "linear-algebra"):
         kind += " math-reader"
     return text.replace('<body>', '<body class="' + kind + '">', 1)
+
+
+def optimize_site_covers(output):
+    """Serve responsive WebP covers while keeping source PNGs and offline pages intact."""
+    output = output.resolve()
+    variants = {}
+    sizes = '(max-width:600px) calc(100vw - 40px), (max-width:840px) 45vw, (max-width:1230px) 38vw, 540px'
+
+    def cover(url, page):
+        parts = urlsplit(html.unescape(url))
+        if parts.scheme or parts.netloc or not parts.path.lower().endswith('.png'):
+            return None
+        source = (page.parent / unquote(parts.path)).resolve()
+        if not source.is_relative_to(output) or not source.is_file():
+            return None
+        if not re.fullmatch(r'(?:.+-hero(?:-v\d+)?|section-[\w-]+)\.png', source.name):
+            return None
+        if source not in variants:
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+            paths = []
+            with Image.open(source) as original:
+                image = original.convert('RGB')
+                for width in (480, 960, 1440):
+                    target = source.with_name(f'{source.stem}-{digest}-{width}.webp')
+                    if not target.exists():
+                        height = round(image.height * width / image.width)
+                        image.resize((width, height), Image.Resampling.LANCZOS).save(
+                            target, format='WEBP', quality=84, method=6)
+                    paths.append(target)
+            variants[source] = paths
+        return [Path(os.path.relpath(path, page.parent)).as_posix() for path in variants[source]]
+
+    for page in output.rglob('*.html'):
+        text = page.read_text(encoding='utf-8')
+        # Limit rewriting to the website's templates, preserving embedded original HTML.
+        if '<style data-design-system>' not in text:
+            continue
+        card_sizes = ('(max-width:600px) calc(100vw - 40px), (max-width:900px) 45vw, 360px'
+                      if re.search(r'class="subjects (?:math-catalog|programming-catalog)"', text) else sizes)
+
+        def image_tag(match):
+            tag = match[0]
+            src = re.search(r'\bsrc=("|\')([^"\']+)\1', tag)
+            urls = cover(src[2], page) if src else None
+            if not urls:
+                return tag
+
+            def attribute(name, value):
+                nonlocal tag
+                attr = name + '="' + escape(value, quote=True) + '"'
+                pattern = r'\b' + name + r'\s*=\s*("[^\"]*"|\'[^\']*\')'
+                if re.search(pattern, tag):
+                    tag = re.sub(pattern, lambda _: attr, tag, count=1)
+                else:
+                    tag = tag[:-1] + ' ' + attr + '>'
+
+            attribute('src', urls[1])
+            attribute('srcset', ', '.join(f'{url} {width}w' for url, width in zip(urls, (480, 960, 1440))))
+            attribute('sizes', card_sizes if 'loading="lazy"' in tag else sizes)
+            attribute('decoding', 'async')
+            if 'loading=' not in tag:
+                attribute('loading', 'eager')
+            if 'fetchpriority=' not in tag:
+                attribute('fetchpriority', 'low' if 'loading="lazy"' in tag else 'high')
+            return tag
+
+        text = re.sub(r'<img\b[^>]*>', image_tag, text)
+        match = READER_CONFIG.search(text)
+        if match:
+            config = json.loads(match[2])
+            for item, field in [(config, 'coverUrl'), *[(section, 'cover') for section in config.get('sections', [])]]:
+                urls = cover(item.get(field, ''), page)
+                if urls:
+                    item[field] = urls[1]
+            payload = json.dumps(config, ensure_ascii=False).replace('</', r'<\/')
+            text = text[:match.start(2)] + payload + text[match.end(2):]
+        page.write_text(text, encoding='utf-8', newline='\n')
+    print(f'Optimized {len(variants)} referenced covers into responsive WebP images.')
 
 
 def generate_calculus():
@@ -1684,7 +1764,7 @@ def build_catalogs(output, github, branch, programming):
         return f"{github}/{kind}/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}"
 
     def card(title, description, href, label, chips=(), image=None, symbol="·", number=""):
-        art = '<div class="art"><img src="'+escape(image, quote=True)+'" alt="" width="1536" height="1024"></div>' if image else ""
+        art = '<div class="art"><img src="'+escape(image, quote=True)+'" alt="" width="1536" height="1024" loading="lazy" decoding="async" fetchpriority="low"></div>' if image else ""
         mark = '<span class="number">'+escape(number)+'</span>' if image else '<div class="board-mark"><span>'+escape(symbol)+'</span><small class="number">'+escape(number)+'</small></div>'
         return '<a class="subject'+('' if image else ' compact')+'" href="'+escape(href, quote=True)+'">'+art+'<div class="subject-copy">'+mark+'<h2>'+escape(title)+'</h2><p>'+escape(description)+'</p><div class="chips">'+''.join('<span>'+escape(chip)+'</span>' for chip in chips)+'</div><strong>'+escape(label)+'<span aria-hidden="true">↗</span></strong></div></a>'
 
@@ -1701,11 +1781,14 @@ def build_catalogs(output, github, branch, programming):
                   "MORE_TITLE": "从目录，走向理解", "MORE_TEXT": escape(more or "沿着目录选择内容，再结合原笔记、代码与练习逐步阅读。"),
                   "SOURCE_URL": escape(repository_url(source), quote=True),
                   "INTRO_CLASS": "with-cover" if hero else "",
-                  "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024">' if hero else "",
+                  "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024" loading="eager" decoding="async" fetchpriority="high">' if hero else "",
                   "READING_TIP": "数学、算法、编程语言、前端基础、Linux、云原生、AI 与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
+        if not hero:
+            text = text.replace('loading="lazy" decoding="async" fetchpriority="low"',
+                                'loading="eager" decoding="async" fetchpriority="high"', 1)
         (destination / "index.html").write_text(text, encoding="utf-8", newline="\n")
 
     math_cards = [
@@ -1856,6 +1939,7 @@ def build(output, repository, branch):
     build_frontend(output, github, branch)
     build_ai(output, github, branch)
     build_catalogs(output, github, branch, programming)
+    optimize_site_covers(output)
     shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")
     validate(output)
@@ -1871,19 +1955,27 @@ def validate(output):
         def handle_starttag(self, tag, attributes):
             attrs = dict(attributes)
             target = attrs.get("href") if tag in ("a", "link") else attrs.get("src") if tag in ("script", "img") else None
-            if not target:
-                return
-            parts = urlsplit(target)
-            if parts.scheme or parts.netloc or not parts.path:
-                return
-            path = (self.page.parent / unquote(parts.path)).resolve()
-            if not path.is_relative_to(output) or not path.exists():
-                raise FileNotFoundError(f"{self.page.name}: {target}")
+            targets = [target] if target else []
+            if tag == 'img':
+                targets.extend(item.strip().split()[0] for item in attrs.get('srcset', '').split(',') if item.strip())
+            for target in targets:
+                parts = urlsplit(target)
+                if parts.scheme or parts.netloc or not parts.path:
+                    continue
+                path = (self.page.parent / unquote(parts.path)).resolve()
+                if not path.is_relative_to(output) or not path.exists():
+                    raise FileNotFoundError(f"{self.page.name}: {target}")
 
     for page in output.rglob("*.html"):
         text = page.read_text(encoding="utf-8")
         parser = ResourceParser(page)
         parser.feed(text)
+        config_match = READER_CONFIG.search(text)
+        if config_match:
+            config = json.loads(config_match[2])
+            for cover in [config.get('coverUrl'), *[section.get('cover') for section in config.get('sections', [])]]:
+                if cover:
+                    parser.feed('<img src="' + escape(cover, quote=True) + '">')
         match = DATA.search(text)
         if match:
             for entry in json.loads(match[2]):

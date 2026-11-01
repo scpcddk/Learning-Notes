@@ -46,11 +46,13 @@ AI 通过 `/ai/` 进入完整阅读页，按基础知识、实践记录、提示
 在仓库根目录只需运行：
 
 ~~~powershell
-python -m pip install markdown-it-py==4.0.0
+python -m pip install markdown-it-py==4.0.0 Pillow==12.2.0
 python docs/pages/build_site.py --output docs/site
 ~~~
 
 统一脚本先更新高等数学和线性代数的离线 HTML，再打包各板块的在线站点。已收录笔记之间保留站内跳转，其他原笔记入口链接到 GitHub，最后检查页面和资源链接。
+
+在线封面在构建时自动生成 480、960、1440px 的 WebP 版本，浏览器根据显示宽度与像素密度选择尺寸。图片文件名带有原图内容指纹，更新封面后会自动使用新地址。首屏封面优先加载，目录中其余封面延迟加载并异步解码，减少首屏下载量与解码阻塞。原始 PNG、提示词和数学离线页保留；无需手工另存压缩图。
 
 [发布工作流](../../.github/workflows/pages.yml) 也只调用这一条构建命令。修改仓库笔记、目录或这里的模板后，提交并推送到 main，GitHub Actions 会自动生成并发布；发布成功后，线上显示新内容。尚未推送的本地修改不会影响网站。
 
