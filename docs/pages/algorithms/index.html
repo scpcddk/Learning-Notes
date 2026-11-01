@@ -113,13 +113,13 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
   document.addEventListener('keydown', event => { if (event.key === 'Escape') { menu(false); $('menu').focus(); } });
   menu(false);
 
-  function theme(value) {
+  function theme(value, persist = false) {
     document.documentElement.dataset.theme = value;
     $('theme').setAttribute('aria-label', value==='dark' ? '切换浅色模式' : '切换深色模式');
-    save('algorithms-theme', value);
+    if (persist) save('learning-notes-theme', value);
   }
-  theme(get('algorithms-theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
-  $('theme').addEventListener('click', () => theme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+  theme(get('learning-notes-theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
+  $('theme').addEventListener('click', () => theme(document.documentElement.dataset.theme==='dark'?'light':'dark', true));
 
   function route() {
     const id = location.hash.slice(1) || 'overview';

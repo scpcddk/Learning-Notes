@@ -36,6 +36,21 @@ DATA = re.compile(r'(<script type="application/json" id="chapter-data">)([\s\S]*
 HREF = re.compile(r'(?P<prefix>\bhref\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
 
 
+def read_template(path, *, catalog=False):
+    """Inline shared UI assets, including in the portable mathematics readers."""
+    text = path.read_text(encoding="utf-8")
+    shared = PAGE_ROOT / "shared"
+    theme = (shared / "theme.js").read_text(encoding="utf-8")
+    styles = (shared / "design-system.css").read_text(encoding="utf-8")
+    # Initialize before subject scripts; place visual rules after subject styles.
+    text = text.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<script data-shared-theme>' + theme + '</script>', 1)
+    text = text.replace('</head>', '<style data-design-system>\n' + styles + '</style>\n</head>', 1)
+    kind = "catalog-page" if catalog else "reader-page"
+    if path.name == "阅读页模板.html" and path.parent.name in ("calculus", "linear-algebra"):
+        kind += " math-reader"
+    return text.replace('<body>', '<body class="' + kind + '">', 1)
+
+
 def generate_calculus():
     ROOT = PAGE_ROOT / "calculus"
     NOTES = REPO / "数学/高等数学"
@@ -252,7 +267,7 @@ def generate_calculus():
                           description="把常用公式与适用条件，放在同一页。",
                           tags=["条件先行", "公式索引"], source="", full=formula, summary=formula, search=FORMULAS))
         payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
-        shell = (ROOT / "阅读页模板.html").read_text(encoding="utf-8")
+        shell = read_template(ROOT / "阅读页模板.html")
         assert shell.count("<!--CHAPTER_DATA-->") == 1
         (ROOT / "速查笔记.html").write_text(shell.replace("<!--CHAPTER_DATA-->", payload), encoding="utf-8", newline="\n")
         print(f"Generated {len(CHAPTERS)} chapters, {len(TOPICS)} topics, 30 practice questions and a formula index.")
@@ -600,7 +615,7 @@ def generate_linear_algebra():
             })
         chapters.append({'id': 'sec-formula', 'number': '∑', 'title': '公式速查', 'description': '把最常用的结论，放在同一页。', 'tags': ['条件先行', '联系记忆'], 'source': '', 'summary': render(FORMULAS, 'formulas'), 'full': render(FORMULAS, 'formulas'), 'search': FORMULAS})
         payload = json.dumps(chapters, ensure_ascii=False).replace('</', r'<\/')
-        shell = (ROOT / '阅读页模板.html').read_text(encoding='utf-8')
+        shell = read_template(ROOT / '阅读页模板.html')
         (ROOT / '速查笔记.html').write_text(shell.replace('<!--CHAPTER_DATA-->', payload), encoding='utf-8', newline='\n')
         print(f'已生成速查笔记.html：{len(CHAPTERS)} 篇笔记 + 公式速查')
 
@@ -792,7 +807,7 @@ def build_discrete(output, github, branch):
         pages[-1]["scanned"] = True
 
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
-    template = (DISCRETE / "index.html").read_text(encoding="utf-8")
+    template = read_template(DISCRETE / "index.html")
     template = template.replace("<!--CHAPTER_DATA-->", payload)
     template = template.replace("<!--ARCHIVE_URL-->", original(DISCRETE_NOTES / "习题/离散数学历年考试卷子.rar"))
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('数学/离散数学')}")
@@ -946,7 +961,7 @@ def build_algorithms(output, github, branch):
                 '</h2><p>这份资料保留原始格式。打开原文件页面后，可下载到本地阅读。</p><a class="primary" href="'+entry["source"]+'" target="_blank" rel="noopener">查看与下载原文件 ↗</a></div>'
         pages.append(entry)
 
-    template = (PAGE_ROOT / "algorithms/index.html").read_text(encoding="utf-8")
+    template = read_template(PAGE_ROOT / "algorithms/index.html")
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
     template = template.replace("<!--CHAPTER_DATA-->", payload)
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
@@ -1175,7 +1190,7 @@ def build_linux(output, github, branch):
         if page.get("summary"):
             page["summary"] = HREF.sub(local_link, page["summary"])
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
-    template = (source / "index.html").read_text(encoding="utf-8")
+    template = read_template(source / "index.html")
     values = {"CHAPTER_DATA": payload, "SOURCE_URL": f"{github}/tree/{quote(branch, safe='')}/Linux",
               "NOTE_COUNT": str(sum(page["kind"] != "diagram" for page in pages)),
               "COMMAND_COUNT": str(sum(len(page.get("commands", [])) for page in pages))}
@@ -1635,7 +1650,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                             '.mermaid-diagram svg{max-width:100%;height:auto}.diagram-block{margin:1.5rem 0}'
                             '.diagram-block>details>summary{cursor:pointer;font-size:.85rem;opacity:.75}</style>')
         payload = json.dumps(language["entries"], ensure_ascii=False).replace("</", r"<\/")
-        text = (PAGE_ROOT / "programming" / "阅读页模板.html").read_text(encoding="utf-8")
+        text = read_template(PAGE_ROOT / "programming" / "阅读页模板.html")
         for key, value in {"TITLE": escape(language["title"]), "DESCRIPTION": escape(language["description"], quote=True),
                            "CHAPTER_DATA": payload, "LANGUAGE_DATA": json.dumps(config, ensure_ascii=False).replace("</", r"<\/"),
                            "HOME_URL": "../" if standalone else "../../", "PARENT_CRUMB": "" if standalone else '<a href="../">编程语言</a><span>/</span>',
@@ -1645,7 +1660,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                            "DIRECTORY_LABEL": "AI 阅读目录" if ai else "前端阅读目录" if frontend else "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
                            "BRAND_SYMBOL": "✧" if ai else "▤" if frontend else "✓" if plans else "☁" if cloud else "&lt;/&gt;",
                            "BRAND_TAGLINE": "UNDERSTAND. BUILD. REFLECT." if ai else "STRUCTURE. STYLE. INTERACT." if frontend else "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
-                           "SWITCH_HIDDEN": "hidden" if standalone else "", "THEME_KEY": profile + "-theme",
+                           "SWITCH_HIDDEN": "hidden" if standalone else "", "THEME_KEY": "learning-notes-theme",
                            "MATH_ASSETS": math_assets,
                            "PDF_BASE": "../" if standalone else "../../"}.items():
             text = text.replace("<!--" + key + "-->", value)
@@ -1657,7 +1672,10 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
 
 def build_catalogs(output, github, branch, programming):
     """Show repository boards first, then the subjects inside each board."""
-    template = (PAGE_ROOT / "index.html").read_text(encoding="utf-8")
+    template = read_template(PAGE_ROOT / "index.html", catalog=True)
+    catalog_covers = ("computer-organization", "general-studies", "probability-statistics", "numerical-analysis")
+    for slug in catalog_covers:
+        shutil.copytree(PAGE_ROOT / slug / "阅读资源", output / slug / "阅读资源", dirs_exist_ok=True)
 
     def repository_url(path):
         if path == REPO:
@@ -1694,8 +1712,8 @@ def build_catalogs(output, github, branch, programming):
         card("高等数学", "极限与连续、微分与积分，从局部变化到空间里的累积。", "../calculus/", "进入阅读", ("10 章笔记", "16 篇专题", "30 道自测"), "../calculus/阅读资源/calculus-hero.png", number="01 / CALCULUS"),
         card("线性代数", "向量、矩阵与线性变换，在计算背后理解空间结构。", "../linear-algebra/", "进入阅读", ("7 章笔记", "完整例题", "拓展阅读"), "../linear-algebra/阅读资源/linear-algebra-hero.png", number="02 / LINEAR ALGEBRA"),
         card("离散数学", "逻辑、集合、关系与图，连接概念、课件与推理。", "../discrete-math/", "进入阅读", ("15 份课件", "笔记与练习", "历年试卷"), "../discrete-math/discrete-math-hero.png", number="03 / DISCRETE MATHEMATICS"),
-        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), symbol="P", number="04 / PROBABILITY"),
-        card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), symbol="≈", number="05 / NUMERICAL ANALYSIS"),
+        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), "../probability-statistics/阅读资源/probability-statistics-hero-v2.png", number="04 / PROBABILITY"),
+        card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), "../numerical-analysis/阅读资源/numerical-analysis-hero-v2.png", number="05 / NUMERICAL ANALYSIS"),
     ]
     page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。", math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"), "math-catalog")
 
@@ -1763,8 +1781,10 @@ def build_catalogs(output, github, branch, programming):
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
-        root_cards.append(card(path.name, description, slug+"/", "打开板块", (str(len(children))+" 个目录与文件",), symbol=symbol, number=str(index).zfill(2)))
-        page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog")
+        cover = slug+"/阅读资源/"+slug+"-hero-v2.png" if slug in catalog_covers else None
+        number = str(index).zfill(2) + (" / " + slug.replace("-", " ").upper() if cover else "")
+        root_cards.append(card(path.name, description, slug+"/", "打开板块", (str(len(children))+" 个目录与文件",), cover, symbol=symbol, number=number))
+        page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero="阅读资源/"+slug+"-hero-v2.png" if cover else None)
     page("", "学习笔记", '从一本笔记，<br>走向<em>更完整的理解。</em>', "选择一个知识板块，进入它的科目、专题与学习记录。", root_cards, REPO, "IDEAS, CONNECTED.", (str(len(root_cards))+" 个知识板块", "分层阅读导航", "持续整理"), "root-catalog", "首页按仓库一级板块组织。先选择板块，再选择科目或目录。")
     print(f"Packaged learning catalog: {len(root_cards)} repository boards and a mathematics subject directory.")
 

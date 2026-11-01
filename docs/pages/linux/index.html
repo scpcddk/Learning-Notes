@@ -65,8 +65,8 @@
     const pages = JSON.parse(document.getElementById('chapter-data').textContent);
     const $ = id => document.getElementById(id);
     const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const get = key => { try { return localStorage.getItem('linux-'+key); } catch { return null; } };
-    const save = (key, value) => { try { localStorage.setItem('linux-'+key, value); } catch { /* Storage may be disabled. */ } };
+    const get = key => { try { return localStorage.getItem(key==='theme'?'learning-notes-theme':'linux-'+key); } catch { return null; } };
+    const save = (key, value) => { try { localStorage.setItem(key==='theme'?'learning-notes-theme':'linux-'+key, value); } catch { /* Storage may be disabled. */ } };
     const labels = {note:'笔记',practice:'习题',diagram:'图谱'};
     const groups = [
       {id:'core',name:'核心知识',path:'/核心知识',description:'先用命令卡片速查，再进入完整笔记理解文件、权限与系统管理。'},
@@ -121,14 +121,14 @@
       }
     });
 
-    function theme(value) {
+    function theme(value, persist = false) {
       document.documentElement.dataset.theme=value;
       $('theme').setAttribute('aria-label',value==='dark'?'切换浅色模式':'切换深色模式');
       $('theme').setAttribute('aria-pressed',String(value==='dark'));
-      save('theme',value);
+      if (persist) save('theme',value);
     }
     theme(get('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
-    $('theme').addEventListener('click',()=>theme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+    $('theme').addEventListener('click',()=>theme(document.documentElement.dataset.theme==='dark'?'light':'dark',true));
 
     function decorate() {
       const article=$('note-body');

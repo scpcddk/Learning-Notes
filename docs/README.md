@@ -47,6 +47,11 @@
 │       ├── README.md
 │       ├── build_site.py                                     # 统一生成、打包与本地预览
 │       ├── index.html                                        # 一级板块与科目目录共用模板
+│       ├── shared/                                           # 全站共用样式与主题设置，构建时内嵌
+│       ├── computer-organization/                            # 计组目录总封面与提示词
+│       ├── general-studies/                                  # 通识与拓展目录总封面与提示词
+│       ├── probability-statistics/                           # 数学目录中的概率统计封面与提示词
+│       ├── numerical-analysis/                               # 数学目录中的数值分析封面与提示词
 │       ├── calculus/                                         # 高等数学
 │       ├── linear-algebra/                                   # 线性代数
 │       ├── discrete-math/                                    # 离散数学

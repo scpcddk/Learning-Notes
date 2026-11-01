@@ -16,6 +16,9 @@ AI 通过 `/ai/` 进入完整阅读页，按基础知识、实践记录、提示
 | --- | --- |
 | [build_site.py](build_site.py) | 各科目共用的生成、资源打包与链接检查入口，篇目配置也在此维护 |
 | [index.html](index.html) | 一级板块与科目目录共用的导航模板，包含专用样式 |
+| [shared/](shared/) | 全站设计规则与主题设置脚本；构建时内嵌到各页面，离线阅读无需额外文件 |
+| [computer-organization/](computer-organization/README.md)、[general-studies/](general-studies/README.md) | 计组与通识的总封面、提示词；首页卡片与各自目录页共用 |
+| [probability-statistics/](probability-statistics/README.md)、[numerical-analysis/](numerical-analysis/README.md) | 数学目录中的概率统计与数值分析封面及提示词 |
 | [calculus/](calculus/) | 高等数学模板、精要内容、生成的离线页与图片、公式组件 |
 | [linear-algebra/](linear-algebra/) | 线性代数模板、生成的离线页与图片、公式组件 |
 | [discrete-math/](discrete-math/) | 离散数学模板与封面；构建时直接读取数学目录的 Markdown 和 PDF |
@@ -28,7 +31,15 @@ AI 通过 `/ai/` 进入完整阅读页，按基础知识、实践记录、提示
 | [ai/](ai/README.md) | AI 阅读页说明、首页与阅读页共用的总封面及最终提示词 |
 | [vendor/](vendor/README.md) | Mozilla PDF.js 5.4.624 官方发行包及许可证 |
 
-每页专用的样式和交互代码并入对应 HTML 模板，不再另设科目生成脚本或 CSS、JS 配置文件。第三方公式组件与 PDF 阅读器保持原有资源结构和许可证。
+每页专用的样式和交互代码并入对应 HTML 模板，不再另设科目生成脚本。全站共用的配色、字号、间距、卡片和导航规则集中在 `shared/design-system.css`，主题设置集中在 `shared/theme.js`；统一构建脚本把它们内嵌到目录页和所有阅读页，包括高等数学与线性代数的离线 HTML。第三方公式组件与 PDF 阅读器保持原有资源结构和许可证。
+
+## 页面设计
+
+目录页与阅读页统一使用米白背景、墨绿强调色、衬线标题和无衬线正文。卡片使用一致的圆角、边框和留白，封面保持完整比例。阅读正文桌面为 16px、手机为 15px；代码与宽表格在各自区域内滚动。
+
+所有阅读页在 840px 及以下使用抽屉目录，桌面侧栏统一为 256px。首页与各科目目录也提供主题切换，同一站点下的主题选择互通；未手动选择时跟随系统，浏览器禁止存储时仍可切换。键盘焦点、减少动画设置与打印样式保留。
+
+修改全站风格时先更新 `shared/`，再运行下述构建命令；不要直接编辑 `docs/site`。原 HTML 图解和第三方 PDF 阅读器保留自身布局。
 
 ## 生成与发布
 

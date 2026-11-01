@@ -2,12 +2,57 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
+<script data-shared-theme>/* One preference across catalogs and readers; no dependency on network/storage. */
+(() => {
+  const root = document.documentElement;
+  const key = 'learning-notes-theme';
+  const system = matchMedia('(prefers-color-scheme: dark)');
+  let preference;
+  try { preference = localStorage.getItem(key); } catch {}
+  const valid = value => value === 'dark' || value === 'light';
+  root.dataset.theme = valid(preference) ? preference : system.matches ? 'dark' : 'light';
+
+  function updateControls() {
+    const dark = root.dataset.theme === 'dark';
+    for (const button of document.querySelectorAll('#theme, #theme-btn, .catalog-theme')) {
+      button.setAttribute('aria-label', dark ? '切换浅色模式' : '切换深色模式');
+      button.setAttribute('aria-pressed', String(dark));
+      button.title = dark ? '切换浅色模式' : '切换深色模式';
+      if (button.id !== 'theme-btn') button.textContent = dark ? '浅色' : '深色';
+    }
+  }
+  new MutationObserver(() => {
+    updateControls();
+  }).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+  document.addEventListener('DOMContentLoaded', () => {
+    updateControls();
+    document.querySelector('.catalog-theme')?.addEventListener('click', () => {
+      const value = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = value;
+      preference = value;
+      try { localStorage.setItem(key, value); } catch {}
+    });
+  });
+  document.addEventListener('click', event => {
+    if (event.target.closest('#theme, #theme-btn, .catalog-theme')) preference = root.dataset.theme;
+  });
+  window.addEventListener('storage', event => {
+    if (event.key !== key && event.key !== null) return;
+    preference = event.newValue;
+    root.dataset.theme = valid(preference) ? preference : system.matches ? 'dark' : 'light';
+  });
+  system.addEventListener('change', event => {
+    try { preference = localStorage.getItem(key); } catch {}
+    if (!valid(preference)) root.dataset.theme = event.matches ? 'dark' : 'light';
+  });
+})();
+</script>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="线性代数学习笔记：七章知识体系、完整例题、公式速查与拓展阅读。">
   <title>线性代数 · 学习笔记</title>
   <script>
-    try { if (localStorage.getItem('linalg-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (_) {}
+    try { if (localStorage.getItem('learning-notes-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (_) {}
     window.MathJax = {tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'},startup:{typeset:false},options:{enableMenu:false}};
   </script>
   <style>
@@ -25,7 +70,7 @@
     @media(min-width:1600px){.layout{padding-top:56px}.layout.home-layout{padding-top:55px}.hero{min-height:280px}.hero-math{right:30px;width:270px;height:250px}}
     @media(max-width:1200px){:root{--sidebar-width:215px}.layout{gap:28px;padding:35px 32px;grid-template-columns:minmax(0,1fr) 155px}.topbar{padding:0 30px}.hero-math{width:190px;right:-15px;opacity:.3}.hero p{max-width:360px}.hero h1{font-size:42px}}
     @media(max-width:1030px){.reading-rail{display:none}.layout{display:block;max-width:800px}.hero-math{width:210px;right:0}.search-trigger{min-width:145px}.search-trigger kbd{display:none}}
-    @media(max-width:760px){:root{--sidebar-width:0px}.sidebar{width:258px;transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.page-shell{margin-left:0}.menu-btn{display:grid}.topbar{height:60px;padding:0 17px;gap:9px}.breadcrumb{font-size:10px;gap:7px}.breadcrumb>span,.breadcrumb>i{display:none}.top-actions{gap:2px}.search-trigger{border:0;padding:8px;min-width:0;background:transparent}.search-trigger .search-label{display:none}.search-trigger svg{width:17px;height:17px}.reading-progress{top:59px;left:0}.layout,.layout.home-layout{padding:27px 22px}.hero{min-height:265px;padding-top:8px}.hero h1{font-size:39px;line-height:1.5;margin-top:20px}.hero p{max-width:240px;font-size:12px}.hero-math{right:-45px;top:35px;width:180px;opacity:.17}.hero-meta{gap:18px;font-size:10px;margin-top:23px}.hero-meta b{font-size:16px}.chapter-grid{gap:10px}.chapter-card{padding:17px 15px;min-height:158px}.chapter-card h2{font-size:16px;max-width:140px}.chapter-card p{font-size:11px;margin-right:0}.chapter-card .card-arrow{right:13px;top:17px}.chapter-card .tags{gap:4px}.tag{font-size:9px;padding:1px 5px}.home-tools{margin-top:23px}.section-label{font-size:13px}.section-label small{font-size:10px}.text-btn{font-size:11px}.route{gap:10px;font-size:10px}.route strong{font-size:11px}.learning-route{margin-top:25px}.chapter-header h1{font-size:30px}.chapter-header p{font-size:12px}.chapter-header .eyebrow{font-size:9px}.prose{font-size:14px;line-height:1.95}.prose h2{font-size:19px}.prose h3{font-size:16px}.math-display{padding:13px 10px;font-size:.9em}.prose .callout{padding:10px 14px}.prose td,.prose th{padding:10px 12px}.page-footer{padding:22px;font-size:9px;gap:15px}.mobile-shade.show{display:block;position:fixed;inset:0;background:#17251f66;z-index:45}.source-link{font-size:10px}.mode-switch button{padding:5px 11px}.skip-link{left:20px}.example-body{padding:4px 13px 13px}.worked-example>summary{padding:13px;font-size:12px}}
+    @media(max-width:840px){:root{--sidebar-width:0px}.sidebar{width:258px;transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.page-shell{margin-left:0}.menu-btn{display:grid}.topbar{height:60px;padding:0 17px;gap:9px}.breadcrumb{font-size:10px;gap:7px}.breadcrumb>span,.breadcrumb>i{display:none}.top-actions{gap:2px}.search-trigger{border:0;padding:8px;min-width:0;background:transparent}.search-trigger .search-label{display:none}.search-trigger svg{width:17px;height:17px}.reading-progress{top:59px;left:0}.layout,.layout.home-layout{padding:27px 22px}.hero{min-height:265px;padding-top:8px}.hero h1{font-size:39px;line-height:1.5;margin-top:20px}.hero p{max-width:240px;font-size:12px}.hero-math{right:-45px;top:35px;width:180px;opacity:.17}.hero-meta{gap:18px;font-size:10px;margin-top:23px}.hero-meta b{font-size:16px}.chapter-grid{gap:10px}.chapter-card{padding:17px 15px;min-height:158px}.chapter-card h2{font-size:16px;max-width:140px}.chapter-card p{font-size:11px;margin-right:0}.chapter-card .card-arrow{right:13px;top:17px}.chapter-card .tags{gap:4px}.tag{font-size:9px;padding:1px 5px}.home-tools{margin-top:23px}.section-label{font-size:13px}.section-label small{font-size:10px}.text-btn{font-size:11px}.route{gap:10px;font-size:10px}.route strong{font-size:11px}.learning-route{margin-top:25px}.chapter-header h1{font-size:30px}.chapter-header p{font-size:12px}.chapter-header .eyebrow{font-size:9px}.prose{font-size:14px;line-height:1.95}.prose h2{font-size:19px}.prose h3{font-size:16px}.math-display{padding:13px 10px;font-size:.9em}.prose .callout{padding:10px 14px}.prose td,.prose th{padding:10px 12px}.page-footer{padding:22px;font-size:9px;gap:15px}.mobile-shade.show{display:block;position:fixed;inset:0;background:#17251f66;z-index:45}.source-link{font-size:10px}.mode-switch button{padding:5px 11px}.skip-link{left:20px}.example-body{padding:4px 13px 13px}.worked-example>summary{padding:13px;font-size:12px}}
     @media(max-width:370px){.layout,.layout.home-layout{padding:23px 17px}.chapter-grid{grid-template-columns:1fr}.hero h1{font-size:35px}.hero-math{display:none}.page-footer span:last-child{display:none}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
     @media print{:root,:root[data-theme=dark]{--bg:#fff;--paper:#fff;--ink:#000;--muted:#555;--green:#173d2e;--line:#ccc;--sidebar:#f6f6f6;--green-soft:#f4f7f2}.sidebar,.topbar,.reading-rail,.reading-progress,.chapter-tools,.reading-note,.chapter-footer,.page-footer,.home-tools,.source-link,.mobile-shade{display:none!important}.page-shell{margin:0}.layout,.layout.home-layout{display:block;max-width:none;padding:0}.chapter-header{margin-bottom:15px}.prose{font-size:10.5pt;line-height:1.7}.prose h2{font-size:15pt;break-after:avoid}.prose h3,.prose h4{break-after:avoid}.math-display{overflow:visible;background:#fff;break-inside:avoid}.table-scroll{overflow:visible}.prose table{font-size:9pt}.worked-example{break-inside:auto}.worked-example>summary{display:none}.example-body{padding:0}.callout{break-inside:avoid}.chapter-card{break-inside:avoid}.hero-math{display:none}@page{size:A4;margin:18mm}}
@@ -33,12 +78,264 @@
     .hero{min-height:330px;padding-top:15px}.hero h1{max-width:66%;font-size:clamp(35px,3.5vw,49px)}.hero p{max-width:380px}.hero .eyebrow,.hero-meta{position:relative;z-index:1}.hero-cover{position:absolute;right:-25px;top:4px;width:53%;height:300px;object-fit:contain;mix-blend-mode:multiply;opacity:.96;pointer-events:none;mask-image:radial-gradient(ellipse 70% 70% at 50% 50%,#000 52%,transparent 98%)}:root[data-theme=dark] .hero-cover{mix-blend-mode:normal;opacity:.82;mask-image:radial-gradient(ellipse 65% 60% at center,#000 45%,transparent 90%)}
     @media(max-width:1200px){.hero-cover{right:-36px;top:24px;height:275px;width:52%}.hero h1{font-size:42px}.hero p{max-width:330px}}
     @media(max-width:1030px){.hero{min-height:320px}.hero-cover{right:-30px;width:50%}.hero h1{max-width:70%}}
-    @media(max-width:760px){.hero{min-height:325px;padding-top:8px}.hero h1{max-width:100%;font-size:37px;line-height:1.5}.hero p{max-width:265px}.hero-cover{right:-65px;top:90px;width:245px;height:210px;opacity:.22}.hero-meta{gap:15px}.hero-meta b{font-size:17px}}
+    @media(max-width:840px){.hero{min-height:325px;padding-top:8px}.hero h1{max-width:100%;font-size:37px;line-height:1.5}.hero p{max-width:265px}.hero-cover{right:-65px;top:90px;width:245px;height:210px;opacity:.22}.hero-meta{gap:15px}.hero-meta b{font-size:17px}}
     @media(max-width:370px){.hero h1{font-size:33px}.hero-cover{right:-80px}.hero-meta{gap:10px;font-size:9px}}
     @media print{.hero-cover{display:none!important}.hero h1{max-width:100%}}
   </style>
+<style data-design-system>
+/* Shared visual language. Inlined by build_site.py so offline readers stay portable. */
+@media screen {
+  :root,
+  html[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f7f8f4;
+    --paper: #ffffff;
+    --sidebar: #f0f3ed;
+    --ink: #243a30;
+    --muted: #607267;
+    --green: #25634b;
+    --soft: #e8f0e6;
+    --green-soft: var(--soft);
+    --line: #dce4d9;
+    --sand: #f2efe5;
+    --code: #1c2e25;
+    --code-ink: #e5eee3;
+    --serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --radius: 16px;
+    --radius-sm: 9px;
+    --sidebar-width: 256px;
+    --page-gutter: clamp(24px, 3.4vw, 52px);
+    --card-shadow: 0 4px 20px #243a3005;
+    --hover-shadow: 0 12px 30px #243a300c;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #17211c;
+    --paper: #1e2b23;
+    --sidebar: #1a261f;
+    --ink: #e1eade;
+    --muted: #a3b6a7;
+    --green: #afd3ae;
+    --soft: #2a4031;
+    --green-soft: var(--soft);
+    --line: #35493b;
+    --sand: #2c3026;
+    --code: #111e17;
+    --code-ink: #e5eee3;
+    --card-shadow: none;
+    --hover-shadow: 0 12px 30px #0002;
+  }
+
+  body { font: 15px/1.85 var(--sans); background: var(--bg); color: var(--ink); }
+  button, input, select { font-family: var(--sans); }
+  button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+  :is(a, button, input, select, summary):focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
+  ::selection { background: var(--soft); color: var(--ink); }
+  [hidden] { display: none !important; }
+  .eyebrow { font: 500 10px/1.8 var(--sans); letter-spacing: .16em; color: var(--green); }
+  .brand { font-family: var(--sans); letter-spacing: .015em; }
+  .brand :is(.symbol, .brand-symbol, .brand-icon) {
+    width: 42px; height: 44px; flex-shrink: 0; border: 0; border-radius: 12px;
+    background: var(--green); color: var(--bg); display: grid; place-items: center;
+  }
+  .brand small { font: 500 8px/1.8 var(--sans); letter-spacing: .1em; color: var(--muted); }
+  .brand strong { font-size: 19px; font-weight: 650; }
+
+  /* Catalogs: one rhythm from the main directory to the subject directories. */
+  .catalog-page :is(header, main, footer) { width: min(1160px, calc(100% - 2 * var(--page-gutter))); }
+  .catalog-page header { height: 88px; }
+  .catalog-actions { display: flex; align-items: center; gap: 20px; }
+  .catalog-page .brand { font-size: 19px; }
+  .catalog-page .repo { font-size: 12px; }
+  .catalog-page .intro { padding: 60px 0 40px; }
+  .catalog-page .intro h1 { font: 500 clamp(37px, 4.3vw, 56px)/1.45 var(--serif); letter-spacing: .015em; margin: 20px 0; }
+  .catalog-page .intro p { font-size: 15px; max-width: 640px; }
+  .catalog-page .intro-meta { font-size: 12px; gap: 20px; flex-wrap: wrap; }
+  .catalog-page .catalog-trail { font-size: 12px; gap: 10px; flex-wrap: wrap; }
+  .catalog-page .catalog-trail + .intro { padding-top: 32px; }
+  .catalog-page .intro.with-cover { padding: 32px 0 40px; gap: 36px; }
+  .catalog-page .intro.with-cover h1 { font-size: clamp(36px, 3.8vw, 50px); }
+  .catalog-page .subjects { gap: 24px; align-items: stretch; }
+  .catalog-page .subject { display: flex; flex-direction: column; border-radius: var(--radius); box-shadow: var(--card-shadow); }
+  .catalog-page .art { height: auto; aspect-ratio: 2/1; background: #fafbf8; border-bottom: 1px solid var(--line); }
+  .catalog-page .art img { object-fit: contain; }
+  .catalog-page .subject .subject-copy { padding: 27px; display: flex; flex-direction: column; flex: 1; }
+  .catalog-page .subject h2 { font: 500 27px/1.55 var(--serif); letter-spacing: .01em; margin: 12px 0; }
+  .catalog-page .subject p { font-size: 13px; line-height: 1.9; min-height: 0; }
+  .catalog-page .number { font: 500 10px/1.8 var(--sans); letter-spacing: .1em; }
+  .catalog-page .chips { gap: 6px; margin: 20px 0 0; padding-bottom: 22px; }
+  .catalog-page .chips span { font-size: 11px; border: 0; padding: 3px 9px; border-radius: 5px; background: var(--sidebar); color: var(--muted); }
+  .catalog-page .subject strong { font-size: 12px; margin-top: auto; padding-top: 17px; }
+  .catalog-page .subject.compact h2 { font-size: 24px; }
+  .catalog-page .more { margin-top: 40px; padding: 28px 0; }
+  .catalog-page .more p, .catalog-page .reading-tip { font-size: 12px; }
+  .catalog-page footer { font-size: 11px; }
+
+  /* Readers retain their own content and behavior, with a common outer shell. */
+  .reader-page #sidebar { width: var(--sidebar-width); background: var(--sidebar); border-color: var(--line); z-index: 50; }
+  .reader-page .workspace { margin-left: var(--sidebar-width); }
+  .reader-page .page-shell { margin-left: var(--sidebar-width); }
+  .reader-page #sidebar > .brand { padding: 28px 22px 24px; font-size: 19px; line-height: 1.6; gap: 12px; }
+  .math-reader #sidebar { padding: 0 14px 22px; }
+  .math-reader #sidebar > .brand { padding-left: 8px; padding-right: 8px; }
+  .reader-page .sidebar-tools { padding: 0 18px 18px; }
+  .reader-page :is(.search-box, label.search-label) { min-height: 42px; border-radius: var(--radius-sm); background: var(--paper); border: 1px solid var(--line); padding: 9px 11px; }
+  .reader-page :is(.search-box, label.search-label) input { font-size: 12px; }
+  .reader-page .filters { gap: 4px; }
+  .reader-page .filters button { font-size: 11px; padding: 6px 8px; border-radius: 6px; }
+  .reader-page .nav-link, .reader-page .nav-home { font-size: 12px; line-height: 1.8; padding: 10px 11px; border-radius: 8px; }
+  .reader-page .nav-group { font-size: 11px; margin-top: 25px; color: var(--muted); }
+  .reader-page .nav-section-link { font-size: 13px; padding: 11px; border-radius: 8px; }
+  .reader-page .nav-topic-link { font-size: 12px; }
+  .reader-page :is(.nav-link.active, .nav-link[aria-current="page"], .nav-home[aria-current="page"]) { background: var(--soft); color: var(--green); box-shadow: inset 3px 0 var(--green); }
+  .reader-page :is(.sidebar-footer, .nav-bottom) { font-size: 11px; }
+  .reader-page :is(.workspace > header, .topbar) { height: 72px; padding: 0 var(--page-gutter); background: var(--bg); gap: 16px; }
+  .reader-page .breadcrumb { font-size: 12px; gap: 10px; }
+  .reader-page .breadcrumb b { min-width: 0; }
+  .top-actions :is(button, .icon-btn), .catalog-theme {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 36px; min-width: 36px;
+    padding: 7px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--paper); color: var(--muted); font: 12px/1.5 var(--sans); cursor: pointer;
+  }
+  .top-actions #theme { font-size: 12px; padding: 7px 11px; }
+  .reader-page :is(#menu, #menu-btn) { min-width: 36px; min-height: 36px; }
+  .top-actions .search-trigger { gap: 8px; }
+  .reader-page .progress { left: var(--sidebar-width); top: 71px; }
+  .reader-page .reading-progress { top: 71px; }
+  .reader-page .workspace > main { max-width: 1280px; padding: 40px var(--page-gutter) 0; }
+  .reader-page .layout { max-width: 1280px; padding: 40px var(--page-gutter) 30px; gap: 40px; grid-template-columns: minmax(0, 1fr) 180px; }
+  .reader-page .layout.home-layout { display: block; max-width: 1180px; }
+  .reader-page .hero h1 { font: 500 clamp(36px, 3.4vw, 49px)/1.5 var(--serif); letter-spacing: .015em; }
+  .reader-page .hero p { font-size: 14px; line-height: 1.95; }
+  .reader-page:not(.math-reader) .hero { min-height: 330px; grid-template-columns: 1fr 1fr; gap: 24px; padding: 8px 0 32px; }
+  .reader-page:not(.math-reader) .hero img { aspect-ratio: 3/2; object-fit: contain; border-radius: var(--radius); }
+  .reader-page .primary { min-height: 44px; padding: 11px 18px; border-radius: var(--radius-sm); font-size: 13px; gap: 24px; background: var(--green); color: var(--bg); }
+  .reader-page .text-link { font-size: 12px; }
+  .reader-page .stats { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); padding: 24px 0; margin: 0 0 36px; }
+  .reader-page .stats > div { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; }
+  .reader-page .stats strong { font: 400 30px/1.3 Georgia, serif; color: var(--green); margin: 0; }
+  .reader-page .stats span { font-size: 12px; }
+  .reader-page :is(.folders, .chapter-grid, .course-cards) { gap: 18px; }
+  .reader-page :is(.folder, .chapter-card, .course-card, .topic-card, .resource-card) { border-radius: var(--radius); border-color: var(--line); box-shadow: var(--card-shadow); }
+  .reader-page :is(.folder, .chapter-card, .course-card) { padding: 24px; }
+  .reader-page .has-cover { padding: 0; }
+  .reader-page .section-copy { padding: 24px; }
+  .reader-page .section-cover { aspect-ratio: 3/2; object-fit: contain; border-bottom: 1px solid var(--line); }
+  .reader-page :is(.section-heading h2, .section-title h2) { font: 500 27px/1.6 var(--serif); letter-spacing: .01em; }
+  .reader-page :is(.section-heading p, .section-title p, .section-card p) { font-size: 13px; }
+  .reader-page .section-card h3 { font: 500 24px/1.6 var(--serif); }
+  .reader-page :is(.folder-list a, .chapter-card p, .course-card p) { font-size: 12px; }
+  .reader-page :is(.document-head h1, .chapter-header h1) { font: 500 clamp(28px, 3vw, 39px)/1.55 var(--serif); letter-spacing: .01em; }
+  .reader-page :is(.document-meta, .source-link, .document-links a) { font-size: 12px; }
+  .reader-page :is(.mode-switch, .guide, .resource-panel, .article-contents, .mobile-toc) { border-radius: var(--radius-sm); }
+  .reader-page .mode-switch button { min-height: 34px; font-size: 12px; padding: 6px 13px; }
+  .reader-page :is(.prose, article) { font-size: 16px; line-height: 1.95; }
+  .reader-page :is(.prose, article) h2 { font: 600 24px/1.65 var(--sans); letter-spacing: 0; margin-top: 40px; }
+  .reader-page :is(.prose, article) h3 { font: 600 20px/1.7 var(--sans); }
+  .reader-page :is(.prose, article) h4 { font-size: 17px; }
+  .reader-page :is(.prose, article) p { margin: 16px 0; }
+  .reader-page :is(.prose, article) li { margin: 6px 0; }
+  .reader-page :is(.prose, article) :is(th, td) { font-size: 13px; line-height: 1.85; }
+  .reader-page :is(.prose, article) code { font-size: 13px; }
+  .reader-page .math-inline { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle; }
+  .reader-page .math-display { max-width: 100%; overflow-x: auto; }
+  .reader-page .code-block { background: var(--code); color: var(--code-ink); border: 1px solid #395342; border-radius: 12px; }
+  .reader-page .code-block figcaption { background: transparent; color: #c1d2c2; border-color: #395342; padding: 9px 16px; font-size: 10px; }
+  .reader-page .code-block pre { background: transparent; color: inherit; }
+  .reader-page .code-block code { background: transparent; color: inherit; font-size: 13px; line-height: 1.85; }
+  .reader-page .copy-code { border: 1px solid #607969; border-radius: 6px; color: #e5eee3; background: transparent; font-size: 11px; padding: 4px 9px; }
+  .reader-page .token-keyword { color: #b9d8f4; }
+  .reader-page .token-string { color: #e0c88f; }
+  .reader-page .token-number { color: #d6b6dd; }
+  .reader-page .token-comment { color: #a4bda5; }
+  .reader-page :is(.table-scroll, .answers, .worked-example, .prose details) { border-radius: var(--radius-sm); }
+  .reader-page .reading-rail { top: 104px; padding-left: 18px; }
+  .reader-page .toc a { font-size: 12px; padding: 5px 0; }
+  .reader-page :is(.document-pager, .chapter-footer, .page-footer) { font-size: 12px; }
+  .reader-page :is(.companion, .sort-demo, .study-note, .learning-route) { border-radius: var(--radius); }
+  .reader-page dialog { border-radius: var(--radius); border-color: var(--line); }
+
+  @media (hover: hover) {
+    :is(.subject, .section-card, .chapter-card, .course-card, .topic-card):hover { border-color: var(--green); box-shadow: var(--hover-shadow); transform: translateY(-3px); }
+    :is(.top-actions button, .catalog-theme):hover { color: var(--green); background: var(--soft); }
+  }
+  html[data-theme="dark"] :is(.catalog-cover, .hero img) { mix-blend-mode: normal; opacity: .85; }
+  html[data-theme="dark"] .catalog-page .art { background: #e6e8dc; }
+  html[data-theme="dark"] .brand :is(.brand-icon, .brand-symbol) { color: var(--bg); }
+
+  @media (max-width: 1230px) {
+    .reader-page .document-layout { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 1030px) {
+    .reader-page .layout { display: block; max-width: 850px; }
+    .reader-page .layout > .reading-rail { display: none; }
+    .reader-page .hero h1 { font-size: 38px; }
+  }
+  @media (max-width: 840px) {
+    :root, html[data-theme] { --sidebar-width: 0px; --page-gutter: 26px; }
+    .reader-page #sidebar { width: 272px; max-width: calc(100vw - 40px); }
+    .reader-page .workspace, .reader-page .page-shell { margin-left: 0; }
+    .reader-page .progress { left: 0; }
+    .reader-page .breadcrumb { font-size: 11px; }
+    .catalog-page .intro { padding-top: 42px; }
+  }
+  @media (max-width: 600px) {
+    :root, html[data-theme] { --page-gutter: 20px; }
+    .catalog-page header { height: 76px; }
+    .catalog-actions { gap: 10px; }
+    .catalog-page .repo { font-size: 11px; }
+    .catalog-page .intro h1, .catalog-page .intro.with-cover h1 { font-size: 36px; }
+    .catalog-page .intro p { font-size: 14px; }
+    .catalog-page .intro.with-cover { gap: 20px; grid-template-columns: 1fr; }
+    .catalog-page .subjects { grid-template-columns: 1fr; gap: 18px; }
+    .catalog-page .subject .subject-copy { padding: 23px; }
+    .catalog-page .subject h2 { font-size: 25px; }
+    .catalog-page .intro-meta { gap: 12px; font-size: 11px; }
+    .catalog-page .intro-meta span + span::before { margin-right: 12px; }
+    .reader-page :is(.workspace > header, .topbar) { height: 64px; gap: 8px; }
+    .reader-page .progress, .reader-page .reading-progress { top: 63px; }
+    .reader-page .top-actions { gap: 5px; }
+    .reader-page .top-actions :is(button, .icon-btn) { min-height: 36px; padding: 6px 9px; }
+    .reader-page :is(.workspace > main, .layout, .layout.home-layout) { padding: 28px var(--page-gutter) 0; }
+    .reader-page:not(.math-reader) .hero { display: grid; grid-template-columns: 1fr; min-height: 0; gap: 18px; padding: 4px 0 26px; }
+    .reader-page .hero h1 { font-size: 36px; line-height: 1.5; }
+    .reader-page .hero p { font-size: 14px; }
+    .reader-page:not(.math-reader) .hero img { width: 100%; max-height: 260px; object-fit: contain; }
+    .reader-page .stats { padding: 20px 0; margin-bottom: 28px; }
+    .reader-page .stats > div { flex-direction: column; gap: 4px; }
+    .reader-page .stats strong { font-size: 27px; }
+    .reader-page .stats span { font-size: 11px; }
+    .reader-page :is(.folders, .chapter-grid, .course-cards) { gap: 14px; grid-template-columns: 1fr; }
+    .reader-page :is(.folder, .chapter-card, .course-card) { padding: 22px; }
+    .reader-page .has-cover { padding: 0; }
+    .reader-page .section-copy { padding: 22px; }
+    .reader-page :is(.document-head h1, .chapter-header h1) { font-size: 29px; }
+    .reader-page :is(.prose, article) { font-size: 15px; line-height: 1.95; }
+    .reader-page :is(.prose, article) h2 { font-size: 22px; }
+    .reader-page :is(.prose, article) h3 { font-size: 18px; }
+    .reader-page .code-block code { font-size: 12px; }
+    .math-reader .hero h1 { max-width: 100%; }
+    .math-reader .hero-cover, .math-reader .hero-art { opacity: .15; }
+  }
+  @media (max-width: 380px) {
+    .catalog-page .brand { font-size: 17px; gap: 8px; }
+    .catalog-page .repo { max-width: 68px; text-align: right; line-height: 1.5; }
+    .catalog-actions { gap: 6px; }
+    .catalog-page .intro h1 { font-size: 32px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+}
+@media print {
+  .catalog-theme { display: none !important; }
+}
+</style>
 </head>
-<body>
+<body class="reader-page math-reader">
   <a class="skip-link" href="#main-content">跳到正文</a>
   <aside class="sidebar" id="sidebar" aria-label="学习目录">
     <a class="brand" href="#overview" aria-label="回到学习总览"><span class="brand-symbol">λ</span><span><strong>线性代数</strong><small>LINEAR ALGEBRA NOTES</small></span></a>
@@ -146,7 +443,7 @@
     let scheduled=false;window.addEventListener('scroll',()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;updateProgress()})},{passive:true});window.addEventListener('resize',updateProgress);main.addEventListener('toggle',updateProgress,true);
     $('menu-btn').addEventListener('click',()=>{const open=!$('sidebar').classList.contains('open');$('sidebar').classList.toggle('open',open);$('mobile-shade').classList.toggle('show',open);$('menu-btn').setAttribute('aria-expanded',String(open))});$('mobile-shade').addEventListener('click',closeMenu);
     function updateThemeButton(){const dark=document.documentElement.dataset.theme==='dark';$('theme-btn').setAttribute('aria-label',dark?'切换为浅色模式':'切换为深色模式');$('theme-btn').setAttribute('aria-pressed',String(dark))}updateThemeButton();
-    $('theme-btn').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;store.set('linalg-theme',theme);updateThemeButton()});
+    $('theme-btn').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;store.set('learning-notes-theme',theme);updateThemeButton()});
     let printState=[];window.addEventListener('beforeprint',()=>{printState=[...main.querySelectorAll('details')].map(d=>[d,d.open]);printState.forEach(([d])=>d.open=true)});window.addEventListener('afterprint',()=>{printState.forEach(([d,open])=>d.open=open);printState=[]});$('print-btn').addEventListener('click',()=>window.print());
     function search(){const value=$('search-input').value.trim().toLowerCase(),terms=value.split(/\s+/);const results=value?chapters.filter(c=>terms.every(t=>(c.title+' '+c.tags.join(' ')+' '+c.search).toLowerCase().includes(t))):chapters.slice(0,7);$('search-results').replaceChildren();if(!results.length){$('search-results').innerHTML='<div class="search-empty">没有找到相关内容，试试“秩”“投影”或“基础解系”。</div>';return}results.slice(0,9).forEach(c=>{const button=document.createElement('button');button.className='search-result';const strong=document.createElement('strong');strong.textContent=(c.number==='∑'?'':c.number+' · ')+c.title;const p=document.createElement('p');const pos=c.search.toLowerCase().indexOf(terms[0]);p.textContent=value&&pos>=0?c.search.slice(Math.max(0,pos-18),pos+95).replace(/\s+/g,' '):c.description;button.append(strong,p);button.addEventListener('click',()=>{$('search-dialog').close();mode='full';store.set('linalg-mode',mode);pendingQuery=$('search-input').value.trim();navigate(c.id)});$('search-results').append(button)})}
     function openSearch(){search();$('search-dialog').showModal();$('search-input').focus()}
