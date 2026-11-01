@@ -24,7 +24,7 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 
 - **底层版：**
   1. 入口：`@SpringBootApplication` → `@EnableAutoConfiguration` → `@Import(AutoConfigurationImportSelector.class)`
-  2. `AutoConfigurationImportSelector#selectImports()` 调用 `getCandidateConfigurations()`，通过 `SpringFactoriesLoader` 读取 `AutoConfiguration.imports`
+  2. `AutoConfigurationImportSelector` 在 `getAutoConfigurationEntry()` 中调用 `getCandidateConfigurations()`，通过 `ImportCandidates.load(AutoConfiguration.class, classLoader)` 读取 `AutoConfiguration.imports`；`SpringFactoriesLoader` 用于加载自动配置过滤器、监听器等扩展
   3. `ConditionEvaluator` 对每个配置类执行条件评估
   4. 通过评估的配置类注册为 `BeanDefinition`，由 `BeanFactory` 实例化
   5. 自动配置 `Bean` 通常带 `@ConditionalOnMissingBean`，用户自定义 `Bean` 优先级更高
@@ -34,7 +34,7 @@ Spring Boot 的"灵魂机制"，位于框架启动层。上游依赖 Spring Fram
 | 考点 | 内容 |
 | ------ | ------ |
 | 自动配置加载文件 | 3.x: `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`；2.x: `META-INF/spring.factories` |
-| 核心类 | `AutoConfigurationImportSelector`、`SpringFactoriesLoader`、`ConditionEvaluator` |
+| 核心类 | `AutoConfigurationImportSelector`、`ImportCandidates`、`ConditionEvaluator` |
 | 条件注解族 | `@ConditionalOnClass`、`@ConditionalOnMissingBean`、`@ConditionalOnProperty`、`@ConditionalOnWebApplication` |
 | 排除自动配置 | `@SpringBootApplication(exclude = {...})` 或 `spring.autoconfigure.exclude` |
 | 查看匹配详情 | 启动加 `--debug` 或 `debug=true`，看 `Positive matches` / `Negative matches` |
@@ -2370,7 +2370,7 @@ sequenceDiagram
 | **事务不生效** | 同类方法内调用 `@Transactional` 方法 | 数据未回滚，日志无事务开启 | 拆分到另一个 Service，或注入自身代理 |
 | **404 但路径对** | 启动类包层级不对，没扫描到 Controller | 日志无 `Mapped` 记录 | 启动类放根包，如 `com.example.demo` |
 | **时区差 8 小时** | 数据库时间不对 | 查询结果时间比预期少 8 小时 | JDBC URL 加 `serverTimezone=Asia/Shanghai` |
-| **JSON 字段为 null** | 响应里全是 null 字段 | 前端收到大量 null 值 | `spring.jackson.default-property-inclusion=non_null` |
+| **JSON 字段为 null** | 查询结果、对象赋值、DTO 映射或序列化访问器异常 | 前端收到大量 null 值 | 检查查询结果、对象赋值、DTO 映射和 getter；`non_null` 仅用于省略空属性，不能修复数据缺失 |
 | **文件上传失败** | 默认限制 1MB | `SizeLimitExceededException` | `spring.servlet.multipart.max-file-size=10MB` |
 | **端口占用** | 8080 被占用 | `PortInUseException` | `server.port=8081` |
 | **@Value 取不到** | 配置项拼写错误或没加载 | 字段值为 null 或默认值 | 检查 YAML 缩进；或用 `@ConfigurationProperties` |
