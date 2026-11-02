@@ -1041,6 +1041,8 @@ IPage<Student> result = studentMapper.selectPage(page, wrapper);
 
 **selectList 与 selectPage 的区别**
 
+**分页针对符合 Wrapper 条件的记录。** 筛选条件进入 SQL 的 `WHERE`，数据库对满足条件的结果进行排序和分页，而不是先从全表取出一页，再在 Java 中筛选。
+
 | 方法 | 功能 | 返回内容 |
 |---|---|---|
 | `selectList(wrapper)` | 按 Wrapper 查询符合条件的记录列表 | `List<Student>` |
