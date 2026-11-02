@@ -995,9 +995,10 @@ public class MybatisPlusConfig {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(
-            new PaginationInnerInterceptor(DbType.MYSQL)
-        );
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        pagination.setOverflow(false); // 超出总页数时返回空页，采用默认行为
+        pagination.setMaxLimit(100L); // 本例设置单页上限为 100 条
+        interceptor.addInnerInterceptor(pagination);
         return interceptor;
     }
 }
@@ -1065,6 +1066,34 @@ IPage<Student> result = studentMapper.selectPage(page, wrapper);
 **`size` 不等于实际返回条数。** 例如第 4 页的 `getSize()` 仍为 5，但 `getRecords().size()` 为 2；`getRecords()` 返回的也不是全部 17 条记录。
 
 ⚠️ **易混淆**：分页可能包含 **COUNT 查询 + 数据查询**，不是简单地“多加一个 LIMIT”。复杂 JOIN / `GROUP BY` 的总数统计需要检查实际生成 SQL，必要时自定义 COUNT。
+
+### 18.4 searchCount：是否自动查询总数
+
+`searchCount` 属于单个 `Page`，默认为 `true`。例如第 2 页、每页 3 条时，通常会先统计符合条件的总数，再执行带 `LIMIT 3, 3` 的数据查询。
+
+```java
+Page<Student> page = new Page<>(2, 3);
+page.setSearchCount(false); // 只关心本页记录时，可跳过自动 COUNT
+```
+
+关闭后，插件仍会执行数据分页，但不会自动填充准确的总数。**此时不能根据 `getTotal()`、`getPages()` 判断真实总数或总页数，也不能把默认的 0 理解为没有其他记录。**
+
+### 18.5 overflow：页码超出总页数
+
+`overflow` 属于分页拦截器，会影响使用该拦截器的分页查询。假设符合条件的记录共 8 条，每页 3 条，共 3 页，却请求 `new Page<Student>(100, 3)`：
+
+- 默认 `overflow=false`，保留请求页码，当前页记录通常为空。
+- 在第 17.2 节的配置中改为 `pagination.setOverflow(true)`，当总数统计能确认页码越界且结果集非空时，将请求调整回第 1 页。
+
+**超页回退依赖总数统计。** 使用 `page.setSearchCount(false)` 时，插件会跳过这段越界判断，不能期待 `overflow=true` 自动将请求改回第一页。
+
+### 18.6 maxLimit：限制单页条数
+
+分页拦截器的 `maxLimit` 默认未设置。第 17.2 节示例通过 `pagination.setMaxLimit(100L)` 配置单页上限，限制过大的每页条数，例如 `new Page<Student>(1, 1_000_000)`。
+
+Service 层仍应校验 `pageNum >= 1`、`pageSize >= 1` 以及业务允许的最大条数，示例见第 26 节。插件上限用于限制分页 SQL 的数据量，参数是否合法由业务层明确处理。
+
+在 MP `3.5.17` 中，若单个 `Page` 另设 `maxLimit`，会优先使用该值，因此这些上限应由服务端统一控制。[MP 3.5.17 分页实现](https://github.com/baomidou/mybatis-plus/blob/v3.5.17/mybatis-plus-jsqlparser-support/mybatis-plus-jsqlparser/src/main/java/com/baomidou/mybatisplus/extension/plugins/inner/PaginationInnerInterceptor.java#L153)
 
 ---
 
