@@ -1119,14 +1119,18 @@ Service 层仍应校验 `pageNum >= 1`、`pageSize >= 1` 以及业务允许的�
 
 ```java
 // 以下字段需加入 Student，同时在数据库中增加对应的 create_time、update_time 列
-@TableField(fill = FieldFill.INSERT)
+@TableField(value = "create_time", fill = FieldFill.INSERT)
 private LocalDateTime createTime;
 
-@TableField(fill = FieldFill.INSERT_UPDATE)
+@TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
 private LocalDateTime updateTime;
 ```
 
-`FieldFill` 用于指定字段参与自动填充的时机：
+- `value`：指定数据库列名，例如 Java 属性 `createTime` 对应 `create_time`。MP 默认开启驼峰与下划线映射，符合命名规则时可以省略 `value`，这里显式写出便于理解。
+- `fill`：指定自动填充时机。上例中，创建时间仅在插入时参与填充，修改时间在插入和更新时都参与填充。
+- `LocalDateTime`：Java 8 引入的日期时间类型，不包含时区信息，常用于映射 MySQL 的 `DATETIME`。
+
+`fill` 可选的四种策略如下：
 
 | 策略 | 插入时 | 更新时 |
 |---|---|---|
