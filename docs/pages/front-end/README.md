@@ -8,6 +8,6 @@
 
 新增、修改或删除 Markdown 后，提交并推送到 main，GitHub Actions 会重新构建并发布，无需手动维护篇目列表。源文件重命名或移动会改变其阅读入口。
 
-封面使用内置 imagegen 生成，浏览器、分层页面、鼠标指针与代码符号体现前端主题，材质与既有封面保持一致：[封面](阅读资源/frontend-hero.png) · [提示词](阅读资源/frontend-hero.prompt.txt)。内部不增加封面。
+封面使用内置 imagegen 生成，浏览器、分层页面、鼠标指针与代码符号体现前端主题，材质与既有封面保持一致：[封面](阅读资源/frontend-hero.webp) · [提示词](阅读资源/frontend-hero.prompt.txt)。内部不增加封面。
 
 本地生成：`python docs/pages/build_site.py --output docs/site`。预览可追加 `--serve`。回归检查：`python -m unittest discover -s docs/pages -p 'test_frontend.py'`。

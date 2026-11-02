@@ -64,7 +64,7 @@ class ProgrammingReaderTests(unittest.TestCase):
         self.assertEqual(changed["id"], original["id"])
         self.assertIn("第二版", changed["full"])
         rust = next(item for item in languages if item["title"] == "Rust")
-        self.assertEqual(rust["cover"], "programming-hero.png")
+        self.assertEqual(rust["cover"], "programming-hero.webp")
         self.assertIn("所有权", self.pages(rust["slug"])[0]["full"])
         extra.unlink()
         self.build()

@@ -10,19 +10,19 @@
 
 内容完全相同的非空 Markdown 只保留一个阅读入口，优先使用项目部署目录中的版本；指向重复文件的链接转到同一入口。有差异的同名手册分别保留。原笔记不移动、不删除。
 
-封面由内置 imagegen 生成，以玻璃云朵、服务器、容器与数据库体现主题，与数学和编程语言页面的米白、墨绿、黄铜材质保持一致：[封面](阅读资源/cloud-native-hero.png) · [最终提示词](阅读资源/cloud-native-hero.prompt.txt)。
+封面由内置 imagegen 生成，以玻璃云朵、服务器、容器与数据库体现主题，与数学和编程语言页面的米白、墨绿、黄铜材质保持一致：[封面](阅读资源/cloud-native-hero.webp) · [最终提示词](阅读资源/cloud-native-hero.prompt.txt)。
 
 七个板块使用各自的 imagegen 封面，采用与总封面一致的材质与配色。板块内的主题和“待学”入口为文字卡片。封面保留完整比例并延迟加载，小屏幕切换为单列。
 
 | 板块 | 封面 | 最终提示词 | 主题 |
 | --- | --- | --- | --- |
-| Docker | [图片](阅读资源/section-docker.png) | [提示词](阅读资源/section-docker.prompt.txt) | 鲸鱼与集装箱 |
-| DevOps | [图片](阅读资源/section-devops.png) | [提示词](阅读资源/section-devops.prompt.txt) | 无限循环与交付流水线 |
-| 数据库与中间件 | [图片](阅读资源/section-database-middleware.png) | [提示词](阅读资源/section-database-middleware.prompt.txt) | 数据库与消息路由 |
-| 运维与服务部署 | [图片](阅读资源/section-operations-deployment.png) | [提示词](阅读资源/section-operations-deployment.prompt.txt) | 服务器、扳手与部署箭头 |
-| Kubernetes | [图片](阅读资源/section-kubernetes.png) | [提示词](阅读资源/section-kubernetes.prompt.txt) | 七辐舵轮与容器节点 |
-| 可观测性 | [图片](阅读资源/section-observability.png) | [提示词](阅读资源/section-observability.prompt.txt) | 放大镜、指标、日志与链路 |
-| 微服务 | [图片](阅读资源/section-microservices.png) | [提示词](阅读资源/section-microservices.prompt.txt) | 独立服务模块与连接 |
+| Docker | [图片](阅读资源/section-docker.webp) | [提示词](阅读资源/section-docker.prompt.txt) | 鲸鱼与集装箱 |
+| DevOps | [图片](阅读资源/section-devops.webp) | [提示词](阅读资源/section-devops.prompt.txt) | 无限循环与交付流水线 |
+| 数据库与中间件 | [图片](阅读资源/section-database-middleware.webp) | [提示词](阅读资源/section-database-middleware.prompt.txt) | 数据库与消息路由 |
+| 运维与服务部署 | [图片](阅读资源/section-operations-deployment.webp) | [提示词](阅读资源/section-operations-deployment.prompt.txt) | 服务器、扳手与部署箭头 |
+| Kubernetes | [图片](阅读资源/section-kubernetes.webp) | [提示词](阅读资源/section-kubernetes.prompt.txt) | 七辐舵轮与容器节点 |
+| 可观测性 | [图片](阅读资源/section-observability.webp) | [提示词](阅读资源/section-observability.prompt.txt) | 放大镜、指标、日志与链路 |
+| 微服务 | [图片](阅读资源/section-microservices.webp) | [提示词](阅读资源/section-microservices.prompt.txt) | 独立服务模块与连接 |
 
 构建：`python docs/pages/build_site.py --output docs/site`。
 检查：`python -m unittest discover -s docs/pages -p 'test_*.py'`。

@@ -1,9 +1,9 @@
 # 数值分析封面
 
-`阅读资源/numerical-analysis-hero-v2.png` 用于 `/math/` 数学目录的数值分析卡片。
+`阅读资源/numerical-analysis-hero-v2.webp` 用于 `/math/` 数学目录的数值分析卡片。
 
 使用内置图像生成工具制作，以采样点、分段逼近、迭代切线和矩阵网格表现数值计算，与高等数学的曲面封面形成区别。沿用暖白纸面、墨绿玻璃、黄铜细节与柔和光影。横向 3:2，无文字、不透明背景。图片仅作装饰，不代替精确算法示意。
 
 [最终提示词](阅读资源/numerical-analysis-hero-v2.prompt.txt) 与图片一起保存，统一构建脚本负责打包。科目仍标记为计划补充，卡片继续链接学习规划；本次不新增阅读内容。
 
-新版以第一版为参考，通过内置图像生成工具精修玻璃通透层次、黄铜工艺、构图与光影。[第一版封面](阅读资源/numerical-analysis-hero.png) 与 [第一版提示词](阅读资源/numerical-analysis-hero.prompt.txt) 保留用于比较。
+新版以第一版为参考，通过内置图像生成工具精修玻璃通透层次、黄铜工艺、构图与光影。[第一版封面](阅读资源/numerical-analysis-hero.webp) 与 [第一版提示词](阅读资源/numerical-analysis-hero.prompt.txt) 保留用于比较。

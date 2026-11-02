@@ -58,7 +58,7 @@ class AIReaderTests(unittest.TestCase):
         text = self.build()
         self.assertEqual([s["title"] for s in self.config["sections"]],
                          ["基础知识", "实践记录", "提示词模板", "错题与易错点"])
-        self.assertEqual(self.config["coverUrl"], "阅读资源/ai-hero-v2.png")
+        self.assertEqual(self.config["coverUrl"], "阅读资源/ai-hero-v2.webp")
         self.assertEqual(self.config["sidebarMode"], "all")
         self.assertTrue(all(not s["cover"] for s in self.config["sections"]))
         self.assertEqual(len(self.pages), 6)

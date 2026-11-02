@@ -4,6 +4,8 @@
 
 网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页；[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/) 和 [前端基础](https://scpcddk.github.io/Learning-Notes/front-end/) 先选择学习板块，再进入笔记。[学习计划](https://scpcddk.github.io/Learning-Notes/learning-plans/) 按当前状态分类。其他板块展示现有目录，子项链接到仓库原笔记。
 
+[软件工程与计算基础](https://scpcddk.github.io/Learning-Notes/software-engineering/) 对应仓库的 `软件工程/`，按“计算机组成原理、软件需求与分析”选择科目。计组移动后的原始资料路径为 `软件工程/计算机组成原理/`，公开地址 `/computer-organization/` 保持不变；需求分析科目为 `/software-requirements/`。科目页可通过面包屑返回板块目录。
+
 AI 通过 `/ai/` 进入完整阅读页，按基础知识、实践记录、提示词模板、错题与易错点分类，支持 Markdown 与 Python 源码阅读。首页 AI 卡片与阅读页共用一张总封面，图片与最终提示词保存在 [ai/](ai/README.md)。
 
 访客可从仓库 README 进入 [数学导航](../../数学/README.md) 或 [算法导航](../../算法/README.md)，选择内容后打开在线阅读页。
@@ -17,7 +19,8 @@ AI 通过 `/ai/` 进入完整阅读页，按基础知识、实践记录、提示
 | [build_site.py](build_site.py) | 各科目共用的生成、资源打包与链接检查入口，篇目配置也在此维护 |
 | [index.html](index.html) | 一级板块与科目目录共用的导航模板，包含专用样式 |
 | [shared/](shared/) | 全站设计规则与主题设置脚本；构建时内嵌到各页面，离线阅读无需额外文件 |
-| [computer-organization/](computer-organization/README.md)、[general-studies/](general-studies/README.md) | 计组与通识的总封面、提示词；首页卡片与各自目录页共用 |
+| [software-engineering/](software-engineering/README.md) | 软件工程与计算基础的板块说明、总封面与提示词；首页与板块目录共用 |
+| [computer-organization/](computer-organization/README.md)、[general-studies/](general-studies/README.md) | 计组科目页与通识板块的封面、提示词 |
 | [probability-statistics/](probability-statistics/README.md)、[numerical-analysis/](numerical-analysis/README.md) | 数学目录中的概率统计与数值分析封面及提示词 |
 | [calculus/](calculus/) | 高等数学模板、精要内容、生成的离线页与图片、公式组件 |
 | [linear-algebra/](linear-algebra/) | 线性代数模板、生成的离线页与图片、公式组件 |
@@ -52,7 +55,7 @@ python docs/pages/build_site.py --output docs/site
 
 统一脚本先更新高等数学和线性代数的离线 HTML，再打包各板块的在线站点。已收录笔记之间保留站内跳转，其他原笔记入口链接到 GitHub，最后检查页面和资源链接。
 
-在线封面在构建时自动生成 480、960、1440px 的 WebP 版本，浏览器根据显示宽度与像素密度选择尺寸。图片文件名带有原图内容指纹，更新封面后会自动使用新地址。首屏封面优先加载，目录中其余封面延迟加载并异步解码，减少首屏下载量与解码阻塞。原始 PNG、提示词和数学离线页保留；无需手工另存压缩图。
+封面源文件使用无损 WebP 保存，转换前后逐像素一致，提示词和历史封面版本保留。构建同时支持 PNG 与 WebP 源图，自动生成 480、960、1440px 的展示版本，浏览器根据显示宽度与像素密度选择尺寸。图片文件名带有原图内容指纹，更新封面后会自动使用新地址。首屏封面优先加载，目录中其余封面延迟加载并异步解码，减少首屏下载量与解码阻塞；无需手工维护展示尺寸。
 
 [发布工作流](../../.github/workflows/pages.yml) 也只调用这一条构建命令。修改仓库笔记、目录或这里的模板后，提交并推送到 main，GitHub Actions 会自动生成并发布；发布成功后，线上显示新内容。尚未推送的本地修改不会影响网站。
 
@@ -80,7 +83,7 @@ PDF 阅读器需要 HTTP 服务。`--serve` 会在构建后启动本机预览，
 
 算法页收录九章课程与附录、17篇竞赛专题、2份源码、8份题单，以及19份按内容去重的课件资料。代码支持高亮和复制，首页有可逐步操作的排序演示。PDF 在线阅读，PPTX、DOCX 提供原件入口，既有课件无需重复保存。
 
-算法封面使用内置 imagegen，采用用户选定的第一张立体排序柱、二叉树与状态网格图：[封面](algorithms/algorithms-hero.png) · [提示词](algorithms/algorithms-hero.prompt.txt)。
+算法封面使用内置 imagegen，采用用户选定的第一张立体排序柱、二叉树与状态网格图：[封面](algorithms/algorithms-hero.webp) · [提示词](algorithms/algorithms-hero.prompt.txt)。
 
 首页根据仓库一级目录生成知识板块，排除隐藏目录和 docs；新增一级知识板块后也会生成相应目录入口。发布工作流在 main 更新后统一重新构建。源码目录的位置不改变公开站点地址，首页和各科目的 URL 保持不变。
 
@@ -96,7 +99,7 @@ Linux 沿用原笔记目录：核心知识、根目录的 Shell.md、补充理�
 
 Linux 不使用数学公式转换，确保 `$name`、`$?` 等 Shell 内容按原文展示。源 Markdown 仍在 Linux 目录维护，构建脚本统一生成 `/linux/` 阅读入口，并将首页 Linux 板块替换为带封面的阅读卡片。
 
-封面通过内置 imagegen 生成，保留 Tux 企鹅特征，配合终端、文件夹与服务器元素；材质和配色与既有科目封面保持一致：[封面](linux/linux-hero.png) · [提示词](linux/linux-hero.prompt.txt)。
+封面通过内置 imagegen 生成，保留 Tux 企鹅特征，配合终端、文件夹与服务器元素；材质和配色与既有科目封面保持一致：[封面](linux/linux-hero.webp) · [提示词](linux/linux-hero.prompt.txt)。
 
 ## 编程语言阅读页
 

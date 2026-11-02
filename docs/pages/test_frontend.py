@@ -99,7 +99,7 @@ class FrontendReaderTests(unittest.TestCase):
         self.assertIn('href="#' + latex["headings"][1]["id"] + '"', js["full"])
         self.assertIn('src="assets/', js["full"])
         folder = self.output / "front-end"
-        self.assertEqual(len(list((folder / "阅读资源").glob("*.png"))), 1)
+        self.assertEqual(len(list((folder / "阅读资源").glob("*.webp"))), 1)
         self.assertTrue((folder / "mathjax/tex-svg.js").is_file())
         self.assertTrue((folder / "mathjax/LICENSE").is_file())
         self.assertNotIn('<!--MATH_ASSETS-->', text)

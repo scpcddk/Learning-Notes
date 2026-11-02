@@ -61,12 +61,12 @@ def optimize_site_covers(output):
 
     def cover(url, page):
         parts = urlsplit(html.unescape(url))
-        if parts.scheme or parts.netloc or not parts.path.lower().endswith('.png'):
+        if parts.scheme or parts.netloc or Path(parts.path).suffix.lower() not in ('.png', '.webp'):
             return None
         source = (page.parent / unquote(parts.path)).resolve()
         if not source.is_relative_to(output) or not source.is_file():
             return None
-        if not re.fullmatch(r'(?:.+-hero(?:-v\d+)?|section-[\w-]+)\.png', source.name):
+        if not re.fullmatch(r'(?:.+-hero(?:-v\d+)?|section-[\w-]+)\.(?:png|webp)', source.name):
             return None
         if source not in variants:
             digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
@@ -892,7 +892,7 @@ def build_discrete(output, github, branch):
     template = template.replace("<!--ARCHIVE_URL-->", original(DISCRETE_NOTES / "习题/离散数学历年考试卷子.rar"))
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('数学/离散数学')}")
     (dest / "index.html").write_text(template, encoding="utf-8", newline="\n")
-    for name in ("discrete-math-hero.png",):
+    for name in ("discrete-math-hero.webp",):
         shutil.copyfile(DISCRETE / name, dest / name)
     copy_mathjax(dest)
 
@@ -1047,7 +1047,7 @@ def build_algorithms(output, github, branch):
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
     template = template.replace("<!--RESOURCE_COUNT-->", str(len(seen)))
     (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
-    shutil.copyfile(PAGE_ROOT / "algorithms/algorithms-hero.png", destination / "algorithms-hero.png")
+    shutil.copyfile(PAGE_ROOT / "algorithms/algorithms-hero.webp", destination / "algorithms-hero.webp")
     copy_mathjax(destination)
     print(f"Packaged algorithms: {len(pages)} sections, {len(topics)} topics, 8 question lists, {len(seen)} unique resources.")
 
@@ -1277,16 +1277,16 @@ def build_linux(output, github, branch):
     for key, value in values.items():
         template = template.replace("<!--"+key+"-->", value)
     (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
-    shutil.copyfile(source / "linux-hero.png", destination / "linux-hero.png")
+    shutil.copyfile(source / "linux-hero.webp", destination / "linux-hero.webp")
     print(f"Packaged Linux: {len(pages)} entries, original directory groups, notes and interactive diagrams.")
 
 
 def programming_languages():
     """Discover languages without making the website depend on a fixed list."""
     known = {
-        "C与C++": ("c-cpp", "C / C++", "C & C++", "从内存与类型出发，把基础写扎实。", "c-cpp-hero.png"),
-        "JAVA": ("java", "Java", "JAVA", "从对象到应用，连接语法、框架与实践。", "java-hero.png"),
-        "Python": ("python", "Python", "PYTHON", "用清晰的表达，把想法变成可运行的代码。", "python-hero.png"),
+        "C与C++": ("c-cpp", "C / C++", "C & C++", "从内存与类型出发，把基础写扎实。", "c-cpp-hero.webp"),
+        "JAVA": ("java", "Java", "JAVA", "从对象到应用，连接语法、框架与实践。", "java-hero.webp"),
+        "Python": ("python", "Python", "PYTHON", "用清晰的表达，把想法变成可运行的代码。", "python-hero.webp"),
     }
     folders = [p for p in (REPO / "编程语言").iterdir() if p.is_dir() and not p.name.startswith('.')]
     folders.sort(key=lambda p: (list(known).index(p.name) if p.name in known else len(known), p.name.casefold()))
@@ -1294,7 +1294,7 @@ def programming_languages():
     for folder in folders:
         default_slug = "language-" + hashlib.sha256(folder.name.encode()).hexdigest()[:10]
         slug, title, label, description, cover = known.get(folder.name, (
-            default_slug, folder.name, folder.name.upper(), "沿着语法、例题与实践，逐步理解这门语言。", "programming-hero.png"))
+            default_slug, folder.name, folder.name.upper(), "沿着语法、例题与实践，逐步理解这门语言。", "programming-hero.webp"))
         languages.append(dict(slug=slug, title=title, label=label, description=description, cover=cover, folder=folder))
     return languages
 
@@ -1307,13 +1307,13 @@ def build_programming(output, github, branch):
 def build_cloud_native(output, github, branch):
     readers = [dict(slug="cloud-native", title="云原生", label="CLOUD NATIVE",
                     description="从容器与服务出发，在部署、排障与项目中连接知识。",
-                    cover="cloud-native-hero.png", folder=REPO / "云原生",
+                    cover="cloud-native-hero.webp", folder=REPO / "云原生",
                     section_covers={
-                        "Docker": "section-docker.png", "DevOps": "section-devops.png",
-                        "数据库与中间件": "section-database-middleware.png",
-                        "运维与服务部署": "section-operations-deployment.png",
-                        "Kubernetes": "section-kubernetes.png", "可观测性": "section-observability.png",
-                        "微服务": "section-microservices.png"})]
+                        "Docker": "section-docker.webp", "DevOps": "section-devops.webp",
+                        "数据库与中间件": "section-database-middleware.webp",
+                        "运维与服务部署": "section-operations-deployment.webp",
+                        "Kubernetes": "section-kubernetes.webp", "可观测性": "section-observability.webp",
+                        "微服务": "section-microservices.webp"})]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "cloud-native", output,
                          profile="cloud-native")[0]
 
@@ -1321,7 +1321,7 @@ def build_cloud_native(output, github, branch):
 def build_learning_plans(output, github, branch):
     readers = [dict(slug="learning-plans", title="学习计划", label="LEARNING PLANS",
                     description="明确当前的方向，把长期目标落到一次次学习、实践与复盘。",
-                    cover="learning-plans-hero.png", folder=REPO / "学习计划")]
+                    cover="learning-plans-hero.webp", folder=REPO / "学习计划")]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "learning-plans", output,
                          profile="learning-plans")[0]
 
@@ -1329,7 +1329,7 @@ def build_learning_plans(output, github, branch):
 def build_frontend(output, github, branch):
     readers = [dict(slug="front-end", title="前端基础", label="FRONTEND",
                     description="从页面结构到交互组件，在语法、示例与项目中理解前端。",
-                    cover="frontend-hero.png", folder=REPO / "前端基础")]
+                    cover="frontend-hero.webp", folder=REPO / "前端基础")]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "front-end", output,
                          profile="front-end")[0]
 
@@ -1337,7 +1337,7 @@ def build_frontend(output, github, branch):
 def build_ai(output, github, branch):
     readers = [dict(slug="ai", title="AI", label="ARTIFICIAL INTELLIGENCE",
                     description="从模型原理到应用开发，在笔记、代码与复盘中理解人工智能。",
-                    cover="ai-hero-v2.png", folder=REPO / "AI")]
+                    cover="ai-hero-v2.webp", folder=REPO / "AI")]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "ai", output,
                          profile="ai")[0]
 
@@ -1753,7 +1753,13 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
 def build_catalogs(output, github, branch, programming):
     """Show repository boards first, then the subjects inside each board."""
     template = read_template(PAGE_ROOT / "index.html", catalog=True)
-    catalog_covers = ("computer-organization", "general-studies", "probability-statistics", "numerical-analysis")
+    catalog_covers = {
+        "software-engineering": "software-engineering-hero-v2.webp",
+        "computer-organization": "computer-organization-hero-v2.webp",
+        "general-studies": "general-studies-hero-v2.webp",
+        "probability-statistics": "probability-statistics-hero-v2.webp",
+        "numerical-analysis": "numerical-analysis-hero-v2.webp",
+    }
     for slug in catalog_covers:
         shutil.copytree(PAGE_ROOT / slug / "阅读资源", output / slug / "阅读资源", dirs_exist_ok=True)
 
@@ -1769,13 +1775,15 @@ def build_catalogs(output, github, branch, programming):
         arrow = "↗" if urlsplit(href).netloc else "→"
         return '<a class="subject'+('' if image else ' compact')+'" href="'+escape(href, quote=True)+'">'+art+'<div class="subject-copy">'+mark+'<h2>'+escape(title)+'</h2><p>'+escape(description)+'</p><div class="chips">'+''.join('<span>'+escape(chip)+'</span>' for chip in chips)+'</div><strong>'+escape(label)+'<span aria-hidden="true">'+arrow+'</span></strong></div></a>'
 
-    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more="", hero=None, index_links=()):
+    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more="", hero=None, index_links=(), parent=None):
         destination = output / slug if slug else output
         destination.mkdir(parents=True, exist_ok=True)
         prefix = "../" if slug else ""
         values = {"TITLE": escape(title), "SEO_DESCRIPTION": escape(description, quote=True),
                   "HOME_URL": prefix or "./", "ASSET_BASE": prefix, "REPO_URL": escape(github, quote=True),
-                  "BREADCRUMB": '<nav class="catalog-trail" aria-label="位置"><a href="../">学习笔记</a><span>/</span><span>'+escape(title)+'</span></nav>' if slug else '',
+                  "BREADCRUMB": ('<nav class="catalog-trail" aria-label="位置"><a href="../">学习笔记</a><span>/</span>'
+                                 + ('<a href="'+escape(parent[1], quote=True)+'">'+escape(parent[0])+'</a><span>/</span>' if parent else '')
+                                 + '<span>'+escape(title)+'</span></nav>') if slug else '',
                   "EYEBROW": escape(eyebrow), "HEADING": heading, "DESCRIPTION": escape(description),
                   "META": ''.join('<span>'+escape(item)+'</span>' for item in meta), "GRID_CLASS": grid,
                   "SECTION_LABEL": escape(title+"目录" if slug else "知识板块"), "CARD_COUNT": f"{len(cards):02d}", "CARDS": ''.join(cards),
@@ -1795,11 +1803,11 @@ def build_catalogs(output, github, branch, programming):
         (destination / "index.html").write_text(text, encoding="utf-8", newline="\n")
 
     math_cards = [
-        card("高等数学", "极限与连续、微分与积分，从局部变化到空间里的累积。", "../calculus/", "进入阅读", ("10 章笔记", "16 篇专题", "30 道自测"), "../calculus/阅读资源/calculus-hero.png", number="01 / CALCULUS"),
-        card("线性代数", "向量、矩阵与线性变换，在计算背后理解空间结构。", "../linear-algebra/", "进入阅读", ("7 章笔记", "完整例题", "拓展阅读"), "../linear-algebra/阅读资源/linear-algebra-hero.png", number="02 / LINEAR ALGEBRA"),
-        card("离散数学", "逻辑、集合、关系与图，连接概念、课件与推理。", "../discrete-math/", "进入阅读", ("15 份课件", "笔记与练习", "历年试卷"), "../discrete-math/discrete-math-hero.png", number="03 / DISCRETE MATHEMATICS"),
-        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), "../probability-statistics/阅读资源/probability-statistics-hero-v2.png", number="04 / PROBABILITY"),
-        card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), "../numerical-analysis/阅读资源/numerical-analysis-hero-v2.png", number="05 / NUMERICAL ANALYSIS"),
+        card("高等数学", "极限与连续、微分与积分，从局部变化到空间里的累积。", "../calculus/", "进入阅读", ("10 章笔记", "16 篇专题", "30 道自测"), "../calculus/阅读资源/calculus-hero.webp", number="01 / CALCULUS"),
+        card("线性代数", "向量、矩阵与线性变换，在计算背后理解空间结构。", "../linear-algebra/", "进入阅读", ("7 章笔记", "完整例题", "拓展阅读"), "../linear-algebra/阅读资源/linear-algebra-hero.webp", number="02 / LINEAR ALGEBRA"),
+        card("离散数学", "逻辑、集合、关系与图，连接概念、课件与推理。", "../discrete-math/", "进入阅读", ("15 份课件", "笔记与练习", "历年试卷"), "../discrete-math/discrete-math-hero.webp", number="03 / DISCRETE MATHEMATICS"),
+        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), "../probability-statistics/阅读资源/probability-statistics-hero-v2.webp", number="04 / PROBABILITY"),
+        card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), "../numerical-analysis/阅读资源/numerical-analysis-hero-v2.webp", number="05 / NUMERICAL ANALYSIS"),
     ]
     page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。", math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"), "math-catalog")
 
@@ -1812,13 +1820,13 @@ def build_catalogs(output, github, branch, programming):
          language_cards, REPO / "编程语言", "PROGRAMMING / LANGUAGES",
          (str(len(programming))+" 门语言", str(sum(item["notes"] for item in programming))+" 篇笔记", "语法 · 练习 · 实践"),
          "programming-catalog", "语言各有表达，学习始终相通。先理解基础，再在代码和项目中验证。",
-         "阅读资源/programming-hero.png")
+         "阅读资源/programming-hero.webp")
 
     boards = {
         "数学": ("math", "高等数学、线性代数、离散数学与概率统计。", "∑"),
         "算法": ("algorithms", "数据结构课程、竞赛专题、源码与分类练习。", "⌘"),
         "编程语言": ("programming-languages", "C 与 C++、Java 等语言知识与实践记录。", "</>"),
-        "计算机组成原理": ("computer-organization", "从数据表示到处理器、存储与输入输出。", "⌗"),
+        "软件工程": ("software-engineering", "从数字逻辑与计算机组成，到软件需求、建模与设计。", "⌗"),
         "前端基础": ("front-end", "页面结构、样式、交互与前端基础知识。", "〈〉"),
         "Linux": ("linux", "操作系统使用、命令、配置与实践。", "$"),
         "云原生": ("cloud-native", "容器、服务部署与云原生实践。", "☁"),
@@ -1832,47 +1840,86 @@ def build_catalogs(output, github, branch, programming):
     candidates.sort(key=lambda p: (list(boards).index(p.name) if p.name in boards else len(boards), p.name))
     for index, path in enumerate(candidates, 1):
         slug, description, symbol = boards.get(path.name, ("section-"+hashlib.sha256(path.name.encode()).hexdigest()[:8], "按目录查阅这个板块的学习笔记。", "·"))
-        index_links.append(f'<li><a href="{escape(slug, quote=True)}/"><span aria-hidden="true">{index:02d}</span>{escape(path.name)}</a></li>')
+        display_title = "软件工程与计算基础" if path.name == "软件工程" else path.name
+        index_links.append(f'<li><a href="{escape(slug, quote=True)}/"><span aria-hidden="true">{index:02d}</span>{escape(display_title)}</a></li>')
         if path.name=="数学":
-            root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "calculus/阅读资源/calculus-hero.png", number="01 / MATHEMATICS"))
+            root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "calculus/阅读资源/calculus-hero.webp", number="01 / MATHEMATICS"))
             continue
         if path.name=="算法":
-            root_cards.append(card(path.name, description, "algorithms/", "进入算法阅读", ("9 章课程", "19 篇专题与源码", "8 份题单"), "algorithms/algorithms-hero.png", number="02 / ALGORITHMS"))
+            root_cards.append(card(path.name, description, "algorithms/", "进入算法阅读", ("9 章课程", "19 篇专题与源码", "8 份题单"), "algorithms/algorithms-hero.webp", number="02 / ALGORITHMS"))
             continue
         if path.name=="Linux":
-            root_cards.append(card(path.name, "从文件与权限到 Shell 脚本，沿着命令、补充理解与习题逐步实践。", "linux/", "进入 Linux 阅读", ("核心知识", "Shell", "补充理解与习题"), "linux/linux-hero.png", number=str(index).zfill(2)+" / LINUX"))
+            root_cards.append(card(path.name, "从文件与权限到 Shell 脚本，沿着命令、补充理解与习题逐步实践。", "linux/", "进入 Linux 阅读", ("核心知识", "Shell", "补充理解与习题"), "linux/linux-hero.webp", number=str(index).zfill(2)+" / LINUX"))
             continue
         if path.name=="编程语言":
             root_cards.append(card(path.name, "从语法、习题到框架与项目，在代码中积累理解。", "programming-languages/", "选择语言",
-                                   tuple(item["title"] for item in programming), "programming-languages/阅读资源/programming-hero.png",
+                                   tuple(item["title"] for item in programming), "programming-languages/阅读资源/programming-hero.webp",
                                    number=str(index).zfill(2)+" / PROGRAMMING"))
             continue
         if path.name=="云原生":
             root_cards.append(card(path.name, "从容器、数据库到项目部署，沿着实践记录理解系统。", "cloud-native/", "进入云原生阅读",
-                                   ("Docker 与 DevOps", "数据库与中间件", "项目部署与排障"), "cloud-native/阅读资源/cloud-native-hero.png",
+                                   ("Docker 与 DevOps", "数据库与中间件", "项目部署与排障"), "cloud-native/阅读资源/cloud-native-hero.webp",
                                    number=str(index).zfill(2)+" / CLOUD NATIVE"))
             continue
         if path.name=="学习计划":
             root_cards.append(card(path.name, "查看当前学习路线、阶段成果与历史计划，沿着任务持续实践。", "learning-plans/", "查看学习计划",
-                                   ("进行中", "阶段性完成", "历史计划"), "learning-plans/阅读资源/learning-plans-hero.png",
+                                   ("进行中", "阶段性完成", "历史计划"), "learning-plans/阅读资源/learning-plans-hero.webp",
                                    number=str(index).zfill(2)+" / LEARNING PLANS"))
             continue
         if path.name=="前端基础":
             root_cards.append(card(path.name, "从页面结构、脚本交互到 Vue 组件，结合笔记与示例逐步理解。", "front-end/", "进入前端阅读",
-                                   ("标记与排版", "JavaScript 与 JSON", "Vue 与 npm"), "front-end/阅读资源/frontend-hero.png",
+                                   ("标记与排版", "JavaScript 与 JSON", "Vue 与 npm"), "front-end/阅读资源/frontend-hero.webp",
                                    number=str(index).zfill(2)+" / FRONTEND"))
             continue
         if path.name == "AI":
             root_cards.append(card(path.name, "从模型原理到 API 实践，在笔记、代码与复盘中理解人工智能。", "ai/", "进入 AI 阅读",
-                                   ("基础知识", "实践与模板", "错题与易错点"), "ai/阅读资源/ai-hero-v2.png",
+                                   ("基础知识", "实践与模板", "错题与易错点"), "ai/阅读资源/ai-hero-v2.webp",
                                    number=str(index).zfill(2)+" / ARTIFICIAL INTELLIGENCE"))
+            continue
+        if path.name == "软件工程":
+            subjects = {
+                "计算机组成原理": ("computer-organization", "从数字逻辑、组合与时序电路，到运算器和存储系统。"),
+                "软件需求与分析": ("software-requirements", "从需求确定与可视化建模，到软件分析、设计和质量管理。"),
+            }
+            children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name != "README.md"),
+                              key=lambda p: (not p.is_dir(), p.name))
+            subject_cards = []
+            for child in children:
+                if not child.is_dir():
+                    subject_cards.append(card(child.stem, "查阅仓库中的原始学习文件。", repository_url(child), "查看原文件", symbol=symbol))
+                    continue
+                subject_slug, subject_description = subjects.get(child.name, (
+                    "software-"+hashlib.sha256(child.name.encode()).hexdigest()[:8], "沿着原目录查阅笔记、课件与学习资料。"))
+                entries = sorted((p for p in child.iterdir() if not p.name.startswith('.') and p.name != "README.md"),
+                                 key=lambda p: (not p.is_dir(), p.name))
+                entry_cards = [card(entry.stem if entry.is_file() else entry.name,
+                                    "打开仓库目录，查看原始笔记与学习资料。" if entry.is_dir() else "查阅仓库中的原始学习文件。",
+                                    repository_url(entry), "查看仓库目录" if entry.is_dir() else "查看原文件",
+                                    ("目录" if entry.is_dir() else entry.suffix[1:].upper() or "文件",), symbol=symbol)
+                               for entry in entries]
+                subject_cards.append(card(child.name, subject_description, "../"+subject_slug+"/", "查看科目目录",
+                                          (str(len(entries))+" 个目录与文件",), symbol=symbol))
+                subject_hero = ("阅读资源/"+catalog_covers["computer-organization"]
+                                if subject_slug == "computer-organization" else None)
+                page(subject_slug, child.name, escape(child.name)+'，<br>从概念<em>走向理解。</em>',
+                     subject_description, entry_cards, child, "SOFTWARE & COMPUTING / SUBJECT",
+                     (str(len(entries))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero=subject_hero,
+                     parent=(display_title, "../software-engineering/"))
+            cover = "software-engineering/阅读资源/"+catalog_covers["software-engineering"]
+            root_cards.append(card(display_title, description, "software-engineering/", "选择工程科目",
+                                   tuple(p.name for p in children if p.is_dir()), cover,
+                                   number=str(index).zfill(2)+" / SOFTWARE & COMPUTING"))
+            page("software-engineering", display_title, '从计算基础，<br>走向<em>软件系统。</em>', description,
+                 subject_cards, path, "SOFTWARE ENGINEERING & COMPUTING", (str(len(subject_cards))+" 个科目与文件", "基础 · 需求 · 设计"),
+                 "directory-catalog", "先选择科目，再按原目录查阅章节笔记、课堂课件与习题资料。",
+                 hero="阅读资源/"+catalog_covers["software-engineering"])
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
         child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
-        cover = slug+"/阅读资源/"+slug+"-hero-v2.png" if slug in catalog_covers else None
+        cover = slug+"/阅读资源/"+catalog_covers[slug] if slug in catalog_covers else None
         number = str(index).zfill(2) + (" / " + slug.replace("-", " ").upper() if cover else "")
         root_cards.append(card(path.name, description, slug+"/", "打开板块", (str(len(children))+" 个目录与文件",), cover, symbol=symbol, number=number))
-        page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero="阅读资源/"+slug+"-hero-v2.png" if cover else None)
+        page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero="阅读资源/"+catalog_covers[slug] if cover else None)
     page("", "学习笔记", '从一本笔记，<br>走向<em>更完整的理解。</em>', "从数学推演到工程实践，按学科翻阅笔记、例题与项目记录。", root_cards, REPO, "LEARNING NOTES / PERSONAL COLLECTION", ("个人知识库", "持续整理中"), "root-catalog", "首页按仓库一级板块组织。先选择板块，再选择科目或目录。", index_links=index_links)
     print(f"Packaged learning catalog: {len(root_cards)} repository boards and a mathematics subject directory.")
 

@@ -54,7 +54,7 @@ class LearningPlansReaderTests(unittest.TestCase):
         text = self.build()
         self.assertEqual([s["title"] for s in self.config["sections"]], ["进行中", "阶段性完成", "已结束或舍弃", "学习方法"])
         self.assertTrue(all(not s["cover"] for s in self.config["sections"]))
-        self.assertEqual(len(list((self.output / "learning-plans/阅读资源").glob("*.png"))), 1)
+        self.assertEqual(len(list((self.output / "learning-plans/阅读资源").glob("*.webp"))), 1)
         self.assertEqual(self.config["notes"], 3)
         self.assertEqual(next(p for p in self.pages if p["title"] == "数学建模编程手一月计划")["kind"], "note")
         guide = next(p for p in self.pages if p["kind"] == "diagram")
