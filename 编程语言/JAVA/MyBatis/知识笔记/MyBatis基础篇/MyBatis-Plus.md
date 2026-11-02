@@ -954,9 +954,11 @@ List<Student> list = studentService.list(
 | `PaginationInnerInterceptor` | 将查询改写为对应数据库的分页 SQL，并按需统计总数 |
 | `MybatisPlusInterceptor` | MP 内部插件统一入口 |
 
-**为什么创建了 `Page` 还需要插件？** `new Page<Student>(3, 4)` 只保存“第 3 页、每页 4 条”。调用 `studentMapper.selectPage(page, wrapper)` 时，`PaginationInnerInterceptor` 才读取 `current` 和 `size`，按 MySQL 方言改写查询。
-
-例如，按 `id` 稳定排序时，偏移量为 `(3 - 1) * 4 = 8`。开启总数统计时，插件按需先执行 `COUNT` 查询，再由 MyBatis 通过 JDBC 执行带 `ORDER BY id ASC LIMIT 8, 4` 的数据查询，取排序后的第 9 至 12 条记录（若存在）。
+> [!example] 为什么创建了 Page 还需要插件？
+>
+> `new Page<Student>(3, 4)` 只保存“第 3 页、每页 4 条”。调用 `studentMapper.selectPage(page, wrapper)` 时，`PaginationInnerInterceptor` 才读取 `current` 和 `size`，按 MySQL 方言改写查询。
+>
+> 例如，按 `id` 稳定排序时，偏移量为 `(3 - 1) * 4 = 8`。开启总数统计时，插件按需先执行 `COUNT` 查询，再由 MyBatis 通过 JDBC 执行带 `ORDER BY id ASC LIMIT 8, 4` 的数据查询，取排序后的第 9 至 12 条记录（若存在）。
 
 ### 17.1 添加分页解析依赖
 
