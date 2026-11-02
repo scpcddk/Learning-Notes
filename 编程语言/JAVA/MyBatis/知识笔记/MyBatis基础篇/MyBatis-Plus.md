@@ -920,6 +920,7 @@ public class StudentServiceImpl
 | `count(wrapper)` | 统计数量 | `long` / `Long`（按版本签名） |
 | `updateById(entity)` | 主键更新 | `boolean` |
 | `removeById(id)` | 主键删除 | `boolean` |
+| `removeByIds(ids)` | 按主键集合批量删除 | `boolean` |
 | `page(page, wrapper)` | 分页查询 | `IPage<T>` |
 
 ```java
@@ -1191,12 +1192,43 @@ boolean inserted = studentService.saveBatch(studentList);
 
 // Service 层：根据主键批量更新，集合中每个实体都应设置自己的 id
 boolean updated = studentService.updateBatchById(studentList);
-
-// Mapper 层：按主键集合删除（新版本）
-int deleted = studentMapper.deleteByIds(List.of(1L, 2L, 3L));
 ```
 
-### 22.1 与原生 MyBatis <foreach> 的区别
+### 22.1 三种更新方式如何选择
+
+以下以 **Service 层方法**为例，返回值均为 `boolean`：
+
+| 方法 | 更新方式 | 典型场景 |
+|---|---|---|
+| `updateById(student)` | 一个实体按自身主键更新一条记录 | 修改一名学生的成绩 |
+| `updateBatchById(studentList)` | 多个实体分别按各自主键更新，可以设置不同值 | 多名学生分别设置不同成绩 |
+| `update(wrapper)` | 用统一条件筛选记录，更新内容由 Wrapper 的 SET 设置提供 | 将某班成绩低于 60 分的学生统一调整为 60 分 |
+
+例如，第三种写法不需要先查出每名学生，再逐个按 ID 更新：
+
+```java
+LambdaUpdateWrapper<Student> wrapper = new LambdaUpdateWrapper<>();
+wrapper.eq(Student::getClassName, "二班")
+       .lt(Student::getScore, new BigDecimal("60"))
+       .set(Student::getScore, new BigDecimal("60"));
+
+boolean updated = studentService.update(wrapper); // WHERE 与 SET 都由 Wrapper 提供
+```
+
+### 22.2 removeByIds：按主键集合批量删除
+
+适合页面勾选多条记录后删除，传入的是**主键集合，不是 Wrapper**：
+
+```java
+List<Long> ids = List.of(1L, 2L, 3L);
+boolean removed = studentService.removeByIds(ids); // 返回操作结果，不是删除条数
+```
+
+- 未启用逻辑删除时，SQL 语义类似 `DELETE FROM student WHERE id IN (1, 2, 3)`；配置了 `@TableLogic` 时，按逻辑删除规则修改删除标记。
+- Mapper 层对应 `studentMapper.deleteByIds(ids)`，返回 `int` 影响行数；按业务条件删除则使用 `studentService.remove(wrapper)`。
+- 实际请求中先校验主键集合非空，并确认允许操作的记录范围。
+
+### 22.3 与原生 MyBatis <foreach> 的区别
 
 - MP 通用方法能减少大量重复代码。
 - 但具体是**逐条执行/批处理发送**还是**拼接为单条多 VALUES SQL**，不能只靠 `saveBatch` 方法名推断。
