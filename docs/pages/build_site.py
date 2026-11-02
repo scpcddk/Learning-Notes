@@ -89,7 +89,7 @@ def optimize_site_covers(output):
         if '<style data-design-system>' not in text:
             continue
         card_sizes = ('(max-width:600px) calc(100vw - 40px), (max-width:900px) 45vw, 360px'
-                      if re.search(r'class="subjects (?:math-catalog|programming-catalog)"', text) else sizes)
+                      if re.search(r'class="subjects (?:root-catalog|math-catalog|programming-catalog)"', text) else sizes)
 
         def image_tag(match):
             tag = match[0]
@@ -109,7 +109,7 @@ def optimize_site_covers(output):
 
             attribute('src', urls[1])
             attribute('srcset', ', '.join(f'{url} {width}w' for url, width in zip(urls, (480, 960, 1440))))
-            attribute('sizes', card_sizes if 'loading="lazy"' in tag else sizes)
+            attribute('sizes', sizes if 'class="catalog-cover"' in tag else card_sizes)
             attribute('decoding', 'async')
             if 'loading=' not in tag:
                 attribute('loading', 'eager')
@@ -1766,9 +1766,10 @@ def build_catalogs(output, github, branch, programming):
     def card(title, description, href, label, chips=(), image=None, symbol="·", number=""):
         art = '<div class="art"><img src="'+escape(image, quote=True)+'" alt="" width="1536" height="1024" loading="lazy" decoding="async" fetchpriority="low"></div>' if image else ""
         mark = '<span class="number">'+escape(number)+'</span>' if image else '<div class="board-mark"><span>'+escape(symbol)+'</span><small class="number">'+escape(number)+'</small></div>'
-        return '<a class="subject'+('' if image else ' compact')+'" href="'+escape(href, quote=True)+'">'+art+'<div class="subject-copy">'+mark+'<h2>'+escape(title)+'</h2><p>'+escape(description)+'</p><div class="chips">'+''.join('<span>'+escape(chip)+'</span>' for chip in chips)+'</div><strong>'+escape(label)+'<span aria-hidden="true">↗</span></strong></div></a>'
+        arrow = "↗" if urlsplit(href).netloc else "→"
+        return '<a class="subject'+('' if image else ' compact')+'" href="'+escape(href, quote=True)+'">'+art+'<div class="subject-copy">'+mark+'<h2>'+escape(title)+'</h2><p>'+escape(description)+'</p><div class="chips">'+''.join('<span>'+escape(chip)+'</span>' for chip in chips)+'</div><strong>'+escape(label)+'<span aria-hidden="true">'+arrow+'</span></strong></div></a>'
 
-    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more="", hero=None):
+    def page(slug, title, heading, description, cards, source, eyebrow, meta, grid="", more="", hero=None, index_links=()):
         destination = output / slug if slug else output
         destination.mkdir(parents=True, exist_ok=True)
         prefix = "../" if slug else ""
@@ -1777,10 +1778,12 @@ def build_catalogs(output, github, branch, programming):
                   "BREADCRUMB": '<nav class="catalog-trail" aria-label="位置"><a href="../">学习笔记</a><span>/</span><span>'+escape(title)+'</span></nav>' if slug else '',
                   "EYEBROW": escape(eyebrow), "HEADING": heading, "DESCRIPTION": escape(description),
                   "META": ''.join('<span>'+escape(item)+'</span>' for item in meta), "GRID_CLASS": grid,
-                  "SECTION_LABEL": escape(title+"目录", quote=True), "CARDS": ''.join(cards),
+                  "SECTION_LABEL": escape(title+"目录" if slug else "知识板块"), "CARD_COUNT": f"{len(cards):02d}", "CARDS": ''.join(cards),
                   "MORE_TITLE": "从目录，走向理解", "MORE_TEXT": escape(more or "沿着目录选择内容，再结合原笔记、代码与练习逐步阅读。"),
                   "SOURCE_URL": escape(repository_url(source), quote=True),
-                  "INTRO_CLASS": "with-cover" if hero else "",
+                  "INTRO_CLASS": "with-index" if index_links else "with-cover" if hero else "",
+                  "QUICK_INDEX": ('<nav class="quick-index" aria-label="板块速查"><div class="index-heading"><strong>板块速查</strong><span lang="en">QUICK INDEX</span></div><ol>'
+                                  + ''.join(index_links) + '</ol></nav>') if index_links else "",
                   "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024" loading="eager" decoding="async" fetchpriority="high">' if hero else "",
                   "READING_TIP": "数学、算法、编程语言、前端基础、Linux、云原生、AI 与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
         text = template
@@ -1824,10 +1827,12 @@ def build_catalogs(output, github, branch, programming):
         "通识与拓展": ("general-studies", "跨学科阅读、通识知识与延伸思考。", "∞"),
     }
     root_cards = []
+    index_links = []
     candidates = [p for p in REPO.iterdir() if p.is_dir() and not p.name.startswith('.') and p.name != "docs"]
     candidates.sort(key=lambda p: (list(boards).index(p.name) if p.name in boards else len(boards), p.name))
     for index, path in enumerate(candidates, 1):
         slug, description, symbol = boards.get(path.name, ("section-"+hashlib.sha256(path.name.encode()).hexdigest()[:8], "按目录查阅这个板块的学习笔记。", "·"))
+        index_links.append(f'<li><a href="{escape(slug, quote=True)}/"><span aria-hidden="true">{index:02d}</span>{escape(path.name)}</a></li>')
         if path.name=="数学":
             root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "calculus/阅读资源/calculus-hero.png", number="01 / MATHEMATICS"))
             continue
@@ -1868,7 +1873,7 @@ def build_catalogs(output, github, branch, programming):
         number = str(index).zfill(2) + (" / " + slug.replace("-", " ").upper() if cover else "")
         root_cards.append(card(path.name, description, slug+"/", "打开板块", (str(len(children))+" 个目录与文件",), cover, symbol=symbol, number=number))
         page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero="阅读资源/"+slug+"-hero-v2.png" if cover else None)
-    page("", "学习笔记", '从一本笔记，<br>走向<em>更完整的理解。</em>', "选择一个知识板块，进入它的科目、专题与学习记录。", root_cards, REPO, "IDEAS, CONNECTED.", (str(len(root_cards))+" 个知识板块", "分层阅读导航", "持续整理"), "root-catalog", "首页按仓库一级板块组织。先选择板块，再选择科目或目录。")
+    page("", "学习笔记", '从一本笔记，<br>走向<em>更完整的理解。</em>', "从数学推演到工程实践，按学科翻阅笔记、例题与项目记录。", root_cards, REPO, "LEARNING NOTES / PERSONAL COLLECTION", ("个人知识库", "持续整理中"), "root-catalog", "首页按仓库一级板块组织。先选择板块，再选择科目或目录。", index_links=index_links)
     print(f"Packaged learning catalog: {len(root_cards)} repository boards and a mathematics subject directory.")
 
 
