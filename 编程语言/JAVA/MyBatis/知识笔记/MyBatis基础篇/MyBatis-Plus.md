@@ -1,6 +1,6 @@
 # 《MyBatis-Plus 完整学习与开发速查笔记》
 
-> **适用环境**：Java 17+、Spring Boot 3.x、MyBatis-Plus 3.5.x、MySQL 8.x。  
+> **示例环境**：基础示例使用 Java 17+、Spring Boot 3.x、MyBatis-Plus 3.5.x、MySQL 8.x。第 17 节另给出 Spring Boot 4.1.1 项目的分页配置。
 > **示例版本**：MyBatis-Plus `3.5.17`（以官方文档中当前展示的稳定版本为例；项目中统一管理版本）。  
 > **定位**：这是**独立的 MyBatis-Plus 补充笔记**，不重复原生 MyBatis 的 XML、事务和核心执行流程。  
 > **标记说明**：  
@@ -72,15 +72,7 @@ MySQL
 </dependency>
 ```
 
-如需使用 **MP 分页插件**（从 MP `3.5.9` 开始需单独添加）：
-
-```xml
-<dependency>
-    <groupId>com.baomidou</groupId>
-    <artifactId>mybatis-plus-jsqlparser</artifactId>
-    <version>3.5.17</version>
-</dependency>
-```
+Spring Boot 4.x 项目使用 `mybatis-plus-spring-boot4-starter`。分页所需的解析模块及 Maven 配置见第 17.1 节。[官方安装说明](https://baomidou.com/getting-started/install/)
 
 > [!warning]
 > **不要在同一项目中再主动叠加** `mybatis-spring-boot-starter`、单独的 `mybatis`、`mybatis-spring`，以免出现依赖和自动配置冲突。已有原生 MyBatis 项目改为 MP 时，应调整原来的 Starter 依赖，而不是无条件全部保留。
@@ -962,33 +954,56 @@ List<Student> list = studentService.list(
 | `PaginationInnerInterceptor` | 将查询改写为对应数据库的分页 SQL，并按需统计总数 |
 | `MybatisPlusInterceptor` | MP 内部插件统一入口 |
 
-### 17.1 配置分页插件
+**为什么创建了 `Page` 还需要插件？** `new Page<Student>(3, 4)` 只保存“第 3 页、每页 4 条”。调用 `studentMapper.selectPage(page, wrapper)` 时，`PaginationInnerInterceptor` 才读取 `current` 和 `size`，按 MySQL 方言改写查询。
+
+例如，按 `id` 稳定排序时，偏移量为 `(3 - 1) * 4 = 8`。开启总数统计时，插件按需先执行 `COUNT` 查询，再由 MyBatis 通过 JDBC 执行带 `ORDER BY id ASC LIMIT 8, 4` 的数据查询，取排序后的第 9 至 12 条记录（若存在）。
+
+### 17.1 添加分页解析依赖
+
+`mybatis2` 示例使用 Spring Boot `4.1.1`、MP `3.5.17`、JDK 21、MySQL 8.0 和 Maven。项目已有 `com.baomidou:mybatis-plus-spring-boot4-starter:3.5.17`，保留现有 Starter。
+
+从 MP `3.5.9` 起，分页解析模块需单独引入。该项目使用 JDK 21，在 `pom.xml` 的 `<dependencies>` 中加入标准版 `mybatis-plus-jsqlparser`，版本与 Starter 一致。[官方分页文档](https://baomidou.com/plugins/pagination/)
+
+```xml
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-jsqlparser</artifactId>
+    <version>3.5.17</version>
+</dependency>
+```
+
+在 IDEA 的 Maven 面板重新加载项目，确认该依赖已解析，再配置拦截器。
+
+### 17.2 注册分页拦截器
+
+配置文件位于 `src/main/java/org/example/mybatis2/config/MybatisPlusConfig.java`。
 
 ```java
+package org.example.mybatis2.config;
+
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 @Configuration
 public class MybatisPlusConfig {
 
-    @Bean // 将返回的拦截器交给 Spring 管理，供 MP 整合配置使用
+    @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(
-            new PaginationInnerInterceptor(DbType.MYSQL) // 指定 MySQL 方言，生成对应分页 SQL
+            new PaginationInnerInterceptor(DbType.MYSQL)
         );
         return interceptor;
     }
 }
 ```
 
-常用导入：
-
-```java
-import com.baomidou.mybatisplus.annotation.DbType;
-import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
-import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-```
-
-> [!warning]
-> 仅使用 `new Page<>(...)` **并不等于分页插件已经配置好**。MP 3.5.9+ 使用 `PaginationInnerInterceptor` 前，必须确保 `mybatis-plus-jsqlparser` 依赖已加入。
+- `@Configuration` 标记配置类。若启动类在 `org.example.mybatis2` 包下，默认组件扫描会覆盖 `config` 子包。
+- `@Bean` 将返回的 `MybatisPlusInterceptor` 注册为 Spring Bean，供 MP 接入 MyBatis 插件体系。
+- `addInnerInterceptor(...)` 将分页处理器加入插件容器。`DbType.MYSQL` 指定分页方言。使用多个内部拦截器时，分页拦截器最后添加。
 
 ---
 
