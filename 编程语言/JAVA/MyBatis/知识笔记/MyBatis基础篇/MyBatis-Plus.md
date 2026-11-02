@@ -984,38 +984,47 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 
 ## 18. 分页查询
 
+### 18.1 从 LIMIT 理解分页
+
+假设 `student` 表共有 17 条记录，每页展示 5 条，并按 `id` 升序查询：
+
+| 页码 | SQL 分页范围 | 本页记录数 |
+|---|---|---|
+| 第 1 页 | `LIMIT 0, 5` | 5 |
+| 第 2 页 | `LIMIT 5, 5` | 5 |
+| 第 3 页 | `LIMIT 10, 5` | 5 |
+| 第 4 页 | `LIMIT 15, 5` | 2 |
+
+页码从 1 开始时，**`offset = (current - 1) * size`**：`current` 是当前页码，`size` 是每页条数，`offset` 是跳过的结果行数。实际查询应有明确的 `ORDER BY`，不要依赖数据库的自然返回顺序。
+
+### 18.2 Page：既保存请求参数，也承载查询结果
+
+假设前文的分页插件已经配置：
+
 ```java
-long pageNum = 2;  // 第 2 页（从 1 开始）
-long pageSize = 5; // 每页 5 条
+Page<Student> page = new Page<>(2, 5); // 第 2 页，每页 5 条；Student 是记录的实体类型
+LambdaQueryWrapper<Student> wrapper = new LambdaQueryWrapper<>();
+wrapper.orderByAsc(Student::getId); // 本例不筛选记录，只指定稳定排序
 
-Page<Student> page = new Page<>(pageNum, pageSize); // 构造参数依次为页码、每页条数，不是 offset
-LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<Student>()
-    .ge(Student::getAge, 18)
-    .orderByAsc(Student::getId);
-
-IPage<Student> result = studentMapper.selectPage(page, w); // 通常先统计总数，再查本页数据
-
-List<Student> records = result.getRecords();
-long total = result.getTotal();
-long pages = result.getPages();
-long current = result.getCurrent();
-long size = result.getSize();
+IPage<Student> result = studentMapper.selectPage(page, wrapper);
+// 通常包含 COUNT 查询与本页数据查询；数据 SQL 类似 ORDER BY id ASC LIMIT 5, 5
 ```
 
-**SQL 语义**：
+`Page` 的构造参数是**页码与每页条数，不是 offset**；创建对象本身不执行 SQL。`selectPage` 的第二个参数是 Wrapper，传 `null` 表示不额外设置 Wrapper 条件，本例使用它指定排序。
 
-```text
-pageNum = 2, pageSize = 5
-          ↓
-offset = (2 - 1) * 5 = 5
-          ↓
-LIMIT 5, 5
-```
+### 18.3 读取分页结果
 
-- `records`：**本页**的数据，不是全部数据。
-- `total`：符合条件的记录总数（前提是执行了统计查询）。
-- `pages`：总页数；受 `total` 和 `size` 影响。
-- `current`：当前页码，不是数据库偏移量。
+继续以上例为例，若总数统计得到 17 条：
+
+| 方法 | 含义 | 本例结果 |
+|---|---|---|
+| `result.getRecords()` | 当前页的 `Student` 列表 | 第 2 页的 5 条记录 |
+| `result.getTotal()` | 符合条件的总记录数，需执行统计查询 | 17 |
+| `result.getCurrent()` | 当前页码，不是偏移量 | 2 |
+| `result.getSize()` | 设置的每页条数 | 5 |
+| `result.getPages()` | 根据总记录数与每页条数计算的总页数 | 4 |
+
+**`size` 不等于实际返回条数。** 例如第 4 页的 `getSize()` 仍为 5，但 `getRecords().size()` 为 2；`getRecords()` 返回的也不是全部 17 条记录。
 
 ⚠️ **易混淆**：分页可能包含 **COUNT 查询 + 数据查询**，不是简单地“多加一个 LIMIT”。复杂 JOIN / `GROUP BY` 的总数统计需要检查实际生成 SQL，必要时自定义 COUNT。
 
