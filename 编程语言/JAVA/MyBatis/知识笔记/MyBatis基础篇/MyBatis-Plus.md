@@ -85,6 +85,8 @@ MySQL
 > [!warning]
 > **不要在同一项目中再主动叠加** `mybatis-spring-boot-starter`、单独的 `mybatis`、`mybatis-spring`，以免出现依赖和自动配置冲突。已有原生 MyBatis 项目改为 MP 时，应调整原来的 Starter 依赖，而不是无条件全部保留。
 
+---
+
 ## 3. application.yml
 
 ```yaml
@@ -108,6 +110,8 @@ mybatis-plus:
 - `map-underscore-to-camel-case`：把 `class_name` 映射到 `className`。
 - `type-aliases-package`：给 XML 中使用的结果类型等注册别名。
 - MP 的配置前缀是 `mybatis-plus`，不是原生 Starter 的 `mybatis`。
+
+---
 
 ## 4. Mapper 扫描
 
@@ -213,6 +217,8 @@ Mapper 代理按 MyBatis 原有机制执行 SQL
 - `extends`：让 `StudentMapper` 继承 `BaseMapper` 声明的方法。
 - `<Student>`：泛型，限定这一组通用方法操作 `Student` 实体。
 - 并非每次调用都“现场手写拼接完整 SQL”；MP 在框架初始化阶段提供通用方法的 SQL 映射定义，执行时由 MyBatis 处理。
+
+---
 
 ## 7. 常用 CRUD 方法
 
@@ -909,6 +915,8 @@ public class StudentServiceImpl
 > - **Mapper**： MyBatis 有专门的 Mapper 代理机制，可以为接口创建代理对象。
 > - **Service**： Spring 不会自动替每个 `IService` 接口生成完整业务实现；我们通常提供 `ServiceImpl` 实现类。
 
+---
+
 ## 16. Service 常用方法
 
 | Service 方法 | 作用 | 典型返回值 |
@@ -981,6 +989,8 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 
 > [!warning]
 > 仅使用 `new Page<>(...)` **并不等于分页插件已经配置好**。MP 3.5.9+ 使用 `PaginationInnerInterceptor` 前，必须确保 `mybatis-plus-jsqlparser` 依赖已加入。
+
+---
 
 ## 18. 分页查询
 
@@ -1333,6 +1343,8 @@ public class RegistrationService {
 - Spring 事务机制仍涉及 `DataSourceTransactionManager`、事务绑定的 `Connection`、MyBatis-Spring 会话管理。
 - `@Transactional` 代理、自调用、异常回滚规则等知识**仍然适用**。
 - MP 只是在 Mapper 方法和 SQL 生成上增加了能力。
+
+---
 
 ## 25. 典型问题排查表
 
