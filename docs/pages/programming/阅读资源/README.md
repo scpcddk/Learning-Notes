@@ -4,10 +4,10 @@
 
 | 用途 | 选用封面 | 最终提示词 |
 | --- | --- | --- |
-| 编程语言总入口 | [programming-hero.png](programming-hero.png) | [programming-hero.prompt.txt](programming-hero.prompt.txt) |
-| C 与 C++ | [c-cpp-hero.png](c-cpp-hero.png) | [c-cpp-hero.prompt.txt](c-cpp-hero.prompt.txt) |
-| Java | [java-hero.png](java-hero.png) | [java-hero.prompt.txt](java-hero.prompt.txt) |
-| Python | [python-hero.png](python-hero.png) | [python-hero.prompt.txt](python-hero.prompt.txt) |
+| 编程语言总入口 | [programming-hero.webp](programming-hero.webp) | [programming-hero.prompt.txt](programming-hero.prompt.txt) |
+| C 与 C++ | [c-cpp-hero.webp](c-cpp-hero.webp) | [c-cpp-hero.prompt.txt](c-cpp-hero.prompt.txt) |
+| Java | [java-hero.webp](java-hero.webp) | [java-hero.prompt.txt](java-hero.prompt.txt) |
+| Python | [python-hero.webp](python-hero.webp) | [python-hero.prompt.txt](python-hero.prompt.txt) |
 
 总封面使用代码括号、语法树和模块结构表达编程语言，不绑定具体语言数量，后续加入其他语言仍可沿用。
 

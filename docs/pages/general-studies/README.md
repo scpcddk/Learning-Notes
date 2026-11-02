@@ -1,9 +1,9 @@
 # 通识与拓展封面
 
-`阅读资源/general-studies-hero-v2.png` 用于学习首页的通识卡片与 `/general-studies/` 目录页总封面，内部主题保持文字目录。
+`阅读资源/general-studies-hero-v2.webp` 用于学习首页的通识卡片与 `/general-studies/` 目录页总封面，内部主题保持文字目录。
 
 使用内置图像生成工具制作，以书本、地球、指南针和分支连接表现跨学科阅读、思考与探索。沿用暖白纸面、墨绿玻璃、黄铜细节与柔和光影。横向 3:2，无文字、不透明背景。
 
 [最终提示词](阅读资源/general-studies-hero-v2.prompt.txt) 与图片一起保存，统一构建脚本负责打包。原笔记仍在 `通识与拓展/` 维护。
 
-新版以第一版为参考，通过内置图像生成工具精修玻璃通透层次、黄铜工艺、构图与光影。[第一版封面](阅读资源/general-studies-hero.png) 与 [第一版提示词](阅读资源/general-studies-hero.prompt.txt) 保留用于比较。
+新版以第一版为参考，通过内置图像生成工具精修玻璃通透层次、黄铜工艺、构图与光影。[第一版封面](阅读资源/general-studies-hero.webp) 与 [第一版提示词](阅读资源/general-studies-hero.prompt.txt) 保留用于比较。

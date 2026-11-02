@@ -56,6 +56,26 @@ class CoverPerformanceTests(unittest.TestCase):
             build_site.optimize_site_covers(output)
             self.assertEqual(reader.read_text(encoding='utf-8'), text)
 
+    def test_lossless_webp_source_produces_responsive_variants(self):
+        scratch = build_site.PAGE_ROOT.parent / 'review-output'
+        scratch.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as temporary:
+            output = Path(temporary).resolve()
+            original = output / 'subject-hero.webp'
+            Image.new('RGB', (1536, 1024), '#c5d8c2').save(original, lossless=True)
+            checksum = hashlib.sha256(original.read_bytes()).hexdigest()
+            page = output / 'index.html'
+            page.write_text('<style data-design-system></style><img src="subject-hero.webp">', encoding='utf-8')
+            build_site.optimize_site_covers(output)
+            result = page.read_text(encoding='utf-8')
+            self.assertIn('480w,', result)
+            self.assertIn('1440w"', result)
+            self.assertEqual(hashlib.sha256(original.read_bytes()).hexdigest(), checksum)
+            self.assertEqual(len(list(output.glob('subject-hero-*.webp'))), 3)
+            build_site.validate(output)
+            build_site.optimize_site_covers(output)
+            self.assertEqual(page.read_text(encoding='utf-8'), result)
+
     def test_validator_rejects_missing_responsive_variant(self):
         scratch = build_site.PAGE_ROOT.parent / 'review-output'
         scratch.mkdir(exist_ok=True)

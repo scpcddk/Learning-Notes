@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/readme-banner.png" alt="Learning Notes：从一本笔记生长出的知识树" width="100%">
+  <img src="assets/readme-banner.webp" alt="Learning Notes：从一本笔记生长出的知识树" width="100%">
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
   <a href="https://scpcddk.github.io/Learning-Notes/math/">数学</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/algorithms/">算法</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/programming-languages/">编程语言</a> ·
-  <a href="https://scpcddk.github.io/Learning-Notes/computer-organization/">计算机组成原理</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/software-engineering/">软件工程与计算基础</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/cloud-native/">云原生</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/learning-plans/">学习计划</a> ·
@@ -41,7 +41,7 @@
 │   ├── README.md
 │   ├── 课件压缩记录-2026-11-01.md                              # 课件处理清单与验证记录
 │   ├── assets/
-│   │   ├── readme-banner.png                                   # README 横幅
+│   │   ├── readme-banner.webp                                   # README 横幅
 │   │   ├── readme-banner.prompt.txt                            # 横幅生成提示词
 │   │   └── read-online.svg                                    # 在线阅读入口
 │   └── pages/                                                # 阅读页面与统一构建配置
@@ -51,7 +51,8 @@
 │       ├── shared/                                           # 全站共用样式与主题设置，构建时内嵌
 │       │   ├── design-system.css
 │       │   └── theme.js
-│       ├── computer-organization/                            # 计组目录总封面与提示词
+│       ├── software-engineering/                            # 软件工程与计算基础总封面、提示词及说明
+│       ├── computer-organization/                            # 计组科目目录封面与提示词
 │       ├── general-studies/                                  # 通识与拓展目录总封面与提示词
 │       ├── probability-statistics/                           # 数学目录中的概率统计封面与提示词
 │       ├── numerical-analysis/                               # 数学目录中的数值分析封面与提示词
@@ -164,25 +165,26 @@
 │       │   ├── 枚举/
 │       │   └── KMP/                                            # C 语言实现
 │       └── 大一寒假集训/                                       # 集训讲义与题解
-├── 计算机组成原理/
-│   ├── 笔记/
-│   │   ├── 章节笔记/
-│   │   │   ├── 第一章 数字逻辑基础/
-│   │   │   ├── 第二章 组合逻辑设计/
-│   │   │   ├── 第三章 时序逻辑设计/
-│   │   │   ├── 第四章 算术电路/
-│   │   │   │   └── 第四章.md                                   # 计划补充
-│   │   │   ├── 第五章 常见数字模块/
-│   │   │   ├── 第六章 体系结构/
-│   │   │   │   └── 第六章.md                                   # 计划补充
-│   │   │   ├── 第七章 CPU设计/
-│   │   │   │   └── 第七章.md                                   # 计划补充
-│   │   │   └── 第八章 存储设计/
-│   │   │       └── 第八章.md                                   # 计划补充
-│   │   ├── 计算机组成原理思维导图.pdf
-│   │   └── 计组笔记加题库.docx
-│   ├── 课件资源/
-│   └── 习题/
+├── 软件工程/                                                  # 网站显示为“软件工程与计算基础”
+│   ├── 计算机组成原理/
+│   │   ├── 笔记/
+│   │   │   ├── 章节笔记/
+│   │   │   │   ├── 阅读指南.md
+│   │   │   │   ├── 第一章 数字逻辑基础/
+│   │   │   │   ├── 第二章 组合逻辑设计/
+│   │   │   │   ├── 第三章 时序逻辑设计/
+│   │   │   │   ├── 第四章 算术电路/                           # 计划补充
+│   │   │   │   ├── 第五章 常见数字模块/
+│   │   │   │   ├── 第六章 体系结构/                           # 计划补充
+│   │   │   │   ├── 第七章 CPU设计/                            # 计划补充
+│   │   │   │   └── 第八章 存储设计/                           # 计划补充
+│   │   │   ├── 计算机组成原理思维导图.pdf
+│   │   │   └── 计组笔记加题库.docx
+│   │   ├── 课件资源/
+│   │   └── 习题/
+│   └── 软件需求与分析/
+│       ├── 课件/
+│       └── 软需/                                              # 章节笔记与需求分析、设计资料
 ├── 数学/
 │   ├── README.md                                              # 数学总导航与科目入口
 │   ├── 高等数学/

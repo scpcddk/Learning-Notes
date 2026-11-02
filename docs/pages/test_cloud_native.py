@@ -142,7 +142,7 @@ echo "$HOME ${APP_IMAGE}"
         self.assertIn('src="assets/', entry["full"])
         self.assertIn("$HOME ${APP_IMAGE}", entry["full"])
         folder = self.output / "cloud-native"
-        self.assertTrue((folder / "阅读资源/cloud-native-hero.png").is_file())
+        self.assertTrue((folder / "阅读资源/cloud-native-hero.webp").is_file())
         self.assertEqual(len(list((folder / "assets").iterdir())), 1)
         for page in self.pages:
             for field in ("embed", "pdf"):

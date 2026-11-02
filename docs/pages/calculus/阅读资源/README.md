@@ -12,7 +12,7 @@
 
 ## 图片资源
 
-- [calculus-hero.png](calculus-hero.png)：高等数学首页主题插图，使用内置图像生成工具生成。
+- [calculus-hero.webp](calculus-hero.webp)：高等数学首页主题插图，使用内置图像生成工具生成。
 - 插图子目录：生成脚本从原笔记复制的正文插图，文件名前缀取自内容哈希。
 
 正文公式由 MathJax 排版，首页生成插图仅作装饰，不承担公式或定理的准确表达。
