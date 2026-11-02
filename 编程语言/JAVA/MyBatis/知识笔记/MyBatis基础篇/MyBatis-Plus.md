@@ -1113,6 +1113,10 @@ Service 层仍应校验 `pageNum >= 1`、`pageSize >= 1` 以及业务允许的�
 
 【**MP 增强**】用于新增时间、修改时间等字段。
 
+**只添加 `@TableField(fill = ...)`，不会自动填入当前时间。** 注解声明字段何时参与填充，`MetaObjectHandler` 负责填什么值、如何填充。
+
+### 19.1 声明字段的填充时机
+
 ```java
 // 以下字段需加入 Student，同时在数据库中增加对应的 create_time、update_time 列
 @TableField(fill = FieldFill.INSERT)
@@ -1122,6 +1126,26 @@ private LocalDateTime createTime;
 private LocalDateTime updateTime;
 ```
 
+`FieldFill` 用于指定字段参与自动填充的时机：
+
+| 策略 | 插入时 | 更新时 |
+|---|---|---|
+| `FieldFill.DEFAULT` | 不自动填充 | 不自动填充 |
+| `FieldFill.INSERT` | 允许填充 | 不填充 |
+| `FieldFill.UPDATE` | 不填充 | 允许填充 |
+| `FieldFill.INSERT_UPDATE` | 允许填充 | 允许填充 |
+
+### 19.2 实现填充处理器
+
+`MetaObjectHandler` 是 MP 提供的自动填充接口，主要有两个回调方法：
+
+| 方法 | 触发场景 | 典型用途 |
+|---|---|---|
+| `insertFill()` | 适用的实体插入操作 | 设置创建时间、初始修改时间 |
+| `updateFill()` | 适用的实体更新操作 | 设置修改时间 |
+
+实现接口，并通过 `@Component` 将处理器注册为 Spring Bean：
+
 ```java
 @Component // 注册填充处理器，MP 才能在处理实体时使用它
 public class AuditMetaObjectHandler implements MetaObjectHandler {
@@ -1130,7 +1154,6 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
     public void insertFill(MetaObject metaObject) {
         // metaObject 封装待处理实体；同一次插入共用 now，保持两个时间一致
         LocalDateTime now = LocalDateTime.now();
-        // 参数依次为：实体包装对象、Java 属性名（非列名）、属性类型、填充值
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
     }
@@ -1151,12 +1174,28 @@ import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import org.apache.ibatis.reflection.MetaObject;
 ```
 
-- `FieldFill.INSERT`：新增时填充。
-- `FieldFill.UPDATE`：更新时填充。
-- `FieldFill.INSERT_UPDATE`：新增、更新都尝试填充。
-- `strict...Fill`：根据属性名、类型和填充策略设置实体字段，已有非空值等情况可能不覆盖。
+以 `strictInsertFill(metaObject, "createTime", LocalDateTime.class, now)` 为例，四个参数分别为：
 
-⚠️ **易混淆**：自动填充不是数据库触发器；它依赖 MP 对**实体对象**进行处理。只有 Wrapper 而没有实体参与的更新，并不保证触发更新时间自动填充。
+| 参数 | 含义 |
+|---|---|
+| `metaObject` | 当前操作实体的元对象包装，用于读写属性 |
+| `"createTime"` | Java 属性名，使用 `createTime`，而非数据库列名 `create_time` |
+| `LocalDateTime.class` | 属性类型 |
+| `now` | 希望填入的值，这里来自 `LocalDateTime.now()` |
+
+**允许填充不代表一定赋值。** `strictInsertFill()`、`strictUpdateFill()` 会检查属性名、类型和填充策略，默认不覆盖已有非空值，填充值为 `null` 时也不填充。
+
+### 19.3 执行流程与更新限制
+
+以 `studentMapper.insert(student)` 为例：
+
+```text
+MP 处理实体及其填充标记 → 调用 insertFill() → 给实体属性赋值 → 执行 INSERT SQL
+```
+
+自动填充是在 SQL 执行前修改实体属性，不会给 MySQL 表创建默认值或触发器。
+
+**更新自动填充需要提供实体。** `studentMapper.update(null, wrapper)` 没有更新实体，不能依赖处理器填充修改时间；可以用 `wrapper.set()` 显式赋值。若希望使用处理器，可调用 `updateById(student)` 或 `update(student, wrapper)`，并确保字段注解和填充规则匹配。
 
 ---
 
