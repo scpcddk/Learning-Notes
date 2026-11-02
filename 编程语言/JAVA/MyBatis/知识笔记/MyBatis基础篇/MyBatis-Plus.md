@@ -1039,6 +1039,15 @@ IPage<Student> result = studentMapper.selectPage(page, wrapper);
 
 `Page` 的构造参数是**页码与每页条数，不是 offset**；创建对象本身不执行 SQL。`selectPage` 的第二个参数是 Wrapper，传 `null` 表示不额外设置 Wrapper 条件，本例使用它指定排序。
 
+**selectList 与 selectPage 的区别**
+
+| 方法 | 功能 | 返回内容 |
+|---|---|---|
+| `selectList(wrapper)` | 按 Wrapper 查询符合条件的记录列表 | `List<Student>` |
+| `selectPage(page, wrapper)` | 根据页码与每页条数查询指定页 | 分页对象，包含本页记录和分页信息，可用 `IPage<Student>` 接收 |
+
+在本例使用的 MP `3.5.17` 中，传入 `Page<Student>` 时，也可写为 `Page<Student> result = studentMapper.selectPage(page, wrapper)`。如果只需要本页的学生列表，调用 `result.getRecords()`。
+
 ### 18.3 读取分页结果
 
 继续以上例为例，若总数统计得到 17 条：
