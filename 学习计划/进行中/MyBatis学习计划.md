@@ -284,15 +284,15 @@
 - [x] `QueryWrapper`
 - [x] `LambdaQueryWrapper`
 - [x] `UpdateWrapper`
-- [ ] `LambdaUpdateWrapper`
+- [x] `LambdaUpdateWrapper`
 
 ### 常用功能
 
-- [ ] 条件查询
-- [ ] 条件更新
-- [ ] 批量操作
-- [ ] 分页
-- [ ] 自动填充
+- [x] 条件查询
+- [x] 条件更新
+- [x] 批量操作
+- [x] 分页
+- [x] 自动填充
 - [ ] 逻辑删除
 - [ ] 乐观锁基本概念
 

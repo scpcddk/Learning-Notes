@@ -914,7 +914,7 @@ public class StudentServiceImpl
 | Service 方法 | 作用 | 典型返回值 |
 |---|---|---|
 | `save(entity)` | 新增 | `boolean` |
-| `saveBatch(list)` | **批量**新增 | `boolean` |
+| `saveBatch(list,batchSize)` | **批量**新增,`batchSize`：指定每批处理多少条记录 | `boolean` |
 | `getById(id)` | 主键查询 | `T` |
 | `list(wrapper)` | 查询列表 | `List<T>` |
 | `count(wrapper)` | 统计数量 | `long` / `Long`（按版本签名） |
@@ -1171,7 +1171,7 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
 }
 ```
 
-相关导入：
+**相关导入**：
 
 ```java
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
