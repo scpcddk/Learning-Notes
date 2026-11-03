@@ -28,10 +28,7 @@ MyBatis（SqlSession / Executor / JDBC）
 MySQL
 ```
 
-- **原生 MyBatis**：通常自己写 SQL，再由 Mapper 绑定执行。
-- **MyBatis-Plus**：为**常规的单表 CRUD 自动提供方法和 SQL**；复杂 SQL 仍可手写。
-- **它解决的问题**：减少重复的 Mapper 方法、XML 和简单条件拼接。
-- **它不解决的问题**：业务逻辑设计、数据库设计、索引优化、事务设计、所有复杂 JOIN 查询。
+MP 主要减少常规单表 CRUD 的 Mapper 方法、XML 和简单条件拼接；业务逻辑、数据库设计、索引优化与事务设计仍由开发者负责。
 
 > [!tip]
 > **一句话：MyBatis-Plus = MyBatis + 通用 CRUD + 条件构造器 + 常用增强插件。**
@@ -245,8 +242,6 @@ int rows3 = studentMapper.deleteById(1L);
 | `deleteByIds(ids)` | 根据多个主键删除（新版本） | `int` 影响行数 |
 | `selectPage(page, wrapper)` | 分页查询 | `IPage<T>` |
 
-> MP 默认的字段更新策略通常是 `FieldStrategy.NOT_NULL`，当属性值为 `null` 时，不会将对应字段加入 `SET` 子句
-
 ### 7.1 原生 MyBatis 对照
 
 ```xml
@@ -290,18 +285,6 @@ List<Student> students = studentMapper.selectList(query); // 把条件交给 Map
 
 **条件构造器的作用，就是把“按什么条件操作数据”告诉 MP，由 MP 生成对应的 SQL。** 上例实际使用参数绑定，条件为 `WHERE age > ?`，参数值为 `18`。
 
-```text
-Java 条件构造器
-    .eq(Student::getAge, 20)
-    .ge(Student::getScore, new BigDecimal("80"))
-        ↓
-由 MP 构造 SQL 条件与参数映射
-        ↓
-WHERE age = ? AND score >= ?
-        ↓
-MyBatis / JDBC 绑定参数并执行
-```
-
 ### 8.1 四个核心 Wrapper
 
 先看用途（**查询 / 更新**），再看指定列的方式（**字符串 / getter 方法引用**）：
@@ -313,35 +296,20 @@ MyBatis / JDBC 绑定参数并执行
 | `UpdateWrapper<T>` | **更新**：筛选、设置新值 | 数据库列名字符串 | `.set("age", 21)` |
 | `LambdaUpdateWrapper<T>` | **更新**：筛选、设置新值 | 实体 getter 方法引用 | `.set(Student::getAge, 21)` |
 
-- **查询示例**：表中的 `eq` 表示“筛选年龄为 20 的记录”。
-- **更新示例**：表中的 `set` 表示“把年龄改为 21”，实际更新时还应添加 `eq` 等条件限定记录范围。
-- **字段映射**：Java 属性 `className` 对应数据库列 `class_name` 时，普通版写 `"class_name"`，Lambda 版写 `Student::getClassName`，由 MP 根据实体映射确定列名。
+表中的 `eq` 筛选年龄为 20 的记录，`set` 把年龄改为 21；更新时还应添加条件限定记录范围。四种 Wrapper 的完整示例见第 9 节。
 
 > [!tip]
-> **记忆方式：Query 管查询，Update 管更新；普通版写列名，Lambda 版引用 getter。** 日常代码可优先使用 Lambda 版，减少列名字符串拼错、重构时漏改的问题。四种 Wrapper 的完整示例见第 9 节。
+> **Query 管查询，Update 管更新；普通版写列名，Lambda 版引用 getter。**
 
 ### 8.2 条件构造器的实际用途
 
-`selectById(id)` 能处理“按主键查一个学生”，但实际页面经常需要“按班级、姓名、最低成绩组合筛选”。Wrapper 可以把这些业务筛选条件组织成 SQL，并交给 Mapper 执行，减少重复编写简单动态 SQL。
-
 **① 列表搜索：把页面筛选项转换成数据库查询条件**
 
-例如学生管理页提供“姓名关键词、班级、最低成绩”三个筛选项。Wrapper 只添加用户已填写的条件，未填写的项不参与筛选，再交给数据库查询，无需先查出全表后用 Java 过滤。动态条件的具体写法见第 11 节，完整分页案例见第 26 节。
+学生管理页可按姓名、班级、最低成绩组合筛选，只添加用户已填写的条件。动态条件写法见第 11 节，完整分页案例见第 26 节。
 
 **② 条件更新：一次修改所有符合条件的记录**
 
-例如，把“一班中成绩达到 90 分的学生”调整到“提高班”：
-
-```java
-LambdaUpdateWrapper<Student> adjust = new LambdaUpdateWrapper<>();
-adjust.eq(Student::getClassName, "一班")
-      .ge(Student::getScore, new BigDecimal("90")) // 字符串构造精确十进制数，ge 表示 >=
-      .set(Student::getClassName, "提高班");
-
-int updatedRows = studentMapper.update(null, adjust); // 同时满足班级和成绩条件的记录都会被更新
-```
-
-这会执行一条按条件更新的 SQL，无需先查询学生列表，再逐个调用 `updateById`。`eq`、`ge` 控制修改范围，`set` 指定修改内容。
+例如，把“一班中成绩达到 90 分的学生”统一调整到“提高班”，无需先查询再逐个更新。`eq`、`ge` 限定范围，`set` 指定新班级；更新示例见第 9.3、22.1 节。
 
 **③ 条件删除：组合勾选结果与业务范围**
 
@@ -360,10 +328,7 @@ toDelete.in(Student::getId, selectedIds) // 集合中的每个 ID 对应 IN 中�
 int deletedRows = studentMapper.delete(toDelete);
 ```
 
-条件相当于 `WHERE id IN (?, ?, ?) AND class_name = ?`。这里用查询构造器描述筛选范围，由 `delete(...)` 决定执行删除；配置了 `@TableLogic` 时，MP 通用删除按逻辑删除处理。
-
-> [!warning]
-> 删除前应先检查主键集合非空，避免集合为空导致预期中的 `IN` 条件没有加入 SQL。业务允许操作的班级等范围应由服务端校验或确定。
+条件相当于 `WHERE id IN (?, ?, ?) AND class_name = ?`，业务允许操作的班级应由服务端确定。空集合的处理见第 10.1 节，逻辑删除见第 20 节。
 
 **④ 条件统计与分页：同样的筛选需求，选择不同执行入口**
 
@@ -401,9 +366,7 @@ WHERE class_name = ? AND score >= ?
 ORDER BY score DESC, id ASC;
 ```
 
-- `select(...)` 指定查询列；`eq(...)`、`ge(...)` 构造 `WHERE`；`orderBy...` 构造排序。
-- `"class_name"` 是**数据库列名**，不能因为 Java 属性叫 `className` 就直接写成 `"className"`。
-- 列名拼写错误通常要到执行 SQL 时才暴露，重命名 Java 属性也不会自动修改这些字符串。
+`"class_name"` 是**数据库列名**，不能因为 Java 属性叫 `className` 就直接写成 `"className"`。
 
 ### 9.2 LambdaQueryWrapper：用 getter 方法引用描述查询
 
@@ -411,7 +374,6 @@ ORDER BY score DESC, id ASC;
 
 ```java
 LambdaQueryWrapper<Student> lq = new LambdaQueryWrapper<>();
-// 方法引用只标识列；不会在这里调用某个 Student 对象的 getter 读取值
 lq.select(Student::getId, Student::getName, Student::getScore)
   .eq(Student::getClassName, "一班") // getter 对应 Java 属性，最终条件使用数据库列 class_name
   .ge(Student::getScore, new BigDecimal("80"))
@@ -449,15 +411,11 @@ new LambdaQueryWrapper<Student>().eq(Student::getAge, 20); // Lambda 版：由 g
 
 前两种写法都表达 `age = 20`。
 
-- `<Student>` 指定操作的实体类型，`Student::getScore` 指定列，`new BigDecimal("80")` 才是比较值。
-- 适合日常单表查询；Lambda 写法本身不会让 SQL 执行得更快。
-
 **方法引用的优势与边界：**
 
-- 字符串列名如 `"name"` 不会得到 Java 编译器的字段存在性检查。
-- 将实体属性 `name` 重命名为 `studentName` 并同步修改 getter 时，IDE 重构通常可以更新方法引用；引用的方法不存在时，编译就会报错。
-- **编译通过不代表数据库映射正确。** 方法引用检查不会确认数据库中的列是否真实存在；实体映射错误仍可能导致运行时 SQL 出错。
-- **重构便利不等于 SQL 安全。** LambdaWrapper 中的 `apply / last` 等 SQL 片段仍需后端控制；Java 方法引用带来的检查与维护优势，也不是通过 Spring 注入获得的额外数据库访问安全保障。
+- 字符串列名不受 Java 编译器检查；重命名实体属性并同步修改 getter 时，IDE 通常可更新方法引用，引用的方法不存在则会编译报错。
+- 方法引用不检查数据库中的列是否存在，映射错误仍可能在运行时暴露；`apply / last` 等 SQL 片段也仍需后端控制。
+- Lambda 的优势是 Java 层的检查与重构支持，不会额外提升 SQL 性能或通过 Spring 获得数据库访问安全保障。
 
 ### 9.3 UpdateWrapper：分别指定更新值和更新条件
 
@@ -482,7 +440,6 @@ WHERE id = ?;
 ```
 
 - `set("age", 21)` 表示把年龄改为 21；`eq("age", 21)` 表示筛选年龄为 21 的记录，**不会给年龄赋值**。
-- `update(null, u)` 的第一个参数是实体；此处传 `null`，表示更新值全部由 Wrapper 的 `set(...)` 提供。
 - 这里的 `rows` 是影响行数；若条件匹配多条记录，就可能更新多条。
 
 ### 9.4 LambdaUpdateWrapper：用方法引用描述更新
@@ -501,7 +458,7 @@ int rows = studentMapper.update(null, lu);
 
 虽然是**更新**，这里仍写 `Student::getAge`，不是 `Student::setAge`：方法引用用于**标识列**，新值由 `set` 的第二个参数提供。
 
-默认实体更新策略下，`null` 字段通常会被忽略；而显式 `.set(Student::getClassName, null)` 可表达把该列设置为 `NULL`。更新策略及实体与 Wrapper 的配合见第六篇。
+实体与 Wrapper 的配合、NULL 更新规则见第 14 节。
 
 ### 9.5 Wrapper 与 Mapper 的分工
 
@@ -537,13 +494,9 @@ int rows = studentMapper.update(null, lu);
 | `orderByAsc` | `ORDER BY ... ASC` | `.orderByAsc(Student::getId)` |
 
 > [!tip]
-普通条件默认用 `AND` 连接；上面的 `or()` 示例表示 `age = 18 OR age = 20`。若要表达 `A AND (B OR C)`，需显式构造括号分组，见第 12 节。
+> SQL 判断 NULL 应使用 `IS NULL` / `IS NOT NULL`，不能用 `eq(..., null)` 或 `ne(..., null)` 代替。空字符串 `""` 与 NULL 不同，`isNotNull` 不会排除空字符串。
 
-> [!tip]
-SQL 判断 NULL 应使用 `IS NULL` / `IS NOT NULL`，不要用 `.eq(Student::getScore, null)` 或 `.ne(Student::getScore, null)` 代替。`isNotNull` 也不表示字符串非空：空字符串 `""` 和数据库 NULL 是两种不同的值。
-
-> [!tip]
-`between()` 不会自动排序,必须自己按照**下界在前、上界在后**的顺序传入参数
+`between()` 的参数应按**下界、上界**传入，不会自动排序。逻辑分组见第 12 节。
 
 ### 10.1 空集合：先明确业务含义
 
@@ -571,40 +524,24 @@ q.eq(className != null && !className.isBlank(),
 
 `isBlank()` 是 Java 11+ 的字符串方法：空字符串 `""` 或只含空格、制表符、换行等空白字符时返回 `true`；如 `"一班"` 则返回 `false`。`isEmpty()` 只判断长度是否为 0，因此 `"   ".isEmpty()` 为 `false`，但 `"   ".isBlank()` 为 `true`。
 
-`className != null && !className.isBlank()` 表示**字符串存在且含有非空白内容**。先判断 `null`，再利用 `&&` 的短路特性调用 `isBlank()`，避免空指针异常。
+先判断 `className != null`，再利用 `&&` 短路调用 `isBlank()`，避免空指针异常。
 
 有班级值时添加 `class_name = ?`；未填写时跳过该条件。两参数 `eq(column, value)` 相当于 `condition=true`，不会自动判断值是否为空。
 
-Lambda 版也支持三参数形式，但列参数须换为 getter 方法引用，如 `.eq(className != null && !className.isBlank(), Student::getClassName, className)`。
-
-**示例**：
+Lambda 版同样支持三参数形式，可组合多个可选筛选项：
 
 ```java
 String name = "张";         // 可能为空
 Integer minAge = 18;        // 可能为 null
 
 LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<>();
-// && 短路：name 为 null 时不调用 isBlank()；条件为 false 时不添加 LIKE
 w.like(name != null && !name.isBlank(), Student::getName, name)
- .ge(minAge != null, Student::getAge, minAge) // 三个参数依次是：是否加入条件、列、比较值
+ .ge(minAge != null, Student::getAge, minAge)
  .orderByDesc(Student::getScore)
  .orderByAsc(Student::getId);
 
 // name="张"、minAge=18 时：WHERE name LIKE '%张%' AND age >= 18（实际走参数绑定）
 List<Student> students = studentMapper.selectList(w);
-```
-
-**相当于原生 MyBatis 的**：
-
-```xml
-<where>
-    <if test="name != null and name != ''">
-        AND name LIKE CONCAT('%', #{name}, '%')
-    </if>
-    <if test="minAge != null">
-        AND age >= #{minAge}
-    </if>
-</where>
 ```
 
 > [!warning] 关键细节：不添加条件，不等于返回空结果
@@ -680,23 +617,20 @@ WHERE (age = 18 OR age = 20) AND class_name = '一班'
 
 ---
 
-## 13. 查询列、排序与进阶方法
+## 13. 查询指定列与进阶方法
 
 例如，只读取学生的主键、姓名和成绩：
 
 ```java
 LambdaQueryWrapper<Student> w = new LambdaQueryWrapper<Student>()
-    .select(Student::getId, Student::getName, Student::getScore)
-    .orderByDesc(Student::getScore)
-    .orderByAsc(Student::getId);
+    .select(Student::getId, Student::getName, Student::getScore);
 
 List<Student> students = studentMapper.selectList(w); // 返回类型仍是 List<Student>
 ```
 
-- `select(...)`：只查询指定列。上例未读取 `age`、`gender`、`class_name`，结果对象中的对应属性通常为 `null` / 默认值。**这不代表数据库中的值是 NULL，而是本次查询没有读取这些列。**
-- `orderBy...`：实现稳定排序；分页时建议追加唯一列 `id` 作为最后排序键。
+上例未读取 `age`、`gender`、`class_name`，结果对象中的对应属性通常为 `null` / 默认值。**这不代表数据库中的值是 NULL，而是本次查询没有读取这些列。** 排序写法见第 9.1 节。
 
-以下示例相互独立，构造好 Wrapper 后，仍需传给 `selectList(...)` 等 Mapper 方法执行。
+以下进阶方法的示例相互独立。
 
 ### 13.1 allEq：用 Map 组合多个等值条件
 
@@ -788,14 +722,7 @@ WHERE EXISTS (
 
 ## 14. updateById 与条件更新
 
-Wrapper 更新的基础写法见第 9.3、9.4 节。本节重点区分记录定位方式与字段更新策略：`updateById(entity)` 根据实体主键定位，`update(entity, wrapper)` 根据 Wrapper 条件定位。
-
-```java
-Student s = new Student();
-s.setId(1L); // updateById 从实体中取主键作为 WHERE 条件
-s.setName("李四");
-studentMapper.updateById(s);
-```
+`updateById(entity)` 根据实体主键定位，`update(entity, wrapper)` 根据 Wrapper 条件定位。基础写法见第 7、9.3、9.4 节，本节重点说明更新值来源和字段策略。
 
 ### 14.1 update(null, wrapper) 与 update(student, wrapper)
 
@@ -859,12 +786,9 @@ SQL 类似 `UPDATE student SET score = score + ? WHERE id = ?`。
 - `set(Student::getScore, new BigDecimal("5"))`：直接把成绩设为 5。
 - `setSql("score = score + {0}", new BigDecimal("5"))`：由数据库根据当前成绩计算新值。
 
-**普通赋值优先使用 `set()`；确实需要数据库表达式时，再考虑 `setSql()`。** SQL 片段由后端编写，值用 `{0}` 等占位符绑定，不要直接拼接未经验证的用户输入；同一列也应避免与实体属性、`set()` 重复指定。
+**普通赋值优先使用 `set()`，数据库表达式再考虑 `setSql()`。** SQL 片段由后端编写，值用 `{0}` 等占位符绑定，不要直接拼接用户输入。
 
-⚠️ **易混淆**：
-
-1. 默认的 `null` 更新策略不等于“任何场景都不会写 NULL”；显式 `set`、字段策略等会影响结果。
-2. **禁止无条件执行更新或删除**，否则可能影响全表；上线前可按需配置防全表更新删除插件。
+⚠️ **更新、删除前检查 WHERE 范围**，否则可能影响全表；可按需配置防全表更新删除插件。
 
 ---
 
@@ -873,10 +797,6 @@ SQL 类似 `UPDATE student SET score = score + ? WHERE id = ?`。
 ## 15. IService / ServiceImpl
 
 【**MP 增强**】MP 除 Mapper 通用 CRUD 外，还提供 Service 层通用接口和默认实现。
-
-- `BaseMapper<T>`：提供 **Mapper 层**通用数据库操作。
-- `IService<T>`：提供 **Service 层**常用的数据操作接口。
-- `ServiceImpl<M, T>`：MP 提供的通用 **Service 实现基类**，方便实现 `IService<T>`。
 
 ```java
 public interface StudentService extends IService<Student> {
@@ -893,7 +813,7 @@ public class StudentServiceImpl
 ```
 
 > [!note]
-> `ServiceImpl<M, T>` 中：`M` 为 Mapper 类型，指定使用哪个 Mapper 访问数据库；`T` 为实体类型，指定操作哪个实体类型。`IService<T>` 定义通用 Service 操作，`ServiceImpl` 提供现成实现。新版 MP 文档也建议了解语义更明确的 `IRepository`；旧项目仍大量出现 `IService`，阅读代码必须认识。
+> `ServiceImpl<M, T>` 中，`M` 是 Mapper 类型，`T` 是实体类型。新版 MP 文档也建议了解 `IRepository`；旧项目仍大量使用 `IService`。
 
 | 对比 | Mapper | Service |
 | ---------- | ------------------------ | -------------------------- |
@@ -901,11 +821,6 @@ public class StudentServiceImpl
 | 通用方法来源 | `BaseMapper` + MP SQL 映射 | `IService` + `ServiceImpl` |
 | 是否需要自己写实现类 | 通常不需要 | 通常需要 |
 | 主要职责 | 数据库访问 | 业务逻辑及事务协调 |
-
-> [!tip] 关键区别
-> 
-> - **Mapper**： MyBatis 有专门的 Mapper 代理机制，可以为接口创建代理对象。
-> - **Service**： Spring 不会自动替每个 `IService` 接口生成完整业务实现；我们通常提供 `ServiceImpl` 实现类。
 
 ---
 
@@ -937,7 +852,6 @@ List<Student> list = studentService.list(
 - 业务规则仍应放到自己写的 `Service` 方法中。
 - 跨多个 Mapper 的一致性更新，仍需要 `@Transactional`。
 - Controller 不应因为 `IService` 方法方便就越过业务层直接操作数据库。
-- 批量方法的具体实现和 SQL 发送方式与版本、执行器、JDBC 参数有关；**不等于必然是一条 SQL**。
 
 ---
 
@@ -1038,7 +952,7 @@ IPage<Student> result = studentMapper.selectPage(page, wrapper);
 // 通常包含 COUNT 查询与本页数据查询；数据 SQL 类似 ORDER BY id ASC LIMIT 5, 5
 ```
 
-`Page` 的构造参数是**页码与每页条数，不是 offset**；创建对象本身不执行 SQL。`selectPage` 的第二个参数是 Wrapper，传 `null` 表示不额外设置 Wrapper 条件，本例使用它指定排序。
+`Page` 的构造参数是**页码与每页条数，不是 offset**。`selectPage` 的第二个参数是 Wrapper，传 `null` 表示不额外设置条件，本例使用它指定排序。
 
 **selectList 与 selectPage 的区别**
 
@@ -1065,7 +979,7 @@ IPage<Student> result = studentMapper.selectPage(page, wrapper);
 
 **`size` 不等于实际返回条数。** 例如第 4 页的 `getSize()` 仍为 5，但 `getRecords().size()` 为 2；`getRecords()` 返回的也不是全部 17 条记录。
 
-⚠️ **易混淆**：分页可能包含 **COUNT 查询 + 数据查询**，不是简单地“多加一个 LIMIT”。复杂 JOIN / `GROUP BY` 的总数统计需要检查实际生成 SQL，必要时自定义 COUNT。
+复杂 JOIN / `GROUP BY` 的总数统计需要检查实际生成 SQL，必要时自定义 COUNT。
 
 ### 18.4 searchCount：是否自动查询总数
 
@@ -1127,10 +1041,8 @@ private LocalDateTime updateTime;
 ```
 
 - `value`：指定数据库列名，例如 Java 属性 `createTime` 对应 `create_time`。MP 默认开启驼峰与下划线映射，符合命名规则时可以省略 `value`，这里显式写出便于理解。
-- `fill`：指定自动填充时机。上例中，创建时间仅在插入时参与填充，修改时间在插入和更新时都参与填充。
+- `fill`：指定自动填充时机，具体策略见下表。
 - `LocalDateTime`：Java 8 引入的日期时间类型，不包含时区信息，常用于映射 MySQL 的 `DATETIME`。
-
-`fill` 可选的四种策略如下：
 
 | 策略 | 插入时 | 更新时 |
 |---|---|---|
@@ -1148,7 +1060,7 @@ private LocalDateTime updateTime;
 | `insertFill()` | 适用的实体插入操作 | 设置创建时间、初始修改时间 |
 | `updateFill()` | 适用的实体更新操作 | 设置修改时间 |
 
-实现接口，并通过 `@Component` 将处理器注册为 Spring Bean：
+实现示例：
 
 ```java
 @Component // 注册填充处理器，MP 才能在处理实体时使用它
@@ -1156,7 +1068,7 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void insertFill(MetaObject metaObject) {
-        // metaObject 封装待处理实体；同一次插入共用 now，保持两个时间一致
+        // 同一次插入共用 now，保持两个时间一致
         LocalDateTime now = LocalDateTime.now();
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
@@ -1164,7 +1076,6 @@ public class AuditMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void updateFill(MetaObject metaObject) {
-        // strict 默认不覆盖已有非空值；实体保留旧 updateTime 时需另外处理覆盖策略
         this.strictUpdateFill(metaObject, "updateTime",
                 LocalDateTime.class, LocalDateTime.now());
     }
@@ -1187,7 +1098,7 @@ import org.apache.ibatis.reflection.MetaObject;
 | `LocalDateTime.class` | 属性类型 |
 | `now` | 希望填入的值，这里来自 `LocalDateTime.now()` |
 
-**允许填充不代表一定赋值。** `strictInsertFill()`、`strictUpdateFill()` 会检查属性名、类型和填充策略，默认不覆盖已有非空值，填充值为 `null` 时也不填充。
+`strictInsertFill()`、`strictUpdateFill()` 要求属性名、类型和填充策略匹配，默认不覆盖非空属性，填充值为 `null` 时不填充。旧更新时间的问题见第 19.4 节。
 
 ### 19.3 执行流程与更新限制
 
@@ -1220,8 +1131,6 @@ wrapper.eq(Student::getClassName, "一班");
 studentMapper.update(student, wrapper);
 ```
 
-这里实体提供更新值，Wrapper 筛选一班学生；更新时间仍须满足字段注解和处理器规则。
-
 **方案二：通过 Wrapper 显式设置时间。**
 
 ```java
@@ -1233,11 +1142,11 @@ wrapper.eq(Student::getClassName, "一班")
 studentMapper.update(null, wrapper);
 ```
 
-这里的成绩和更新时间都由 `set()` 指定，不依赖 `MetaObjectHandler`。项目中应保持更新时间管理方式一致，避免同一字段同时由实体填充和 Wrapper 赋值。
+方案二不依赖处理器。项目中应统一更新时间管理方式，同一字段避免同时由实体和 Wrapper 赋值（见第 14.1 节）。
 
 ### 19.4 不自动刷新，不代表不参与 UPDATE
 
-如果先查询学生，再修改成绩并调用 `updateById(student)`，实体通常已经带有旧的 `updateTime`。`strictUpdateFill()` 默认不覆盖非空值，SQL 仍可能把旧时间写回：
+如果先查询学生，再修改成绩并调用 `updateById(student)`，实体通常带有旧的 `updateTime`。按上述严格填充规则，旧时间不会刷新，SQL 仍可能把它写回：
 
 ```sql
 UPDATE student
@@ -1368,7 +1277,7 @@ if (rows == 0) {
 ## 22. 批量新增、更新、删除
 
 ```java
-// Service 层：studentList 是待新增实体的集合；批量方法不保证只发送一条 SQL
+// Service 层：studentList 是待新增实体的集合
 boolean inserted = studentService.saveBatch(studentList);
 
 // Service 层：根据主键批量更新，集合中每个实体都应设置自己的 id
@@ -1411,8 +1320,7 @@ boolean removed = studentService.removeByIds(ids); // 返回操作结果，不�
 
 ### 22.3 与原生 MyBatis <foreach> 的区别
 
-- MP 通用方法能减少大量重复代码。
-- 但具体是**逐条执行/批处理发送**还是**拼接为单条多 VALUES SQL**，不能只靠 `saveBatch` 方法名推断。
+- 具体是**逐条执行/批处理发送**还是**拼接为单条多 VALUES SQL**，不能只靠 `saveBatch` 方法名推断。
 - 超大批次可能占用大量内存、连接资源、锁资源；要考虑合理分批、事务范围和驱动行为。
 - **复杂批量插入 SQL** 仍可自己写 XML `<foreach>`。
 
@@ -1504,7 +1412,6 @@ public class RegistrationService {
 
 - Spring 事务机制仍涉及 `DataSourceTransactionManager`、事务绑定的 `Connection`、MyBatis-Spring 会话管理。
 - `@Transactional` 代理、自调用、异常回滚规则等知识**仍然适用**。
-- MP 只是在 Mapper 方法和 SQL 生成上增加了能力。
 
 ---
 
@@ -1569,26 +1476,6 @@ public IPage<Student> searchStudents(String name,
     // 返回分页对象：既包含本页 records，也包含 total、current、size 等元信息
     return studentMapper.selectPage(page, wrapper);
 }
-```
-
-**执行流程：**
-
-```text
-接收 name / minAge / pageNum / pageSize
-                ↓
-检查分页参数（避免负数与超大请求）
-                ↓
-LambdaQueryWrapper 添加非空条件
-                ↓
-Page 指定当前页与每页大小
-                ↓
-BaseMapper.selectPage(page, wrapper)
-                ↓
-MP 插件生成分页 SQL / 按需统计数量
-                ↓
-MyBatis 执行 SQL，映射 Student
-                ↓
-IPage<Student>（records / total / pages / current）
 ```
 
 ### 26.1 这段代码涉及哪些知识？
