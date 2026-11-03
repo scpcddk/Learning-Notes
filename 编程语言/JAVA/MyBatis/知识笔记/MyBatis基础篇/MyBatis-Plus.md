@@ -1179,32 +1179,49 @@ ALTER TABLE student ADD COLUMN deleted TINYINT NOT NULL DEFAULT 0;
 实体中：
 
 ```java
-@TableLogic(value = "0", delval = "1") // value 是未删除值，delval 是删除后写入的值
+@TableLogic(value = "0", delval = "1")
 private Integer deleted;
 ```
 
-执行：
+### 20.1 value 与 delval
+
+| 参数 | 含义 | 本例配置 |
+|---|---|---|
+| `value` | 未删除标记 | `"0"` |
+| `delval` | 已删除标记 | `"1"` |
+
+注解参数使用字符串表示配置，不会改变字段类型。本例 `deleted` 仍是数据库中的 `TINYINT` 列，生成 SQL 时使用数值 `0`、`1`。
+
+### 20.2 对删除、查询和更新的影响
+
+同样调用 Service 的删除方法：
 
 ```java
-studentMapper.deleteById(1L);
+studentService.removeById(1L);
 ```
 
-MP 通用删除语义类似于：
+配置生效前后的 SQL 语义如下：
 
 ```sql
+-- 未启用逻辑删除：物理删除记录
+DELETE FROM student WHERE id = ?;
+
+-- 启用逻辑删除：修改标记，只处理未删除记录
 UPDATE student
 SET deleted = 1
-WHERE id = 1 AND deleted = 0;
+WHERE id = ? AND deleted = 0;
 ```
 
-之后 MP 的通用查询通常会增加 `deleted = 0` 过滤。
+`studentService.getById(id)`、`studentService.list()` 等通用查询会添加 `deleted = 0` 条件，排除已删除记录。
 
 | 操作 | 逻辑删除后的行为 |
 |---|---|
-| MP 通用 `deleteById` | 改删除标记，不一定物理删除 |
+| MP 通用 `deleteById` / Service `removeById` | 改删除标记，不物理删除 |
 | MP 通用 `selectList` | 排除已逻辑删除的数据 |
 | MP 通用 `update...` | 通常不更新已逻辑删除的记录 |
 | 自己写的 XML SQL | **须自己确认是否增加删除条件** |
+
+**逻辑删除并非数据库级拦截。** 在 MySQL 终端直接执行的 SQL 不会自动附加 `deleted = 0`，手写 SQL 也不能一概认为会被 MP 自动处理。
 
 > [!warning]
 > **逻辑删除不等于事务回滚，也不等于数据库真正删除。** 如果业务经常需要查询归档/删除数据，应重新评估是否适合用逻辑删除。
