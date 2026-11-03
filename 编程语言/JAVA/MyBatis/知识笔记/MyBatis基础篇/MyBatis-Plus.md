@@ -1201,6 +1201,24 @@ MP 处理实体及其填充标记 → 调用 insertFill() → 给实体属性赋
 
 **更新自动填充需要提供实体。** `studentMapper.update(null, wrapper)` 没有更新实体，不能依赖处理器填充修改时间；可以用 `wrapper.set()` 显式赋值。若希望使用处理器，可调用 `updateById(student)` 或 `update(student, wrapper)`，并确保字段注解和填充规则匹配。
 
+### 19.4 不自动刷新，不代表不参与 UPDATE
+
+如果先查询学生，再修改成绩并调用 `updateById(student)`，实体通常已经带有旧的 `updateTime`。`strictUpdateFill()` 默认不覆盖非空值，SQL 仍可能把旧时间写回：
+
+```sql
+UPDATE student
+SET score = 100,
+    update_time = '2026-11-02 21:02:45'
+WHERE id = 1;
+```
+
+**填充逻辑决定是否改写实体属性，更新 SQL 决定哪些属性写入数据库，两者需要区分。**
+
+希望每次更新都刷新时间，可以选择：
+
+- 更新时让实体的 `updateTime` 为 `null`，由已配置的严格填充逻辑补入当前时间。这里的 `null` 是填充前的属性值，并不表示最终写入数据库的是 `NULL`。
+- 在处理器的 `updateFill()` 中，针对修改时间设计强制覆盖逻辑，不依赖 `strictUpdateFill()` 默认的非空不覆盖规则。
+
 ---
 
 # 第十篇：逻辑删除
