@@ -1328,54 +1328,132 @@ private Long deleted;
 ALTER TABLE student ADD COLUMN version INT NOT NULL DEFAULT 0;
 ```
 
+### 21.1 @Version：标记版本号字段
+
 ```java
 @Version
 private Integer version;
 ```
 
-插件中添加：
+| 注解 | 标记的特殊字段 |
+|---|---|
+| `@TableLogic` | 逻辑删除字段 |
+| `@Version` | 乐观锁版本号字段 |
+
+对于整数版本号，插件按 **`newVersion = oldVersion + 1`** 计算新值：旧值加入更新条件，新值写入记录并回填实体。仅添加注解还不够，必须配置插件。[官方说明](https://baomidou.com/plugins/optimistic-locker/)
+
+### 21.2 在同一个插件容器中加入乐观锁
+
+在第 17.2 节已有的 `MybatisPlusConfig` 中，替换原来的 Bean 方法，保留分页设置，并在分页拦截器之前加入乐观锁：
 
 ```java
-// 添加到前文配置类的同一个 MybatisPlusInterceptor 中，不是单独创建一个无关联对象
-interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+@Bean
+public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+    interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+
+    PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+    pagination.setOverflow(false);
+    pagination.setMaxLimit(100L);
+    interceptor.addInnerInterceptor(pagination); // 本例中分页拦截器最后添加
+    return interceptor;
+}
 ```
 
-相关导入：
+沿用原有导入，新增：
 
 ```java
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 ```
 
-**工作过程（版本整数）**：
+多个内部拦截器由同一个 `MybatisPlusInterceptor` 管理，不需要再创建第二个插件容器。
 
-```text
-读到 version = 3
-        ↓
-尝试更新某条数据
-        ↓
-UPDATE ...
-SET ..., version = 4
-WHERE id = ? AND version = 3
-        ↓
-影响 1 行：通常表示版本匹配，更新成功
-影响 0 行：可能发生版本冲突，或记录不存在/不满足条件
-```
+### 21.3 插件如何处理更新
+
+假设查到 ID 为 30 的学生，成绩为 90、版本号为 1，现在只想将成绩改为 95。可以用一个新实体明确本次更新内容，同时携带读到的旧版本号：
 
 ```java
-Student s = studentMapper.selectById(1L); // 同时读取 version；实际业务应先检查查询结果是否为 null
-s.setName("新名字");
-int rows = studentMapper.updateById(s); // 插件携带旧版本作为条件，并生成新版本值
+Student snapshot = studentMapper.selectById(30L); // 读取旧版本号，实际业务应先检查结果是否为 null
+
+Student updateStudent = new Student();
+updateStudent.setId(snapshot.getId()); // 更新哪条记录
+updateStudent.setScore(new BigDecimal("95")); // 本次要修改的业务值
+updateStudent.setVersion(snapshot.getVersion()); // 传入读到的旧值，不要自行加 1
+
+int rows = studentMapper.updateById(updateStudent);
 if (rows == 0) {
     // 业务上可选择提示冲突、重新加载，或有限次数重试
 }
 ```
 
+**MP 默认不会记录你调用了哪个 setter，而是按实体属性值和字段策略决定 SET 内容。** 查询得到的对象即使只调用了 `setScore()`，其他属性仍保留原值，也可能参与更新。
+
+**完整实体与部分实体的对照：** “部分实体”仍是 `Student` 对象，只给必要属性赋值；未设置 Java 初值的其他引用类型属性保持 `null`。
+
+| 对比 | 使用完整实体 | 使用部分实体 |
+|---|---|---|
+| 对象来源 | 查询后，直接修改并更新该对象 | `new Student()`，只设置主键、成绩和旧版本号 |
+| 其他业务字段 | 姓名、年龄、创建时间等非空字段也可能进入 SET | 普通 null 属性按默认 `NOT_NULL` 策略跳过，数据库原值保持不变 |
+| 版本检查 | 使用查询得到的版本号 | 须从查询结果复制旧版本号 |
+| 更新时间 | 旧值非空时，`strictUpdateFill()` 默认不覆盖 | 初始为 null，满足填充规则时可填入当前时间 |
+
+因此，新实体能减少无关字段被旧值写回的风险。**乐观锁能检测遵循同一版本规则的并发更新，无法保证绕过版本检查的原生 SQL 等操作也受保护。**
+
+若逻辑删除和第 19 节的自动填充均已配置并生效，SQL 核心逻辑类似（数值和时间仅作示例，实际使用参数绑定）：
+
+```sql
+UPDATE student
+SET score = 95,
+    update_time = '2026-11-03 20:20:00',
+    version = 2
+WHERE id = 30 AND version = 1 AND deleted = 0;
+```
+
+版本匹配且记录未删除时，更新通常影响 1 行；影响 0 行也可能是记录不存在或不满足其他条件，不能只认定为版本冲突。`deleted = 0` 来自逻辑删除配置。
+
+上表中的普通属性 `null` 表示跳过更新；若要主动把数据库列改为 NULL，应使用字段策略或 Wrapper 的显式 `set(..., null)`，见第 14.2 节。
+
 ⚠️ **易混淆**：
 
-- `@Version` 需要**插件 + 实体字段 + 正确的更新方式**一起生效。
+- 生效需要 **`@Version` + 插件 + 实体携带有效旧版本号 + 受支持的更新方式**，不能认为所有 UPDATE 都自动受到保护。
 - 乐观锁不能代替 `@Transactional`。
 - `update(entity, wrapper)` 使用过的 Wrapper 不建议复用。
 - 自动生成的乐观锁条件不意味着所有手写 XML 都会自动获得并发保护。
+
+### 21.4 与 MySQL 锁的联系
+
+| 对比 | 悲观锁 | 乐观锁（版本号） |
+|---|---|---|
+| 核心思路 | 先获取锁，再操作 | 更新时检测版本冲突 |
+| 常见实现 | 事务内使用 `SELECT ... FOR UPDATE` | 更新条件包含 `version = 旧版本号`，成功后递增版本 |
+| 发生冲突时 | 可能等待锁释放 | 版本不匹配时更新影响 0 行 |
+| 典型场景 | 需要在事务内协调并发访问 | 冲突较少，允许失败后重试或提示 |
+
+**乐观锁不等于数据库完全不加锁。** 它不依赖提前持有排他锁来防止覆盖式更新；InnoDB 执行 UPDATE 时仍会正常加锁，也可能发生锁等待。[MySQL 官方说明](https://dev.mysql.com/doc/refman/8.0/en/innodb-locks-set.html)
+
+### 21.5 数据库默认版本号与 Java 属性
+
+未设置 Java 初值、也未配置自动填充时，新对象的 `Integer version` 默认为 `null`：
+
+```java
+Student student = new Student();
+student.setName("乐观锁测试");
+student.setScore(new BigDecimal("80"));
+student.getVersion(); // null
+
+studentMapper.insert(student);
+```
+
+**如果生成的 INSERT 省略了 `version` 列**，MySQL 会按本例的 `DEFAULT 0` 写入版本号；若表定义为 `DEFAULT 1`，则写入 1。[MySQL 默认值说明](https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html)
+
+**数据库中的记录和 Java 对象，是两份数据。数据库设置了默认值，不会自动修改 Java 对象。** 因此上例中数据库的 `version` 已是 `0`，原对象的 `student.getVersion()` 仍可能为 `null`。自增 `id` 能回填是专门的主键回填机制，不代表其他默认值也会回填。
+
+后续测试乐观锁时，先重新查询，再基于读到的版本号更新：
+
+```java
+Student saved = studentMapper.selectById(student.getId()); // 自增主键已回填，用它重新查询
+// 确认 saved 非 null 后，saved.getVersion() 才是本次读到的数据库版本号
+```
 
 ---
 
