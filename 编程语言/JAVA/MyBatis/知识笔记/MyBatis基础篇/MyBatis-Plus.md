@@ -1194,7 +1194,26 @@ private Integer deleted;
 
 ### 20.2 对删除、查询和更新的影响
 
-同样调用 Service 的删除方法：
+以本例的 `@TableLogic(value = "0", delval = "1")` 为例：
+
+```text
+初始化阶段：
+Student 实体中的 @TableLogic
+    ↓
+MP 解析实体的表映射信息
+    ↓
+为 BaseMapper 内置方法生成 SQL 映射
+    ├── deleteById → UPDATE，设置 deleted = 1，并限定 deleted = 0
+    ├── selectById → 查询条件附加 deleted = 0
+    └── updateById → 更新条件附加 deleted = 0
+
+运行阶段：
+调用 Service / Mapper → MyBatis 执行对应 SQL → MySQL
+```
+
+**`@TableLogic` 参与内置 SQL 的生成。** 删除模板在初始化时选定，不是运行时根据记录的 `deleted` 值决定使用 UPDATE 还是 DELETE。[MP 3.5.17 实现](https://github.com/baomidou/mybatis-plus/blob/v3.5.17/mybatis-plus-core/src/main/java/com/baomidou/mybatisplus/core/injector/methods/DeleteById.java)
+
+Service 的 `removeById()` 调用 Mapper 的 `deleteById()`，执行已生成的删除 SQL：
 
 ```java
 studentService.removeById(1L);
@@ -1214,17 +1233,88 @@ WHERE id = ? AND deleted = 0;
 
 `studentService.getById(id)`、`studentService.list()` 等通用查询会添加 `deleted = 0` 条件，排除已删除记录。
 
-| 操作 | 逻辑删除后的行为 |
-|---|---|
-| MP 通用 `deleteById` / Service `removeById` | 改删除标记，不物理删除 |
-| MP 通用 `selectList` | 排除已逻辑删除的数据 |
-| MP 通用 `update...` | 通常不更新已逻辑删除的记录 |
-| 自己写的 XML SQL | **须自己确认是否增加删除条件** |
+**对同一条已删除记录，两种删除方式的区别：**
 
-**逻辑删除并非数据库级拦截。** 在 MySQL 终端直接执行的 SQL 不会自动附加 `deleted = 0`，手写 SQL 也不能一概认为会被 MP 自动处理。
+| 操作 | 物理删除后 | 逻辑删除后 |
+|---|---|---|
+| MP 普通查询 | 查不到 | 被 `deleted = 0` 条件排除 |
+| MP 内置 `updateById()` | 无记录可更新 | 被 `deleted = 0` 条件排除，默认无法更新 |
+| MySQL 原生 SELECT | 查不到 | 不加未删除条件时可以查到 |
+| MySQL 原生 UPDATE | 无记录可更新 | 可以修改保留的记录 |
+| 恢复数据 | 通常需要备份等恢复手段 | 可通过受控操作将删除标记改回 `0` |
+
+**MySQL 本身不知道 Java 中的 `@TableLogic`。** 例如终端执行 `SELECT * FROM student`，仍能查到 `deleted = 1` 的记录；要排除它们，需自行添加 `WHERE deleted = 0`。手写 SQL 也应自行确认逻辑删除条件。
+
+**逻辑删除也不会在数据库层面禁止更新。** 例如，直接执行以下原生 SQL，仍可修改已逻辑删除记录的成绩：
+
+```sql
+UPDATE student SET score = 100
+WHERE id = 1 AND deleted = 1;
+```
+
+原生 SQL 修改或恢复逻辑删除数据，应有明确的权限和业务规则，不能因记录仍在表中就随意操作。
+
+### 20.3 需要物理删除时怎么办？
+
+已启用逻辑删除时，普通 `removeById()` 仍按逻辑删除规则执行。确需彻底删除，可在已有 `StudentMapper` 中增加专门的方法：
+
+```java
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Param;
+
+public interface StudentMapper extends BaseMapper<Student> {
+    @Delete("DELETE FROM student WHERE id = #{id}")
+    int physicalDeleteById(@Param("id") Long id);
+}
+```
+
+```java
+int rows = studentMapper.physicalDeleteById(1L); // 执行 DELETE，可删除已逻辑删除的记录
+```
+
+这个手写 DELETE 与 MySQL 终端执行的 DELETE 都可物理删除记录，不会仅因 `@TableLogic` 改成 UPDATE。应通过独立入口和权限区分日常逻辑删除与彻底清理。
 
 > [!warning]
 > **逻辑删除不等于事务回滚，也不等于数据库真正删除。** 如果业务经常需要查询归档/删除数据，应重新评估是否适合用逻辑删除。
+
+### 20.4 逻辑删除与唯一索引冲突
+
+以下用独立的 `user` 表说明，不需要修改前文的 `student` 表设计。
+
+**① 只有用户名唯一：逻辑删除后仍占用用户名。**
+
+```sql
+UNIQUE KEY uk_username (username)
+```
+
+注册 `zhangsan` 后再逻辑删除，原记录仍在表中。即使 MP 普通查询已查不到它，再插入同名用户仍会违反唯一约束，出现 `Duplicate entry`。
+
+**② 改成联合唯一索引：固定的 0 / 1 标记仍有限制。**
+
+```sql
+UNIQUE KEY uk_username_deleted (username, deleted)
+```
+
+此时 `(zhangsan, 0)` 与 `(zhangsan, 1)` 可以共存，因此删除后能重新注册。但再次删除新用户时，也要改成 `(zhangsan, 1)`，会与旧记录冲突。**它只能保留一条同名的已删除记录。**
+
+**③ 一种方案：让历史记录使用不同的删除标记。**
+
+将 `deleted` 设计为 `BIGINT NOT NULL DEFAULT 0`，配合上述联合唯一索引：正常记录固定为 `0`，已删除记录使用自身非零主键 ID。例如：
+
+| id | username | deleted | 状态 |
+|---|---|---|---|
+| 101 | zhangsan | 101 | 历史删除记录 |
+| 102 | zhangsan | 102 | 历史删除记录 |
+| 103 | zhangsan | 0 | 当前正常记录 |
+
+这样既能保留多条同名历史记录，又能保证正常记录的用户名唯一。对应的 `User` 属性可以配置为：
+
+```java
+@TableLogic(value = "0", delval = "id")
+private Long deleted;
+```
+
+这里 `delval = "id"` 引用数据库主键列，删除时生成类似 `UPDATE user SET deleted = id WHERE id = ? AND deleted = 0` 的 SQL；字段使用数值类型 `Long`，而非字符串类型。[官方说明](https://baomidou.com/guides/logic-delete/)
 
 ---
 
