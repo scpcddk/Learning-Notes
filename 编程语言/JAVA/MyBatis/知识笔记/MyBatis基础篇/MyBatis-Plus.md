@@ -1199,7 +1199,41 @@ MP 处理实体及其填充标记 → 调用 insertFill() → 给实体属性赋
 
 自动填充是在 SQL 执行前修改实体属性，不会给 MySQL 表创建默认值或触发器。
 
-**更新自动填充需要提供实体。** `studentMapper.update(null, wrapper)` 没有更新实体，不能依赖处理器填充修改时间；可以用 `wrapper.set()` 显式赋值。若希望使用处理器，可调用 `updateById(student)` 或 `update(student, wrapper)`，并确保字段注解和填充规则匹配。
+**更新自动填充需要提供实体。** `MetaObjectHandler` 主要给实体属性赋值，不会直接向 Wrapper 的 `SET` 条件中追加更新时间。
+
+| 更新方式 | `score` 更新来源 | `updateTime` 自动填充 |
+|---|---|---|
+| `update(null, wrapper)` | `wrapper.set()` | 不触发 |
+| `update(entity, wrapper)` | 实体属性，也可结合 `wrapper.set()` | 满足填充条件时可以 |
+| `updateById(entity)` | 实体属性，按实体主键更新 | 满足填充条件时可以 |
+
+**方案一：提供实体，由处理器填充时间。**
+
+```java
+Student student = new Student();
+student.setScore(new BigDecimal("90"));
+// 新实体的 updateTime 为 null，可由上面的处理器填充
+
+LambdaUpdateWrapper<Student> wrapper = new LambdaUpdateWrapper<>();
+wrapper.eq(Student::getClassName, "一班");
+
+studentMapper.update(student, wrapper);
+```
+
+这里实体提供更新值，Wrapper 筛选一班学生；更新时间仍须满足字段注解和处理器规则。
+
+**方案二：通过 Wrapper 显式设置时间。**
+
+```java
+LambdaUpdateWrapper<Student> wrapper = new LambdaUpdateWrapper<>();
+wrapper.eq(Student::getClassName, "一班")
+       .set(Student::getScore, new BigDecimal("90"))
+       .set(Student::getUpdateTime, LocalDateTime.now());
+
+studentMapper.update(null, wrapper);
+```
+
+这里的成绩和更新时间都由 `set()` 指定，不依赖 `MetaObjectHandler`。项目中应保持更新时间管理方式一致，避免同一字段同时由实体填充和 Wrapper 赋值。
 
 ### 19.4 不自动刷新，不代表不参与 UPDATE
 
