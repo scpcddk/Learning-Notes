@@ -29,6 +29,21 @@ from PIL import Image
 
 PAGE_ROOT = Path(__file__).resolve().parent
 REPO = PAGE_ROOT.parents[1]
+# Keep published bookmarks and Markdown links working after these source moves.
+READER_PATH_MOVES = {
+    "java": {
+        "MyBatis/MyBatis错题与易错点.md": "MyBatis/MyBatis实践记录/MyBatis错题与易错点.md",
+    },
+    "learning-plans": {
+        "AI辅助学习指南_软件工程大一.html": "已结束或舍弃/AI辅助学习指南_软件工程大一.html",
+        "进行中/MyBatis学习计划.md": "已结束或舍弃/MyBatis学习计划.md",
+        **{f"进行中/{name}.md": f"进行中/主线/{name}.md" for name in (
+            "AI学习计划书", "Java后端分阶段学习计划", "Java后端工程能力提升计划-2026-10",
+            "后端 × AI 应用 × 云原生：两年成长路线", "后端小项目")},
+        **{f"进行中/{name}.md": f"进行中/副线/{name}.md" for name in (
+            "Docker学习计划", "Python 学习与能力补齐计划")},
+    },
+}
 SUBJECTS = (
     ("calculus", PAGE_ROOT / "calculus"),
     ("linear-algebra", PAGE_ROOT / "linear-algebra"),
@@ -1412,8 +1427,11 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             parents = tuple((suborder.get(part, 4), part.casefold()) for part in relative.parts[1:-1])
             if plans:
                 priorities = ["后端 × AI 应用 × 云原生：两年成长路线", "Java后端工程能力提升计划-2026-10",
-                              "MyBatis学习计划", "后端小项目", "Python 学习与能力补齐计划", "AI学习计划书", "Docker学习计划"]
+                              "Java后端分阶段学习计划", "后端小项目", "AI学习计划书", "Python 学习与能力补齐计划", "Docker学习计划"]
+                tracks = tuple(({"主线": 0, "副线": 1}.get(part, 2), part.casefold())
+                               for part in relative.parts[1:-1])
                 return (group_names.get(top.casefold(), len(group_order)),
+                        tracks,
                         priorities.index(path.stem) if path.stem in priorities else len(priorities), relative.as_posix().casefold())
             return (group_names.get(top.casefold(), len(group_order)),
                     parents, path.suffix.lower() != ".md", path.stem not in ("面向对象程序设计", "核心语法"), relative.as_posix().casefold())
@@ -1446,6 +1464,11 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     entry["sourceLabel"] = "查看 Python 源码 ↗"
             entries.append(entry)
             routes[path.resolve()] = (language["slug"], ident)
+
+        for old, new in READER_PATH_MOVES.get(language["slug"], {}).items():
+            old_path, new_path = (folder / old).resolve(), (folder / new).resolve()
+            if not old_path.exists() and new_path in routes:
+                aliases[old_path] = new_path
 
     for alias, target in aliases.items():
         routes[alias] = routes[target]
@@ -1641,7 +1664,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "Kubernetes": "围绕工作负载、服务与配置，整理 Kubernetes 编排和 Helm 实践。",
                 "可观测性": "通过日志、指标与链路追踪，逐步看清服务的运行状态。",
                 "微服务": "理解服务的拆分、通信与协作，逐步建立系统视角。",
-                "进行中": "从当前总路线与专项计划出发，按实际任务和阶段验收继续推进。",
+                "进行中": "按主线与副线查看当前计划，沿着实际任务和阶段验收继续推进。",
                 "阶段性完成": "保留已经阶段性完成的学习路线，按需要回顾与复习。",
                 "已结束或舍弃": "查阅旧版安排与历史方向；当前执行以进行中的计划为准。",
                 "学习方法": "回顾 AI 辅助学习的方法、独立实践与复盘要求。",
@@ -1687,6 +1710,19 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     config["sections"][-1]["directNotes"] = any(not page["topic"] for page in entries)
         if cloud:
             config["redirects"] = {"section-" + hashlib.sha256("待学与拓展".encode()).hexdigest()[:12]: "overview"}
+        for old, target in aliases.items():
+            if routes[target][0] != language["slug"]:
+                continue
+            old_id = "note-" + hashlib.sha256(old.relative_to(language["folder"]).as_posix().casefold().encode()).hexdigest()[:12]
+            page = next(page for page in language["entries"] if page["id"] == routes[target][1])
+            redirects = config.setdefault("redirects", {})
+            redirects[old_id] = page["id"]
+            for heading in page["headings"]:
+                redirects[old_id + heading["id"][len(page["id"]):]] = heading["id"]
+        if plans and not any(section["key"] == "学习方法" for section in config["sections"]):
+            guide = next((page for page in language["entries"] if page["relative"] == "已结束或舍弃/AI辅助学习指南_软件工程大一.html"), None)
+            if guide:
+                config.setdefault("redirects", {})["section-" + hashlib.sha256("学习方法".encode()).hexdigest()[:12]] = guide["id"]
         config["languages"] = [dict(slug=item["slug"], title=item["title"]) for item in languages]
         config["source"] = original(language["folder"])
         config["coverUrl"] = ("阅读资源/" if standalone else "../阅读资源/") + language["cover"]
@@ -1709,7 +1745,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         if plans:
             config["kindLabels"] = dict(note="计划", practice="计划", diagram="HTML", pdf="PDF", resource="资料")
             config["sectionHeading"] = "按当前状态，查看学习安排。"
-            config["sectionIntro"] = "先看进行中的计划，再按需要回顾阶段成果和历史路线。"
+            config["sectionIntro"] = "先按主线与副线查看进行中的计划，再回顾阶段成果和已归档的路线与指南。"
             config["diagramDescription"] = "保留这份指南的原始排版，可在下方阅读或独立打开。"
         config["pending"] = sum(page["pending"] for page in language["entries"])
         math_assets = ""

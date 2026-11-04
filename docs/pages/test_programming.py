@@ -156,6 +156,29 @@ unsafe = "</script><script>bad()</script>"
             if section["title"] in original:
                 self.assertEqual(section["id"], original[section["title"]])
 
+    def test_mybatis_practice_move_keeps_links_and_heading_bookmarks(self):
+        old = self.write("JAVA/MyBatis/MyBatis错题与易错点.md", "# 错题\n\n## 事务\n\n排查记录。")
+        self.write("JAVA/MyBatis/知识笔记/MyBatis基础篇/基础篇辅助理解.md",
+                   "# 辅助理解\n\n[错题](../../MyBatis错题与易错点.md#事务)")
+        self.build()
+        before = next(page for page in self.pages("java") if page["title"] == "MyBatis错题与易错点")
+        new = old.parent / "MyBatis实践记录" / old.name
+        new.parent.mkdir()
+        old.rename(new)
+        # Another same-named file makes guessing by filename ambiguous.
+        self.write("JAVA/其他/MyBatis错题与易错点.md", "# 其他错题\n\n其他内容。")
+        self.build()
+        pages = self.pages("java")
+        after = next(page for page in pages if page["subgroup"] == "MyBatis实践记录")
+        redirects = self.config("java")["redirects"]
+        self.assertEqual(after["section"], "MyBatis")
+        self.assertEqual(redirects[before["id"]], after["id"])
+        self.assertEqual(redirects[before["headings"][1]["id"]], after["headings"][1]["id"])
+        helper = next(page for page in pages if page["title"] == "基础篇辅助理解")
+        self.assertIn('href="#' + after["headings"][1]["id"] + '"', helper["full"])
+        self.assertIn("MyBatis%E5%AE%9E%E8%B7%B5%E8%AE%B0%E5%BD%95/", after["source"])
+        build_site.validate(self.output)
+
 
 if __name__ == "__main__":
     unittest.main()

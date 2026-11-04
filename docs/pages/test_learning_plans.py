@@ -96,6 +96,44 @@ class LearningPlansReaderTests(unittest.TestCase):
         self.assertEqual(original.read_text(encoding="utf-8"), source)
         build_site.validate(self.output)
 
+    def test_moved_plans_keep_bookmarks_and_group_main_before_side_tracks(self):
+        moves = build_site.READER_PATH_MOVES["learning-plans"]
+        for old in moves:
+            content = "<!doctype html><html><body>学习指南</body></html>" if old.endswith(".html") else "# 计划\n\n## 任务\n\n- [x] 已完成\n- [ ] 继续学习"
+            self.write(old, content)
+        self.write("阶段性完成/MySQL.md", "# MySQL\n\n复习。")
+        self.build()
+        previous = {page["relative"]: page for page in self.pages}
+        methods = next(section["id"] for section in self.config["sections"] if section["key"] == "学习方法")
+        for old, new in moves.items():
+            target = self.notes / new
+            target.parent.mkdir(parents=True, exist_ok=True)
+            (self.notes / old).rename(target)
+        # A retained relative link in a moved note must still open the archived plan.
+        source = self.notes / "进行中/主线/后端小项目.md"
+        source.write_text(source.read_text(encoding="utf-8") + "\n\n[旧计划](../MyBatis学习计划.md#任务)", encoding="utf-8")
+        self.build()
+        current = {page["relative"]: page for page in self.pages}
+        self.assertEqual([section["key"] for section in self.config["sections"]], ["进行中", "阶段性完成", "已结束或舍弃"])
+        tracks = [page["subgroup"] for page in self.pages if page["section"] == "进行中"]
+        self.assertEqual(tracks, ["主线"] * 5 + ["副线"] * 2)
+        self.assertTrue(all(not section["cover"] for section in self.config["sections"]))
+        for old, new in moves.items():
+            before, after = previous[old], current[new]
+            self.assertEqual(self.config["redirects"][before["id"]], after["id"])
+            for original, heading in zip(before["headings"], after["headings"]):
+                self.assertEqual(self.config["redirects"][original["id"]], heading["id"])
+            self.assertIn(new, after["relative"])
+            self.assertNotEqual(before["source"], after["source"])
+            if after["kind"] == "note":
+                self.assertEqual(after["tasks"], {"done": 1, "total": 2})
+        guide = current["已结束或舍弃/AI辅助学习指南_软件工程大一.html"]
+        self.assertEqual(self.config["redirects"][methods], guide["id"])
+        self.assertEqual(guide["section"], "已结束或舍弃")
+        archived = current["已结束或舍弃/MyBatis学习计划.md"]
+        self.assertIn('href="#' + archived["headings"][1]["id"] + '"', current["进行中/主线/后端小项目.md"]["full"])
+        build_site.validate(self.output)
+
 
 if __name__ == "__main__":
     unittest.main()
