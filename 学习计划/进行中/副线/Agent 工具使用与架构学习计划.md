@@ -76,11 +76,20 @@
 - [x] 工具选择、调用与结果反馈
 - [x] 会话分支与 Subagent 的概念区别
 - [x] 上下文隔离与文件系统隔离的区别
-- [ ] Skills 的作用、使用与管理
-- [ ] Extensions 的作用及扩展方式
-- [ ] 观察一个简单 Extension 的实际行为
+- [x] Skills 的作用、使用与管理
+- [x] Extensions 的作用及扩展方式
+- [x] 创建并加载项目级 Extension
+- [x] 使用 `registerCommand()` 扩展交互命令
+- [x] 观察一个简单 Extension 的实际行为
+- [x] 自定义 `/my-status` 状态查询命令
+- [x] 使用 `registerTool()` 注册并验证模型可调用的工具
+- [x] 使用 `parameters` 定义工具参数结构
+- [x] 理解 `execute()` 的实际执行与工具结果返回
+- [x] 观察完整的自定义 Tool Calling 流程
 
-**阶段状态：基础工具调用与会话树已完成；下一步学习 Skills、Extensions。**
+**阶段状态：Pi 基础阶段已达到验收要求。** Skills、交互命令与模型可调用工具均有实际结果；`greet_user` 已完成参数传入、工具执行及模型依据结果回复的闭环，见[案例 008：自定义工具实践](../../../AI/Agent/Agent实践案例/Agent实践记录.md#案例-008pi-自定义工具-greet_user)。下一步进入阶段 3：DSH。
+
+**按需补充：** `edit`、独立会话、恢复与上下文压缩等尚未实践的条目保留未勾选，可随实际任务补充，不阻碍进入 DSH。
 
 **验收：** 能解释 Pi 的工具调用过程、会话分支机制，以及 Skills 和 Extensions 的基本区别。
 
@@ -136,7 +145,7 @@
 
 - [ ] OpenCode 多模型体验
 - [ ] Codex Subagents 实际协作
-- [ ] Pi 自定义 Extension
+- [x] Pi 自定义 Extension（已完成 `/hello-agent` 命令示例）
 - [ ] 自主实现简单 Agent Loop
 
 **验收：** 至少完成一次跨 Agent 任务对比，能够根据任务特点选择合适的工具与工作流。

@@ -498,6 +498,222 @@ pi --continue
 
 **官方来源（2026-11-04）**：[Quickstart](https://pi.dev/docs/latest/quickstart) · [终端操作](https://pi.dev/docs/latest/usage) · [命令行参考](https://pi.dev/docs/latest/cli) · [斜杠命令](https://pi.dev/docs/latest/slash-commands) · [安全](https://pi.dev/docs/latest/security) · [扩展](https://pi.dev/docs/latest/extensions)。
 
+### 5.7 Pi Skills：创建、加载与管理
+
+> [!note] Skill 的作用与按需加载
+> Skill 是可复用的任务操作说明，通常由 `SKILL.md` 定义。Pi 启动时将可用 Skill 的名称、描述与路径提供给模型，需要使用时再加载完整说明；详细流程不必在每次任务中重复输入。
+
+#### 项目级与用户级目录
+
+| 范围 | 默认位置 | 用途 |
+| --- | --- | --- |
+| 项目级 | `<项目目录>/.pi/skills/<技能名>/SKILL.md` | 随对应项目组织任务指导 |
+| 用户级 | `~/.pi/agent/skills/<技能名>/SKILL.md` | 在不同项目中复用；用户目录可由配置调整 |
+
+Pi 支持这些目录及配置中的其他发现位置。创建前先核对会话实际工作目录，避免将项目级 Skill 写进另一个项目。目录规则见 [Pi 官方配置说明](https://pi.dev/docs/latest/configuration)。
+
+#### 创建项目级 Skill
+
+以只读 Python 代码审查为例，在目标项目中创建以下结构：
+
+```text
+.pi/
+└── skills/
+    └── python-review/
+        └── SKILL.md
+```
+
+`SKILL.md` 示例：
+
+```markdown
+---
+name: python-review
+description: Review Python source code for correctness, readability, and common mistakes. Use when the user asks for a read-only Python code review.
+---
+
+# Python Review
+
+1. 先读取用户指定的 Python 文件。
+2. 检查变量作用域、异常处理和基本代码逻辑。
+3. 按“发现的问题、对应代码位置、改进建议”组织结果。
+4. 仅提供分析与建议，不修改代码、不执行程序。
+5. 没有足够证据时，明确说明不确定之处。
+```
+
+`name` 用于标识技能；`description` 说明用途和适用条件，帮助模型判断何时加载；Markdown 正文规定具体执行流程。创建后重新读取文件，检查路径、头部字段和正文是否正确。
+
+#### 重新加载与显式调用
+
+在 Pi 交互输入框中依次执行：
+
+```text
+/reload
+/skill:python-review test1.py
+```
+
+`/reload` 重新加载 Skills、扩展等资源。`/skill:python-review` 显式加载指定技能，其后的 `test1.py` 作为用户请求传给技能；也可以使用其他明确的文件路径。
+
+可以直接用自然语言提出只读 Python 审查，由模型根据描述选择 Skill；自动选择可能遗漏，明确需要某个 Skill 时使用 `/skill:技能名`。命令与加载机制见 [Pi 官方 Skills 说明](https://pi.dev/docs/latest/skills)。
+
+> [!tip] 通过真实任务检查执行效果
+> 核对实际读取了哪个文件、输出是否包含问题与代码位置、是否区分事实与疑点，以及是否遵守不修改、不运行程序的要求。文件存在或出现技能名称提示，不能单独证明审查行为符合技能说明。
+
+> [!important] Skill 指令与权限边界
+> Skill 提供任务指导，不会自动增加底层工具权限；正文中的“只读”也不能代替系统级只读限制。需要严格控制写入或执行时，仍应配置相应权限与隔离环境。
+
+**官方依据（2026-11-05）**：[Skills](https://pi.dev/docs/latest/skills) · [配置与目录](https://pi.dev/docs/latest/configuration) · [斜杠命令](https://pi.dev/docs/latest/slash-commands)。
+
+### 5.8 Pi Extensions：自定义交互命令
+
+> [!note] 从任务指导到程序扩展
+> Skill 用 Markdown 提供任务流程；Extension 是可执行模块，可以注册交互命令、模型可调用的工具及运行时事件处理。具体职责见[原理笔记 2.1 节](./Agent原理与开发.md#21-extension扩展-agent-的程序能力)。
+
+#### 创建项目级扩展
+
+在目标项目中创建 `.pi/extensions/hello-agent.ts`：
+
+```typescript
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+export default function (pi: ExtensionAPI) {
+  pi.registerCommand("hello-agent", {
+    description: "Display a greeting notification",
+    handler: async (_args, ctx) => {
+      ctx.ui.notify("Hello from Pi Extension!", "info");
+    },
+  });
+}
+```
+
+文件导出扩展入口函数，Pi 加载时向它传入 API 对象。项目级 `.pi/extensions/` 用于发现该项目的扩展；用户级扩展默认位于 `~/.pi/agent/extensions/`，加载行为需符合对应版本的项目信任配置。
+
+#### 核心 API 与调用过程
+
+| 项目 | 作用 |
+| --- | --- |
+| `ExtensionAPI` | 描述 Pi 扩展 API 的 TypeScript 类型 |
+| `pi.registerCommand("hello-agent", ...)` | 注册名为 `hello-agent` 的交互命令，注册名称不含 `/` |
+| `description` | 描述命令用途 |
+| `handler` | 用户执行命令时运行的处理函数 |
+| `_args` | 接收命令参数；此示例未使用 |
+| `ctx.ui.notify(..., "info")` | 在 Pi 界面显示一条信息级通知 |
+
+```text
+Pi 加载扩展 → 注册 hello-agent
+用户输入 /hello-agent → 执行 handler → 显示通知
+```
+
+> [!important] 交互命令与模型工具调用
+> `registerCommand()` 注册交互命令；`registerTool()` 注册供模型选择调用的工具。上面的处理函数只显示固定通知，不需要模型先选择工具，也不包含 Shell 或其他项目代码的执行。
+
+#### 重新加载与检查
+
+在 Pi 交互输入框中执行：
+
+```text
+/reload
+/hello-agent
+```
+
+预期显示通知：`Hello from Pi Extension!`。检查时应同时确认扩展加载是否报错、命令是否被识别，以及通知内容是否符合处理函数。创建文件后可重新读取，核对保存路径和代码。
+
+#### 自定义 `/my-status` 状态查询命令
+
+命令处理函数也可以读取 Pi 提供的运行上下文，再通过通知展示。参考实现保存为 `.pi/extensions/my-status.ts`，保留已有的其他扩展文件：
+
+```typescript
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+export default function (pi: ExtensionAPI) {
+  pi.registerCommand("my-status", {
+    description: "Show working directory, model, and session entry count",
+    handler: async (_args, ctx) => {
+      const model = ctx.model
+        ? `${ctx.model.provider}/${ctx.model.id}`
+        : "未选择模型";
+      const entryCount = ctx.sessionManager.getEntries().length;
+
+      ctx.ui.notify(
+        [
+          `当前工作目录：${ctx.cwd}`,
+          `当前模型：${model}`,
+          `会话记录数量：${entryCount}`,
+        ].join("\n"),
+        "info"
+      );
+    },
+  });
+}
+```
+
+| API | 用途 |
+| --- | --- |
+| `ctx.cwd` | 获取当前工作目录 |
+| `ctx.model` | 获取当前模型；需处理未选择模型的情况 |
+| `ctx.model.provider` / `ctx.model.id` | 取得提供商与模型 ID |
+| `ctx.sessionManager.getEntries().length` | 统计当前会话的记录条目 |
+| `ctx.ui.notify()` | 在交互界面显示结果 |
+
+在 Pi 输入框执行 `/reload`，再执行 `/my-status`，核对目录、模型与记录数量。此处理函数直接读取状态并显示结果，不包含模型请求。
+
+> [!important] 会话条目数量不等于对话轮次
+> `getEntries()` 返回会话中的全部条目，可能包含消息、模型设置、摘要等记录，也不等于仅统计当前活动分支。`getBranch()` 用于取得当前分支。数量会随会话发展变化，不能把某次结果作为固定值。
+
+这些字段由 Pi 的 API 提供。自定义命令只展示实际可读取的信息，不会因此获得其他 Agent 的全部状态或底层权限能力。参见 [Pi 官方 ExtensionContext 说明](https://pi.dev/docs/latest/extensions#extensioncontext)及[会话记录格式](https://pi.dev/docs/latest/session-format)。
+
+> [!warning] 扩展的执行权限
+> Extension 在 Pi 进程内运行，具有该进程的操作系统权限。只加载经过审查或来源可信的代码；示例中的简单通知不能代表所有扩展都只有界面操作能力。
+
+**官方依据（2026-11-05）**：[Pi Extensions：目录、命令与 API](https://pi.dev/docs/latest/extensions)。命令名称与接口以所用版本为准。
+
+### 5.9 Pi Extensions：注册模型可调用的工具
+
+#### 定义工具与输入参数
+
+在项目目录中创建 `.pi/extensions/greet-tool.ts`，保留现有扩展：
+
+```typescript
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
+
+export default function (pi: ExtensionAPI) {
+  pi.registerTool({
+    name: "greet_user",
+    label: "Greet User",
+    description: "Return a greeting for a specified name",
+    parameters: Type.Object({
+      name: Type.String(),
+    }),
+    async execute(_toolCallId, params) {
+      return {
+        content: [
+          { type: "text", text: `Hello, ${params.name}!` },
+        ],
+        details: {},
+      };
+    },
+  });
+}
+```
+
+`Type` 用于定义参数 Schema，`execute()` 接收参数并返回结果。此示例使用 Pi 提供的扩展 API 和 TypeBox 模块；结构与执行分工见[原理笔记 2.2 节](./Agent原理与开发.md#22-pi-extension注册模型可调用的自定义工具)。
+
+#### 加载并验证工具调用
+
+在 Pi 输入框执行 `/reload`，随后提交自然语言任务：
+
+```text
+请调用 greet_user 工具，参数 name 设置为 Alice。
+根据工具的实际返回结果回复。
+```
+
+预期观察到模型发起 `greet_user` 调用、提供 `name="Alice"`，工具返回 `Hello, Alice!`，随后模型根据结果回复。这里通过自然语言请求工具调用，不是输入 `/greet_user` 执行交互命令。
+
+> [!tip] 检查工具调用与回复之间的证据
+> 同时核对工具名称、实际参数、工具返回和最终回复。仅看到模型输出问候语，不能证明工具执行过；需要看到对应的工具调用与结果记录。
+
+**官方依据（2026-11-05）**：[Pi Extensions：自定义工具与参数定义](https://pi.dev/docs/latest/extensions)。具体接口和模块导入以安装版本为准。
+
 ---
 
 ## 6. DSH：Web UI、配置、插件
