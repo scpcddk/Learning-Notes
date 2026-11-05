@@ -2,7 +2,45 @@
 
 ---
 
-## 一、Codex CLI
+## 一、环境准备与历史快照
+
+### 环境与认证记录
+
+| 项目 | 历史结果 | 记录说明 |
+| --- | --- | --- |
+| Node.js | `v24.22.2` | 原记录标为本机已验证 |
+| npm | `11.19.1` | 原记录标为本机已验证 |
+| Node 路径 | `D:\Program Files\nodejs\node.exe` | Windows 侧路径，不代表 WSL 中的安装 |
+| npm 全局前缀 | `C:\Users\Lenovo\AppData\Roaming\npm` | 当时的配置 |
+| 全局包列表 | `npm list -g --depth=0` 返回 `(empty)` | 安装 Codex 前的历史结果，不代表当前包列表 |
+| Codex 安装 | `npm install -g @openai/codex`；`codex --version` 返回 `codex-cli 0.166.0` | 原记录标为安装成功 |
+| Codex 登录 | `codex login status` 返回 `Logged in using ChatGPT` | 当时已登录 |
+| Codex 启动与权限 | 工作目录 `~\codex-test`，`/status` 显示 `Read Only (Ask for approval)` | 当时的会话快照 |
+| Codex 代码实践 | Git 笔记只读分析；Python 修改后输出 `1` → `14` | 详见案例 001、002 |
+| Pi | 版本 `1.5.0`，已完成模型连接与文件创建、读取 | 用户提供记录，详见案例 003 |
+| PowerShell 版本 | 未提供 `$PSVersionTable.PSVersion` 输出 | 待确认 |
+| DSH 安装版本 | 尚无安装成功输出 | 待实践 |
+
+### 2026-11-04｜npm 全局目录缺失
+
+- **报错：** `ENOENT: no such file or directory, lstat 'C:\Users\Lenovo\AppData\Roaming\npm'`。
+- **处理：** 执行下列命令创建目录并重新查询：
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:APPDATA\npm"
+npm list -g --depth=0
+```
+
+- **结果：** 原报错解除，列表显示 `(empty)`；这是安装 Codex 前的记录。
+
+### 2026-11-04｜Codex 在错误工作目录启动
+
+- **现象：** 交互界面底部显示 `~\Desktop`。
+- **处理：** 退出，进入 `~\codex-test` 后重新启动。
+- **结果：** `/status` 确认工作目录正确，权限为 `Read Only (Ask for approval)`。
+
+---
+## 二、Codex CLI
 
 ### 案例 001：Git 笔记分析与中文乱码排查
 
@@ -187,10 +225,45 @@ fatal: not a git repository (or any of the parent directories): .git
 
 ---
 
-## 二、Pi Coding Agent
+## 三、Pi Coding Agent
+
+### 案例 003：Pi 首次工具调用
+
+> [!note] 实践信息
+> - **日期 / 工具**：2026-11-05 · Pi Coding Agent 1.5.0
+> - **状态**：已完成（据用户提供记录）。
+> - **记录来源**：用户提供的 AI 对话摘要；未附完整原始工具日志，整理时未重新执行。
+
+**任务：**
+在 `D:\demo\pi-sandbox` 创建 `pi-test.txt`，写入 `Hello Pi Agent!`，并重新读取验证内容。
+
+**实际过程（据提供记录）：**
+1. `bash`：执行 `pwd`，返回 `/mnt/d/demo/pi-sandbox`。
+2. `write`：创建 `pi-test.txt`，写入 `Hello Pi Agent!`。
+3. `read`：重新读取文件，返回内容为 `Hello Pi Agent!`。
+4. 模型依据读取结果判断任务完成。
+
+**结果：**
+文件创建与内容读取成功；执行摘要中未发现修改其他文件的记录，但整理时未独立核查文件变更范围。
+
+**经验：**
+- 模型选择工具并生成参数，由运行时调度工具实际执行，再将结果返回模型。
+- 连续调用 `bash → write → read`，体现了 Agent Loop 中的工具执行、结果反馈与完成判断。
+- 创建文件后重新读取，可以核对实际内容，不能只凭写入成功提示验收。
+- `bash` 返回 Linux 风格路径，与常见 WSL 挂载路径一致；不能仅凭路径认定整个 Pi 进程运行在 WSL 中，具体环境待确认。
+
+**后续：** 会话保存、恢复与上下文管理；已有文件修改、Extensions / Skills 及与 Codex 的差异仍待实践。
+
+### 会话信息观察：`/session`
+
+- **日期 / 工具：** 2026-11-05 · Pi Coding Agent 1.5.0。
+- **操作与结果：** 据用户提供的 AI 对话摘要，执行 `/session` 后看到 `.jsonl` 会话文件、21 条消息、5 次工具调用及 5 次工具结果返回；整理时未独立复核。
+- **可复用结论：** 可通过 `/session` 核对会话信息；消息和调用数量是该次观察的快照，不是固定值。
+- **边界：** 仅记录会话信息查看；`/tree`、`/fork`、`/clone`、恢复与压缩仍待实践，不能据此认定已掌握分支或上下文管理。
 
 ---
 
-## 三、DeepSeek Harness（DSH）
+## 四、DeepSeek Harness（DSH）
 
 ---
+
