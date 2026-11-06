@@ -1,6 +1,6 @@
 # Agent 工具使用手册
 
-> 回答“Agent 工具如何安装、配置、启动、日常操作、管理会话、控制权限、排查问题”。任务设计见 [Agent工作流指南](./实践案例/Agent工作流指南.md)，真实案例见 [Agent实践记录](./实践案例/Agent实践记录.md)，工作原理见 [Agent原理与开发](./Agent原理与开发.md)。
+> 回答“Agent 工具如何安装、配置、启动、日常操作、管理会话、控制权限、排查问题”。任务设计见 [Agent工作流指南](./Agent实践案例/Agent工作流指南.md)，真实案例见 [Agent实践记录](./Agent实践案例/Agent实践记录.md)，工作原理见 [Agent原理与开发](./Agent原理与开发.md)。
 >
 > **更新时间**：2026-11-05；主要环境为 Windows + Windows Terminal + PowerShell，WSL2 按需使用。
 >
@@ -33,7 +33,7 @@
 | **Codex 桌面版** | 日常项目开发、代码修改与审查 | 桌面应用中的项目与对话 |
 | **Codex CLI** | 在终端中读代码、执行命令、测试、代码审查 | 项目目录中执行 `codex` |
 | **Pi Coding Agent** | 轻量 Agent、模型选择、扩展和执行循环 | 项目目录中执行 `pi` |
-| **DeepSeek Harness（DSH）** | 插件化 Agent、Web UI、不同运行配置 | `npx @deepseek-ai/dsh web` |
+| **DeepSeek Harness（DSH）** | 插件化 Agent、Web UI、不同运行配置 | `dsh web`（全局安装后） |
 | **OpenCode** | 多模型 Agent 与终端开发 | 项目目录中执行 `opencode` |
 
 ### 1.2 环境检查
@@ -136,7 +136,7 @@ npm install -g @openai/codex
 codex --version
 ```
 
-更新命令：
+**更新命令**：
 
 ```powershell
 npm install -g @openai/codex@latest
@@ -438,7 +438,7 @@ pi
 
 快捷键可以自定义，版本间也可能不同，以当前界面提示为准。参见 [Pi 官方按键参考](https://pi.dev/docs/latest/keybindings)（2026-11-05 核对）。
 
-节点标签可命名为“共同起点”“方案 A 结论”等；标签用于标识树中的节点，不会创建新会话或独立工作目录。多分支探索与方案决策方法见[会话分支工作流](./方法指南/会话分支工作流.md)。
+节点标签可命名为“共同起点”“方案 A 结论”等；标签用于标识树中的节点，不会创建新会话或独立工作目录。多分支探索与方案决策方法见[会话分支工作流](./Agent方法指南/会话分支工作流.md)。
 
 **分支操作步骤：**
 
@@ -719,32 +719,71 @@ export default function (pi: ExtensionAPI) {
 ## 6. DSH：Web UI、配置、插件
 
 > [!note] DSH 版本兼容性
-> 按 2026-11-04 核对的资料，DeepSeek Harness 处于开发者预览，升级可能破坏兼容；使用时应查看对应版本说明。
+> DeepSeek Harness 处于开发者预览。升级前查看目标版本的变更说明，确认插件和配置的兼容性。[DSH 官方说明](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/README.zh.md)
 
-### 6.1 运行要求与最简单的启动方式
+### 6.1 全局安装、启动与更新
 
-按 2026-11-04 核对的官方升级说明，Node.js 下限为 **24.9.0**。在启动 DSH 的同一个终端运行 `node -v` 检查版本。
+#### 全局安装
+
+在运行 DSH 的 PowerShell 中检查 Node.js 版本。DSH 的 Node.js 运行要求为 **24.9.0 或更高版本**，npm 包 `@deepseek-ai/dsh` 提供 `dsh` 命令。[Node.js 迁移说明](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/docs/upgrade-guide/v0.2.1-rc.2/node-24/guide.md) · [DSH 包定义](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/apps/cli/package.json)
 
 ```powershell
 node -v
-New-Item -ItemType Directory -Force -Path "$HOME\dsh-test"
-cd "$HOME\dsh-test"
-
-# 通过 npm 获取并启动 DSH 的 Web UI
-npx @deepseek-ai/dsh web
+npm install -g @deepseek-ai/dsh
+dsh --version
+npm list -g @deepseek-ai/dsh --depth=0
 ```
 
-首次 `npx` 运行可能询问是否下载依赖；先核对包名、发布来源和权限。官方文档说明：Web UI 默认使用 `http://127.0.0.1:3080`，本地启动通常会自动打开浏览器。**以程序实际输出的地址为准**，不要随意公开打印出的令牌化启动链接。
+> [!note] 处理 `npm warn install-scripts`
+> npm 可以在跳过未获准的依赖安装脚本后完成安装。先用 `dsh --version` 检查 CLI，再用 `dsh web` 检查启动。若启动或使用终端时出现原生模块加载错误，再根据报错定位具体依赖。
+>
+> 支持 `--allow-scripts` 的 npm 版本可以在全局安装时按包名授权安装脚本。确认报错与某个依赖的安装脚本相关后，将授权范围限定到该依赖。[npm 安装脚本说明](https://docs.npmjs.com/cli/v11/commands/npm-install-scripts/)
+
+#### 启动和停止 Web UI
+
+进入已创建的工作目录，再启动 Web UI。
+
+```powershell
+Set-Location 'D:\demo\dsh-sandbox'
+dsh web
+```
+
+默认地址为 `http://127.0.0.1:3080`，以终端实际输出为准；服务启动后会尝试自动打开默认浏览器，不希望自动打开时使用 `dsh web --no-open`。在启动终端中按 `Ctrl+C` 停止前台 Web 服务，下次使用时重新执行 `dsh web`。带令牌的启动链接应仅供本机使用。[DSH CLI 说明](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/apps/cli/README.md) · [DSH Web UI 启动说明](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/README.zh.md)
+
+| 启动方式 | 包的来源 |
+| --- | --- |
+| `dsh web` | 运行通过 PATH 找到的全局 CLI，适合日常使用 |
+| `npx @deepseek-ai/dsh web` | npm 按需解析包，可复用本地包或缓存，适合临时运行 |
+
+关于临时安装和缓存，见 [npm exec 文档](https://docs.npmjs.com/cli/v11/commands/npm-exec/)。
+
+#### 查看版本与手动更新
+
+全局安装后，npm 会保留当前版本，直到执行安装或更新命令。需要定时更新时，可通过任务计划程序调度 npm 命令。
+
+```powershell
+# 对照本机版本与发布标签
+dsh --version
+npm view @deepseek-ai/dsh@latest version
+npm view @deepseek-ai/dsh dist-tags --json
+
+# 决定更新后，指定 DSH 包并核对结果
+npm update -g @deepseek-ai/dsh
+dsh --version
+```
+
+`latest` 是发布者维护的标签，可以指向预发布版本。要明确安装该标签对应的版本，执行 `npm install -g @deepseek-ai/dsh@latest`。复现实验时，可用 `npm install -g '@deepseek-ai/dsh@<版本号>'` 指定已确认的版本。全局更新可能把较新的预发布版本换回标签指向的较低版本，更新前应先对照版本。[npm update 文档](https://docs.npmjs.com/cli/v11/commands/npm-update/#updating-globally-installed-packages) · [npm 发布标签文档](https://docs.npmjs.com/cli/v11/commands/npm-dist-tag/)
 
 ### 6.2 DSH Web UI 第一次应该怎样用
 
-官方使用步骤：
+按上一节启动服务后，参考官方指南配置模型和选择工作区。步骤 4～6 用于验证本地环境和核对任务结果。[DSH 官方 Web UI 指南](https://deepseek-harness.github.io/deepseek-harness/) · [中文指南原文](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/docs/user/guide/index.zh.md)
 
-1. 启动 `npx @deepseek-ai/dsh web`，观察终端输出的访问地址及报错。
-2. 在 Web UI 中打开 **Settings → Models**，配置受支持的模型/提供商。可按官方流程使用 DeepSeek API Key，但必须注意密钥存储方式，不公开密钥。
-3. 点击 **Choose workspace**，选择专门创建的测试工作区。Web UI 新启动时通常需要主动选工作区，才可以正常发起任务。
-4. 在会话输入框提交只读分析任务；观察 Agent 的文件读取、计划、工具调用、审批提示。
-5. 任务结束后用系统文件检查与 Git 检查核对结果；别把“模型回答已完成”等同于任务成功。
+1. 全局安装后运行 `dsh web`，查看终端输出的访问地址及报错。
+2. 在 Web UI 中打开 **Settings → Models**，配置受支持的模型和提供商。使用 DeepSeek API Key 时，妥善保存密钥；保存后模型路由立即可用，不需要重启服务器。
+3. 首次使用且界面尚未选中工作区时，点击 **Choose workspace**，添加并选择专门创建的测试工作区。选中工作区前，会话输入框不可用。
+4. 先发送一条不调用工具的简单消息，确认模型能返回内容；界面能看到模型列表，不代表调用已通过认证。
+5. 在会话输入框提交只读分析任务；观察 Agent 的文件读取、计划、工具调用、审批提示，工具执行过程可在「轨迹」标签查看（具体字段以当前版本为准）。
+6. 任务结束后用系统文件检查与 Git 检查核对结果；别把“模型回答已完成”等同于任务成功。
 
 **第一次建议任务（示例）**：
 
@@ -786,6 +825,52 @@ npx @deepseek-ai/dsh web --help
 - **插件管理**：通过 `dsh plugin --profile <name> ...` 将包操作应用于对应 Profile；`...` 不是实际可直接执行的命令。
 - **开发插件**：为运行时提供自定义能力，具体接口见对应版本的开发文档。
 
+**插件的添加入口（0.2.2-rc.1 界面观察）**
+
+「插件 → 添加插件」提供两种方式：
+
+| 入口 | 用途 | 适用场景 |
+| --- | --- | --- |
+| 安装第三方插件 | 从 npm 包、Git 仓库或本地目录安装 | 使用已有功能 |
+| 让 Agent 创建插件 | 进入插件创建模式，由 Agent 协助编写与配置 | 学习插件结构、开发自定义功能 |
+
+三个概念需要分开（依据 [dsh README（0.2.2-rc.1）](https://cdn.jsdelivr.net/npm/@deepseek-ai/dsh@0.2.2-rc.1/README.zh.md) 与 [dsh-base 包说明](https://cdn.jsdelivr.net/npm/@deepseek-ai/dsh-base/README.zh.md)，后者未锁定版本）：
+
+- **插件实现（Plugin）**：真正提供工具、服务或运行行为的代码。
+- **Bundle（插件组合包）**：manifest 通过 `dsh.bundle.patch` 指向 patch 文件（如 `cordis.patch.yml`），由 profile 组合器按 `dsh.profile.bundles` 顺序叠加；包本身没有运行时 API，可来自 dsh 安装目录或 profile 的 `node_modules`（pnpm 安装的树外插件）。
+- **Profile**：由多个 bundle 的 patch 层按顺序叠加，再应用用户覆盖配置得到的运行组合，例如 `web`。
+
+组合顺序为：各 bundle 的 patch → profile 的 `cordis.patch.yml` → `$DSH_HOME/cordis.patch.yml` → `--patch` 覆盖层。
+
+把插件依赖装进 `node_modules`，不等于它已经生效；只有被列入 `dsh.profile.bundles` 并参与组合后才会运行。
+
+**安装后如何验证**
+
+1. 确认插件出现在对应 Profile 的配置中，而不是只看到安装成功的提示。
+2. 重新加载或重启，检查启动日志中是否有插件加载错误。
+3. 实际触发插件提供的工具或界面，确认行为符合预期；未运行的验证不能算生效。
+
+> [!warning] 第三方插件是可执行代码
+> 安装前检查来源、依赖与所需权限；先在隔离测试目录或独立工作区试用，不要直接装进重要项目。日常安全规范见[第 3 节](#3-安全基线与-git-检查)。
+
+**终端插件的资源限制（0.2.2-rc.1 界面观察）**
+
+「插件 → 终端」中可见两个参数：
+
+| 配置项 | 观察值 | 控制什么 |
+| --- | --- | --- |
+| 命令超时 | `120000` 毫秒（约 120 秒） | 单条终端命令的最长运行时间 |
+| 单流输出上限 | `64000` 字节（约 62.5 KiB） | 单个输出流直接保留的内容大小；界面说明超出部分转存临时文件 |
+
+需要区分：
+
+- 命令超时 ≠ 整个 Agent 任务的超时，一次任务可能包含多条命令。
+- 输出上限 ≠ 模型上下文长度，也不等于 Token 数量。
+- 超出部分转存的临时文件，可能另有独立的大小限制（官方文档有说明，本次未核对原文）。
+- 资源限制属于执行约束，不是权限控制，不能阻止工具访问工作区外的路径。
+
+减少 Token 消耗应控制工具调用次数、文件读取范围与会话上下文，而不是只调小单条命令的输出上限。
+
 建议观察的内容：Web UI 中一次任务从输入到工具调用、审批、结果返回的路径；一个 Profile 下启用的能力来自哪里；失败时在哪里查看日志。具体源码分析放入 [Agent原理与开发.md](./Agent原理与开发.md)。
 
 ### 6.5 DSH 典型故障
@@ -793,6 +878,7 @@ npx @deepseek-ai/dsh web --help
 | 情况 | 优先检查 |
 | --- | --- |
 | 提示 Node 版本过低 | 在**启动 DSH 的同一个终端**运行 `node -v`；需 Node ≥ 24.9.0 |
+| 全局安装后找不到 `dsh` | 用 `npm list -g @deepseek-ai/dsh --depth=0` 核对安装结果，用 `npm prefix -g` 核对 Windows 全局命令目录是否在 PATH 中 |
 | `npx` 下载失败 | npm registry、网络代理、包名、认证/缓存日志 |
 | 页面打不开 | 启动终端是否仍运行、实际监听 URL、端口是否被占用、浏览器错误 |
 | 页面可开但不能聊天 | 是否选定 Workspace、Settings → Models 是否配置有效模型 |
@@ -825,7 +911,7 @@ opencode
 
 ## 8. 典型任务如何选择工具与操作
 
-这里提供**操作入口速查**。任务委托模板、探索/执行/审批模式与验收规则见 [Agent工作流指南](./实践案例/Agent工作流指南.md)，实践复盘见 [Agent实践记录](./实践案例/Agent实践记录.md)。
+这里提供**操作入口速查**。任务委托模板、探索/执行/审批模式与验收规则见 [Agent工作流指南](./Agent实践案例/Agent工作流指南.md)，实践复盘见 [Agent实践记录](./Agent实践案例/Agent实践记录.md)。
 
 | 需求 | 首选工具 | 建议操作 | 必要的确认 |
 | --- | --- | --- | --- |
@@ -835,7 +921,7 @@ opencode
 | 审查未提交代码 | Codex CLI | `/review` 或 `codex review --uncommitted` | 独立检查问题是否真实 |
 | 研究 Agent Loop | Pi | 隔离目录 → `/login` → `/model` → 观察每次工具调用 | 不在真实文件中随意试验 |
 | 对比上下文管理 | Pi | `/session`、`/resume`、`/compact` | 对照实际上下文变化 |
-| 研究插件式 Agent | DSH | `npx @deepseek-ai/dsh web` → 选模型和工作区 | 检查 Profile 与权限 |
+| 研究插件式 Agent | DSH | `dsh web`（全局安装后）→ 选模型和工作区 | 检查 Profile 与权限 |
 | 对比不同模型提供商 | OpenCode | 选择明确产品版本，再配置提供商 | 记录模型、任务与结果，避免混淆变量 |
 
 > [!tip] 每次任务记住四个动作
@@ -915,7 +1001,7 @@ npm list -g --depth=0
 - 官方依据（链接 + 核对日期）：
 ```
 
-本手册按功能维护可复用的操作说明。个人环境快照、操作结果与复盘放入[Agent实践记录](./实践案例/Agent实践记录.md)，学习进度放入[学习计划](../../学习计划/进行中/副线/Agent%20工具使用与架构学习计划.md)，执行循环与上下文等机理放入[Agent原理与开发](./Agent原理与开发.md)。
+本手册按功能维护可复用的操作说明。个人环境快照、操作结果与复盘放入[Agent实践记录](./Agent实践案例/Agent实践记录.md)，学习进度放入[学习计划](../../学习计划/进行中/副线/Agent%20工具使用与架构学习计划.md)，执行循环与上下文等机理放入[Agent原理与开发](./Agent原理与开发.md)。
 
 ---
 

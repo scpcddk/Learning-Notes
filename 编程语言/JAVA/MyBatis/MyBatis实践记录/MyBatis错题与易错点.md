@@ -1191,3 +1191,54 @@ wrapper.and(wrapper -> wrapper.gt("age", 19)); // 与外围局部变量重名
 遇到 `.and(w -> ...)`、`.or(w -> ...)`、`.nested(w -> ...)` 时，都应从 Lambda 形参声明、调用方传参和嵌套条件构造来理解，不能把 `w` 当作外部变量的别名。
 
 ---
+
+## 41：`strictUpdateFill()` 默认保留非空的 `updateTime`
+
+**错误理解**　选 A，认为配置 `FieldFill.INSERT_UPDATE` 后，每次更新都会把 `updateTime` 改成当前时间。
+
+### ① 区分填充时机和填充规则
+
+实体字段配置为插入和更新时均可自动填充。
+
+```java
+@TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
+private LocalDateTime updateTime;
+```
+
+`MetaObjectHandler` 在更新时使用严格填充。
+
+```java
+@Override
+public void updateFill(MetaObject metaObject) {
+    strictUpdateFill(
+        metaObject,
+        "updateTime",
+        LocalDateTime.class,
+        LocalDateTime.now()
+    );
+}
+```
+
+**正确答案是 B。** `FieldFill.INSERT_UPDATE` 指定填充时机。默认的严格填充策略只在目标属性为 `null` 时写入填充值。
+
+### ② 对比两种 `updateById()` 写法
+
+查询完整实体后只修改成绩，传入更新的 `student.updateTime` 仍是查询得到的非空旧时间，因此严格填充会保留旧值。
+
+```java
+Student student = studentService.getById(1);
+student.setScore(95);
+studentService.updateById(student);
+```
+
+新建实体并只设置更新所需的属性时，`updateTime` 初始为 `null`，严格填充会写入当前时间。示例假设启用了乐观锁，`oldVersion` 是此前读到的版本号。
+
+```java
+Student updateStudent = new Student();
+updateStudent.setId(1);
+updateStudent.setScore(95);
+updateStudent.setVersion(oldVersion);
+studentService.updateById(updateStudent);
+```
+
+---
