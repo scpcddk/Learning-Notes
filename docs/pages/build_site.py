@@ -1790,6 +1790,7 @@ def build_catalogs(output, github, branch, programming):
     """Show repository boards first, then the subjects inside each board."""
     template = read_template(PAGE_ROOT / "index.html", catalog=True)
     catalog_covers = {
+        "math": "math-hero.webp",
         "software-engineering": "software-engineering-hero-v2.webp",
         "computer-organization": "computer-organization-hero-v2.webp",
         "general-studies": "general-studies-hero-v2.webp",
@@ -1879,7 +1880,7 @@ def build_catalogs(output, github, branch, programming):
         display_title = "软件工程与计算基础" if path.name == "软件工程" else path.name
         index_links.append(f'<li><a href="{escape(slug, quote=True)}/"><span aria-hidden="true">{index:02d}</span>{escape(display_title)}</a></li>')
         if path.name=="数学":
-            root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "calculus/阅读资源/calculus-hero.webp", number="01 / MATHEMATICS"))
+            root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "math/阅读资源/"+catalog_covers["math"], number="01 / MATHEMATICS"))
             continue
         if path.name=="算法":
             root_cards.append(card(path.name, description, "algorithms/", "进入算法阅读", ("9 章课程", "19 篇专题与源码", "8 份题单"), "algorithms/algorithms-hero.webp", number="02 / ALGORITHMS"))
