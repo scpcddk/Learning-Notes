@@ -1328,7 +1328,7 @@ def build_cloud_native(output, github, branch):
                         "数据库与中间件": "section-database-middleware.webp",
                         "运维与服务部署": "section-operations-deployment.webp",
                         "Kubernetes": "section-kubernetes.webp", "可观测性": "section-observability.webp",
-                        "微服务": "section-microservices.webp"})]
+                        "微服务": "section-microservices.webp", "云计算基础": "section-cloud-computing.webp"})]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "cloud-native", output,
                          profile="cloud-native")[0]
 
@@ -1664,6 +1664,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "Kubernetes": "围绕工作负载、服务与配置，整理 Kubernetes 编排和 Helm 实践。",
                 "可观测性": "通过日志、指标与链路追踪，逐步看清服务的运行状态。",
                 "微服务": "理解服务的拆分、通信与协作，逐步建立系统视角。",
+                "云计算基础": "从云计算体系结构与虚拟化入手，查阅分布式计算、存储和云安全课件。",
                 "进行中": "按主线与副线查看当前计划，沿着实际任务和阶段验收继续推进。",
                 "阶段性完成": "保留已经阶段性完成的学习路线，按需要回顾与复习。",
                 "已结束或舍弃": "查阅旧版安排与历史方向；当前执行以进行中的计划为准。",
@@ -1709,6 +1710,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     config["sections"][-1]["topics"] = topics
                     config["sections"][-1]["directNotes"] = any(not page["topic"] for page in entries)
         if cloud:
+            config["sectionHero"] = "云计算基础"
             config["redirects"] = {"section-" + hashlib.sha256("待学与拓展".encode()).hexdigest()[:12]: "overview"}
         for old, target in aliases.items():
             if routes[target][0] != language["slug"]:

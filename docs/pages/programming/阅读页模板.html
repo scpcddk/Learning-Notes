@@ -25,6 +25,7 @@
     .prose li.task-item{list-style:none;position:relative}.prose .task-item>input,.prose .task-item>p>input{accent-color:var(--green);width:14px;height:14px;vertical-align:middle;margin:0 7px 2px -21px;opacity:1}
     .section-card.has-cover{padding:0;overflow:hidden}.section-cover{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;background:#fafbf8}.section-copy{display:flex;flex-direction:column;flex:1;padding:24px}.has-cover .section-copy h3{margin-top:14px}.has-cover .section-copy p{flex:1}html[data-theme=dark] .section-cover{filter:brightness(.86)}
     @media(max-width:560px){.section-copy{padding:21px}.has-cover .section-bottom{gap:10px}.has-cover .section-bottom b{white-space:nowrap}}
+    .hero>.section-page-head{margin:0;padding:0;border:0}
     @media print{.section-cover{max-height:180px;object-fit:contain}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}#sidebar,.section-card{transition:none}}
     @media print{#sidebar,header,.progress,.reading-rail,.mobile-toc,.reading-tools,.document-pager,.copy-code,#shade,.page-footer{display:none!important}.workspace{margin:0}main{padding:0;max-width:none}.document-layout{display:block}:root,html[data-theme=dark]{--bg:#fff;--paper:#fff;--ink:#000;--muted:#444;--green:#234b34;--line:#ccc;--sidebar:#f6f6f6;--soft:#f3f5f1;--code:#f6f6f6;--code-ink:#000}.tok-keyword,.tok-string,.tok-comment,.tok-number{color:inherit}.prose .code-block code{white-space:pre-wrap;overflow-wrap:anywhere}.prose .code-block pre,.table-scroll{overflow:visible}.hero img{max-width:350px}.folder{break-inside:avoid}}
@@ -105,11 +106,13 @@
     function overview(section,topic){
       if(section){
         const entries=pages.filter(p=>p.section===section.key&&(!topic||p.topic===topic.key)), view=topic||section;
+        const cover=!topic&&section.key===config.sectionHero?section.cover:'';
         const head='<div class="section-page-head"><a href="#'+(topic?section.id:'overview')+'">← 返回 '+escape(topic?section.title:config.title+' 总览')+'</a><div class="eyebrow">'+escape(config.label)+' / '+escape(section.title)+'</div><h1>'+escape(view.title)+'</h1><p>'+escape(view.description)+'</p><div class="document-meta"><span>'+view.notes+' '+escape(config.itemNoun||'篇笔记')+'</span><span>'+view.resources+' 份图解与资料</span>'+(view.pending?'<span>'+view.pending+' 篇待补充</span>':'')+'</div></div>';
         const cards=!topic&&section.topics?.length?'<div class="folders topic-cards">'+section.topics.map((item,index)=>'<a class="folder section-card topic-card" href="#'+item.id+'"><div class="folder-top"><span>TOPIC '+String(index+1).padStart(2,'0')+'</span><span aria-hidden="true">↗</span></div><h3>'+escape(item.title)+'</h3><p>'+escape(item.description)+'</p><div class="section-bottom"><span>'+(item.key==='待学'?(item.count?item.count+' 篇待学笔记':'暂无待学笔记'):item.notes+' 篇笔记 · '+item.resources+' 份资料')+'</span><b>进入主题 →</b></div></a>').join('')+'</div>':folderGrid(entries,true);
         const direct=!topic&&section.directNotes?folderGrid(entries.filter(p=>!p.topic),true):'';
         const empty=topic&&topic.key==='待学'&&!entries.length?'<div class="resource-panel"><p>当前没有待学笔记。</p></div>':'';
-        $('overview').innerHTML=head+direct+cards+empty;return;
+        const banner=cover?'<section class="hero">'+head+'<img src="'+escape(cover)+'"'+coverSources(cover)+' alt="" width="1536" height="1024" loading="eager" decoding="async" fetchpriority="high"></section>':head;
+        $('overview').innerHTML=banner+direct+cards+empty;return;
       }
       const savedLast=config.redirects?.[get('last')]||get('last');
       const last=pages.find(p=>p.id===savedLast)||pages.find(p=>!p.pending&&['note','practice'].includes(p.kind));
