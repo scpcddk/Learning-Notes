@@ -105,7 +105,7 @@ Windows 装好的 `codex` 不等于 WSL 里也装好了。需要时分别执行 
 1. **最小权限**：代码阅读优先只读；修改任务允许工作区写入；高风险操作单独确认。
 2. **区分路径与权限**：工作目录只是任务上下文，不能替代沙箱。自然语言说“不要修改”也不能替代系统限制。
 3. **保护凭据**：不用真实密码、生产 API Key、数据库生产数据练习；警惕仓库里的恶意提示词、脚本和扩展。
-4. **追踪变更**：有代码变更时先执行 `git status`，最后看 `git diff` 和测试结果；不要让 Agent 覆盖已有未提交修改。
+4. **追踪变更**：任务前后都执行 `git status`，验收时检查工作区和暂存区的差异及测试结果。保留已有的未提交修改。
 5. **控制高风险动作**：删除、批量覆盖、数据库迁移、生产部署、对外发消息、下载执行不明脚本应核对实际影响。
 6. **审查实际产物**：Agent 声称“已完成”不代表测试通过、文件存在或修改符合要求。
 7. **第三方扩展更加谨慎**：插件、Skill、MCP 服务可能带来新的文件、网络和执行权限；读懂来源和权限后再启用。
@@ -117,8 +117,11 @@ git status
 git diff
 git diff --cached
 git diff --check
+git diff --cached --check
 git log -5 --oneline
 ```
+
+`git diff` 查看已跟踪文件的未暂存差异，`git diff --cached` 查看已暂存的差异。用 `git status --short --untracked-files=all` 列出未跟踪的新文件，再单独查看其内容。[Git diff 文档](https://git-scm.com/docs/git-diff)
 
 如果不是 Git 仓库，`git status` 会报 `not a git repository`；这表示当前目录不属于 Git 仓库，不代表 Codex 修改代码失败。临时练习可对比修改前后代码与实际运行结果；正式项目建议使用 Git。对于真实仓库，先保存自己的改动，不要直接运行 `git reset --hard` 或 `git clean -fd` 试图“清理环境”。
 
@@ -809,7 +812,7 @@ DSH 的 `dsh` 启动器按 **Profile** 组合插件与配置。通过 `npx` 启�
 | `dsh headless "概括目录结构"` | 运行一次性任务后退出；需先配置好模型与权限 |
 | `dsh plugin --profile web ...` | 管理指定 Profile 的插件；具体参数见官方帮助 |
 
-**无需额外安装也可以先查询已发布包的 Web 帮助**（能否成功运行取决于实际版本与本机环境）：
+**无需全局安装也可以查询 Web 帮助**。本地没有所需包时，`npx` 可能从 registry 下载并安装到 npm 缓存。[npm exec 文档](https://docs.npmjs.com/cli/v11/commands/npm-exec/)
 
 ```powershell
 npx @deepseek-ai/dsh web --help
@@ -1001,7 +1004,7 @@ npm list -g --depth=0
 - 官方依据（链接 + 核对日期）：
 ```
 
-本手册按功能维护可复用的操作说明。个人环境快照、操作结果与复盘放入[Agent实践记录](./Agent实践案例/Agent实践记录.md)，学习进度放入[学习计划](../../学习计划/进行中/副线/Agent%20工具使用与架构学习计划.md)，执行循环与上下文等机理放入[Agent原理与开发](./Agent原理与开发.md)。
+本手册按功能维护可复用的操作说明。个人环境快照、操作结果与复盘放入[Agent实践记录](./Agent实践案例/Agent实践记录.md)，集中学习的进度与验收见[已归档的学习计划](../../学习计划/已结束或舍弃/Agent%20工具使用与架构学习计划.md)，执行循环与上下文等机理放入[Agent原理与开发](./Agent原理与开发.md)。
 
 ---
 

@@ -247,11 +247,9 @@ DSH 的「轨迹」会把会话按系统、用户、上下文、工具、助手�
 > [!note] DSH 的子智能体配置（0.2.2-rc.1 界面观察，尚未实际运行）
 > 「插件 → 子智能体」中可见：最大递归深度 `1`、并行数量上限 `8`、允许 Agent 为子智能体选择模型（关闭）。
 >
-> - 深度 `1` 通常理解为允许主 Agent 再委派一层；具体行为尚未实测，工具自身的限制可能覆盖该默认值。
-> - 并行上限是同一主 Agent 下同时运行的子智能体数量上限，不代表启动任务就会创建这么多子 Agent；据官方文档说明，该数量不包含主 Agent 本身（原文未核对）。
-> - 模型选择关闭只限制主 Agent 在委派时自行挑模型，子智能体会使用默认模型或继承父 Agent 模型，不影响子智能体能否运行。
+> 按官方仓库 `master` 分支的设置说明，委派工具沿用深度设置时，`1` 允许主 Agent 创建直接子 Agent。工具可以指定自己的深度限制。并行容量由同一主 Agent 下各层子 Agent 共享，主 Agent 本身不占名额。模型选择开关控制委派时能否自行选模型，实际使用的模型取决于委派工具和后端配置。[DSH 子智能体设置](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-settings-subagent/README.md#use-this-package) · [DSH 子智能体运行时](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/README.md#activation-capacity)
 >
-> 提高并行数可能加快独立任务，但会增加模型调用与 Token 消耗；本次未触发任何委派，配置值也可能随版本变化。
+> 提高并行上限可以让更多已委派的独立任务同时运行。模型调用次数和 Token 用量取决于实际委派的任务及其上下文。本次仅观察了界面，未验证该版本的运行行为。
 
 例如，分析 Spring Boot 项目时，让两个子 Agent 分别调查 Controller / Service 与 Mapper / SQL，再汇总调用链，属于任务委派；从已有讨论另开一条路线，分别尝试不同分析方案，属于会话分支或分叉。
 

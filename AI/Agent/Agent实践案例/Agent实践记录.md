@@ -26,7 +26,7 @@
 - **2026-11-04｜npm 全局目录缺失**：创建 `%APPDATA%\npm` 后解除，当时全局包列表为空。
 - **2026-11-04｜Codex 工作目录错误**：在 `~\Desktop` 启动，退出后进入 `~\codex-test` 重启，`/status` 确认工作目录与只读权限。
 - **2026-11-06｜DSH Windows 沙箱授权失败**：`SetNamedSecurityInfoW failed (Win32 5): grantWrite(D:\demo\dsh-sandbox)`，待修复；未切换完全权限、未修改 ACL。
-- **2026-11-07｜Codex TUI 启动超时**：`workspace routing discovery timed out (code -32603)`；诊断显示 HTTPS 可达、WebSocket 握手超时、Windows 手动代理未启用，改用本地代理后仍失败。用户判断为网络环境问题，未继续排查；跨 Agent 对比据此未完成。
+- **2026-11-07｜Codex TUI 启动超时**：`workspace routing discovery timed out (code -32603)`；诊断显示 HTTPS 可达、WebSocket 握手超时、Windows 手动代理未启用，改用本地代理后仍失败。用户判断与网络环境有关，未继续排查 TUI。跨 Agent 只读审查后来用 `codex exec` 完成，见[案例 011](#案例-011codexpidsh-跨-agent-代码审查对比)。
 
 ---
 
@@ -568,9 +568,9 @@ def average_score(scores):
 
 **5. 各工具的实际过程**
 
-**Codex CLI**：以 `codex exec --sandbox read-only` 完成，通过终端命令读取文件，正确定位两个问题并给出完整替代实现。期间经历工作区路由超时与多次重连，9,959 Tokens 含重试开销，不能作为正常任务的效率基线。
+**Codex CLI**：以 `codex exec --sandbox read-only` 完成，通过终端命令读取文件，正确定位两个问题并给出完整替代实现。执行期间记录到工作区路由超时与重连。该轮报告 9,959 Tokens，缺少逐次请求的用量明细。
 
-**Pi 1.5.0**：一次 `read compare_scores.py` 完成审查，问题定位准确，按最小改动给出修复；未观察到写入或运行程序。登录阶段曾出现 `fetch failed`，随后恢复；未记录 Token 与调用次数。
+**Pi 1.5.0**：一次 `read compare_scores.py` 完成审查，问题定位准确，按最小改动给出修复；未观察到写入或运行程序。登录阶段曾出现 `fetch failed`，随后恢复。Token 用量未记录。
 
 **DSH 0.2.2-rc.1**：标准模式、只读权限，轨迹显示一次 `read` 调用，回答最详细，并补充了 `[0]`、`[0, 0]` 等边界输入的影响。本轮沿用了包含插件开发内容的旧会话，并非独立新会话。
 
@@ -583,7 +583,7 @@ def average_score(scores):
 - **工具路径**：Codex 通过终端命令读取，Pi 与 DSH 使用 `read` 工具；差异与各自工具集和配置有关。
 - **安全性**：可见记录符合只读要求，但单次运行不足以证明隔离完整。
 - **效率**：仅 Codex 有数值且含重连，数据不足，不做排名。
-- **稳定性**：Codex 受网络影响最大，Pi 登录曾异常，DSH 本轮正常。
+- **本轮故障**：Codex 出现超时和重连，Pi 曾遇到登录错误，DSH 沿用旧会话完成审查。
 
 **7. 选型倾向**
 
@@ -648,7 +648,7 @@ raise ProtocolError("bad or interrupted event stream") from exc
 
 **Codex CLI**：完成修改，公开 6/6、总分 23/23；报告 35,433 Tokens；期间出现网络超时与重连，执行体验受影响。
 
-**Pi 1.5.0**：完成修改，公开 6/6、总分 22/23；仅流式异常类型一项失败；Token 未记录。
+**Pi 1.5.0**：完成修改，公开 6/6、总分 22/23；仅流式异常类型一项失败。Token 和耗时见下方补录表。
 
 **DSH 0.2.2-rc.1**：完成修改；自身 `pwsh` 因 `SetNamedSecurityInfoW failed (Win32 5)` 无法执行测试，未擅自提权；由用户在普通 PowerShell 中独立评分，公开 6/6、总分 23/23。沙箱问题仍未修复。
 
@@ -661,7 +661,7 @@ raise ProtocolError("bad or interrupted event stream") from exc
 
 - **代码正确性**：Codex、DSH、TRAE 并列满分，Pi 因异常契约差一项；本次未出现明显能力断层。
 - **工程执行**：Codex、Pi、TRAE 自主运行了公开测试；DSH 受 Windows 沙箱阻断。
-- **稳定性**：Codex 受网络波动影响最大；Pi 本轮无明显阻断；TRAE 完成但期间同时运行多个任务；DSH 的阻碍来自环境。
+- **本轮运行情况**：Codex 出现超时和重连，Pi 无明显运行阻断，TRAE 同期运行多个任务，DSH 的测试执行受 Windows 沙箱阻断。
 - **选型**：Codex 适合日常编码与项目修改；Pi 适合轻量任务、Skill / Extension 与工作流实验；DSH 适合插件架构与 Agent 系统研究，使用前需解决沙箱问题；TRAE + DeepSeek 在本次实际修复中表现良好，可作为日常候选，但需继续观察 Token 消耗与文件访问控制。
 
 **6. 资源与耗时（补录）**
@@ -673,7 +673,7 @@ raise ProtocolError("bad or interrupted event stream") from exc
 | DSH | 100 | 271,454（缓存读取 228,992；非缓存输入 9,691；输出 32,771） | 约 185 秒 | 轨迹推算的下限，含 `Win32 5` 排查 |
 | TRAE + DeepSeek | 100 | 未记录 | 258 秒（4 分 18 秒） | 界面显示；同期运行多个 TRAE 任务 |
 
-- Pi 的费用显示为 `$0.056`，属于工具估算；Codex 为订阅使用，未单独计费；DSH、TRAE 的费用未记录。
+- Pi 显示的 `$0.056` 是工具估算。Codex 使用订阅，本次任务费用未单独记录。DSH、TRAE 的费用未记录。
 - 三组耗时来源不同（会话时间戳、轨迹推算、界面计时），且 DSH 含故障排查、TRAE 存在并发任务，**不能据此排速度名次**。
 - Token 统计口径也不同：缓存读取的计价通常低于非缓存输入，总量不能直接换算成成本。
 
@@ -684,11 +684,11 @@ raise ProtocolError("bad or interrupted event stream") from exc
 
 - 单文件 Python 任务，未覆盖多文件工程、并发与集成测试。
 - 四组模型与运行条件未完全统一，成绩代表"Agent + 模型 + 环境"的组合。
-- Token 与费用仅 Pi、Codex 有数据，无法做可靠成本比较；TRAE 的耗时受并发干扰。
+- Codex、Pi、DSH 有 Token 数据，统计口径有差异。只有 Pi 有单任务费用估算。TRAE 的计时与其他任务重叠，单任务耗时待独立测量。
 - 若比较执行效率，应让各工具在无其他任务竞争、统一模型配置下单独运行，并记录单任务 Token、耗时与费用；不要用本轮数据强行排名。
 - 后续若继续比较代码能力，优先使用多文件 Java / Spring Boot 项目与集成测试，不必无限增加模拟题。
 
-**本案例结论：复杂 Python LLM 客户端修复任务中，Codex、DSH、TRAE 均为 23/23，Pi 为 22/23；三者并列第一，Pi 的差距集中在异常类型契约。**
+**本次测试结果**：Codex、DSH、TRAE 均通过 23 项，Pi 通过 22 项，唯一失败项涉及流式读取时的异常类型。
 
 ---
 
