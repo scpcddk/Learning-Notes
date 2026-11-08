@@ -1846,7 +1846,9 @@ def build_catalogs(output, github, branch, programming):
         card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), "../probability-statistics/阅读资源/probability-statistics-hero-v2.webp", number="04 / PROBABILITY"),
         card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), "../numerical-analysis/阅读资源/numerical-analysis-hero-v2.webp", number="05 / NUMERICAL ANALYSIS"),
     ]
-    page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。", math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"), "math-catalog")
+    page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。",
+         math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"),
+         "math-catalog", hero="阅读资源/"+catalog_covers["math"])
 
     language_cards = [card(item["title"], item["description"], item["slug"]+"/", "进入阅读",
                            (str(item["notes"])+" 篇笔记", str(item["resources"])+" 份图解与资料"),
