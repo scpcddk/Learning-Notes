@@ -897,9 +897,11 @@ def build_discrete(output, github, branch):
         note(ident, title, "练习 / 自测与解析", DISCRETE_NOTES / "习题" / name, kind="practice")
     for year, name in [(2010,"东北大学2010离散数学试题A(1)(1).pdf"),
                         (2011,"东北大学软件学院离散数学期末试题2011(1)(1).pdf")]:
-        pdf(f"exam-{year}", f"东北大学 {year} 年期末试卷", "试卷 / 历年 PDF", DISCRETE_NOTES / "习题" / name,
-            description="历年试卷 · 扫描 PDF", kind="exam")
-        pages[-1]["scanned"] = True
+        scan = DISCRETE_NOTES / "习题" / name
+        searchable = scan.with_name(f"东北大学{year}年离散数学期末试卷-OCR.pdf")
+        pdf(f"exam-{year}", f"东北大学 {year} 年期末试卷", "试卷 / 历年 PDF", searchable,
+            source=scan, description="历年试卷 · OCR 可搜索版", kind="exam")
+        pages[-1]["ocr"] = True
 
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
     template = read_template(DISCRETE / "index.html")

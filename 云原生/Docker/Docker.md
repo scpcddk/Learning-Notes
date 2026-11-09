@@ -174,7 +174,7 @@
 | `docker stats` | 显示容器的实时资源使用情况 | `docker stats` |
 | `docker login` | 登录`Docker`仓库 | `docker login` |
 | `docker logout` | 登出`Docker`仓库 | `docker logout` |
-| `docker system prune -a` | 清理未使用的镜像、容器、网络（慎用） | `docker system prune -a` |补充，这里面缺了很多
+| `docker system prune -a` | 删除已停止的容器、未使用的网络、未被容器引用的镜像和未使用的构建缓存（慎用） | `docker system prune -a` |
 
 常用`docker run`选项:
 

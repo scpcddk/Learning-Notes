@@ -42,7 +42,7 @@
 | 响应模型 | `class UserOut(BaseModel)` | 声明出参结构 | 可隐藏密码字段 |
 | 字段约束 | `Field(min_length=1)` | 长度/范围/正则约束 | `Field(gt=0, le=150)` |
 | 必填字段 | `name: str` | 不传报 422 | 必填 |
-| 可选字段 | `name: str | None = None` | 可不传 | 默认 None |
+| 可选字段 | `name: str \| None = None` | 可不传 | 默认 None |
 | 默认值 | `age: int = 0` | 不传用默认 | 与可选区别：有默认 |
 | 嵌套模型 | `class A(BaseModel): b: B` | 结构化复杂 JSON | 自动递归校验 |
 | 列表模型 | `list[UserOut]` | 返回数组 | 文档友好 |

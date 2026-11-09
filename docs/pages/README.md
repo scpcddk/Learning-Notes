@@ -57,9 +57,18 @@ python docs/pages/build_site.py --output docs/site
 
 封面源文件使用无损 WebP 保存，转换前后逐像素一致，提示词和历史封面版本保留。构建同时支持 PNG 与 WebP 源图，自动生成 480、960、1440px 的展示版本，浏览器根据显示宽度与像素密度选择尺寸。图片文件名带有原图内容指纹，更新封面后会自动使用新地址。首屏封面优先加载，目录中其余封面延迟加载并异步解码，减少首屏下载量与解码阻塞；无需手工维护展示尺寸。
 
-[发布工作流](../../.github/workflows/pages.yml) 也只调用这一条构建命令。修改仓库笔记、目录或这里的模板后，提交并推送到 main，GitHub Actions 会自动生成并发布；发布成功后，线上显示新内容。尚未推送的本地修改不会影响网站。
+[发布工作流](../../.github/workflows/pages.yml) 先检查 Markdown 表格是否有被截断的单元格，再运行站点测试和 AI 流式练习测试。检查读取仓库源文件，测试只在临时目录生成样例。检查和构建均通过后才部署，失败时线上继续使用上次发布的版本。
 
-PowerPoint 课件已在原课件目录转换为 PDF 并替换对应 PPTX，不保留两套课件或额外导出目录。原文件的历史版本仍可通过 Git 提交记录查阅。
+可在仓库根目录运行相同的发布前检查：
+
+~~~powershell
+python -m pip install markdown-it-py==4.0.0 Pillow==12.2.0 httpx==0.28.1
+python -B docs/pages/check_markdown_tables.py
+python -B -m unittest discover -s docs/pages
+python -B -m unittest discover -s "AI/AI实践记录"
+~~~
+
+课件按原目录收录。PDF 支持在线阅读，保留为 PPT 或 PPTX 的课件提供原文件入口。课件的历史版本可通过 Git 提交记录查阅。
 
 ## 本地阅读
 
@@ -77,7 +86,7 @@ python docs/pages/build_site.py --output docs/site --serve
 
 PDF 阅读器需要 HTTP 服务。`--serve` 会在构建后启动本机预览，并设置 PDF.js 所需的模块脚本类型，避免 Windows 文件关联导致 `.mjs` 无法载入。可用 `--serve 8772` 更换端口。
 
-离散数学收录15份课堂课件、9份个人笔记与练习、2份历年试卷。PDF 可在线翻页、搜索、缩放、打印、下载并记住上次页码；两份历年试卷为扫描件，正文暂不支持文字搜索。已有答案的 Markdown 习题提供折叠解析。
+离散数学收录 15 份课堂课件、9 份个人笔记与练习、2 份历年试卷。PDF 可在线翻页、搜索、缩放、打印、下载并记住上次页码。历年试卷默认打开 OCR 可搜索版，页面另设原扫描件入口。已有答案的 Markdown 习题提供折叠解析。
 
 封面使用内置 imagegen 生成，图的结点与边、集合交叠与树形结构体现离散数学主题，最终提示词保存在 [discrete-math-hero.prompt.txt](discrete-math/discrete-math-hero.prompt.txt)。
 

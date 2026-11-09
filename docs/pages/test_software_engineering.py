@@ -22,8 +22,7 @@ class Links(HTMLParser):
 
 class SoftwareEngineeringTests(unittest.TestCase):
     def test_moved_subjects_keep_routes_and_use_new_source_paths(self):
-        scratch = build_site.PAGE_ROOT.parent/'review-output'
-        scratch.mkdir(exist_ok=True)
+        scratch = Path(tempfile.gettempdir())
         with tempfile.TemporaryDirectory(dir=scratch) as temporary:
             self.assertTrue(Path(temporary).resolve().is_relative_to(scratch.resolve()))
             root = Path(temporary)

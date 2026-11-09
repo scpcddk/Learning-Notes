@@ -4329,8 +4329,8 @@ w → z=2w → y=z² → L
 |---|---|---|
 | Random Variable | 将结果映射为数值的变量 | 随机变量与一次样本值不同 |
 | Distribution | 描述可能结果及概率 | 离散概率与连续密度不同 |
-| Conditional Probability | `P(A|B)=P(A∩B)/P(B)` | 前提 P(B)>0，不代表因果 |
-| Bayes | `P(A|B)=P(B|A)P(A)/P(B)` | 先验、似然、后验分清 |
+| Conditional Probability | `P(A\|B)=P(A∩B)/P(B)` | 前提 P(B)>0，不代表因果 |
+| Bayes | `P(A\|B)=P(B\|A)P(A)/P(B)` | 先验、似然、后验分清 |
 | Expectation | 离散 `E[X]=ΣxP(X=x)` | 不一定是某次可出现的取值 |
 | Variance | `Var(X)=E[(X−E[X])²]` | 衡量离散程度，非负 |
 | Standard Deviation | 方差平方根 | 与原变量单位一致 |
@@ -6044,7 +6044,7 @@ api/                问题入口、身份、响应与引用
 | 主题 | 公式/形状 | 必须说明的条件 |
 |---|---|---|
 | 点积 | `a·b=Σaᵢbᵢ` | 维度匹配 |
-| 余弦 | `a·b/(||a||||b||)` | 非零向量，同一表示空间 |
+| 余弦 | `a·b/(\|\|a\|\|\|\|b\|\|)` | 非零向量，同一表示空间 |
 | Softmax | `exp(zᵢ)/Σexp(zⱼ)` | 数值实现通常减最大值 |
 | 温度 | `softmax(z/T)` | T>0；T=0 是解码特例 |
 | Attention | `softmax(QKᵀ/√dk+M)V` | Mask、轴、头映射正确 |
@@ -6057,7 +6057,7 @@ api/                问题入口、身份、响应与引用
 | Precision | `TP/(TP+FP)` | 正类/相关结果定义明确 |
 | Recall | `TP/(TP+FN)` | 需要标注相关集合 |
 | F1 | `2PR/(P+R)` | 零分母约定 |
-| Bayes | `P(A|B)=P(B|A)P(A)/P(B)` | P(B)>0 |
+| Bayes | `P(A\|B)=P(B\|A)P(A)/P(B)` | P(B)>0 |
 | Variance | `E[(X−E[X])²]` | 总体/样本估计分清 |
 | 分类输出 | `[B,C] → [B]` 标签 | Long 类别 ID |
 | 语言输出 | `[B,L,V] → [B,L]` 标签 | 下一 Token 对齐与 Mask |

@@ -12,9 +12,7 @@ import build_site
 
 class CoverPerformanceTests(unittest.TestCase):
     def test_nested_readers_share_responsive_images_and_preserve_note_data(self):
-        scratch = build_site.PAGE_ROOT.parent / 'review-output'
-        scratch.mkdir(exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=scratch) as temporary:
+        with tempfile.TemporaryDirectory(prefix="covers-") as temporary:
             output = Path(temporary).resolve()
             assets = output / 'images'
             assets.mkdir()
@@ -57,9 +55,7 @@ class CoverPerformanceTests(unittest.TestCase):
             self.assertEqual(reader.read_text(encoding='utf-8'), text)
 
     def test_lossless_webp_source_produces_responsive_variants(self):
-        scratch = build_site.PAGE_ROOT.parent / 'review-output'
-        scratch.mkdir(exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=scratch) as temporary:
+        with tempfile.TemporaryDirectory(prefix="covers-") as temporary:
             output = Path(temporary).resolve()
             original = output / 'subject-hero.webp'
             Image.new('RGB', (1536, 1024), '#c5d8c2').save(original, lossless=True)
@@ -77,9 +73,7 @@ class CoverPerformanceTests(unittest.TestCase):
             self.assertEqual(page.read_text(encoding='utf-8'), result)
 
     def test_validator_rejects_missing_responsive_variant(self):
-        scratch = build_site.PAGE_ROOT.parent / 'review-output'
-        scratch.mkdir(exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=scratch) as temporary:
+        with tempfile.TemporaryDirectory(prefix="covers-") as temporary:
             output = Path(temporary).resolve()
             Image.new('RGB', (480, 320)).save(output / 'small.webp')
             (output / 'index.html').write_text(

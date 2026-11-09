@@ -14,8 +14,7 @@ import build_site
 
 class CloudNativeReaderTests(unittest.TestCase):
     def setUp(self):
-        self.scratch = build_site.PAGE_ROOT.parent / "review-output"
-        self.scratch.mkdir(exist_ok=True)
+        self.scratch = Path(tempfile.gettempdir())
         self.temporary = tempfile.TemporaryDirectory(prefix="cloud-", dir=self.scratch)
         self.base = Path(self.temporary.name).resolve()
         assert self.base.parent == self.scratch.resolve()

@@ -136,11 +136,11 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
       $('doc-title').textContent = page.title;
       $('doc-description').textContent = page.description;
       $('source').href = page.source;
-      $('source').textContent = '查看原文件 ↗';
+      $('source').textContent = page.ocr ? '查看原扫描件 ↗' : '查看原文件 ↗';
       $('download').hidden = $('open-pdf').hidden = !page.pdf;
       if (page.pdf) {
         $('pdf-panel').hidden = false;
-        $('viewer-hint').textContent = page.scanned ? '这份试卷是扫描件，可翻页、缩放和下载；正文暂不支持文字搜索。' : '阅读器内可搜索课件正文、选择文字与翻页。';
+        $('viewer-hint').textContent = page.ocr ? '可搜索 OCR 识别的文字。公式、矩阵和图中的符号请对照试卷图像。' : '阅读器内可搜索课件正文、选择文字与翻页。';
         const saved = Number(get('discrete-page-'+page.id)) || 1;
         const reader = '../pdfjs/web/viewer.html?file='+encodeURIComponent(new URL(page.pdf, location.href).href)+'#page='+saved+'&zoom=page-width&pagemode=none';
         $('download').href = page.pdf;

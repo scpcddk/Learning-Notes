@@ -14,8 +14,7 @@ import build_site
 
 class AIReaderTests(unittest.TestCase):
     def setUp(self):
-        self.scratch = build_site.PAGE_ROOT.parent / "review-output"
-        self.scratch.mkdir(exist_ok=True)
+        self.scratch = Path(tempfile.gettempdir())
         self.temporary = tempfile.TemporaryDirectory(prefix="ai-", dir=self.scratch)
         self.base = Path(self.temporary.name).resolve()
         self.repo = self.base / "repo"
