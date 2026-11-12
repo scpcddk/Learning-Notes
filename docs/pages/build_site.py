@@ -1060,10 +1060,6 @@ def build_algorithms(output, github, branch):
 
         return HREF.sub(local_link, result)
 
-    for page in pages:
-        page["search"] = page["text"]
-        page["full"] = page["summary"] = render(page.pop("text"), page["id"], page.pop("path"))
-
     def package_pdf(path, ident):
         target = destination / "courseware" / (ident + ".pdf")
         target.parent.mkdir(exist_ok=True)
@@ -1098,13 +1094,16 @@ def build_algorithms(output, github, branch):
         path = matches[0]
         course_paths.add(path)
         ident = f"chapter-{index}"
+        routes[path.resolve()] = ident
         course_pages.append(dict(id=ident, title=f"第{number}章 {title}", group="课程 / 数据结构与算法",
                                  kind="chapter", format="PDF", source=original(path), search=description,
                                  description=description, pdf=package_pdf(path, ident),
                                  examples=examples.get(index, [])))
     pages = course_pages + pages
 
-    # Identical supplemental files share one web entry.
+    # Identical supplemental files share one web entry, including a PDF
+    # reading copy keyed by the original file's digest when available.
+    reading_pdfs = PAGE_ROOT / "algorithms" / "reading-pdfs"
     seen = {}
     materials = [p for p in root.rglob("*")
                  if p.suffix.lower() in (".pdf", ".pptx", ".docx")
@@ -1112,22 +1111,31 @@ def build_algorithms(output, github, branch):
     for path in sorted(materials, key=lambda p: ("数据结构与算法（C语言版）" not in p.parts, p.as_posix())):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest in seen:
+            routes[path.resolve()] = seen[digest]
             add_to_competition_folder(path, seen[digest])
             continue
         ident = "material-"+digest[:10]
         seen[digest] = ident
+        routes[path.resolve()] = ident
         add_to_competition_folder(path, ident)
+        is_pdf = path.suffix.lower() == ".pdf"
+        preview = path if is_pdf else reading_pdfs / (ident + ".pdf")
         entry = dict(id=ident, title=path.stem.replace("+", " · "),
                      group="课件 / "+("课程资料" if "数据结构与算法（C语言版）" in path.parts else "竞赛与集训"),
-                     kind="courseware" if path.suffix.lower()==".pdf" else "resource",
-                     format=path.suffix[1:].upper(), source=original(path), search=path.stem,
-                     description="PDF 课件 · 在线阅读" if path.suffix.lower()==".pdf" else "原始资料 · 下载后使用对应软件打开")
-        if path.suffix.lower()==".pdf":
-            entry["pdf"] = package_pdf(path, ident)
+                     format=path.suffix[1:].upper(), source=original(path), search=path.stem)
+        if preview.is_file():
+            entry.update(kind="courseware", pdf=package_pdf(preview, ident),
+                         description="PDF 课件 · 在线阅读" if is_pdf else "PDF 阅读版")
         else:
+            entry.update(kind="resource", description="原始资料 · 下载后使用对应软件打开")
             entry["full"] = entry["summary"] = '<div class="resource-card"><span>'+entry["format"]+'</span><h2>'+escape(entry["title"])+\
                 '</h2><p>这份资料保留原始格式。打开原文件页面后，可下载到本地阅读。</p><a class="primary" href="'+entry["source"]+'" target="_blank" rel="noopener">查看与下载原文件 ↗</a></div>'
         pages.append(entry)
+
+    for page in pages:
+        if "text" in page:
+            page["search"] = page.pop("text")
+            page["full"] = page["summary"] = render(page["search"], page["id"], page.pop("path"))
 
     template = read_template(PAGE_ROOT / "algorithms/index.html")
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
