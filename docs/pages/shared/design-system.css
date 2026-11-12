@@ -51,7 +51,7 @@
   [hidden] { display: none !important; }
   .eyebrow { font: 500 10px/1.8 var(--sans); letter-spacing: .16em; color: var(--green); }
   .brand { font-family: var(--sans); letter-spacing: .015em; }
-  .brand :is(.symbol, .brand-symbol, .brand-icon) {
+  .brand :is(.brand-symbol, .brand-icon) {
     width: 42px; height: 44px; flex-shrink: 0; border: 0; border-radius: 12px;
     background: var(--green); color: var(--bg); display: grid; place-items: center;
   }

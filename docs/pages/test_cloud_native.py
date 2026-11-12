@@ -23,7 +23,7 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.notes.mkdir(parents=True)
         self.output = self.base / "site"
         self.output.mkdir()
-        (self.output / "favicon.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>', encoding="utf-8")
+        (self.output / "favicon.png").write_bytes((build_site.PAGE_ROOT / "favicon.png").read_bytes())
         self.patch = patch.object(build_site, "REPO", self.repo)
         self.patch.start()
 
@@ -66,7 +66,7 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.assertEqual(self.config["pending"], 4)
         self.assertEqual(self.config["notes"], 3)
         self.assertNotIn("<!--HOME_URL-->", text)
-        self.assertIn('href="../favicon.svg"', text)
+        self.assertIn('href="../favicon.png"', text)
         self.assertIn("../pdfjs/web/viewer.html", text)
         self.assertNotIn('href="../../"', text)
         self.assertNotIn('>编程语言</a>', text)

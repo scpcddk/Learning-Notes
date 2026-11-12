@@ -22,7 +22,7 @@ class LearningPlansReaderTests(unittest.TestCase):
         self.notes.mkdir(parents=True)
         self.output = self.base / "site"
         self.output.mkdir()
-        (self.output / "favicon.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>', encoding="utf-8")
+        (self.output / "favicon.png").write_bytes((build_site.PAGE_ROOT / "favicon.png").read_bytes())
         self.patch = patch.object(build_site, "REPO", self.repo)
         self.patch.start()
 
