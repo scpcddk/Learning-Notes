@@ -204,6 +204,7 @@ EMQX 在客户端连接时 POST 请求该接口，按 EMQX 5.x 的 HTTP 认证�
 - **强制 TLS 加密**：为 `8883` 端口配置证书，关闭公网 `1883` 明文端口或仅限内网使用。先通过卷挂载证书，再用环境变量指定容器内路径：
   
   ```bash
+  # 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
   -e EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__KEYFILE=/etc/certs/key.pem
   -e EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CERTFILE=/etc/certs/cert.pem
   ```
@@ -229,6 +230,7 @@ EMQX 在客户端连接时 POST 请求该接口，按 EMQX 5.x 的 HTTP 认证�
 **SQL 示例**（假定 payload 是合法 JSON；解码失败会导致规则执行失败，需在设备端校验并监控失败日志）：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT
   json_decode(payload) as data,
   topic,
@@ -276,6 +278,7 @@ emqx-cluster/
 `docker-compose.yml` 示例（增加资源限制与健康检查）：
 
 ```yaml
+# ports 左侧是宿主入口，右侧是容器端口。数据卷独立于容器重建。
 version: '3.7'
 services:
   emqx1:
@@ -337,6 +340,7 @@ networks:
 设备连接地址不宜直接写节点 IP，可在前面挂 Nginx/HAProxy 或使用云服务商负载均衡，配置 TCP 转发到 `1883` 端口。若使用 Nginx 流模块：
 
 ```nginx
+# 根据 location 选择代理路径，核对 proxy_pass 的 URI、上游地址和转发头。
 stream {
     upstream mqtt_backend {
         server emqx1:1883;

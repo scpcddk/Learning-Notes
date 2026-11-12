@@ -129,6 +129,7 @@ docker exec docker-nginx-1 nginx -t && docker exec docker-nginx-1 nginx -s reloa
 **解决**：在 Nginx 中精确匹配根路径，直接返回 200，不再转发给后端：
 
 ```nginx
+# 先匹配请求路径，再执行对应处理。核对匹配修饰符和资源路径。
 location = /iot-api/ {
     return 200 '{"status":"ok"}';
     add_header Content-Type application/json;
@@ -144,6 +145,7 @@ location = /iot-api/ {
 **解决**：
 
 ```bash
+# 修改指定文件或目录的权限，核对实际运行服务的用户。
 chmod -R 755 /opt/iot-frontend/CloudPlatform/
 ```
 
@@ -176,6 +178,7 @@ chattr -i /opt/nginx/conf.d/default.conf
 **解决**：确保前端 `baseURL` 为 `/iot-api`，并在打包后验证：
 
 ```bash
+# 读取或筛选本地文件，按实际路径与输出核对关键字段。
 grep -o 'baseURL:"[^"]*"' /opt/iot-frontend/CloudPlatform/js/app.*.js
 ```
 
@@ -227,6 +230,7 @@ docker exec docker-nginx-1 nginx -s reload
 3. 注销 Service Worker：`chrome://serviceworker-internals` → 找到站点 → Unregister
 4. 在 Nginx 中添加禁用 HTML 缓存的头：
    ```nginx
+   # 先匹配请求路径，再执行对应处理。核对匹配修饰符和资源路径。
    location ~* \.html$ {
        add_header Cache-Control "no-cache, no-store, must-revalidate";
        expires -1;
@@ -250,6 +254,7 @@ docker exec docker-nginx-1 nginx -s reload
 1. 在 Nginx 配置中添加 WebSocket 升级头：
 
    ```nginx
+   # 根据 location 选择代理路径，核对 proxy_pass 的 URI、上游地址和转发头。
    location /ws/ {
        proxy_pass http://172.27.119.137:8080/ws/;
        proxy_http_version 1.1;
@@ -273,12 +278,14 @@ docker exec docker-nginx-1 nginx -s reload
 **解决**：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 chattr -i /opt/nginx/conf.d/default.conf
 ```
 
 修改完成后可重新锁定：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 chattr +i /opt/nginx/conf.d/default.conf
 ```
 
@@ -303,12 +310,14 @@ chattr +i /opt/nginx/conf.d/default.conf
 ### 4.1 修改前备份
 
 ```bash
+# 操作前区分源路径和目标路径，核对操作后的文件位置。
 cp /opt/nginx/conf.d/default.conf /opt/nginx/conf.d/default.conf.bak.$(date +%Y%m%d_%H%M%S)
 ```
 
 ### 4.2 修改后测试
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec docker-nginx-1 nginx -t
 ```
 看到 `syntax is ok` 和 `test is successful` 后再重载。
@@ -316,6 +325,7 @@ docker exec docker-nginx-1 nginx -t
 ### 4.3 重载配置
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec docker-nginx-1 nginx -s reload
 ```
 
@@ -342,6 +352,7 @@ curl --http1.1 -i --max-time 5 \
 ### 4.5 恢复备份
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 cp /opt/nginx/conf.d/default.conf.bak.xxxxxx /opt/nginx/conf.d/default.conf
 docker exec docker-nginx-1 nginx -s reload
 ```

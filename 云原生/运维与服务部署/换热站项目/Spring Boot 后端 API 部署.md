@@ -25,6 +25,7 @@
 ### 2.1 查看现有容器与端口占用
 
 ```bash
+# 用容器状态和近期日志确认启动进度及失败位置。
 docker ps
 ```
 
@@ -60,6 +61,7 @@ java -version
 ### 3.1 用户加入 docker 组
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 sudo usermod -aG docker $USER
 newgrp docker
 ```
@@ -75,12 +77,14 @@ newgrp docker
 - 上传到服务器：
 
   ```powershell
+  # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
   scp "C:\Users\Lenovo\Downloads\OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz" neu@202.199.6.249:/home/neu/
   ```
 
 - 服务器端解压到 `/opt`：
 
   ```bash
+  # 核对归档输入和输出位置，完成后检查文件清单。
   sudo tar -xzf /home/neu/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz -C /opt/
   ```
 
@@ -109,6 +113,7 @@ newgrp docker
 在项目根目录 `D:\换热站\CloudPlatform\CloudPlatform` 下打开 PowerShell：
 
 ```powershell
+# 在包含 pom.xml 的项目目录运行，查看构建阶段和输出制品。
 .\mvnw.cmd clean package -DskipTests
 ```
 
@@ -121,6 +126,7 @@ newgrp docker
 ### 4.3 上传 JAR 到服务器
 
 ```powershell
+# 核对远端账号、主机与目标路径。区分本机文件和远端文件。
 scp "D:\换热站\CloudPlatform\CloudPlatform\target\CloudPlatform-0.0.1-SNAPSHOT.jar" neu@202.199.6.249:/home/neu/
 ```
 
@@ -131,6 +137,7 @@ scp "D:\换热站\CloudPlatform\CloudPlatform\target\CloudPlatform-0.0.1-SNAPSHO
 ### 5.1 目录规划
 
 ```bash
+# 修改指定文件或目录的权限，核对实际运行服务的用户。
 sudo mkdir -p /opt/iot-backend
 sudo mv /home/neu/CloudPlatform-0.0.1-SNAPSHOT.jar /opt/iot-backend/app.jar
 sudo chown -R neu:neu /opt/iot-backend
@@ -143,6 +150,7 @@ sudo chown -R neu:neu /opt/iot-backend
 `/etc/systemd/system/iot-api.service`内容：
 
 ```ini
+# 分开描述服务依赖、启动命令与运行身份，修改后由服务管理器重新加载配置。
 [Unit]
 Description=IoT Backend API Service
 After=network.target
@@ -197,6 +205,7 @@ sudo systemctl status iot-api         # 查看状态
 **查看日志**（后端最重要的排错命令）：
 
 ```bash
+# 查看近期日志，按时间定位和当前操作对应的记录。
 sudo journalctl -u iot-api -n 50 --no-pager
 ```
 
@@ -212,6 +221,7 @@ Access denied for user 'root'@'192.168.100.1' (using password: NO)
 
 JAR 包内的 `application.properties` 文件配置的数据库连接信息（可能来自开发环境）是：
 ```properties
+# 数据库地址从应用所在网络选择，连接信息与驱动、字符集配置一起核对。
 spring.datasource.url=jdbc:mysql://localhost:3306/cloudplatform
 spring.datasource.username=root
 spring.datasource.password=
@@ -229,12 +239,14 @@ spring.datasource.password=
 ### 7.1 创建外部配置文件
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 sudo nano /opt/iot-backend/application.properties
 ```
 
 写入正确的数据库连接信息：
 
 ```properties
+# 数据库地址从应用所在网络选择，连接信息与驱动、字符集配置一起核对。
 spring.datasource.url=jdbc:mysql://127.0.0.1:3306/cloudplatform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
 spring.datasource.username=clouduser
 spring.datasource.password=cloudpass123
@@ -249,12 +261,14 @@ spring.jpa.hibernate.ddl-auto=update
 编辑服务文件：
 
 ```bash
+# 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 sudo nano /etc/systemd/system/iot-api.service
 ```
 
 将 `ExecStart` 改为：
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 ExecStart=/opt/jdk-17.0.20+8/bin/java -jar /opt/iot-backend/app.jar --spring.config.additional-location=file:/opt/iot-backend/application.properties
 ```
 
@@ -263,6 +277,7 @@ ExecStart=/opt/jdk-17.0.20+8/bin/java -jar /opt/iot-backend/app.jar --spring.con
 ### 7.3 **重载并重启**
 
 ```bash
+# 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 sudo systemctl daemon-reload
 sudo systemctl restart iot-api
 ```
@@ -285,12 +300,14 @@ curl http://localhost:8080/
 服务器已有 `mysql_8.0` 容器，直接复用：
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec -it mysql_8.0 mysql -u root -p
 ```
 
 输入 root 密码后：
 
 ```sql
+-- 创建独立数据库作为练习范围，后续建表前核对当前库。
 CREATE DATABASE IF NOT EXISTS cloudplatform CHARACTER SET utf8mb4;
 CREATE USER 'clouduser'@'%' IDENTIFIED BY 'cloudpass123';
 GRANT ALL PRIVILEGES ON cloudplatform.* TO 'clouduser'@'%';
@@ -308,12 +325,14 @@ EXIT;
 **上传文件**：
 
 ```powershell
+# 核对远端账号、主机与目标路径。区分本机文件和远端文件。
 scp "C:\...\cloud_platform2.sql" neu@202.199.6.249:/home/neu/
 ```
 
 **查看文件头**：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 head -30 /home/neu/cloud_platform2.sql
 ```
 
@@ -322,6 +341,7 @@ head -30 /home/neu/cloud_platform2.sql
 **创建实际数据库**（以 `cloud_platform` 为名）：
 
 ```sql
+-- 创建独立数据库作为练习范围，后续建表前核对当前库。
 CREATE DATABASE IF NOT EXISTS cloud_platform CHARACTER SET utf8mb4;
 GRANT ALL PRIVILEGES ON cloud_platform.* TO 'clouduser'@'%';
 ```
@@ -329,6 +349,7 @@ GRANT ALL PRIVILEGES ON cloud_platform.* TO 'clouduser'@'%';
 **导入数据**：
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec -i mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform < /home/neu/cloud_platform2.sql
 ```
 
@@ -337,6 +358,7 @@ docker exec -i mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform < /hom
 **验证表结构**：
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec -it mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform -e "SHOW TABLES;"
 ```
 
@@ -347,6 +369,7 @@ docker exec -it mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform -e "S
 之前外部配置中数据库名是 `cloudplatform`，但实际数据在 `cloud_platform`（有下划线）。修改 `/opt/iot-backend/application.properties`：
 
 ```properties
+# 数据库地址从应用所在网络选择，连接信息与驱动、字符集配置一起核对。
 spring.datasource.url=jdbc:mysql://127.0.0.1:3306/cloud_platform?...
 ```
 
@@ -374,12 +397,14 @@ curl http://localhost:8080/   # 只验证该端点可响应；另查实际读写
 **进入容器**：
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec -it docker-nginx-1 bash
 ```
 
 **查看主配置**：
 
 ```bash
+# 读取或筛选本地文件，按实际路径与输出核对关键字段。
 cat /etc/nginx/conf.d/default.conf
 ```
 
@@ -390,6 +415,7 @@ cat /etc/nginx/conf.d/default.conf
 在原有 `server` 块中，`location / {` 之前插入：
 
 ```nginx
+# 根据 location 选择代理路径，核对 proxy_pass 的 URI、上游地址和转发头。
 location /iot-api/ {
     proxy_pass http://202.199.6.249:8080/;
     proxy_set_header Host $host;
@@ -405,6 +431,7 @@ location /iot-api/ {
 **测试并重载**：
 
 ```bash
+# 检查配置语法后再重载，随后验证实际流量入口。
 nginx -t
 nginx -s reload
 exit
@@ -473,18 +500,21 @@ curl http://localhost/iot-api/
 1. **本地打包**
    
    ```powershell
+   # 在包含 pom.xml 的项目目录运行，查看构建阶段和输出制品。
    .\mvnw.cmd clean package -DskipTests
    ```
 
 2. **上传 JAR**
    
    ```powershell
+   # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
    scp target\CloudPlatform-0.0.1-SNAPSHOT.jar neu@202.199.6.249:/home/neu/
    ```
 
 3. **服务器替换 JAR 并重启**
    
    ```bash
+   # 通过服务管理器操作目标进程，再核对它的状态和错误日志。
    sudo systemctl stop iot-api
    sudo mv /home/neu/CloudPlatform-0.0.1-SNAPSHOT.jar /opt/iot-backend/app.jar
    sudo systemctl start iot-api
@@ -493,6 +523,7 @@ curl http://localhost/iot-api/
 4. **验证**
    
    ```bash
+   # 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
    curl http://localhost/iot-api/
    ```
 

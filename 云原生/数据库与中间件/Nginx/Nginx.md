@@ -204,6 +204,7 @@ location /api/ {
 在 `application.yml` 中添加：
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 server:
   forward-headers-strategy: native
 ```
@@ -313,6 +314,7 @@ location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
 ## 6. 跨域与常见头处理（直接复制）
 
 ```nginx
+# 根据 location 选择代理路径，核对 proxy_pass 的 URI、上游地址和转发头。
 location /api/ {
     add_header Access-Control-Allow-Origin *;
     add_header Access-Control-Allow-Methods 'GET, POST, OPTIONS';
@@ -413,6 +415,7 @@ server {
 **看懂 70%**：自定义日志字段，供 ELK 或 AIOps 算法消费。
 
 ```nginx
+# 在 upstream 中定义后端集合，后续由代理指令引用其名称。
 log_format json_combined escape=json '{'
     '"timestamp":"$time_iso8601",'
     '"request_id":"$request_id",'
@@ -484,6 +487,7 @@ Prometheus 会通过 exporter 将这些数字转成时序数据。
 **会用即可**：Docker 启动 exporter 抓取 `stub_status`。
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d \
   --name nginx-exporter \
   --network host \
@@ -644,6 +648,7 @@ location /api/ {
 Spring Boot 侧配置信任这些头：
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 server:
   forward-headers-strategy: native
 ```
@@ -744,6 +749,7 @@ location /api/ {
 对静态资源设置强缓存，减少重复请求，大幅提升加载速度：
 
 ```nginx
+# 先匹配请求路径，再执行对应处理。核对匹配修饰符和资源路径。
 location ~* \.(jpg|png|css|js)$ {
     expires 30d;
     add_header Cache-Control "public, max-age=2592000";
@@ -795,6 +801,7 @@ location ~* \.(jpg|png|css|js)$ {
 - **应急方案**：临时调大超时  
   
   ```nginx
+  # 根据 location 选择代理路径，核对 proxy_pass 的 URI、上游地址和转发头。
   location /api/slow/ {
       proxy_pass http://backend/;
       proxy_read_timeout 120s;
@@ -829,6 +836,7 @@ location ~* \.(jpg|png|css|js)$ {
 利用 JSON 日志中的 `$request_time` 和 `$upstream_response_time`：
 
 ```bash
+# 读取或筛选本地文件，按实际路径与输出核对关键字段。
 cat /var/log/nginx/access.log | jq -r '[.request_time, .request, .upstream_response_time] | @tsv' | sort -nr | head -10
 ```
 

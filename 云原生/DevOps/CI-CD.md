@@ -155,6 +155,7 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 以下是可独立运行的输出传递示例：
 
 ```yaml
+# 触发条件决定何时运行，jobs 下配置执行环境和构建步骤。
 name: Job Output Example
 
 on:
@@ -242,6 +243,7 @@ verify 不会自动发现并正确运行所有集成测试；常见做法是配�
 文件：应用仓库的 `.github/workflows/ci.yml`。
 
 ```yaml
+# 触发条件决定何时运行，jobs 下配置执行环境和构建步骤。
 name: Java CI
 
 on:
@@ -378,6 +380,7 @@ Artifact 有保留期限和权限边界，不应当作无限期发布存档。�
 应用根目录的 `Dockerfile.ci`：
 
 ```dockerfile
+# FROM 选择基础环境，RUN 在构建时执行，CMD 或 ENTRYPOINT 决定容器启动方式。
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY dist/app.jar /app/app.jar
@@ -395,6 +398,7 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 第七节与本节是两种配置方案。采用本节完整流程时，通常只启用这一份，避免每次提交重复运行相同检查。
 
 ```yaml
+# 触发条件决定何时运行，jobs 下配置执行环境和构建步骤。
 name: Build and Publish
 
 on:
@@ -526,6 +530,7 @@ CI 已登录 GHCR，不代表部署服务器能拉取私有镜像。服务器需
 ### 12.1 服务配置示例
 
 ```yaml
+# 按服务组织容器。容器之间用服务名和容器端口访问。
 services:
   backend:
     image: ${APP_IMAGE:?请设置已发布的镜像引用}

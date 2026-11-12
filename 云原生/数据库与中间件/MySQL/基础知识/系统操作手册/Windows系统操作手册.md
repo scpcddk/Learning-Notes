@@ -53,6 +53,7 @@ net restart MySQL      # 无效，需分别执行 stop 和 start
 也可使用 PowerShell：
 
 ```powershell
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 Start-Service MySQL
 Stop-Service MySQL
 Restart-Service MySQL
@@ -75,6 +76,7 @@ Restart-Service MySQL
 1. 打开命令行（以管理员身份运行 CMD 或 PowerShell），输入：
 
 ```cmd
+REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysql -u root -p
 ```
 
@@ -83,12 +85,14 @@ mysql -u root -p
 2. 查看当前认证插件：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT user, host, plugin FROM mysql.user WHERE user='root';
 ```
 
 修改密码时保留兼容的认证方式；MySQL 8.0/8.4 可明确使用 caching_sha2_password：
 
 ```sql
+-- 按账号与来源限定权限，修改后用目标账号核对可访问范围。
 ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'Root@123456';
 FLUSH PRIVILEGES;
 exit;
@@ -131,12 +135,14 @@ exit;
 1. 停止 MySQL 服务：
 
    ```cmd
+   REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
    net stop MySQL
    ```
 
 2. 以管理员身份打开一个新的 CMD 窗口，进入 MySQL 的 `bin` 目录（例如 `C:\Program Files\MySQL\MySQL Server 8.0\bin`），执行：
 
    ```cmd
+   REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
    mysqld --defaults-file="C:\ProgramData\MySQL\MySQL Server 8.0\my.ini" --console --skip-grant-tables --shared-memory
    ```
 
@@ -145,12 +151,14 @@ exit;
 3. 另开一个管理员 CMD 窗口，通过共享内存连接（跳过授权表时 TCP 默认被禁用）：
 
    ```cmd
+   REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
    mysql --protocol=MEMORY -u root
    ```
 
 4. 登录成功后重置密码：
 
    ```sql
+   -- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
    FLUSH PRIVILEGES;
    ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'Root@123456';
    FLUSH PRIVILEGES;
@@ -160,6 +168,7 @@ exit;
 5. 关闭步骤 2 中的 `mysqld` 窗口（或按 Ctrl+C），然后正常启动 MySQL 服务：
 
    ```cmd
+   REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
    net start MySQL
    ```
 
@@ -168,6 +177,8 @@ exit;
 ### 方法二：使用初始化文件（`init_file`）
 
 1. 创建一个文本文件（如 `C:\mysql-init.txt`），内容为：
+
+   **阅读提示**　按账号与来源限定权限，修改后用目标账号核对可访问范围。
 
    ```
    ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'Root@123456';
@@ -178,6 +189,7 @@ exit;
 3. 以管理员身份运行：
 
    ```cmd
+   REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
    mysqld --defaults-file="C:\ProgramData\MySQL\MySQL Server 8.0\my.ini" --init-file=C:\mysql-init.txt --console
    ```
 
@@ -193,6 +205,7 @@ exit;
 ## 六、SpringBoot 连接配置（Windows 专用）
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/testdb?useSSL=false&serverTimezone=Asia/Shanghai
@@ -209,6 +222,7 @@ spring:
 ## 七、常用数据库命令
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 SHOW DATABASES;
 CREATE DATABASE 库名;
 USE 库名;
@@ -222,6 +236,7 @@ exit;
 ### 📌 1. 查看端口相关变量
 
 ```sql
+-- 查看服务端当前参数或状态。记录作用范围，便于和修改后对照。
 show variables like '%port%';
 ```
 
@@ -235,6 +250,7 @@ show variables like '%port%';
 ### 📌 2. 查看账号允许登录 IP（host）
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 select user, host from mysql.user where user='root';
 ```
 
@@ -246,6 +262,7 @@ select user, host from mysql.user where user='root';
 **修改账号主机范围：`RENAME USER`（无需 FLUSH PRIVILEGES）**
 
 ```sql
+-- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
 RENAME USER 'root'@'%' TO 'root'@'localhost';
 ```
 
@@ -254,6 +271,7 @@ RENAME USER 'root'@'%' TO 'root'@'localhost';
 配置文件 `my.ini`（或 `my.cnf`）中查找或添加：
 
 ```ini
+# 核对配置属于 MySQL 服务端还是客户端，重启或重新连接后检查生效值。
 [mysqld]
 bind-address        = 127.0.0.1
 mysqlx-bind-address = 127.0.0.1
@@ -268,6 +286,7 @@ mysqlx-bind-address = 127.0.0.1
 修改配置后，**一定要重启服务才生效**：
 
 ```cmd
+REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 net stop MySQL
 net start MySQL
 ```
@@ -275,6 +294,7 @@ net start MySQL
 命令行快速查看运行时生效值，不用打开配置文件：
 
 ```sql
+-- 查看服务端当前参数或状态。记录作用范围，便于和修改后对照。
 show variables like 'bind_address';
 ```
 
@@ -291,6 +311,7 @@ show variables like 'bind_address';
 **备份**（以下在 CMD 执行，避免旧版 PowerShell 重定向改变编码；也可使用 mysqldump 的 --result-file）
 
 ```cmd
+REM 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysqldump -uroot -p 库名 > C:\备份路径\备份名.sql
 ```
 
@@ -311,6 +332,7 @@ mysql -uroot -p 库名 < C:\备份路径\备份名.sql
 Windows 安装时通常已引导完成基本安全设置。若需再次运行安全脚本，可使用：
 
 ```cmd
+REM 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 mysql_secure_installation
 ```
 

@@ -23,6 +23,7 @@ MinIO 是一个开源的高性能**对象存储服务**，提供 S3 兼容 API�
 > **版本选择**：MinIO 在 2021 年已转为 AGPL v3。2025 年 5 月后的社区 Console 缩减了管理功能，并非完全移除 Web 界面。以下固定版本用于复现本文示例：
 >
 > ```bash
+> # 处理镜像仓库与标签。先核对仓库地址、制品版本和所用身份。
 > docker pull minio/minio:RELEASE.2025-04-08T15-41-24Z
 > ```
 > 该版本保留原有管理界面；许可证适用性需结合实际使用、修改和分发方式判断，不能笼统认定“内部使用无影响”。生产版本还需核对维护状态与安全修复。
@@ -34,6 +35,7 @@ MinIO 是一个开源的高性能**对象存储服务**，提供 S3 兼容 API�
 ### 2.1 单节点启动（测试用）
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d --name minio \
   -p 9000:9000 \
   -p 9001:9001 \
@@ -59,6 +61,7 @@ docker run -d --name minio \
 若想在不搭建集群的情况下体验纠删码特性，可在单节点指定多个数据目录：
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d --name minio \
   -p 9000:9000 -p 9001:9001 \
   -e MINIO_ROOT_USER=minioadmin \
@@ -136,18 +139,21 @@ docker run -d --name minio \
 **命令行操作**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc version enable myminio/heat-station-images
 ```
 
 **查看历史版本**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc ls --versions myminio/heat-station-images/station1/snapshot.jpg
 ```
 
 **恢复历史版本**（先下载特定版本，再上传为新的当前版本；尖括号替换为实际 ID）：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc cp --version-id "实际版本ID" myminio/heat-station-images/station1/snapshot.jpg ./restored.jpg
 mc cp ./restored.jpg myminio/heat-station-images/station1/snapshot.jpg
 ```
@@ -159,12 +165,14 @@ mc cp ./restored.jpg myminio/heat-station-images/station1/snapshot.jpg
 **创建支持锁定的桶**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc mb --with-lock myminio/audit-logs
 ```
 
 **设置默认保留策略**（合规模式，保留 30 天）：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc retention set --default compliance 30d myminio/audit-logs
 ```
 
@@ -178,6 +186,7 @@ mc retention set --default compliance 30d myminio/audit-logs
 **对单个对象设置 Legal Hold（法律保留）**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc legalhold set myminio/audit-logs/2026-08-11-station1.log
 ```
 
@@ -190,12 +199,14 @@ mc legalhold set myminio/audit-logs/2026-08-11-station1.log
 **命令行设置**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc quota set myminio/heat-station-images --size 100GB
 ```
 
 **查看当前配额使用情况**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc du myminio/heat-station-images
 ```
 
@@ -208,18 +219,21 @@ mc du myminio/heat-station-images
 **命令行设置（30 天后自动删除）**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc ilm rule add myminio/heat-station-images --expire-days 30
 ```
 
 **设置转换到冷存储**（若 MinIO 配置了冷热分层）：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc ilm rule add myminio/heat-station-images --transition-days 7 --transition-tier cold-tier
 ```
 
 **查看已有生命周期规则**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc ilm rule list myminio/heat-station-images
 ```
 
@@ -234,6 +248,7 @@ mc ilm rule list myminio/heat-station-images
 **命令行设置公开读**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc anonymous set download myminio/public-reports
 ```
 
@@ -248,6 +263,7 @@ mc anonymous set download myminio/public-reports
 **安装**（Linux）：
 
 ```bash
+# 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
 wget https://dl.min.io/client/mc/release/linux-amd64/mc
 chmod +x mc
 sudo mv mc /usr/local/bin/
@@ -256,6 +272,7 @@ sudo mv mc /usr/local/bin/
 **配置别名连接服务器**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc alias set myminio http://192.168.1.100:9000 minioadmin minioadmin
 ```
 
@@ -330,6 +347,7 @@ client.fput_object(
 **自定义元数据**（与对象标签 tagging 是不同功能）：
 
 ```python
+# 按桶和对象键上传数据，核对上传类型、文件来源及结果。
 client.fput_object(
     "heat-station-images",
     "snapshot.jpg",
@@ -346,6 +364,7 @@ client.fput_object(
 换热站边缘网关若基于 Java 开发，可直接集成 MinIO Java SDK。添加 Maven 依赖：
 
 ```xml
+<!-- 放到 pom.xml 的对应节点，区分依赖版本管理、实际依赖与构建插件。 -->
 <dependency>
     <groupId>io.minio</groupId>
     <artifactId>minio</artifactId>
@@ -456,6 +475,7 @@ public class MinioExample {
 **命令行管理用户**（先将 6.2 节精细策略保存为 `station1-policy.json`；按实际站点调整前缀）：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc admin user add myminio station-gateway password123
 mc admin policy create myminio station1-objects ./station1-policy.json
 mc admin policy attach myminio station1-objects --user station-gateway
@@ -466,6 +486,8 @@ mc admin user disable myminio station-gateway
 ### 6.2 桶策略示例
 
 以下桶策略授予所有访问者匿名读取对象的权限（`Principal: *`），仅适合公开桶：
+
+**阅读提示**　按 Statement 核对允许的 Action、资源范围和生效条件。
 
 ```json
 {
@@ -482,6 +504,8 @@ mc admin user disable myminio station-gateway
 ```
 
 **精细 IAM 策略**：以下身份策略不含 Principal，创建后附加给 `station1` 用户，使其只读写自己的对象前缀；这不是匿名桶策略：
+
+**阅读提示**　按 Statement 核对允许的 Action、资源范围和生效条件。
 
 ```json
 {
@@ -588,6 +612,7 @@ server {
 同时设置环境变量让 MinIO 感知外部代理地址：
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 environment:
   - MINIO_SERVER_URL=https://minio-api.your-domain.com
   - MINIO_BROWSER_REDIRECT_URL=https://minio-console.your-domain.com
@@ -596,6 +621,7 @@ environment:
 **自签名证书（测试/内网）**：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 openssl req -x509 -newkey rsa:4096 -keyout private.key -out public.crt -days 3650 -nodes -subj "/CN=minio.local"
 ```
 
@@ -640,12 +666,15 @@ upload_url = client.presigned_put_object(
 **设备端上传（使用 curl）**：
 
 ```bash
+# 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
 curl -X PUT -T /path/to/image.jpg "<预签名URL>"
 ```
 
 **EMQX 规则引擎处理通知**：
 
 设备上传成功后发送 MQTT 消息：
+
+**阅读提示**　object 标识已经上传的对象，消费端按这个对象定位数据，消息中不承载文件正文。
 
 ```json
 {
@@ -684,6 +713,7 @@ mc event add myminio/heat-station-images \
 MinIO 提供健康端点：
 
 ```bash
+# 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
 curl http://localhost:9000/minio/health/live
 curl http://localhost:9000/minio/health/ready
 ```
@@ -693,6 +723,7 @@ curl http://localhost:9000/minio/health/ready
 抓取配置（需认证）：
 
 ```yaml
+# 抓取目标的地址必须从 Prometheus 所在网络可达，路径以应用实际暴露值为准。
 - job_name: minio
   metrics_path: /minio/v2/metrics/cluster
   static_configs:
@@ -720,17 +751,20 @@ curl http://localhost:9000/minio/health/ready
 查看容器日志：
 
 ```bash
+# 用容器状态和近期日志确认启动进度及失败位置。
 docker logs -f minio
 ```
 
 启用 JSON 格式日志（便于 ELK/Loki），使用启动参数：
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 command: server --json /data --console-address ":9001"
 ```
 
 配置审计日志 Webhook：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc admin config set myminio audit_webhook:1 endpoint="http://audit-receiver:8080/minio-audit"
 ```
 
@@ -741,6 +775,7 @@ mc admin config set myminio audit_webhook:1 endpoint="http://audit-receiver:8080
 **数据同步（mc mirror）**：
 
 ```bash
+# 使用配置好的 MinIO 别名。确认桶、对象路径和当前账号权限。
 mc mirror myminio/heat-station-images /backup/heat-station-images/
 mc mirror myminio/heat-station-images myminio-backup/heat-station-images
 ```
@@ -758,6 +793,7 @@ mc admin cluster iam import myminio ./myminio-iam-info.zip
 单机容量不足时可规划分布式部署；节点与磁盘数需满足版本及纠删码集合要求，并非固定至少 4 节点。旧单盘数据需通过受支持的迁移方式转入新部署。启动示例（4 节点）：
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d --name minio1 ... minio/minio:RELEASE.2025-04-08T15-41-24Z server 'http://minio{1...4}/data'
 ```
 

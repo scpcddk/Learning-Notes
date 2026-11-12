@@ -24,6 +24,7 @@ SRS 在项目中扮演的角色就是 **“视频格式翻译官”**。你不�
 ### 2.1 一条命令启动
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d --name srs \
   --restart=always \
   -p 1935:1935 \
@@ -45,6 +46,7 @@ docker run -d --name srs \
 如果不习惯记长命令，可以用 `docker-compose.yml` 统一管理：
 
 ```yaml
+# 按服务组织容器。容器之间用服务名和容器端口访问。
 version: '3'
 services:
   srs:
@@ -77,6 +79,7 @@ services:
 如果宿主机 8080 已经被其他服务占用（如 Spring Boot），换一个映射端口即可：
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d --name srs \
   --restart=always \
   -p 1935:1935 \
@@ -102,6 +105,7 @@ rtmp://服务器IP:1935/live/流名
 - 用 FFmpeg 推流示例：
   
   ```bash
+  # 区分媒体输入与输出，检查协议、编码参数和服务返回。
   ffmpeg -f v4l2 -i /dev/video0 -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://39.102.213.11:1935/live/camera01
   ```
 
@@ -148,6 +152,7 @@ location /live/ {
 ### 5.1 查看 SRS 自身日志（最重要）
 
 ```bash
+# 用容器状态和近期日志确认启动进度及失败位置。
 docker logs -f --tail 50 srs
 ```
 
@@ -159,6 +164,7 @@ docker logs -f --tail 50 srs
 ### 5.2 查看谁在推流
 
 ```bash
+# 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
 curl http://IP:1985/api/v1/clients | python3 -m json.tool
 ```
 
@@ -167,6 +173,7 @@ curl http://IP:1985/api/v1/clients | python3 -m json.tool
 ### 5.3 测试播放地址是否可访问
 
 ```bash
+# 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
 curl -I http://IP:8080/live/流名.flv
 ```
 

@@ -27,6 +27,7 @@ Jetson 摄像头采集的视频原始流通常是 RTSP 或 RTMP 协议，**浏�
 ### 2.1 个人电脑下载镜像
 
 ```powershell
+# 处理镜像仓库与标签。先核对仓库地址、制品版本和所用身份。
 docker pull ossrs/srs:5
 docker save ossrs/srs:5 -o srs.tar
 ```
@@ -34,12 +35,14 @@ docker save ossrs/srs:5 -o srs.tar
 ### 2.2 上传到服务器
 
 ```powershell
+# 核对远端账号、主机与目标路径。区分本机文件和远端文件。
 scp C:\Users\Lenovo\Desktop\srs.tar neu@202.199.6.249:/home/neu/
 ```
 
 ### 2.3 服务器加载镜像
 
 ```bash
+# 在文件和 Docker 制品之间转换，导入后核对标签或容器所需文件。
 docker load -i /home/neu/srs.tar
 ```
 
@@ -50,6 +53,7 @@ docker load -i /home/neu/srs.tar
 ### 3.1 首次启动失败
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d --name srs \
   --restart=always \
   -p 1935:1935 \
@@ -107,6 +111,7 @@ docker run -d --name srs \
 ### 4.3 进入容器查看现有配置
 
 ```bash
+# 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec -it docker-nginx-1 bash
 cat -n /etc/nginx/conf.d/default.conf | grep -E "location /|server_name"
 ```
@@ -134,6 +139,7 @@ cat -n /etc/nginx/conf.d/default.conf | grep -E "location /|server_name"
 使用 `sed` 在 `location / {` 前面插入：
 
 ```bash
+# 读取或筛选本地文件，按实际路径与输出核对关键字段。
 sed -i '43i\    location /live/ {\n        proxy_pass http://202.199.6.249:8081/live/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }' /etc/nginx/conf.d/default.conf
 ```
 
@@ -143,6 +149,7 @@ sed -i '43i\    location /live/ {\n        proxy_pass http://202.199.6.249:8081/
 ### 4.5 测试并重载
 
 ```bash
+# 检查配置语法后再重载，随后验证实际流量入口。
 nginx -t && nginx -s reload
 exit
 ```
@@ -150,6 +157,7 @@ exit
 ### 4.6 验证 Nginx 代理
 
 ```bash
+# 从当前网络位置访问指定端点，结合状态码和响应内容判断结果。
 curl -I http://localhost/live/
 ```
 
@@ -173,6 +181,7 @@ curl -I http://localhost/live/
 ### 5.2 新增 StreamController
 
 ```java
+// 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
 @RestController
 @RequestMapping("/api/stream")
 public class StreamController {
@@ -195,6 +204,8 @@ public class StreamController {
 对外完整路径：`GET /iot-api/stream/{deviceId}`  
 返回示例：
 
+**阅读提示**　hls 和 flv 是同一流的两个播放入口，客户端按所用协议选择。
+
 ```json
 {"hls":"http://202.199.6.249/live/device1.m3u8","flv":"http://202.199.6.249/live/device1.flv"}
 ```
@@ -206,12 +217,14 @@ public class StreamController {
 在 `SecurityConfig.java` 中新增一行：
 
 ```java
+// 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
 .requestMatchers("/api/stream/**").permitAll()
 ```
 
 ### 5.4 重新打包部署
 
 ```bash
+# 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 ./mvnw clean package -DskipTests
 scp target/*.jar neu@202.199.6.249:/home/neu/
 sudo systemctl stop iot-api

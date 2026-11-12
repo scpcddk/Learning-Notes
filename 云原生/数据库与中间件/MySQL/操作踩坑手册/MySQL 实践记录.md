@@ -25,6 +25,7 @@
 #### 2. 核心 SQL
 
 ```sql
+-- 查看实际生效的建表定义，重点核对引擎、字符集和约束。
 SHOW DATABASES;
 
 USE school;
@@ -43,18 +44,21 @@ SHOW CREATE TABLE student;
 复习时曾写出：
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 DESC TABLE student;
 ```
 
 正确写法：
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 DESC student;
 ```
 
 也可以使用：
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 DESCRIBE student;
 ```
 
@@ -89,6 +93,7 @@ DESCRIBE student;
 增加字段：
 
 ```sql
+-- 修改表结构后检查实际定义，已有数据需满足新增的约束。
 ALTER TABLE student
 ADD COLUMN email VARCHAR(100);
 ```
@@ -96,6 +101,7 @@ ADD COLUMN email VARCHAR(100);
 修改字段：
 
 ```sql
+-- 修改表结构后检查实际定义，已有数据需满足新增的约束。
 ALTER TABLE student
 MODIFY COLUMN email VARCHAR(150);
 ```
@@ -103,6 +109,7 @@ MODIFY COLUMN email VARCHAR(150);
 删除字段：
 
 ```sql
+-- 修改表结构后检查实际定义，已有数据需满足新增的约束。
 ALTER TABLE student
 DROP COLUMN email;
 ```
@@ -134,6 +141,7 @@ VALUES ('张三', 20);
 后续强化题中，已正确写出：
 
 ```sql
+-- 修改表结构后检查实际定义，已有数据需满足新增的约束。
 ALTER TABLE student
 ADD COLUMN phone VARCHAR(20);
 ```
@@ -163,6 +171,7 @@ ADD COLUMN phone VARCHAR(20);
 删除指定记录：
 
 ```sql
+-- 先确认筛选条件对应的记录，注意删除后子表引用是否受影响。
 DELETE FROM student
 WHERE id = 5;
 ```
@@ -170,12 +179,14 @@ WHERE id = 5;
 清空表数据：
 
 ```sql
+-- 此语句会移除对象或数据。先核对练习库、对象名和保留需求。
 TRUNCATE TABLE student;
 ```
 
 删除整张表：
 
 ```sql
+-- 此语句会移除对象或数据。先核对练习库、对象名和保留需求。
 DROP TABLE student;
 ```
 
@@ -186,6 +197,7 @@ DROP TABLE student;
 复习时能够正确写出：
 
 ```sql
+-- 此语句会移除对象或数据。先核对练习库、对象名和保留需求。
 TRUNCATE TABLE student;
 ```
 
@@ -254,6 +266,7 @@ student
 新增学生：
 
 ```sql
+-- 按字段顺序写入样例数据，留意默认值、唯一键和外键检查。
 INSERT INTO student
 (name, age, gender, score, class_name)
 VALUES
@@ -263,6 +276,7 @@ VALUES
 查询学生：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT *
 FROM student
 WHERE score >= 90;
@@ -271,6 +285,7 @@ WHERE score >= 90;
 更新成绩：
 
 ```sql
+-- 先确认 WHERE 命中范围，再根据影响行数判断更新是否符合预期。
 UPDATE student
 SET score = 95
 WHERE id = 1;
@@ -279,6 +294,7 @@ WHERE id = 1;
 删除指定学生：
 
 ```sql
+-- 先确认筛选条件对应的记录，注意删除后子表引用是否受影响。
 DELETE FROM student
 WHERE id = 1;
 ```
@@ -292,6 +308,7 @@ WHERE id = 1;
 例如：
 
 ```sql
+-- 先确认 WHERE 命中范围，再根据影响行数判断更新是否符合预期。
 UPDATE student
 SET score = 100;
 ```
@@ -328,6 +345,7 @@ SET score = 100;
 查询成绩在 80 到 100 分之间的学生：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT *
 FROM student
 WHERE score BETWEEN 80 AND 100;
@@ -336,6 +354,7 @@ WHERE score BETWEEN 80 AND 100;
 查询姓张的学生：
 
 ```sql
+-- 按模式匹配文本。对照通配符位置与可能使用的索引。
 SELECT *
 FROM student
 WHERE name LIKE '张%';
@@ -344,6 +363,7 @@ WHERE name LIKE '张%';
 查询成绩最高的前五名：
 
 ```sql
+-- 限制返回范围。分页使用稳定排序，避免多次查询出现重行或漏行。
 SELECT *
 FROM student
 ORDER BY score DESC, id ASC
@@ -353,6 +373,7 @@ LIMIT 5;
 统计每个班级的平均成绩：
 
 ```sql
+-- 按指定键分组，核对每个聚合列的输入范围和空值处理。
 SELECT
     class_name,
     AVG(score) AS avg_score
@@ -363,6 +384,7 @@ GROUP BY class_name;
 筛选平均成绩不低于 85 分的班级：
 
 ```sql
+-- 先分组并计算聚合，再用 HAVING 筛选分组结果。
 SELECT
     class_name,
     AVG(score) AS avg_score
@@ -378,6 +400,7 @@ HAVING AVG(score) >= 85;
 `HAVING` 在分组后筛选聚合结果。
 
 ```sql
+-- 先分组并计算聚合，再用 HAVING 筛选分组结果。
 SELECT class_name, AVG(score)
 FROM student
 WHERE score IS NOT NULL
@@ -433,6 +456,7 @@ HAVING AVG(score) >= 85;
 #### 3. 核心 SQL
 
 ```sql
+-- 保留左表记录。检查对右表的条件放在 ON 还是 WHERE，以免无匹配行被过滤。
 SELECT s.name, r.score
 FROM student s
 LEFT JOIN score_record r
@@ -475,6 +499,7 @@ ON s.id = r.student_id;
 INNER JOIN：
 
 ```sql
+-- 根据关联键拼接数据。先检查 ON 条件，再判断过滤与重复行来源。
 SELECT s.name, r.score
 FROM student s
 INNER JOIN score_record r
@@ -506,6 +531,7 @@ ON s.id = r.student_id;
 #### 2. 核心 SQL
 
 ```sql
+-- 保留左表记录。检查对右表的条件放在 ON 还是 WHERE，以免无匹配行被过滤。
 SELECT s.*
 FROM student s
 LEFT JOIN score_record r
@@ -518,12 +544,14 @@ WHERE r.student_id IS NULL;
 不能使用：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 WHERE r.student_id = NULL;
 ```
 
 应使用：
 
 ```sql
+-- 显式处理 NULL，和空字符串或数值 0 的行为分开核对。
 WHERE r.student_id IS NULL;
 ```
 
@@ -558,6 +586,7 @@ WHERE r.student_id IS NULL;
 查询成绩高于全校平均分的学生：
 
 ```sql
+-- 计算集合上的聚合值，留意空值和筛选条件是否改变统计口径。
 SELECT *
 FROM student
 WHERE score > (
@@ -569,6 +598,7 @@ WHERE score > (
 使用 EXISTS 判断关联记录是否存在：
 
 ```sql
+-- 对当前外层行检查子查询是否有结果，重点核对关联条件。
 SELECT s.*
 FROM student s
 WHERE EXISTS (
@@ -612,6 +642,7 @@ WHERE EXISTS (
 #### 2. 核心 SQL
 
 ```sql
+-- 在分区内计算窗口值，结果保留原行，注意窗口排序与最终输出排序的区别。
 SELECT
     id,
     name,
@@ -629,12 +660,14 @@ FROM student;
 此前曾混淆：
 
 ```sql
+-- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
 PARTITION BY class_name
 ```
 
 与：
 
 ```sql
+-- 按指定字段排序。相同值需要稳定顺序时，增加唯一的排序键。
 ORDER BY score DESC
 ```
 
@@ -692,6 +725,7 @@ ORDER BY score DESC
 #### 2. GROUP BY 查询
 
 ```sql
+-- 按指定键分组，核对每个聚合列的输入范围和空值处理。
 SELECT
     class_name,
     AVG(score) AS avg_score
@@ -710,6 +744,7 @@ GROUP BY class_name;
 #### 3. 窗口函数查询
 
 ```sql
+-- 在分区内计算窗口值，结果保留原行，注意窗口排序与最终输出排序的区别。
 SELECT
     name,
     class_name,
@@ -756,6 +791,7 @@ FROM student;
 #### 2. 示例索引
 
 ```sql
+-- 索引列顺序应与查询的过滤和排序方式一起验证。
 CREATE INDEX idx_name_age
 ON student(name, age);
 ```
@@ -765,6 +801,7 @@ ON student(name, age);
 查询一：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT *
 FROM student
 WHERE name = '张三';
@@ -775,6 +812,7 @@ WHERE name = '张三';
 查询二：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT *
 FROM student
 WHERE name = '张三'
@@ -786,6 +824,7 @@ WHERE name = '张三'
 查询三：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT *
 FROM student
 WHERE age = 20;
@@ -856,11 +895,13 @@ B+Tree
 #### 3. 覆盖索引示例
 
 ```sql
+-- 索引列顺序应与查询的过滤和排序方式一起验证。
 CREATE INDEX idx_name_age
 ON student(name, age);
 ```
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT name, age
 FROM student
 WHERE name = '张三';
@@ -896,6 +937,7 @@ WHERE name = '张三';
 #### 2. 核心 SQL
 
 ```sql
+-- 用执行计划核对访问类型、候选索引、实际索引和估算扫描行数。
 EXPLAIN
 SELECT *
 FROM student
@@ -955,6 +997,7 @@ Using filesort ≠ 一定发生磁盘排序
 #### 2. 核心 SQL
 
 ```sql
+-- 在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 START TRANSACTION;
 
 UPDATE student
@@ -974,6 +1017,8 @@ SQL 没有执行
 
 正确理解：
 
+**阅读提示**　先确认 WHERE 命中范围，再根据影响行数判断更新是否符合预期。
+
 ```text
 UPDATE 已经执行
     ↓
@@ -989,6 +1034,7 @@ ROLLBACK 不等于 SQL 没有执行过。
 #### 4. 对比 COMMIT
 
 ```sql
+-- 在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 START TRANSACTION;
 
 UPDATE student
@@ -1029,6 +1075,7 @@ COMMIT 表示提交事务。
 #### 2. 示例 SQL
 
 ```sql
+-- 在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 START TRANSACTION;
 
 INSERT INTO student
@@ -1078,6 +1125,8 @@ AUTO_INCREMENT 保证自动生成值
 
 初始数据：
 
+**阅读提示**　把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
+
 ```text
 id = 1
 score = 80
@@ -1086,6 +1135,7 @@ score = 80
 事务 A：
 
 ```sql
+-- 在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 START TRANSACTION;
 
 SELECT score
@@ -1102,6 +1152,7 @@ WHERE id = 1;
 事务 B：
 
 ```sql
+-- 在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 START TRANSACTION;
 
 UPDATE student
@@ -1114,6 +1165,7 @@ COMMIT;
 事务 A 再次执行普通查询：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT score
 FROM student
 WHERE id = 1;
@@ -1173,11 +1225,15 @@ Undo Log 版本链
 
 事务 A 已通过普通快照读读取：
 
+**阅读提示**　把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
+
 ```text
 score = 80
 ```
 
 事务 B 将成绩更新为：
+
+**阅读提示**　把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 
 ```text
 score = 90
@@ -1188,6 +1244,7 @@ score = 90
 事务 A 执行：
 
 ```sql
+-- 在当前事务内锁定选中的记录，事务结束时释放锁。
 SELECT score
 FROM student
 WHERE id = 1
@@ -1286,6 +1343,7 @@ SELECT FOR UPDATE：
 示例：
 
 ```sql
+-- 建表时关注字段类型、主键和约束如何限制后续写入。
 CREATE TABLE enrollment (
     student_id BIGINT NOT NULL,
     course_id BIGINT NOT NULL,

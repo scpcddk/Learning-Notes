@@ -26,6 +26,7 @@
 ❌ 错误理解：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 WHERE score = NULL
 ```
 
@@ -34,12 +35,14 @@ WHERE score = NULL
 ✅ 正确理解：
 
 ```sql
+-- 显式处理 NULL，和空字符串或数值 0 的行为分开核对。
 WHERE score IS NULL
 ```
 
 或者：
 
 ```sql
+-- 显式处理 NULL，和空字符串或数值 0 的行为分开核对。
 WHERE score IS NOT NULL
 ```
 
@@ -78,6 +81,7 @@ WHERE score IS NOT NULL
 例如：
 
 ```sql
+-- 在分区内计算窗口值，结果保留原行，注意窗口排序与最终输出排序的区别。
 ROW_NUMBER() OVER (
     PARTITION BY class_name
     ORDER BY score DESC
@@ -96,6 +100,8 @@ ROW_NUMBER() OVER (
 
 ✅ 正确理解：
 
+**阅读提示**　按指定键分组，核对每个聚合列的输入范围和空值处理。
+
 ```text
 GROUP BY
 → 分组 + 合并
@@ -109,6 +115,7 @@ PARTITION BY
 例如：
 
 ```sql
+-- 在分区内计算窗口值，结果保留原行，注意窗口排序与最终输出排序的区别。
 SELECT
     name,
     class_name,
@@ -265,6 +272,7 @@ InnoDB 二级索引通常包含：
 普通：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT ...
 ```
 
@@ -273,6 +281,7 @@ SELECT ...
 而：
 
 ```sql
+-- 在当前事务内锁定选中的记录，事务结束时释放锁。
 SELECT ...
 FOR UPDATE;
 ```
@@ -352,6 +361,7 @@ Lock
 例如：
 
 ```sql
+-- 在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 START TRANSACTION;
 
 UPDATE student

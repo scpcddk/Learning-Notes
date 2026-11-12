@@ -79,12 +79,14 @@ project/
 在 VS Code 的 WSL 终端中执行：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 cd "/mnt/d/东北大学大作业/ANIC/project"
 ```
 
 检查当前目录：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 pwd
 ```
 
@@ -97,10 +99,13 @@ pwd
 ### 3.2 检查 Python 版本
 
 ```bash
+# 在对应运行环境执行，核对工作目录、依赖和入口参数。
 python3 --version
 ```
 
 本次实际输出：
+
+**阅读提示**　在对应运行环境执行，核对工作目录、依赖和入口参数。
 
 ```text
 Python 3.12.3
@@ -111,6 +116,7 @@ Python 3.12.3
 首次创建虚拟环境时，系统缺少 `venv` 支持组件，执行：
 
 ```bash
+# 在目标系统或虚拟环境安装依赖，完成后核对实际版本。
 sudo apt update
 sudo apt install python3.12-venv
 ```
@@ -118,12 +124,14 @@ sudo apt install python3.12-venv
 创建虚拟环境：
 
 ```bash
+# 在对应运行环境执行，核对工作目录、依赖和入口参数。
 python3 -m venv .venv
 ```
 
 ### 3.4 激活虚拟环境
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 source .venv/bin/activate
 ```
 
@@ -136,6 +144,7 @@ source .venv/bin/activate
 检查当前 Python 路径：
 
 ```bash
+# 在对应运行环境执行，核对工作目录、依赖和入口参数。
 which python
 ```
 
@@ -175,6 +184,7 @@ uvicorn
 确保位于项目目录且已激活 `.venv`，然后执行：
 
 ```bash
+# 在目标系统或虚拟环境安装依赖，完成后核对实际版本。
 python -m pip install -r requirements.txt
 ```
 
@@ -183,6 +193,7 @@ python -m pip install -r requirements.txt
 ### 4.3 验证依赖
 
 ```bash
+# 在对应运行环境执行，核对工作目录、依赖和入口参数。
 python -c "import fastapi, uvicorn; print('FastAPI:', fastapi.__version__); print('Uvicorn:', uvicorn.__version__)"
 ```
 
@@ -204,6 +215,7 @@ Uvicorn: 0.54.0
 代码：
 
 ```python
+# 声明 API 入口及输入输出，运行后用实际请求验证。
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -219,6 +231,7 @@ def health():
 **导入 FastAPI：**
 
 ```python
+# 声明 API 入口及输入输出，运行后用实际请求验证。
 from fastapi import FastAPI
 ```
 
@@ -227,6 +240,7 @@ from fastapi import FastAPI
 **创建应用对象：**
 
 ```python
+# 声明 API 入口及输入输出，运行后用实际请求验证。
 app = FastAPI()
 ```
 
@@ -235,6 +249,7 @@ app = FastAPI()
 **注册路由：**
 
 ```python
+# 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
 @app.get("/health")
 def health():
     return {"status": "ok", "role": "sender"}
@@ -245,6 +260,8 @@ def health():
 收到匹配的请求后，FastAPI 调用该函数，并将返回的 Python 字典转换为 JSON 响应。
 
 预期响应：
+
+**阅读提示**　对照状态、错误字段和响应内容确认请求结果，按实际接口契约判断。
 
 ```json
 {
@@ -262,6 +279,7 @@ def health():
 在项目根目录执行：
 
 ```bash
+# 在对应运行环境执行，核对工作目录、依赖和入口参数。
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
@@ -290,6 +308,8 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
 `http://localhost:8080/health`
 
 本次实际返回：
+
+**阅读提示**　对照状态、错误字段和响应内容确认请求结果，按实际接口契约判断。
 
 ```json
 {
@@ -363,6 +383,7 @@ Swagger UI 不会直接调用 Python 函数，而是通过 HTTP 与服务通信�
 在 PowerShell 的 `materials` 目录中执行：
 
 ```powershell
+# 在文件和 Docker 制品之间转换，导入后核对标签或容器所需文件。
 docker load -i ".\agenthack-base-1.1.1.tar"
 ```
 
@@ -371,12 +392,14 @@ docker load -i ".\agenthack-base-1.1.1.tar"
 ### 8.3 查看镜像列表
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image ls
 ```
 
 只查看目标镜像：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image ls agenthack/base:1.1.1
 ```
 
@@ -397,6 +420,7 @@ docker image ls agenthack/base:1.1.1
 执行：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1
 ```
 
@@ -414,6 +438,8 @@ sha256:2d1023efe3e6a8dc7465326bab40d70408a579991fe60bff626145b0d29241b0
 
 完整 JSON 中通常会看到：
 
+**阅读提示**　Id 标识本地镜像内容，RepoTags 是标签。Os 和 Architecture 用于核对目标运行平台。
+
 ```json
 {
   "Id": "sha256:...",
@@ -430,6 +456,7 @@ sha256:2d1023efe3e6a8dc7465326bab40d70408a579991fe60bff626145b0d29241b0
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{.Id}}'
 docker image inspect agenthack/base:1.1.1 --format '{{json .RepoTags}}'
 docker image inspect agenthack/base:1.1.1 --format '{{.Os}}/{{.Architecture}}'
@@ -448,6 +475,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{.Os}}/{{.Architecture}}'
 
 完整 JSON 中的典型结构：
 
+**阅读提示**　Config.WorkingDir 是容器的默认工作目录，运行时仍可用 -w 覆盖。
+
 ```json
 {
   "Config": {
@@ -459,6 +488,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{.Os}}/{{.Architecture}}'
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{.Config.WorkingDir}}'
 ```
 
@@ -479,6 +509,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{.Config.WorkingDir}}'
 
 典型 JSON 结构：
 
+**阅读提示**　Config.User 表示镜像声明的默认用户。实际容器的用户也可能被启动参数覆盖。
+
 ```json
 {
   "Config": {
@@ -490,6 +522,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{.Config.WorkingDir}}'
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{.Config.User}}'
 ```
 
@@ -509,6 +542,8 @@ agent
 
 典型 JSON 结构：
 
+**阅读提示**　Config.ExposedPorts 记录镜像声明的端口。宿主机能否访问还取决于运行时端口映射。
+
 ```json
 {
   "Config": {
@@ -522,6 +557,7 @@ agent
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.ExposedPorts}}'
 ```
 
@@ -542,6 +578,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.ExposedPorts}
 
 典型 JSON 结构：
 
+**阅读提示**　Config.Entrypoint 为镜像声明的入口。数组里的首项是程序，后续项按参数传入。
+
 ```json
 {
   "Config": {
@@ -551,6 +589,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.ExposedPorts}
 ```
 
 也可能是一个命令数组，例如：
+
+**阅读提示**　入口点为 null 时，启动行为主要取决于 Cmd 或显式提供的命令。
 
 ```json
 {
@@ -567,6 +607,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.ExposedPorts}
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Entrypoint}}'
 ```
 
@@ -579,6 +620,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Entrypoint}}'
 #### ⑥ 默认命令：`Config.Cmd`
 
 典型 JSON 结构：
+
+**阅读提示**　Config.Cmd 是镜像提供的默认命令或参数，运行时传入命令可以覆盖它。
 
 ```json
 {
@@ -593,6 +636,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Entrypoint}}'
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Cmd}}'
 ```
 
@@ -609,6 +653,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Cmd}}'
 #### ⑦ 健康检查：`Config.Healthcheck`
 
 典型 JSON 结构：
+
+**阅读提示**　Healthcheck 定义如何探测容器，查看 Test 与探测间隔等字段，再对照容器的实际健康状态。
 
 ```json
 {
@@ -631,6 +677,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Cmd}}'
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Healthcheck}}'
 ```
 
@@ -655,6 +702,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Healthcheck}}
 
 典型 JSON 结构：
 
+**阅读提示**　Config.Env 是镜像内声明的默认环境，运行时还可以覆盖或增加变量。
+
 ```json
 {
   "Config": {
@@ -671,6 +720,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Healthcheck}}
 查询命令：
 
 ```powershell
+# 设置当前工具所需的环境。区分当前终端和持久环境变量的作用范围。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Env}}'
 ```
 
@@ -684,6 +734,8 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Env}}'
 
 典型 JSON 结构：
 
+**阅读提示**　Config.Volumes 声明容器路径，不指定宿主机目录。用容器的 Mounts 查看实际挂载。
+
 ```json
 {
   "Config": {
@@ -695,6 +747,7 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Env}}'
 查询命令：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Volumes}}'
 ```
 
@@ -709,18 +762,21 @@ docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Volumes}}'
 查看镜像列表：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image ls agenthack/base:1.1.1
 ```
 
 查看构建历史：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image history agenthack/base:1.1.1
 ```
 
 查看 Docker 磁盘使用情况：
 
 ```powershell
+# 读取容器或镜像的实际状态，和配置中的期望值对照。
 docker system df -v
 ```
 
@@ -753,6 +809,7 @@ docker system df -v
 ### 9.1 缺少 `python3.12-venv`
 
 ```bash
+# 在目标系统或虚拟环境安装依赖，完成后核对实际版本。
 sudo apt update
 sudo apt install python3.12-venv
 python3 -m venv .venv
@@ -763,6 +820,7 @@ python3 -m venv .venv
 ### 9.2 找不到 `requirements.txt`
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 cd "/mnt/d/东北大学大作业/ANIC/project"
 pwd
 ls
@@ -793,6 +851,7 @@ ls
 ### 9.5 Python 包安装后仍报错
 
 ```bash
+# 在目标系统或虚拟环境安装依赖，完成后核对实际版本。
 which python
 python -m pip --version
 ```
@@ -800,6 +859,7 @@ python -m pip --version
 确认解释器和 pip 都指向项目的 `.venv`。如果没有，执行：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 source .venv/bin/activate
 ```
 
@@ -808,6 +868,7 @@ source .venv/bin/activate
 先检查默认启动配置：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Entrypoint}}'
 docker image inspect agenthack/base:1.1.1 --format '{{json .Config.Cmd}}'
 ```

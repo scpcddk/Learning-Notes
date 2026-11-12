@@ -10,6 +10,7 @@
 更新包列表并安装 MySQL 服务器：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo apt update
 sudo apt install mysql-server
 ```
@@ -19,12 +20,14 @@ sudo apt install mysql-server
 安装 MySQL 社区版：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo yum install mysql-server
 ```
 
 如需安装特定版本，可先添加官方 YUM 仓库：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo rpm -ivh mysql80-community-release-el7-3.noarch.rpm
 sudo yum install mysql-community-server
 ```
@@ -61,6 +64,7 @@ sudo systemctl status mysql       # 查看服务状态
 CentOS/RHEL 中服务名可能为 `mysqld`：
 
 ```bash
+# 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 sudo systemctl start mysqld
 sudo systemctl status mysqld
 ```
@@ -68,6 +72,7 @@ sudo systemctl status mysqld
 **使用 service（旧版系统）** ：
 
 ```bash
+# 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 sudo service mysqld start
 sudo service mysqld stop
 ```
@@ -85,6 +90,7 @@ sudo systemctl enable mysqld       # CentOS/RHEL
 安装完成后，建议立即运行安全配置脚本：
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 sudo mysql_secure_installation
 ```
 
@@ -100,6 +106,7 @@ sudo mysql_secure_installation
 ### 4.1 本地连接
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysql -u root -p
 ```
 
@@ -108,12 +115,14 @@ mysql -u root -p
 ### 4.2 远程连接
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysql -h 主机地址 -u 用户名 -p
 ```
 
 指定端口（默认 3306）：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysql -h 192.168.137.10 -u root -p -P 3306
 ```
 
@@ -152,12 +161,14 @@ quit
 **插入数据（Create）** ：
 
 ```sql
+-- 按字段顺序写入样例数据，留意默认值、唯一键和外键检查。
 INSERT INTO users (id, name) VALUES (1, 'Alice');
 ```
 
 **查询数据（Read）** ：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT * FROM users;
 SELECT name FROM users WHERE id = 1;
 ```
@@ -165,12 +176,14 @@ SELECT name FROM users WHERE id = 1;
 **更新数据（Update）** ：
 
 ```sql
+-- 先确认 WHERE 命中范围，再根据影响行数判断更新是否符合预期。
 UPDATE users SET name = 'Bob' WHERE id = 1;
 ```
 
 **删除数据（Delete）** ：
 
 ```sql
+-- 先确认筛选条件对应的记录，注意删除后子表引用是否受影响。
 DELETE FROM users WHERE id = 1;
 ```
 
@@ -180,18 +193,21 @@ DELETE FROM users WHERE id = 1;
 ### 6.1 查看用户
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 SELECT User, Host FROM mysql.user;
 ```
 
 ### 6.2 创建用户
 
 ```sql
+-- 按账号与来源限定权限，修改后用目标账号核对可访问范围。
 CREATE USER '用户名'@'主机' IDENTIFIED BY '密码';
 ```
 
 示例：创建仅本地登录的用户
 
 ```sql
+-- 按账号与来源限定权限，修改后用目标账号核对可访问范围。
 CREATE USER 'newuser'@'localhost' IDENTIFIED BY 'password';
 ```
 
@@ -200,6 +216,7 @@ CREATE USER 'newuser'@'localhost' IDENTIFIED BY 'password';
 基本语法：
 
 ```sql
+-- 按账号与来源限定权限，修改后用目标账号核对可访问范围。
 GRANT 权限 ON 数据库.表 TO '用户名'@'主机';
 ```
 
@@ -221,6 +238,7 @@ GRANT SELECT, INSERT, UPDATE ON mydb.* TO 'newuser'@'localhost';
 通过 CREATE USER、ALTER USER、GRANT、REVOKE 修改后即时生效，无需额外刷新。仅直接修改授权表等特殊情况需要：
 
 ```sql
+-- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
 FLUSH PRIVILEGES;
 ```
 
@@ -256,18 +274,21 @@ DROP USER '用户名'@'主机';
 **备份所有数据库** ：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysqldump -u root -p --all-databases > all_backup.sql
 ```
 
 **备份单个数据库** ：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysqldump -u root -p 数据库名 > 备份文件.sql
 ```
 
 **备份时压缩** ：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysqldump -u root -p 数据库名 | gzip > 备份文件.sql.gz
 ```
 
@@ -286,18 +307,21 @@ crontab -e
 **从 SQL 文件恢复** ：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysql -u root -p 数据库名 < 备份文件.sql
 ```
 
 **恢复前需确保数据库存在** ：
 
 ```sql
+-- 创建独立数据库作为练习范围，后续建表前核对当前库。
 CREATE DATABASE 数据库名;
 ```
 
 **恢复压缩备份** ：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 gunzip 备份文件.sql.gz
 mysql -u root -p 数据库名 < 备份文件.sql
 ```
@@ -307,6 +331,7 @@ mysql -u root -p 数据库名 < 备份文件.sql
 停止服务后直接复制数据目录：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo systemctl stop mysql
 cp -R /var/lib/mysql /path/to/backup/
 ```
@@ -334,6 +359,7 @@ innodb_buffer_pool_size = 20G    # 32GB 内存服务器示例
 根据应用并发需求设置：
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 max_connections = 500
 ```
 
@@ -342,6 +368,7 @@ max_connections = 500
 写密集场景可调大：
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 innodb_log_buffer_size = 128M
 ```
 
@@ -352,6 +379,7 @@ innodb_log_buffer_size = 128M
 - `0`：性能最高，风险最大
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 innodb_flush_log_at_trx_commit = 2
 ```
 
@@ -360,6 +388,7 @@ innodb_flush_log_at_trx_commit = 2
 建议设为 `O_DIRECT` 避免双重缓存：
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 innodb_flush_method = O_DIRECT
 ```
 

@@ -13,6 +13,7 @@
 在该目录打开终端并运行：
 
 ```powershell
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 .\minio.exe server .\data --console-address ":9001"
 ```
 
@@ -77,6 +78,7 @@
 **2.添加minio相关配置**（application.yml）
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 spring:
   application:
     name: minioback
@@ -96,6 +98,7 @@ knife4j:
 将 `MINIO_ACCESS_KEY` 和 `MINIO_SECRET_KEY` 设置为有权访问 `testminio` 的本地实验凭据，再创建配置类。
 
 ```java
+// 先初始化 MinIO 客户端，再用明确的桶和对象键执行操作。
 @Configuration
 @ConfigurationProperties(prefix = "minio")
 @Data
@@ -121,6 +124,7 @@ public class MinioConfig {
 **1.创建MinioService.并注入MinioConfig以及MinioClient**
 
 ```java
+// 先初始化 MinIO 客户端，再用明确的桶和对象键执行操作。
 @Service
 public class MinioService {
     @Autowired

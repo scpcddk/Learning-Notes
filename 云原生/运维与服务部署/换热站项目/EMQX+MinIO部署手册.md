@@ -17,6 +17,7 @@
 登录服务器 `202.199.6.249`（用户 `neu`）后，先摸清现有资源：
 
 ```bash
+# 用容器状态和近期日志确认启动进度及失败位置。
 docker ps
 ```
 
@@ -65,6 +66,7 @@ sudo docker info | grep "Registry Mirrors"
 #### 尝试配置镜像加速 + 禁用 IPv6
 
 ```bash
+# 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
   "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn"],
@@ -96,6 +98,7 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
 - 个人电脑（Windows + Docker Desktop 29.5.2）：
   
   ```powershell
+  # 处理镜像仓库与标签。先核对仓库地址、制品版本和所用身份。
   docker pull emqx/emqx:latest
   docker save emqx/emqx:latest -o emqx.tar
   docker pull minio/minio:latest
@@ -105,6 +108,7 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
 - SCP 传输到服务器（首次连接核对 SSH 主机指纹）：
   
   ```powershell
+  # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
   scp emqx.tar neu@202.199.6.249:/home/neu/
   scp minio.tar neu@202.199.6.249:/home/neu/
   ```
@@ -112,6 +116,7 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
 - 服务器加载：
   
   ```bash
+  # 在文件和 Docker 制品之间转换，导入后核对标签或容器所需文件。
   docker load -i /home/neu/emqx.tar
   docker load -i /home/neu/minio.tar
   ```
@@ -125,6 +130,7 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
 ### 启动容器
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d \
   --name emqx \
   -p 1883:1883 \
@@ -146,6 +152,7 @@ docker run -d \
 ### 第一次尝试失败
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run -d \
   --name minio \
   -p 9000:9000 \
@@ -169,6 +176,7 @@ FATAL: MINIO_ROOT_PASSWORD length should be at least 8 characters
 删除容器并重建，设置新密码 `admin123456`：
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker rm minio
 docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 ```

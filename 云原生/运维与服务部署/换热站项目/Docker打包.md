@@ -47,6 +47,8 @@ npm run build   # 生成生产环境静态文件（默认输出到 dist 目录�
 动手优化前，要先弄清楚到底是哪些库占用了最多的空间。
 
 将下面的 `report` 项合并到 `package.json` 已有的 `scripts` 中。
+**阅读提示**　区分构建脚本和运行依赖，核对工具实际读取的文件名与版本。
+
 ```json
 {
   "scripts": {
@@ -225,6 +227,7 @@ module.exports = defineConfig({
 >有些项目会根据环境变量（如 `VUE_APP_PUBLIC_PATH`）动态设置，例如：
 >
 >```js
+>// 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
 >publicPath: process.env.VUE_APP_PUBLIC_PATH || '/'
 >```
 >
@@ -239,6 +242,8 @@ module.exports = defineConfig({
 
 
 **② 配置 `package.json`（添加 homepage 和 deploy 命令）**
+
+**阅读提示**　区分构建脚本和运行依赖，核对工具实际读取的文件名与版本。
 
 ```json
 {

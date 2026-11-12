@@ -149,9 +149,9 @@
         <h2>二、常用命令速查</h2>
         <table>
             <tr><th>命令</th><th>作用</th></tr>
-            <tr><td><code>docker run -d -p 8080:8080 --name app 镜像</code></td><td>后台启动容器，端口映射</td></tr>
+            <tr><td><code>docker run -d -p 8080:8080 --name app 镜像</code></td><td>后台启动容器。端口左侧是宿主机，右侧是容器内应用监听的端口。</td></tr>
             <tr><td><code>docker ps / ps -a</code></td><td>查看运行中 / 所有容器</td></tr>
-            <tr><td><code>docker build -t my-image .</code></td><td>构建镜像</td></tr>
+            <tr><td><code>docker build -t my-image .</code></td><td>用当前目录作构建上下文，将结果标记为 my-image。</td></tr>
             <tr><td><code>docker images</code></td><td>列出本地镜像</td></tr>
             <tr><td><code>docker pull/push 镜像</code></td><td>拉取 / 推送镜像</td></tr>
             <tr><td><code>docker exec -it 容器 bash</code></td><td>进入容器交互终端</td></tr>
@@ -159,7 +159,7 @@
             <tr><td><code>docker rm / rmi</code></td><td>删除容器 / 镜像</td></tr>
             <tr><td><code>docker logs -f 容器</code></td><td>查看日志</td></tr>
             <tr><td><code>docker compose up -d</code></td><td>后台启动多服务</td></tr>
-            <tr><td><code>docker compose down</code></td><td>停止并删除 compose 服务</td></tr>
+            <tr><td><code>docker compose down</code></td><td>停止并删除当前项目的容器及其默认网络，默认保留命名卷。</td></tr>
         </table>
 
         <div class="tip">常用选项：<code>-d</code> 后台运行 | <code>-p 宿主机:容器</code> 端口映射 | <code>-v</code> 挂载卷 | <code>--name</code> 命名 | <code>--restart=always</code> 自动重启</div>

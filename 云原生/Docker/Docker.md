@@ -179,6 +179,8 @@
 常用`docker run`选项:
 
 - `-t`：在新容器内指定一个伪终端或终端
+  **阅读提示**　从指定上下文构建镜像，输出标签供后续启动或发布使用。
+
   ```text
   docker build -t
           ↑
@@ -206,6 +208,7 @@
 - `--cpus="1.5"`：CPU 配额限制
 - `--network`：指定容器加入哪个网络
   ```bash
+  # 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
   docker run -d --name backend --network app-net myapp:1.0
   ```
   - `--network bridge`：默认桥接网络
@@ -215,6 +218,7 @@
   - `--network 自定义网络名`：加入自定义 bridge 网络，可用容器名/服务名互访
   - `--network-alias`：给容器在自定义网络里加别名
     ```bash
+    # 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
     docker run -d --network app-net --network-alias db mysql:8
     ```
 
@@ -327,6 +331,7 @@
 
 1. **看日志（第一板斧）**：
    ```bash
+   # 用容器状态和近期日志确认启动进度及失败位置。
    docker logs 容器名 --tail 100
    ```
    - 看到 `Exception` 或 `Error` 直接定位代码报错
@@ -334,6 +339,7 @@
 
 2. **看退出码（第二板斧）**：
    ```bash
+   # 读取容器或镜像的实际状态，和配置中的期望值对照。
    docker inspect 容器名 --format='{{.State.ExitCode}}'
    ```
    - **0**：正常退出（没事）
@@ -370,6 +376,8 @@
 `-e`: **把配置放在环境变量里，启动容器时再传入**
 
 - **例如**：
+  **阅读提示**　用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
+
   ```
   docker run -d \
     --name backend \
@@ -381,6 +389,7 @@
 - `-e` 设置的环境变量，是提供给容器内部运行的程序使用的，不是直接修改宿主的环境变量
 - `os.getenv()`：根据变量名，从当前程序的环境变量中取值
   ```python
+  # 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
   import os
   
   db_host = os.getenv("DB_HOST")
@@ -392,10 +401,14 @@
   - 找不到对应名称时，默认返回 `None`
 
 - 如果你想检查容器实际配置了哪些环境变量，可以使用：
+  **阅读提示**　在已运行容器内执行命令，命令使用容器里的路径和网络。
+
   ```
   docker exec backend printenv
   ```
   - 查看指定变量：
+
+    **阅读提示**　在已运行容器内执行命令，命令使用容器里的路径和网络。
 
     ```
     docker exec backend printenv DB_HOST
@@ -519,6 +532,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 
 > **配套 Spring Boot 配置（务必在 application.yml 中开启）：**
 > ```yaml
+> # 管理端点和指标配置分开控制，暴露范围按采集或排障需要设置。
 > management:
 >   endpoint:
 >     health:
@@ -593,6 +607,7 @@ ENTRYPOINT ["python", "app.py"]
 - **合并 RUN 命令**：减少层数，及时清理缓存和临时文件
   
 ```dockerfile
+# FROM 选择基础环境，RUN 在构建时执行，CMD 或 ENTRYPOINT 决定容器启动方式。
 RUN apt-get update && apt-get install -y --no-install-recommends 包名 \
     && rm -rf /var/lib/apt/lists/*
 ```
@@ -679,12 +694,16 @@ Thumbs.db
 | `always`         | 容器退出后通常自动重启                         |
 | `unless-stopped` | 自动重启，但主动停止的容器不会在 Docker 守护进程重启后自动恢复 |
 
+**阅读提示**　用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
+
 ```
 docker run -d \
   --name backend \
   --restart unless-stopped \
   myapp:1.0
 ```
+**阅读提示**　该参数决定容器退出后的重启条件，适用于容器创建或策略更新。
+
 ```
 --restart unless-stopped
 ```
@@ -729,6 +748,7 @@ volumes:
 Compose 默认创建 `bridge` 网络，同一网络内的容器可直接用**服务名**作为域名通信。
 
 ```yaml
+# 按服务组织容器。容器之间用服务名和容器端口访问。
 networks:
   app-net:
     driver: bridge
@@ -785,6 +805,7 @@ docker inspect 容器名 | grep -A 20 "NetworkSettings"
 所以容器里写：
 
 ```python
+# 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
 connect(host="localhost", port=3306)   # ❌ 连的是容器自己，不是宿主机 MySQL
 ```
 
@@ -795,12 +816,14 @@ connect(host="localhost", port=3306)   # ❌ 连的是容器自己，不是宿�
 即使改用 `host.docker.internal`，如果宿主机 MySQL 配置为：
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 bind-address = 127.0.0.1
 ```
 
 它只接受**宿主机本机回环**的连接，容器通过网桥过来的流量会被拒绝。需要改成：
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 bind-address = 0.0.0.0
 ```
 
@@ -874,12 +897,14 @@ ports:
 **此时应使用**：
 
 ```python
+# 先看输入与依赖，再沿关键调用检查返回结果和异常分支。
 connect(host="host.docker.internal", port=3306)
 ```
 
 **或 Spring Boot 配置**：
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 spring:
   datasource:
     url: jdbc:mysql://host.docker.internal:3306/mydb
@@ -896,6 +921,7 @@ spring:
 **Linux 下 Compose 配置**：
 
 ```yaml
+# 按服务组织容器。容器之间用服务名和容器端口访问。
 services:
   backend:
     extra_hosts:
@@ -905,6 +931,7 @@ services:
 **单独 `docker run` 时等价写法**：
 
 ```bash
+# 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker run --add-host=host.docker.internal:host-gateway ...
 ```
 
@@ -931,6 +958,8 @@ docker run -d --name mysql --network app-net \
 ```
 
 此时 `backend` 容器内可以直接连接：
+
+**阅读提示**　从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 
 ```text
 mysql:3306
@@ -964,6 +993,7 @@ docker network disconnect app-net backend
 Compose 中等价写法不是 `--network`，而是在服务下写：
 
 ```yaml
+# 按服务组织容器。容器之间用服务名和容器端口访问。
 services:
   backend:
     networks:

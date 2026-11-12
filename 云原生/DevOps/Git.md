@@ -5,18 +5,21 @@
 ### 1. 初始化 Git 仓库
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 git init -b main
 ```
 
 ### 2. 将所有文件添加到暂存区
 
 ```bash
+# 把指定改动放入暂存区并记录提交，提交前核对暂存差异。
 git add .
 ```
 
 ### 3. 提交到本地仓库
 
 ```bash
+# 把指定改动放入暂存区并记录提交，提交前核对暂存差异。
 git commit -m "feat: 上传Java相关代码与练习文件"
 ```
 
@@ -25,12 +28,14 @@ git commit -m "feat: 上传Java相关代码与练习文件"
 先在 GitHub 等平台创建一个**空仓库**（不勾选 README、.gitignore、License），然后执行：
 
 ```bash
+# 核对仓库地址、目标分支或配置作用范围，区分本地与远端操作。
 git remote add origin https://github.com/你的用户名/你的仓库名.git
 ```
 
 ### 5. 推送到远程仓库
 
 ```bash
+# 核对仓库地址、目标分支或配置作用范围，区分本地与远端操作。
 git push -u origin main
 ```
 
@@ -45,6 +50,7 @@ git push -u origin main
 当项目内容有变化时，依次执行：
 
 ```bash
+# 把指定改动放入暂存区并记录提交，提交前核对暂存差异。
 git add .
 git commit -m "描述本次更新的内容"
 git push
@@ -115,12 +121,14 @@ git switch 分支名
 #### (1)先切换到目标分支（例如 `main`）
 
 ```bash
+# 操作分支或切换工作位置，执行前确认当前分支和未提交改动。
 git checkout main
 ```
 
 #### (2)执行合并
 
 ```bash
+# 把指定提交或分支整合到当前分支，遇到冲突时先核对双方改动。
 git merge 要合并的分支名
 ```
 
@@ -134,6 +142,7 @@ git branch -D 分支名   # 强制删除分支（即使未合并）
 ### 6.推送新分支到远程
 
 ```bash
+# 核对仓库地址、目标分支或配置作用范围，区分本地与远端操作。
 git push -u origin 分支名
 ```
 
@@ -152,6 +161,7 @@ git restore 文件名
 放弃所有文件修改（慎用）：
 
 ```bash
+# 操作分支或切换工作位置，执行前确认当前分支和未提交改动。
 git checkout .
 ```
 
@@ -166,6 +176,7 @@ git restore --staged 文件名
 ### 3.修改最近一次提交信息（未 push）
 
 ```bash
+# 把指定改动放入暂存区并记录提交，提交前核对暂存差异。
 git commit --amend -m "新的提交信息"
 ```
 
@@ -176,6 +187,7 @@ git commit --amend -m "新的提交信息"
 + 保留修改，仅撤销 commit：
 
 ```bash
+# 先用状态和差异确认范围，再观察此操作对工作区、暂存区或历史的影响。
 git reset --soft HEAD~1
 ```
 
@@ -188,6 +200,7 @@ git reset HEAD~1          # 等同 --mixed
 + 彻底丢弃所有修改（危险）：
 
 ```bash
+# 先用状态和差异确认范围，再观察此操作对工作区、暂存区或历史的影响。
 git reset --hard HEAD~1
 ```
 
@@ -225,12 +238,14 @@ git pull --no-rebase          # 获取远程更新，再合并到当前分支
 ### 2.仅获取远程更新不合并
 
 ```bash
+# 同步远端引用。检查当前分支与上游关系，再决定是否整合。
 git fetch origin
 ```
 
 查看远程与本地的差异：
 
 ```bash
+# 查看仓库证据。注意比较的是工作区、暂存区还是提交历史。
 git diff origin/main
 ```
 
@@ -239,6 +254,7 @@ git diff origin/main
 先用 `stash` 暂存：
 
 ```bash
+# 同步远端引用。检查当前分支与上游关系，再决定是否整合。
 git stash
 git pull
 git stash pop
@@ -279,6 +295,7 @@ Thumbs.db
 如果文件已被跟踪，需先取消跟踪：
 
 ```bash
+# 操作前区分源路径和目标路径，核对操作后的文件位置。
 git rm --cached 文件名
 ```
 

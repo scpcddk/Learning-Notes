@@ -8,6 +8,7 @@
 ## 一、安装 MySQL（WSL2 标准流程）
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo apt update
 sudo apt install mysql-server -y
 ```
@@ -22,6 +23,7 @@ sudo apt install mysql-server -y
 > 现代 WSL 支持 systemd。先执行 `ps -p 1 -o comm=`：PID 1 为 systemd 时可用 `sudo systemctl start mysql`、`sudo systemctl enable mysql`；未启用时使用下面的 service 命令。
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo service mysql start
 sudo service mysql stop
 sudo service mysql restart
@@ -40,12 +42,14 @@ sudo service mysql status
 1. 免密登录 MySQL
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo mysql
 ```
 
 2. 保留 Ubuntu 的 root socket 管理方式，为应用创建专用账号（以下适用于 MySQL 8.0/8.4）：
 
 ```sql
+-- 创建独立数据库作为练习范围，后续建表前核对当前库。
 CREATE DATABASE IF NOT EXISTS testdb CHARACTER SET utf8mb4;
 CREATE USER 'app_user'@'localhost' IDENTIFIED WITH caching_sha2_password BY '替换为强密码';
 GRANT SELECT, INSERT, UPDATE, DELETE ON testdb.* TO 'app_user'@'localhost';
@@ -86,6 +90,7 @@ Java 使用兼容的 Connector/J，无需强制改为 mysql_native_password。�
 ## 六、SpringBoot 连接配置（WSL 专用）
 
 ```yaml
+# 按层级合并到对应配置位置，保持缩进并核对引用的服务、端口或文件。
 spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/testdb?useSSL=false&serverTimezone=Asia/Shanghai
@@ -102,6 +107,7 @@ spring:
 ## 七、常用数据库命令
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 SHOW DATABASES;
 CREATE DATABASE 库名;
 USE 库名;
@@ -115,6 +121,7 @@ exit;
 ### 📌 1. 查看端口相关变量
 
 ```sql
+-- 查看服务端当前参数或状态。记录作用范围，便于和修改后对照。
 show variables like '%port%';
 ```
 
@@ -128,6 +135,7 @@ show variables like '%port%';
 ### 📌 2. 查看账号允许登录 IP（host）
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 select user, host from mysql.user where user='root';
 ```
 
@@ -139,6 +147,7 @@ select user, host from mysql.user where user='root';
 **修改账号主机范围：`RENAME USER`（无需 FLUSH PRIVILEGES）**
 
 ```sql
+-- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
 RENAME USER 'root'@'%' TO 'root'@'localhost';
 ```
 
@@ -147,6 +156,7 @@ RENAME USER 'root'@'%' TO 'root'@'localhost';
 配置文件 `/etc/mysql/mysql.conf.d/mysqld.cnf`
 
 ```ini
+# 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
 bind-address        = 127.0.0.1
 mysqlx-bind-address = 127.0.0.1
 ```
@@ -160,12 +170,14 @@ mysqlx-bind-address = 127.0.0.1
 修改配置后，**一定要重启服务才生效**：
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 sudo service mysql restart
 ```
 
 命令行快速查看运行时生效值，不用打开配置文件：
 
 ```sql
+-- 查看服务端当前参数或状态。记录作用范围，便于和修改后对照。
 show variables like 'bind_address';
 ```
 
@@ -182,6 +194,7 @@ show variables like 'bind_address';
 **备份**
 
 ```bash
+# 从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
 mysqldump -uroot -p 库名 > ~/备份名.sql
 ```
 
@@ -199,6 +212,7 @@ mysql -uroot -p 库名 < ~/备份名.sql
 本地学习不用，服务器必须用。
 
 ```bash
+# 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
 sudo mysql_secure_installation
 ```
 

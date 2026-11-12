@@ -115,6 +115,7 @@ mysql -h 192.168.1.100 -P 3306 -u root -p
 **1. 查看所有数据库（验库）**
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 SHOW DATABASES;
 ```
 
@@ -136,6 +137,7 @@ COLLATE utf8mb4_bin;
 **3. 进入/切换数据库**
 
 ```sql
+-- 切换当前连接的默认数据库，后续未限定库名的语句在该库执行。
 USE order_db;
 ```
 
@@ -149,12 +151,14 @@ SELECT DATABASE(); -- 查看当前数据库
 **4. 查看当前库所有表（验表）**
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 SHOW TABLES;
 ```
 
 **5. 创建表（标准模板）**
 
 ```sql
+-- 建表时关注字段类型、主键和约束如何限制后续写入。
 CREATE TABLE IF NOT EXISTS `t_order` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
@@ -172,12 +176,14 @@ CREATE TABLE IF NOT EXISTS `t_order` (
 **6. 查看表结构（验表结构 - 必做动作）**
 
 ```sql
+-- 查询当前对象、权限或诊断信息，先确认所在连接和库。
 DESC t_order;
 ```
 
 执行结果会展示字段、类型、空值、键、默认值、额外属性。若需查看**完整建表语句**（含引擎、字符集），使用：
 
 ```sql
+-- 查看实际生效的建表定义，重点核对引擎、字符集和约束。
 SHOW CREATE TABLE t_order\G
 ```
 
@@ -231,22 +237,26 @@ DROP DATABASE IF EXISTS `order_db`;
 >      - **等价写法**：`LIMIT 0, n`；如 `LIMIT 10` 等价于 `LIMIT 0, 10`
 >      - 示例：
 >      ```sql
+>      -- 限制返回范围。分页使用稳定排序，避免多次查询出现重行或漏行。
 >      SELECT * FROM student ORDER BY id LIMIT 10;
 >      ```
 >      - 表示：按 `id` 排序后，取**前 10 条**。
 > 2. **示例**：
 >    ```sql
+>    -- 限制返回范围。分页使用稳定排序，避免多次查询出现重行或漏行。
 >    LIMIT 20, 10
 >    ```
 >    表示：**跳过前 20 条，取接下来的 10 条**，即第 **21～30** 条。
 > 
 > 3. **等价写法**：
 >    ```sql
+>    -- 限制返回范围。分页使用稳定排序，避免多次查询出现重行或漏行。
 >    LIMIT 10 OFFSET 20;
 >    ```
 > 
 > 4. **分页公式**：
 >    ```sql
+>    -- 限制返回范围。分页使用稳定排序，避免多次查询出现重行或漏行。
 >    LIMIT (页码 - 1) * 每页条数, 每页条数
 >    ```
 > 
@@ -882,6 +892,7 @@ CREATE TABLE `order` (
 **1. 命令结构**：
 
 ```sql
+-- 按指定键分组，核对每个聚合列的输入范围和空值处理。
 SELECT 列名1, 聚合函数(列名2)
 FROM 表名
 WHERE 条件
@@ -917,6 +928,7 @@ GROUP BY user_id;
 **1. 命令结构**：
 
 ```sql
+-- 先分组并计算聚合，再用 HAVING 筛选分组结果。
 SELECT 列名1, 聚合函数(列名2)
 FROM 表名
 WHERE 条件
@@ -1008,6 +1020,7 @@ LIMIT 20;                                         -- ⑤ LIMIT：截断
 **1. 标准 JOIN 语法格式**
 
 ```sql
+-- 根据关联键拼接数据。先检查 ON 条件，再判断过滤与重复行来源。
 SELECT 表A.列名, 表B.列名
 FROM 表A
 [INNER | LEFT | RIGHT] JOIN 表B
@@ -1271,6 +1284,7 @@ SELECT * FROM `t_user` WHERE `name` REGEXP '[0-9]';
 **2. 语法**：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 SELECT DISTINCT 列名1, 列名2, ...
 FROM 表名
 WHERE 条件;
@@ -1296,6 +1310,7 @@ SELECT DISTINCT user_id FROM t_order;
 **2. 语法**：
 
 ```sql
+-- 拼接两组查询结果，列数和对应类型应兼容，注意是否需要去重。
 SELECT 列名1, 列名2 FROM 表1
 UNION [ALL]
 SELECT 列名1, 列名2 FROM 表2;
@@ -1339,6 +1354,7 @@ SELECT user_id FROM t_member;
 **2. 语法**（MySQL 8.0.31+）：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT 列名1, 列名2 FROM 表1
 INTERSECT [ALL]
 SELECT 列名1, 列名2 FROM 表2;
@@ -1395,6 +1411,7 @@ INNER JOIN t_order o ON v.user_id = o.user_id;
 **2. 语法**（MySQL 8.0.31+）：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT 列名1, 列名2 FROM 表1
 EXCEPT [ALL]
 SELECT 列名1, 列名2 FROM 表2;
@@ -1450,6 +1467,7 @@ WHERE o.user_id IS NULL;
 
 **写法一：简单 CASE（等值匹配）**
 ```sql
+-- 逐行判断条件并返回相应值，按分支顺序检查边界值。
 SELECT 
     column,
     CASE column_name
@@ -1462,6 +1480,7 @@ FROM table;
 
 **写法二：搜索 CASE（条件判断，最常用）**
 ```sql
+-- 逐行判断条件并返回相应值，按分支顺序检查边界值。
 SELECT 
     column,
     CASE 
@@ -1505,6 +1524,7 @@ GROUP BY order_level;
 
 **补充：在 UPDATE 中批量修改状态（不用多次查询）**
 ```sql
+-- 先确认 WHERE 命中范围，再根据影响行数判断更新是否符合预期。
 UPDATE `t_order`
 SET amount = CASE
     WHEN amount >= 10000 THEN amount * 0.95
@@ -1522,6 +1542,7 @@ WHERE create_time > '2026-01-01';
 如果修改操作处于**事务**中，可以使用：
 
 ```sql
+-- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
 ROLLBACK;
 ```
 
@@ -1530,12 +1551,15 @@ ROLLBACK;
 而：
 
 ```sql
+-- 在当前数据库连接运行，核对选中的库、语句执行范围和返回结果。
 COMMIT;
 ```
 
 **表示**：确认提交修改，让事务中的修改正式生效。
 
 可以先记成：
+
+**阅读提示**　在同一连接中观察事务内外的可见性，最后核对提交或回滚后的数据。
 
 ```text
 BEGIN / START TRANSACTION
@@ -1629,6 +1653,8 @@ CASE WHEN
 
 - **和 `IFNULL()` 对比**：
 
+**阅读提示**　显式处理 NULL，和空字符串或数值 0 的行为分开核对。
+
 ```
 IFNULL()
 → 两个值之间二选一
@@ -1660,6 +1686,7 @@ EXISTS → 判断“有没有”
 - **示例：**
 
 ```sql
+-- 对当前外层行检查子查询是否有结果，重点核对关联条件。
 select exists (
 select *
 from student
@@ -1672,6 +1699,7 @@ where name = '张三'
 所以这些写法在 EXISTS 中都可以：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT 1
 
 SELECT *
@@ -1691,6 +1719,8 @@ EXISTS  → 判断有没有符合条件的行
 ```
 
 **7. 别名**
+
+**阅读提示**　读取样例数据用于对照，留意投影列与实际返回的值。
 
 ```
 SELECT xxx AS xxx → 给列/表达式起别名
@@ -1841,6 +1871,7 @@ CLONE INSTANCE FROM 'user'@'host':3306 IDENTIFIED BY 'password';
 普通视图保存查询定义，不单独保存结果数据；执行时可能合并到外层查询，也可能使用临时表。复杂或嵌套视图需检查执行计划，没有固定的三表或两层硬限制。
 
 ```sql
+-- 查看实际生效的建表定义，重点核对引擎、字符集和约束。
 CREATE VIEW v_user_safe AS
 SELECT id, nickname, LEFT(mobile, 3) AS mobile_prefix
 FROM user WHERE status = 1;
@@ -2109,6 +2140,7 @@ SELECT * FROM user WHERE mobile = '13800000000';
 以下查询能命中索引：
 
 ```sql
+-- 先用 WHERE 缩小行集，再检查所需列和边界数据。
 WHERE a = 1
 WHERE a = 1 AND b = 2
 WHERE a = 1 AND b = 2 AND c = 3
@@ -2199,6 +2231,7 @@ SELECT * FROM t WHERE a > 10 AND b = 5;
 长字符串可按选择性建立前缀索引：
 
 ```sql
+-- 索引列顺序应与查询的过滤和排序方式一起验证。
 CREATE INDEX idx_title ON article(title(20));
 ```
 
@@ -2260,6 +2293,7 @@ SELECT * FROM t WHERE name = 'Tom' OR age = 30;
 
 启用参数：
 ```sql
+-- 设置当前示例需要的变量或会话参数，观察后续语句的行为变化。
 SET optimizer_switch = 'mrr=on,mrr_cost_based=off,batched_key_access=on';
 ```
 
@@ -2712,6 +2746,8 @@ Binlog 用于主从复制：主库 Binlog Dump 线程发送日志，从库 I/O �
 
 **架构**：
 
+**阅读提示**　从指定客户端连接 MySQL，先核对主机、端口、账号和目标库。
+
 ```
 MySQL Master → Binlog dump → Canal Server（伪装从库）→ 解析 Binlog → Kafka/RocketMQ → 消费者 → ES/Redis/数仓
 ```
@@ -2975,12 +3011,14 @@ UPDATE account SET balance = balance + 200 WHERE id = 1;
 **查看当前所有锁**：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT * FROM performance_schema.data_locks\G
 ```
 
 **查看锁等待关系**：
 
 ```sql
+-- 读取样例数据用于对照，留意投影列与实际返回的值。
 SELECT * FROM performance_schema.data_lock_waits\G
 ```
 
@@ -3054,6 +3092,8 @@ SELECT * FROM `order` WHERE user_id = 100 AND status = 'PAID';
 ```
 
 下面截取一个表访问节点的 `cost_info` 作为示例。
+
+**阅读提示**　cost_info 是优化器估算成本。结合实际执行计划对照，成本数值不等同于执行毫秒。
 
 ```json
 {
@@ -3146,6 +3186,7 @@ SET optimizer_trace = 'enabled=off';
 #### 16.2. 基本用法
 
 ```sql
+-- 用执行计划核对访问类型、候选索引、实际索引和估算扫描行数。
 EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 ```
 
@@ -3221,6 +3262,7 @@ EXPLAIN SELECT * FROM t_order WHERE user_id = 100;
 #### 16.7. 实战解读示例
 
 ```sql
+-- 用执行计划核对访问类型、候选索引、实际索引和估算扫描行数。
 EXPLAIN SELECT o.id, u.name 
 FROM t_order o 
 LEFT JOIN t_user u ON o.user_id = u.id 

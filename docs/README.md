@@ -274,27 +274,27 @@
 │   │   │   ├── Nginx 部署运维手册.md
 │   │   │   └── Image/                                          # 操作截图
 │   │   ├── SRS/                                                # 流媒体服务与部署
-│   │   ├── Redis.md                                            # 计划补充
-│   │   ├── Kafka.md                                            # 计划补充
-│   │   ├── RocketMQ.md                                         # 计划补充
-│   │   ├── Nacos.md                                            # 计划补充
-│   │   └── Prometheus+Grafana.md                               # 计划补充
+│   │   ├── Redis.md                                            # 数据结构、旁路缓存与排障
+│   │   ├── Kafka.md                                            # 分区日志、消费进度与可靠性
+│   │   ├── RocketMQ.md                                         # 消息类型、重试与幂等
+│   │   ├── Nacos.md                                            # 服务发现与配置管理
+│   │   └── Prometheus+Grafana.md                               # 指标采集、面板与告警
 │   ├── DevOps/
 │   │   ├── Git.md
 │   │   ├── Maven.md
 │   │   └── CI-CD.md
 │   ├── 可观测性/
-│   │   ├── OpenTelemetry.md                                    # 计划补充
-│   │   └── Loki.md                                             # 计划补充
+│   │   ├── OpenTelemetry.md                                    # Trace、上下文传播与 Collector
+│   │   └── Loki.md                                             # 日志采集、标签与 LogQL
 │   ├── 运维与服务部署/
 │   │   ├── 换热站项目/                                         # 打包、部署、迁移、备份与故障排查
 │   │   └── ANIC项目/
 │   │       └── 01-开发环境与FastAPI手册.md
 │   ├── AIOps/                                                  # 空
 │   ├── Kubernetes/
-│   │   ├── K8s编排.md                                          # 计划补充
-│   │   └── Helm.md                                             # 计划补充
-│   └── 微服务.md                                               # 计划补充
+│   │   ├── K8s编排.md                                          # 工作负载、服务、探针与发布
+│   │   └── Helm.md                                             # Chart、模板渲染与回滚
+│   └── 微服务.md                                               # 服务边界、可靠调用与事务 Outbox
 ├── AI/
 │   ├── Agent/                                                 # Agent 原理、工具操作、方法指导与实践
 │   │   ├── Agent原理与开发.md                                 # Agent Loop、工具调用、上下文与停止条件

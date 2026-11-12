@@ -34,6 +34,7 @@ mvn -v
 **配置文件**：`~/.m2/settings.xml`（可配置阿里云镜像加速）
 
 ```xml
+<!-- 按 XML 层级合并配置，核对根节点、目标属性和实际生效文件。 -->
 <settings>
     <mirrors>
         <mirror>
@@ -190,6 +191,7 @@ mvn -v
 ### 6.2 排除传递依赖（解决冲突）
 
 ```xml
+<!-- 放到 pom.xml 的对应节点，区分依赖版本管理、实际依赖与构建插件。 -->
 <dependency>
     <groupId>org.example</groupId>
     <artifactId>some-lib</artifactId>
@@ -227,6 +229,7 @@ mvn -v
 - **方案A（推荐）**：在本地用 `mvn clean package` 生成 `target/app.jar`，然后 COPY 进 Docker：
 
 ```dockerfile
+# FROM 选择基础环境，RUN 在构建时执行，CMD 或 ENTRYPOINT 决定容器启动方式。
 FROM openjdk:17-jdk-slim
 COPY target/app.jar /app.jar
 ENTRYPOINT ["java", "-jar", "/app.jar"]
@@ -239,6 +242,7 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 - 使用 `profiles`：
 
 ```xml
+<!-- 按 XML 层级合并配置，核对根节点、目标属性和实际生效文件。 -->
 <profiles>
     <profile>
         <id>dev</id>
