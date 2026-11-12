@@ -954,13 +954,6 @@ def build_algorithms(output, github, branch):
         pages.append(entry)
         routes.setdefault(path.resolve(), ident)
 
-    course = root / "数据结构与算法（C语言版）/数据结构与算法笔记.md"
-    chapters = re.split(r"(?m)(?=^## (?:第[一二三四五六七八九]章|附录 A))", course.read_text(encoding="utf-8"))[1:]
-    for index, chapter in enumerate(chapters, 1):
-        title = re.match(r"## ([^\n]+)", chapter)[1] if index <= 9 else "附录：公式、易错点与解题模板"
-        add("chapter-"+str(index), title, "课程 / 数据结构与算法", course,
-            kind="chapter", text=chapter, description="课程速查 · 公式、条件与典型方法")
-
     topics = [
         ("bubble", "冒泡排序", "排序", "排序/冒泡排序.md"),
         ("insertion", "插入排序", "排序", "排序/插入排序.md"),
@@ -1042,9 +1035,43 @@ def build_algorithms(output, github, branch):
         page["search"] = page["text"]
         page["full"] = page["summary"] = render(page.pop("text"), page["id"], page.pop("path"))
 
-    # Keep originals in the notes tree; identical lecture files share one web entry.
+    def package_pdf(path, ident):
+        target = destination / "courseware" / (ident + ".pdf")
+        target.parent.mkdir(exist_ok=True)
+        shutil.copyfile(path, target)
+        return "courseware/" + target.name
+
+    course = root / "数据结构与算法（C语言版）/课件"
+    chapters = [
+        ("一", "绪论", "概念、结构与复杂度"),
+        ("二", "线性表", "顺序表、链表与操作"),
+        ("三", "栈和队列", "递归、缓冲与表达式"),
+        ("四", "串", "模式匹配与 KMP"),
+        ("五", "数组与广义表", "存储映射与压缩"),
+        ("六", "树和二叉树", "遍历、构造与编码"),
+        ("七", "图", "遍历、最短路径与生成树"),
+        ("八", "查找", "有序结构与散列"),
+        ("九", "排序", "效率、空间与稳定性"),
+    ]
+    course_paths = set()
+    course_pages = []
+    for index, (number, title, description) in enumerate(chapters, 1):
+        matches = sorted(course.glob(f"第{number}章+*.pdf"))
+        if len(matches) != 1:
+            raise ValueError(f"Expected one PDF for 第{number}章 in {course}, found {len(matches)}")
+        path = matches[0]
+        course_paths.add(path)
+        ident = f"chapter-{index}"
+        course_pages.append(dict(id=ident, title=f"第{number}章 {title}", group="课程 / 数据结构与算法",
+                                 kind="chapter", format="PDF", source=original(path), search=description,
+                                 description=description, pdf=package_pdf(path, ident)))
+    pages = course_pages + pages
+
+    # Identical supplemental files share one web entry.
     seen = set()
-    materials = [p for p in root.rglob("*") if p.suffix.lower() in (".pdf", ".pptx", ".docx")]
+    materials = [p for p in root.rglob("*")
+                 if p.suffix.lower() in (".pdf", ".pptx", ".docx")
+                 and p.with_suffix(".pdf") not in course_paths and not p.name.startswith("~$")]
     for path in sorted(materials, key=lambda p: ("数据结构与算法（C语言版）" not in p.parts, p.as_posix())):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest in seen:
@@ -1057,10 +1084,7 @@ def build_algorithms(output, github, branch):
                      format=path.suffix[1:].upper(), source=original(path), search=path.stem,
                      description="PDF 课件 · 在线阅读" if path.suffix.lower()==".pdf" else "原始资料 · 下载后使用对应软件打开")
         if path.suffix.lower()==".pdf":
-            target = destination / "courseware" / (ident+".pdf")
-            target.parent.mkdir(exist_ok=True)
-            shutil.copyfile(path, target)
-            entry["pdf"] = "courseware/"+target.name
+            entry["pdf"] = package_pdf(path, ident)
         else:
             entry["full"] = entry["summary"] = '<div class="resource-card"><span>'+entry["format"]+'</span><h2>'+escape(entry["title"])+\
                 '</h2><p>这份资料保留原始格式。打开原文件页面后，可下载到本地阅读。</p><a class="primary" href="'+entry["source"]+'" target="_blank" rel="noopener">查看与下载原文件 ↗</a></div>'
@@ -1070,11 +1094,13 @@ def build_algorithms(output, github, branch):
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
     template = template.replace("<!--CHAPTER_DATA-->", payload)
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
-    template = template.replace("<!--RESOURCE_COUNT-->", str(len(seen)))
+    resource_count = len(course_pages) + len(seen)
+    template = template.replace("<!--RESOURCE_COUNT-->", str(resource_count))
     (destination / "index.html").write_text(template, encoding="utf-8", newline="\n")
     shutil.copyfile(PAGE_ROOT / "algorithms/algorithms-hero.webp", destination / "algorithms-hero.webp")
     copy_mathjax(destination)
-    print(f"Packaged algorithms: {len(pages)} sections, {len(topics)} topics, 8 question lists, {len(seen)} unique resources.")
+    print(f"Packaged algorithms: {len(pages)} sections, {len(course_pages)} chapter PDFs, "
+          f"{len(topics)} topics, 8 question lists, {len(seen)} supplemental resources.")
 
 
 def build_linux(output, github, branch):

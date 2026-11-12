@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="算法与数据结构笔记：九章课程、竞赛专题、分类题单与代码阅读。">
+  <meta name="description" content="在线阅读数据结构与算法（C语言版）九章 PDF 课件，以及竞赛专题、题单和源码。">
   <title>算法与数据结构 · 学习笔记</title>
   <link rel="icon" href="../favicon.svg" type="image/svg+xml"><style>
 :root{color-scheme:light;--bg:#fafbf7;--paper:#fff;--ink:#253c30;--muted:#758074;--green:#2f624b;--line:#dfe6da;--soft:#edf2e8;--serif:'Noto Serif SC','Songti SC','SimSun',serif;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif}
@@ -41,12 +41,12 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
     <main id="main" tabindex="-1">
       <section id="overview">
         <div class="hero"><div class="hero-copy"><div class="eyebrow">THINK CLEARLY. SOLVE STEP BY STEP.</div><h1>把问题拆开，<br>让方法<em>有迹可循。</em></h1><p>从数据的组织，到问题的求解。<br>连接课程、代码与练习，走通每一步。</p><a id="start-reading" class="primary" href="#chapter-1">从第一章开始 <span>↗</span></a></div><img src="algorithms-hero.webp" alt="立体排序柱、二叉搜索树和动态规划状态网格" width="1536" height="1024"></div>
-        <div class="stats"><div><strong>09</strong><span>章课程笔记</span></div><div><strong>19</strong><span>篇专题与源码</span></div><div><strong>08</strong><span>份分类题单</span></div></div>
-        <section class="start"><div class="section-title"><span>01 / THE FOUNDATIONS</span><h2>先建立框架，再理解实现</h2><p>沿课程主线阅读概念、复杂度与适用条件，遇到方法时回到代码。</p></div><div id="course-cards" class="course-cards"></div></section>
+        <div class="stats"><div><strong>09</strong><span>章课程课件</span></div><div><strong>19</strong><span>篇专题与源码</span></div><div><strong>08</strong><span>份分类题单</span></div></div>
+        <section class="start"><div class="section-title"><h2>数据结构与算法（C语言版）</h2><p>选择章节，在网页中打开 PDF 课件。</p></div><div id="course-cards" class="course-cards"></div></section>
         <section class="sort-demo" aria-label="冒泡排序交互演示"><div class="section-title"><span>02 / MAKE THE STEPS VISIBLE</span><h2>让一步一步，看得见</h2><p>从一次比较开始，观察较大的数如何逐步移向右侧。</p></div><div class="demo-heading"><span>冒泡排序 · 升序</span><div><button id="demo-step">下一步</button><button id="demo-play">自动演示</button><button id="demo-reset">重新开始</button></div></div><div id="sort-bars" class="sort-bars" aria-label="当前数组"></div><p id="sort-status" role="status" aria-live="polite"></p><a class="demo-link" href="#bubble">阅读原理与代码 ↗</a></section>
         <section class="companion"><div><span class="eyebrow">UNDERSTAND. IMPLEMENT. PRACTICE.</span><h2>把学过的方法，变成会用的工具。</h2><p>排序、搜索、图论、动态规划与高精度，按专题逐项理解。已有代码可复制，题目集中在题单里，方便练习后回看。</p><div class="text-links"><a href="#search">选择搜索方法 ↗</a><a href="#practice-dp">开始一组练习 ↗</a></div></div><div class="reading-order"><span>建议阅读顺序</span><p><b>01</b> 课程主线与复杂度</p><p><b>02</b> 专题方法与代码</p><p><b>03</b> 分类题单与复盘</p></div></section>
-        <div class="resource-note"><p><!--RESOURCE_COUNT--> 份课件与资料已归入侧栏，重复文件在网页中合并展示。PDF 可在线阅读，PowerPoint 和 Word 提供原文件入口。欧拉函数相关空笔记与待补题单暂不列入正文。</p><a href="<!--SOURCE_URL-->">查看算法目录 ↗</a></div>
-        <footer>算法与数据结构 · 课程笔记与竞赛专题</footer>
+        <div class="resource-note"><p>侧栏收录 <!--RESOURCE_COUNT--> 份课件与资料。PDF 可在线阅读，其他资料可下载原件。</p><a href="<!--SOURCE_URL-->">查看算法目录 ↗</a></div>
+        <footer>算法与数据结构 · 课程课件与竞赛专题</footer>
       </section>
       <section id="document" hidden>
         <div class="document-head"><div><div id="doc-kind" class="eyebrow"></div><h1 id="doc-title"></h1><p id="doc-description"></p></div><div class="document-links"><a id="source" target="_blank" rel="noopener">查看原文件 ↗</a><a id="download" download>下载 PDF ↓</a><a id="open-pdf" target="_blank" rel="noopener">独立阅读 ↗</a></div></div>
@@ -69,7 +69,9 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
   const save = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Private browsing can disable storage. */ } };
   let filter = 'all', active = 'overview', generation = 0;
   const media = matchMedia('(max-width:840px)');
-  const matchFilter = page => filter === 'all' || page.kind === filter || (filter === 'topic' && page.kind === 'code') || (filter === 'courseware' && page.kind === 'resource');
+  const matchFilter = page => filter === 'all' || page.kind === filter ||
+    (filter === 'topic' && page.kind === 'code') ||
+    (filter === 'courseware' && (page.pdf || page.kind === 'resource'));
   const labels = {chapter:'课程', topic:'专题', code:'源码', practice:'题单', courseware:'PDF', resource:'资料'};
 
   function catalog() {
@@ -86,18 +88,9 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
   $('search').addEventListener('input', catalog);
   document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => { filter = button.dataset.filter; catalog(); }));
 
-  const cards = [
-    ['chapter-1','01','绪论','概念、结构与复杂度'],
-    ['chapter-2','02','线性表','顺序表、链表与操作'],
-    ['chapter-3','03','栈和队列','递归、缓冲与表达式'],
-    ['chapter-4','04','串','模式匹配与 KMP'],
-    ['chapter-5','05','数组与广义表','存储映射与压缩'],
-    ['chapter-6','06','树和二叉树','遍历、构造与编码'],
-    ['chapter-7','07','图','遍历、最短路与生成树'],
-    ['chapter-8','08','查找','有序结构与散列'],
-    ['chapter-9','09','排序','效率、空间与稳定性'],
-  ];
-  $('course-cards').innerHTML = cards.map(([id,n,title,description]) => '<a class="course-card" href="#'+id+'"><span>CHAPTER '+n+'</span><b aria-hidden="true">↗</b><h3>'+title+'</h3><p>'+description+'</p></a>').join('');
+  $('course-cards').innerHTML = pages.filter(page => page.kind === 'chapter').map(page =>
+    '<a class="course-card" href="#'+page.id+'"><b aria-hidden="true">↗</b><h3>'+
+    escape(page.title)+'</h3><p>'+escape(page.description)+'</p></a>').join('');
   const last = pages.find(page => page.id === get('algorithms-last'));
   if (last) { $('start-reading').href='#'+last.id; $('start-reading').innerHTML='继续阅读：'+escape(last.title)+' <span>↗</span>'; }
 
@@ -147,6 +140,7 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
       $('doc-kind').textContent = page.group+' / '+labels[page.kind];
       $('doc-title').textContent = page.title;
       $('doc-description').textContent = page.description;
+      $('source').hidden = page.kind === 'chapter';
       $('source').href = page.source;
       $('source').textContent = '查看原文件 ↗';
       $('download').hidden = $('open-pdf').hidden = !page.pdf;

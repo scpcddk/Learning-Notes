@@ -90,7 +90,7 @@ PDF 阅读器需要 HTTP 服务。`--serve` 会在构建后启动本机预览，
 
 封面使用内置 imagegen 生成，图的结点与边、集合交叠与树形结构体现离散数学主题，最终提示词保存在 [discrete-math-hero.prompt.txt](discrete-math/discrete-math-hero.prompt.txt)。
 
-算法页收录九章课程与附录、17篇竞赛专题、2份源码、8份题单，以及19份按内容去重的课件资料。代码支持高亮和复制，首页有可逐步操作的排序演示。PDF 在线阅读，PPTX、DOCX 提供原件入口，既有课件无需重复保存。
+算法页的九个课程章节直接打开对应的 PDF 课件。阅读器支持翻页、缩放、搜索和下载。侧栏也收录竞赛专题、源码、题单和补充资料，补充资料按文件内容去重。
 
 算法封面使用内置 imagegen，采用用户选定的第一张立体排序柱、二叉树与状态网格图：[封面](algorithms/algorithms-hero.webp) · [提示词](algorithms/algorithms-hero.prompt.txt)。
 
