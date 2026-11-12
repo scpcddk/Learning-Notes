@@ -1042,6 +1042,13 @@ def build_algorithms(output, github, branch):
         return "courseware/" + target.name
 
     course = root / "数据结构与算法（C语言版）/课件"
+    source_dir = course.parent / "补充代码"
+    examples = {}
+    for example in json.loads((source_dir / "用例.json").read_text(encoding="utf-8")):
+        chapter = example.pop("chapter")
+        code_path = source_dir / (example.pop("source") + ".c")
+        example["code"] = code_path.read_text(encoding="utf-8")
+        examples.setdefault(chapter, []).append(example)
     chapters = [
         ("一", "绪论", "概念、结构与复杂度"),
         ("二", "线性表", "顺序表、链表与操作"),
@@ -1064,7 +1071,8 @@ def build_algorithms(output, github, branch):
         ident = f"chapter-{index}"
         course_pages.append(dict(id=ident, title=f"第{number}章 {title}", group="课程 / 数据结构与算法",
                                  kind="chapter", format="PDF", source=original(path), search=description,
-                                 description=description, pdf=package_pdf(path, ident)))
+                                 description=description, pdf=package_pdf(path, ident),
+                                 examples=examples.get(index, [])))
     pages = course_pages + pages
 
     # Identical supplemental files share one web entry.
