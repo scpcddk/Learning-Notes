@@ -44,6 +44,13 @@ READER_PATH_MOVES = {
             "Docker学习计划", "Python 学习与能力补齐计划")},
     },
 }
+# Lossless repacking changes the hash without changing the slides. Keep the
+# existing reading previews and the published algorithm bookmark for these files.
+READING_DIGEST_ALIASES = {
+    "ccaad733923fd90fe50f3d2ddb1d37ce4fad30060fa93e6a09b2ec9bc14568bf": "f451a496c9d940a6f6f53a07d20a05804fc2e2eaa8e70ae1af1ec1429458cc5a",
+    "c6cc6a3517cce08d6866c5a181a4a31ba01d55f429e5d9df9cef00acbb91125a": "7c5a87695bfa433fcf13842b52f3fd31d6d7bee0ab9a78fae00d4c064fd6fbfb",
+    "4a9d69e196e62fa571d2d281bd2b2f75b4847faca485676d28e3c438fd21f2ba": "a99de439afc66b4a4e977f4b6085091a56dde7465c639c3cfb1ce1d9a58ab167",
+}
 SUBJECTS = (
     ("calculus", PAGE_ROOT / "calculus"),
     ("linear-algebra", PAGE_ROOT / "linear-algebra"),
@@ -51,6 +58,11 @@ SUBJECTS = (
 DATA = re.compile(r'(<script type="application/json" id="chapter-data">)([\s\S]*?)(</script>)')
 HREF = re.compile(r'(?P<prefix>\bhref\s*=\s*)(?P<q>["\'])(?P<url>[^"\']*)(?P=q)')
 READER_CONFIG = re.compile(r'(<script type="application/json" id="language-data">)([\s\S]*?)(</script>)')
+
+
+def reading_digest(path):
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return READING_DIGEST_ALIASES.get(digest, digest)
 
 
 def read_template(path, *, catalog=False):
@@ -1109,7 +1121,7 @@ def build_algorithms(output, github, branch):
                  if p.suffix.lower() in (".pdf", ".pptx", ".docx")
                  and p.with_suffix(".pdf") not in course_paths and not p.name.startswith("~$")]
     for path in sorted(materials, key=lambda p: ("数据结构与算法（C语言版）" not in p.parts, p.as_posix())):
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = reading_digest(path)
         if digest in seen:
             routes[path.resolve()] = seen[digest]
             add_to_competition_folder(path, seen[digest])
@@ -1637,7 +1649,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 language["resources"] += 1
                 page["search"] = page["title"] + " " + page["group"]
                 if path.suffix.lower() in (".ppt", ".pptx", ".doc", ".docx"):
-                    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+                    digest = reading_digest(path)[:12]
                     preview = source / "reading-pdfs" / (digest + ".pdf")
                     if preview.is_file():
                         path = preview

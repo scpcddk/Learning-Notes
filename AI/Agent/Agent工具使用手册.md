@@ -801,16 +801,16 @@ dsh --version
 
 DSH 的 `dsh` 启动器按 **Profile** 组合插件与配置。通过 `npx` 启动时，可将参数追加在包名后；全局安装并配置 PATH 后，可直接使用下表的 `dsh` 命令。
 
-| 命令（已具备 `dsh` 可执行程序时） | 作用 |
-| --- | --- |
-| `dsh --help` | 查看启动器帮助 |
-| `dsh --version` | 查看版本 |
-| `dsh web` | 启动 Web UI（等效于启动 web Profile） |
-| `dsh web --help` | 查看 Web UI 专属参数 |
-| `dsh web --no-open` | 启动服务器但不自动打开浏览器 |
-| `dsh web --port 8080` | 换用指定端口，避免默认端口冲突 |
-| `dsh headless "概括目录结构"` | 运行一次性任务后退出；需先配置好模型与权限 |
-| `dsh plugin --profile web ...` | 管理指定 Profile 的插件；具体参数见官方帮助 |
+| 命令（已具备 `dsh` 可执行程序时） | 作用 | 适用场景 |
+| --- | --- | --- |
+| `dsh --help` | 查看启动器命令 | 学习 CLI、核对参数 |
+| `dsh --version` | 查看版本 | 环境检查、版本核对 |
+| `dsh web` | 启动 Web UI（等效于启动 web Profile） | 日常交互使用 |
+| `dsh web --help` | 查看 Web UI 专属参数 | 排查启动参数 |
+| `dsh web --no-open` | 启动服务器但不自动打开浏览器 | 服务器或远程环境 |
+| `dsh web --port 8080` | 换用指定端口 | 默认端口被占用 |
+| `dsh headless "任务"` | 执行一次任务后退出 | 终端任务、脚本自动化 |
+| `dsh plugin --profile web ...` | 管理指定 Profile 的插件 | 插件管理；具体参数见官方帮助 |
 
 **无需全局安装也可以查询 Web 帮助**。本地没有所需包时，`npx` 可能从 registry 下载并安装到 npm 缓存。[npm exec 文档](https://docs.npmjs.com/cli/v11/commands/npm-exec/)
 
@@ -820,6 +820,58 @@ npx @deepseek-ai/dsh web --help
 
 > [!warning] 首次体验保持本机访问
 > 不要使用对外网卡监听参数或向其他设备暴露 Web UI。服务器部署还需考虑网络边界、认证、TLS、Host/Origin 信任和代理配置。
+
+**Headless：一次性任务模式**
+
+`dsh headless "<任务>"` 等价于启动 `headless` Profile：运行一个一次性会话，输出最终结果后退出；首次使用会从随附模板自动初始化。它不是 Codex、Pi 那样的持续聊天终端。
+
+参数（本机 `dsh headless --help`，`0.2.2-rc.1`）：
+
+| 参数 | 作用 |
+| --- | --- |
+| `--json` | 输出按行分隔的运行事件，而不是最终消息 |
+| `--session-id <id>` | 恢复指定会话；未知 id 会报错 |
+| `--permission-mode <preset>` | 选择已配置的权限预设，恢复会话时同样生效 |
+| `--approval-policy <policy>` | 选择权限预设后的审批行为，可选 `ask` 或 `never` |
+| `--add-dir <path>` | 在 `workspace-write` 下额外允许一个物理绝对目录，可重复 |
+| `-` | 从标准输入读取任务 |
+
+```powershell
+dsh --profile headless "run the tests"
+'run the tests' | dsh --profile headless
+dsh --profile headless --json "run the tests"
+dsh --profile headless --session-id <id> "继续"
+```
+
+- 需要多轮修改时用 `--session-id` 恢复会话，否则每次调用都是独立任务。
+- `--approval-policy ask` 只设定审批行为；非交互模式没有可点击的审批界面，需要审批的操作可能无法完成（行为细节待实测）。
+- `--add-dir` 会扩大可写范围，只在确有需要时使用；不要为绕过 `Win32 5` 而额外授权目录或切到完全权限。
+- DSH 默认不提供 Codex 风格 TUI；社区有第三方 `dsh-tui`，不是官方内置功能。
+- 提示词里的"不要修改文件"只是任务约束；只读或写入范围应由权限预设控制。
+- Windows 沙箱的 `SetNamedSecurityInfoW failed (Win32 5)` 不会因改用 Headless 而消失。
+
+依据：本机 `dsh headless --help`（`0.2.2-rc.1`）· [dsh README（0.2.2-rc.1）](https://cdn.jsdelivr.net/npm/@deepseek-ai/dsh@0.2.2-rc.1/README.zh.md)（2026-11-10 核对）。
+
+**在笔记目录中使用 Headless（建议流程，未实测）**
+
+1. `git status` 确认没有未提交改动；备份目标文件。
+2. 任务里只指定一个文件，要求保留原有结构与内容，并说明改了哪些部分。
+3. 执行 `dsh headless --permission-mode <preset> "<任务>"`；预设名称以本机配置为准（示例中为 `workspace-write`）。
+4. 用 `git diff` 或 `code --diff 文件.bak 文件` 核对，只保留预期改动。
+5. 不接受整篇重写；遇到权限错误时不提高权限，先记录报错。
+
+> [!warning] 非交互模式不适合逐项审批
+> Headless 没有可交互的审批界面；需要逐条确认写入时，用 Web UI 更合适。
+
+**Headless 的适用边界**
+
+| 需求 | 更适合的方式 |
+| --- | --- |
+| 持续对话、边讨论边改文件 | Codex CLI、Pi，或 DSH Web UI |
+| 一次性任务、脚本自动化 | `dsh headless` |
+| 查看工具调用与执行过程 | Web UI 的「轨迹」 |
+
+Headless 的流程是"提交任务 → 执行 → 输出结果 → 退出"，中途调整通常要重新发起；维护需要反复核对 diff 的 Markdown 笔记时，交互式 CLI 或 Web UI 更顺手。
 
 ### 6.4 DSH 插件：先理解使用概念
 

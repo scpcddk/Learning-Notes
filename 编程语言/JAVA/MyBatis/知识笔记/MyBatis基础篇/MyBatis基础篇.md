@@ -137,7 +137,7 @@ Java 对象
 
 ## 3. 最小 MyBatis 项目
 
-### 1.4 Maven 依赖
+### 3.1 Maven 依赖
 
 ```xml
 <dependencies>
@@ -154,7 +154,7 @@ Java 对象
 </dependencies>
 ```
 
-### 1.5 数据库表
+### 3.2 数据库表
 
 ```sql
 CREATE TABLE student (
@@ -165,7 +165,7 @@ CREATE TABLE student (
 );
 ```
 
-### 1.6 Java Bean
+### 3.3 Java Bean
 
 **JavaBean 参数**：
 
@@ -185,7 +185,7 @@ public class Student {
 }
 ```
 
-### 1.7 Mapper 接口
+### 3.4 Mapper 接口
 
 ```java
 package com.example.mapper;
@@ -197,7 +197,7 @@ public interface StudentMapper {
 }
 ```
 
-### 1.8 Mapper XML
+### 3.5 Mapper XML
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -222,13 +222,13 @@ public interface StudentMapper {
 > `Mapper.xml` 是 MyBatis 的 SQL 映射文件，**核心作用**：
 > **把 Mapper 接口的方法和具体 SQL 绑定起来，并定义参数怎么传、结果怎么映射成 Java 对象**。
 
-### 1.9 mybatis-config.xml
+### 3.6 mybatis-config.xml
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>      // 这是 XML 1.0，使用 UTF-8 编码
+<?xml version="1.0" encoding="UTF-8"?>      <!-- 这是 XML 1.0，使用 UTF-8 编码 -->
 <!DOCTYPE configuration
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
-        "https://mybatis.org/dtd/mybatis-3-config.dtd">    //这个文件遵循 MyBatis Mapper XML 的格式规范
+        "https://mybatis.org/dtd/mybatis-3-config.dtd">    <!-- 这个文件遵循 MyBatis Config XML 的格式规范 -->
 <configuration>
     <environments default="development">
         <environment id="development">
@@ -248,7 +248,7 @@ public interface StudentMapper {
 </configuration>
 ```
 
-### 1.10 测试
+### 3.7 测试
 
 ```java
 InputStream in = Resources.getResourceAsStream("mybatis-config.xml");
@@ -2053,7 +2053,9 @@ select * from student order by id limit 0, 10
 
 # 第十四篇：TypeHandler
 
-### TypeHandler基础
+## 41. TypeHandler
+
+### 41.1 TypeHandler 基础
 
 【**MyBatis 核心**】
 
@@ -2090,7 +2092,7 @@ Java → TypeHandler → JDBC → 数据库
 > `javaType` / `jdbcType` 不是“开启 TypeHandler”，而是帮助 MyBatis 更明确地确定参数的 JDBC 类型和 TypeHandler。
 > **参数为 `null` 时，Java 端没有具体值可以帮助确定 JDBC 类型，所以显式指定 `jdbcType` 可以帮助 MyBatis/JDBC 正确处理这个 NULL 参数**
 
-### 自定义TypeHandler
+### 41.2 自定义 TypeHandler
 
 **核心写法：**
 
@@ -2303,6 +2305,9 @@ public class User {
   各自拥有自己的一级缓存
   ```
 
+> [!note] 一级缓存只属于当前会话
+> 它不是"晚一点才同步给其他 `SqlSession`"，而是根本不会共享：每个 `SqlSession` 各有一份 `localCache`，其他会话只能重新查数据库（或命中二级缓存）。
+
 - **默认**：开启
   - `localCacheScope`：一级缓存作用域，默认 `SESSION`
     - `SESSION`：同一个 SqlSession 内共享，可跨多条查询命中
@@ -2443,11 +2448,6 @@ mapper.selectById(1)
     TransactionalCache flush 到 delegate（真正的二级缓存）
     ```
 
-- **TransactionalCache（事务缓存）**
-  - 位置：`org.apache.ibatis.cache.decorators.TransactionalCache`
-  - 由 `CachingExecutor` 内部的 `TransactionalCacheManager` 管理
-  - 每个二级 `Cache` 对应一个 `TransactionalCache`，包装真正的 `delegate` 缓存
-  - 核心字段：
 > [!important]
 > **二级缓存结果的可见时机**
 >
@@ -2460,6 +2460,11 @@ mapper.selectById(1)
 >
 > [DefaultSqlSession 源码](https://mybatis.org/mybatis-3/xref/org/apache/ibatis/session/defaults/DefaultSqlSession.html) · [CachingExecutor 源码](https://mybatis.org/mybatis-3/xref/org/apache/ibatis/executor/CachingExecutor.html) · [SqlSessionTemplate 源码](https://mybatis.org/spring/xref/org/mybatis/spring/SqlSessionTemplate.html)
 
+- **TransactionalCache（事务缓存）**
+  - 位置：`org.apache.ibatis.cache.decorators.TransactionalCache`
+  - 由 `CachingExecutor` 内部的 `TransactionalCacheManager` 管理
+  - 每个二级 `Cache` 对应一个 `TransactionalCache`，包装真正的 `delegate` 缓存
+  - 核心字段：
     - `delegate`：真正的二级缓存（如 `PerpetualCache`）
     - `entriesToAddOnCommit`：本次事务待提交的缓存项
     - `entriesMissedInCache`：本次查询未命中的 key
@@ -2511,7 +2516,7 @@ mapper.selectById(1)
 
 ## (一) 整体概览
 
-```Mermaid
+```mermaid
 flowchart LR
     %% ============ Spring 侧 ============
     subgraph S["🌱 Spring 侧"]
@@ -3056,8 +3061,9 @@ TransactionSynchronizationManager.unbindResource(dataSource)
 > Spring JDBC 事务绑定到当前线程。异步任务切换线程后，原事务不会传播过去。需要同一次提交或回滚的数据库操作应在原事务线程执行。异步任务需要事务时，应在执行任务的线程建立自己的事务。[Spring @Transactional 文档](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html)
 
 > [!important]
-**`ThreadLocal` 是存储介质，`TransactionSynchronizationManager` 是管理入口，`ConnectionHolder` 是绑定对象，事务管理器负责绑定与解绑。**  
-它们一起实现了：**同一线程、同一事务、同一 Connection。**
+> **`ThreadLocal` 是存储介质，`TransactionSynchronizationManager` 是管理入口，`ConnectionHolder` 是绑定对象，事务管理器负责绑定与解绑。**
+>
+> 它们一起实现了：**同一线程、同一事务、同一 Connection。**
 
 ---
 
@@ -3078,7 +3084,7 @@ TransactionSynchronizationManager.unbindResource(dataSource)
 ## (八) `SqlSessionTemplate`
 
 > [!important]
-`SqlSessionTemplate` 是 MyBatis-Spring 提供的**线程安全的 `SqlSession` 实现**，是 Mapper 调用 MyBatis 的入口代理，负责让 MyBatis 正确接入 Spring 事务。
+> `SqlSessionTemplate` 是 MyBatis-Spring 提供的**线程安全的 `SqlSession` 实现**，是 Mapper 调用 MyBatis 的入口代理，负责让 MyBatis 正确接入 Spring 事务。
 
 **解决什么问题：**
 
@@ -3126,7 +3132,7 @@ Connection
 - 它还会把 MyBatis 异常转换为 Spring 的 `DataAccessException`。
 
 > [!tip]
-**`SqlSessionTemplate` 是 MyBatis 与 Spring 事务之间的线程安全适配器：让 Mapper 每次调用都能拿到当前事务正确的 `SqlSession` 和 `Connection`。**
+> **`SqlSessionTemplate` 是 MyBatis 与 Spring 事务之间的线程安全适配器：让 Mapper 每次调用都能拿到当前事务正确的 `SqlSession` 和 `Connection`。**
 
 ---
 
