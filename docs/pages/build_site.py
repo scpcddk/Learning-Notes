@@ -949,6 +949,26 @@ def build_algorithms(output, github, branch):
     destination = output / "algorithms"
     destination.mkdir(parents=True, exist_ok=True)
     pages, routes = [], {}
+    folder_order = {name: index for index, name in enumerate((
+        "大一寒假集训", "动态规划", "高精度", "排序", "数据结构",
+        "数学", "搜索与树", "贪心算法", "图论", "杂项",
+    ))}
+    folders = sorted(
+        (path for path in competition.iterdir() if path.is_dir() and not path.name.startswith(".")),
+        key=lambda path: (folder_order.get(path.name, len(folder_order)), path.name),
+    )
+    competition_folders = {
+        path.name: dict(id="competition-"+hashlib.sha256(path.name.encode()).hexdigest()[:12],
+                        title=path.name, entries=[],
+                        source=f"{github}/tree/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}")
+        for path in folders
+    }
+
+    def add_to_competition_folder(path, ident):
+        if path.is_relative_to(competition):
+            folder = competition_folders.get(path.relative_to(competition).parts[0])
+            if folder and ident not in folder["entries"]:
+                folder["entries"].append(ident)
 
     def original(path):
         return f"{github}/blob/{quote(branch, safe='')}/{quote(path.relative_to(REPO).as_posix())}"
@@ -961,6 +981,7 @@ def build_algorithms(output, github, branch):
                      kind=kind, description=description, source=original(path))
         pages.append(entry)
         routes.setdefault(path.resolve(), ident)
+        add_to_competition_folder(path, ident)
 
     topics = [
         ("bubble", "冒泡排序", "排序", "排序/冒泡排序.md"),
@@ -1084,16 +1105,18 @@ def build_algorithms(output, github, branch):
     pages = course_pages + pages
 
     # Identical supplemental files share one web entry.
-    seen = set()
+    seen = {}
     materials = [p for p in root.rglob("*")
                  if p.suffix.lower() in (".pdf", ".pptx", ".docx")
                  and p.with_suffix(".pdf") not in course_paths and not p.name.startswith("~$")]
     for path in sorted(materials, key=lambda p: ("数据结构与算法（C语言版）" not in p.parts, p.as_posix())):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest in seen:
+            add_to_competition_folder(path, seen[digest])
             continue
-        seen.add(digest)
         ident = "material-"+digest[:10]
+        seen[digest] = ident
+        add_to_competition_folder(path, ident)
         entry = dict(id=ident, title=path.stem.replace("+", " · "),
                      group="课件 / "+("课程资料" if "数据结构与算法（C语言版）" in path.parts else "竞赛与集训"),
                      kind="courseware" if path.suffix.lower()==".pdf" else "resource",
@@ -1109,6 +1132,8 @@ def build_algorithms(output, github, branch):
     template = read_template(PAGE_ROOT / "algorithms/index.html")
     payload = json.dumps(pages, ensure_ascii=False).replace("</", r"<\/")
     template = template.replace("<!--CHAPTER_DATA-->", payload)
+    folder_data = json.dumps(list(competition_folders.values()), ensure_ascii=False).replace("</", r"<\/")
+    template = template.replace("<!--COMPETITION_DATA-->", folder_data)
     template = template.replace("<!--SOURCE_URL-->", f"{github}/tree/{quote(branch, safe='')}/{quote('算法')}")
     resource_count = len(course_pages) + len(seen)
     template = template.replace("<!--RESOURCE_COUNT-->", str(resource_count))
