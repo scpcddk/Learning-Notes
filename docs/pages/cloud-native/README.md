@@ -12,7 +12,7 @@
 
 封面由内置 imagegen 生成，以玻璃云朵、服务器、容器与数据库体现主题，与数学和编程语言页面的米白、墨绿、黄铜材质保持一致：[封面](阅读资源/cloud-native-hero.webp) · [最终提示词](阅读资源/cloud-native-hero.prompt.txt)。
 
-七个板块使用各自的 imagegen 封面，采用与总封面一致的材质与配色。板块内的主题和“待学”入口为文字卡片。封面保留完整比例并延迟加载，小屏幕切换为单列。
+七个板块使用各自的 imagegen 封面，采用与总封面一致的材质与配色。数据库与中间件的五个主题共用这套材质，并在主题卡片和主题页展示各自的封面。“待学”入口为文字卡片。卡片封面保留完整比例并延迟加载，小屏幕切换为单列。
 
 | 板块 | 封面 | 最终提示词 | 主题 |
 | --- | --- | --- | --- |
@@ -23,6 +23,14 @@
 | Kubernetes | [图片](阅读资源/section-kubernetes.webp) | [提示词](阅读资源/section-kubernetes.prompt.txt) | 七辐舵轮与容器节点 |
 | 可观测性 | [图片](阅读资源/section-observability.webp) | [提示词](阅读资源/section-observability.prompt.txt) | 放大镜、指标、日志与链路 |
 | 微服务 | [图片](阅读资源/section-microservices.webp) | [提示词](阅读资源/section-microservices.prompt.txt) | 独立服务模块与连接 |
+
+| 主题 | 封面 | 最终提示词 | 画面内容 |
+| --- | --- | --- | --- |
+| MySQL | [图片](阅读资源/topic-mysql.webp) | [提示词](阅读资源/topic-mysql.prompt.txt) | 海豚、关系表与查询路径 |
+| Nginx | [图片](阅读资源/topic-nginx.webp) | [提示词](阅读资源/topic-nginx.prompt.txt) | 六边形网关与上游分流 |
+| EMQX | [图片](阅读资源/topic-emqx.webp) | [提示词](阅读资源/topic-emqx.prompt.txt) | 传感器、消息代理与订阅设备 |
+| MinIO | [图片](阅读资源/topic-minio.webp) | [提示词](阅读资源/topic-minio.prompt.txt) | 存储桶、对象与存储节点 |
+| SRS | [图片](阅读资源/topic-srs.webp) | [提示词](阅读资源/topic-srs.prompt.txt) | 采集、直播服务与多端播放 |
 
 构建：`python docs/pages/build_site.py --output docs/site`。
 检查：`python -m unittest discover -s docs/pages -p 'test_*.py'`。

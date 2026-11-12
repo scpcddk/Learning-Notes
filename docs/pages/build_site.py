@@ -68,6 +68,14 @@ def read_template(path, *, catalog=False):
     return text.replace('<body>', '<body class="' + kind + '">', 1)
 
 
+def reader_cover_fields(config):
+    yield config, 'coverUrl'
+    for section in config.get('sections', []):
+        yield section, 'cover'
+        for topic in section.get('topics', []):
+            yield topic, 'cover'
+
+
 def optimize_site_covers(output):
     """Serve responsive WebP covers while keeping source PNGs and offline pages intact."""
     output = output.resolve()
@@ -81,7 +89,7 @@ def optimize_site_covers(output):
         source = (page.parent / unquote(parts.path)).resolve()
         if not source.is_relative_to(output) or not source.is_file():
             return None
-        if not re.fullmatch(r'(?:.+-hero(?:-v\d+)?|section-[\w-]+)\.(?:png|webp)', source.name):
+        if not re.fullmatch(r'(?:.+-hero(?:-v\d+)?|(?:section|topic)-[\w-]+)\.(?:png|webp)', source.name):
             return None
         if source not in variants:
             digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
@@ -136,7 +144,7 @@ def optimize_site_covers(output):
         match = READER_CONFIG.search(text)
         if match:
             config = json.loads(match[2])
-            for item, field in [(config, 'coverUrl'), *[(section, 'cover') for section in config.get('sections', [])]]:
+            for item, field in reader_cover_fields(config):
                 urls = cover(item.get(field, ''), page)
                 if urls:
                     item[field] = urls[1]
@@ -1330,7 +1338,10 @@ def build_cloud_native(output, github, branch):
                         "数据库与中间件": "section-database-middleware.webp",
                         "运维与服务部署": "section-operations-deployment.webp",
                         "Kubernetes": "section-kubernetes.webp", "可观测性": "section-observability.webp",
-                        "微服务": "section-microservices.webp", "云计算基础": "section-cloud-computing.webp"})]
+                        "微服务": "section-microservices.webp", "云计算基础": "section-cloud-computing.webp"},
+                    topic_covers={"数据库与中间件": {
+                        "MySQL": "topic-mysql.webp", "Nginx": "topic-nginx.webp",
+                        "EMQX": "topic-emqx.webp", "MinIO": "topic-minio.webp", "SRS": "topic-srs.webp"}})]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "cloud-native", output,
                          profile="cloud-native")[0]
 
@@ -1680,6 +1691,14 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "错题与易错点": "回顾曾经出错的概念、原因与正确理解，在复习中巩固知识。",
             }
             section_keys = list(dict.fromkeys(page["section"] for page in language["entries"]))
+            topic_descriptions = {
+                "MySQL": "从关系表、SQL 和索引入手，结合练习理解查询与数据管理。",
+                "Nginx": "沿着请求路径，理解反向代理、负载均衡与部署配置。",
+                "EMQX": "从 MQTT 发布订阅入手，连接物联网设备与消息服务。",
+                "MinIO": "理解存储桶与对象，通过 S3 兼容接口和 Java SDK 存取文件。",
+                "SRS": "串起推流、流媒体服务和播放，搭建直播链路。",
+                "待学": "收纳本板块尚未填写正文的笔记，补充内容后自动回到正常目录。",
+            }
             if cloud:
                 section_keys.sort(key=lambda key: (group_names.get(key.casefold(), len(group_order)), key))
             for key in section_keys:
@@ -1701,11 +1720,16 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                                         key=lambda name: (topic_order.index(name) if name in topic_order else len(topic_order), name))
                     topic_keys.append("待学")
                     topics = []
+                    topic_covers = language.get("topic_covers", {}).get(key, {})
                     for topic in topic_keys:
                         members = [page for page in entries if page["topic"] == topic]
+                        cover = topic_covers.get(topic)
+                        if cover and not (target_folder / "阅读资源" / cover).is_file():
+                            raise FileNotFoundError(f"Missing topic cover: {cover}")
                         topics.append(dict(key=topic, section=key, title=topic,
                                            id="topic-" + hashlib.sha256((key+"/"+topic).casefold().encode()).hexdigest()[:12],
-                                           description="收纳本板块尚未填写正文的笔记，补充内容后自动回到正常目录。" if topic == "待学" else "查看这个主题的笔记、操作手册与学习资料。",
+                                           description=topic_descriptions.get(topic, "查看这个主题的笔记、操作手册与学习资料。"),
+                                           cover="阅读资源/" + cover if cover else "",
                                            count=len(members), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in members),
                                            pending=sum(page["pending"] for page in members),
                                            resources=sum(page["kind"] not in ("note", "practice") for page in members)))
@@ -1796,7 +1820,8 @@ def build_catalogs(output, github, branch, programming):
     catalog_covers = {
         "math": "math-hero.webp",
         "software-engineering": "software-engineering-hero-v2.webp",
-        "computer-organization": "computer-organization-hero-v2.webp",
+        "computer-organization": "computer-organization-hero-v3.webp",
+        "software-requirements": "software-requirements-hero.webp",
         "general-studies": "general-studies-hero-v2.webp",
         "probability-statistics": "probability-statistics-hero-v2.webp",
         "numerical-analysis": "numerical-analysis-hero-v2.webp",
@@ -1940,10 +1965,10 @@ def build_catalogs(output, github, branch, programming):
                                     repository_url(entry), "查看仓库目录" if entry.is_dir() else "查看原文件",
                                     ("目录" if entry.is_dir() else entry.suffix[1:].upper() or "文件",), symbol=symbol)
                                for entry in entries]
+                subject_hero = "阅读资源/"+catalog_covers[subject_slug] if subject_slug in catalog_covers else None
                 subject_cards.append(card(child.name, subject_description, "../"+subject_slug+"/", "查看科目目录",
-                                          (str(len(entries))+" 个目录与文件",), symbol=symbol))
-                subject_hero = ("阅读资源/"+catalog_covers["computer-organization"]
-                                if subject_slug == "computer-organization" else None)
+                                          (str(len(entries))+" 个目录与文件",),
+                                          image=f"../{subject_slug}/{subject_hero}" if subject_hero else None, symbol=symbol))
                 page(subject_slug, child.name, escape(child.name)+'，<br>从概念<em>走向理解。</em>',
                      subject_description, entry_cards, child, "SOFTWARE & COMPUTING / SUBJECT",
                      (str(len(entries))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero=subject_hero,
@@ -2068,7 +2093,8 @@ def validate(output):
         config_match = READER_CONFIG.search(text)
         if config_match:
             config = json.loads(config_match[2])
-            for cover in [config.get('coverUrl'), *[section.get('cover') for section in config.get('sections', [])]]:
+            for item, field in reader_cover_fields(config):
+                cover = item.get(field)
                 if cover:
                     parser.feed('<img src="' + escape(cover, quote=True) + '">')
         match = DATA.search(text)

@@ -49,7 +49,14 @@ class SoftwareEngineeringTests(unittest.TestCase):
             self.assertNotIn(old_link, Links(computer).hrefs)
             self.assertIn('软件需求与分析', requirements)
             self.assertTrue((output/'software-engineering/阅读资源/software-engineering-hero-v2.webp').is_file())
-            self.assertTrue((output/'computer-organization/阅读资源/computer-organization-hero-v2.webp').is_file())
+            for slug, name, subject in [
+                ('computer-organization', 'computer-organization-hero-v3.webp', computer),
+                ('software-requirements', 'software-requirements-hero.webp', requirements),
+            ]:
+                resource = f'阅读资源/{name}'
+                self.assertTrue((output/slug/resource).is_file())
+                self.assertIn(f'src="../{slug}/{resource}"', hub)
+                self.assertIn(f'src="{resource}"', subject)
             added_subject = next(href for href in Links(hub).hrefs if href and href.startswith('../software-')
                                  and href != '../software-requirements/')
             self.assertTrue((output/added_subject.removeprefix('../')/'index.html').is_file())

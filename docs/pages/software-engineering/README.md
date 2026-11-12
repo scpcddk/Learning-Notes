@@ -9,7 +9,12 @@
 
 科目目录继续提供原笔记、课件和习题的仓库入口，所有链接根据移动后的源目录生成。科目页面包屑可返回板块目录。软件工程目录内新增科目后，统一构建时会自动生成相应科目页。
 
-首页卡片和软件工程目录共用[新版总封面](阅读资源/software-engineering-hero-v2.webp)，内部科目保持文字卡片。原计组封面继续用于计组科目页，未被替换。
+首页卡片和软件工程目录共用[新版总封面](阅读资源/software-engineering-hero-v2.webp)。两个科目的入口卡片与各自的科目页展示同一张封面。
+
+| 科目 | 封面 | 最终提示词 |
+|---|---|---|
+| 计算机组成原理 | [图片](../computer-organization/阅读资源/computer-organization-hero-v3.webp) | [提示词](../computer-organization/阅读资源/computer-organization-hero-v3.prompt.txt) |
+| 软件需求与分析 | [图片](../software-requirements/阅读资源/software-requirements-hero.webp) | [提示词](../software-requirements/阅读资源/software-requirements-hero.prompt.txt) |
 
 新封面由内置图像生成工具生成：1536×1024、3:2、暖白背景、墨绿与鼠尾草绿玻璃、黄铜连接件。新版把分散面板收拢为一座螺旋上升的玻璃模块建筑，用连续黄铜路径与底层处理器表现软件的分层、依赖和计算基础；无文字、不透明背景。它是装饰性插图，不代替精确架构图。
 

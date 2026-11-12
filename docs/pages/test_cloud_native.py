@@ -109,6 +109,21 @@ class CloudNativeReaderTests(unittest.TestCase):
         self.assertEqual(next(p for p in self.pages if p["title"] == "Kafka")["section"], "数据库与中间件")
         self.assertEqual(next(p for p in self.pages if p["title"] == "minio")["subgroup"], "Java 集成")
         self.assertEqual(next(p for p in self.pages if p["title"] == "Linux")["subgroup"], "系统操作手册")
+        self.assertEqual([topic["cover"] for topic in section["topics"]], [
+            f"阅读资源/topic-{name}.webp" for name in ("mysql", "nginx", "emqx", "minio", "srs")
+        ] + [""])
+
+        build_site.optimize_site_covers(self.output)
+        folder = self.output / "cloud-native"
+        text = (folder / "index.html").read_text(encoding="utf-8")
+        config = json.loads(build_site.READER_CONFIG.search(text)[2])
+        middleware = next(s for s in config["sections"] if s["key"] == "数据库与中间件")
+        for topic in middleware["topics"][:-1]:
+            self.assertRegex(topic["cover"], r"-[0-9a-f]{12}-960\.webp$")
+            for width in (480, 960, 1440):
+                self.assertTrue((folder / topic["cover"].replace("-960.webp", f"-{width}.webp")).is_file())
+        self.assertEqual(middleware["topics"][-1]["cover"], "")
+        build_site.validate(self.output)
 
     def test_duplicate_aliases_headings_images_and_materials(self):
         manual = "# 部署\n\n## 验证\n\n相同的部署记录。"
