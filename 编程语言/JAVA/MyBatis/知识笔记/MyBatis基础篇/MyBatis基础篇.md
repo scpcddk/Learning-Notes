@@ -2396,7 +2396,7 @@ mapper.selectById(1)
     | 配置 | 解决什么问题 |
     | --------------- | ------------------- |
     | `eviction` | **缓存满了，优先淘汰谁** |
-    | `flushInterval` | **多久自动清空一次** |
+    | `flushInterval` | **经过多久后，下次访问缓存时清空** |
     | `size` | **最多保存多少个缓存对象** |
     | `readOnly` | **返回的缓存对象是否允许被直接共享/修改** |
   - 默认属性：
@@ -2406,10 +2406,7 @@ mapper.selectById(1)
         - FIFO：First In First Out，先进来的先淘汰。
         - SOFT：使用软引用，让 JVM 根据内存情况决定回收。
         - WEAK：使用弱引用，更容易被 JVM 回收。
-    - `flushInterval=null`
-      - **缓存隔一段时间主动全部清空，下次使用时重新从数据库获取数据**
-      - **只负责**“什么时候清空”
-      - **不负责**“去哪里获取新数据” 
+    - `flushInterval` 默认不设置，缓存不会按时间清空。设置毫秒数后，缓存会在达到间隔后的下一次访问时清空，随后查询按正常流程取数。
     - `size=1024`
       - 缓存内部最多保存指定数量的**缓存条目**
       - **缓存条目**：一个 Key(一般是CacheKey) 和它对应的缓存 Value 组成一个缓存条目
@@ -2424,8 +2421,8 @@ mapper.selectById(1)
     ```
   - 写入时机：
     - 查询结果先入事务缓存
-    - **commit 后才写入二级缓存**
-    - rollback 不写入
+    - **缓存事务提交时写入二级缓存**
+    - 强制回滚会丢弃暂存结果
     ```text
     Session A
       ↓
@@ -2441,7 +2438,7 @@ mapper.selectById(1)
       ↓
     同时放入 TransactionalCache.entriesToAddOnCommit（暂存）
       ↓
-    Session A commit
+    Session A 提交缓存事务
       ↓
     TransactionalCache flush 到 delegate（真正的二级缓存）
     ```
@@ -2451,6 +2448,18 @@ mapper.selectById(1)
   - 由 `CachingExecutor` 内部的 `TransactionalCacheManager` 管理
   - 每个二级 `Cache` 对应一个 `TransactionalCache`，包装真正的 `delegate` 缓存
   - 核心字段：
+> [!important]
+> **二级缓存结果的可见时机**
+>
+> 查询结果先进入 `TransactionalCache` 暂存区。缓存事务提交后，其他 `SqlSession` 才能命中这些结果。
+>
+> - 原生 `DefaultSqlSession` 调用 `commit()` 会提交缓存事务。普通只读会话也可以在 `close()` 时提交缓存事务。
+> - 非自动提交会话存在未提交的修改时，`close()` 会走强制回滚分支，丢弃暂存结果。需要保存数据库写入时应显式提交。
+> - Spring 无事务路径由 `SqlSessionTemplate` 执行 `commit(true)` 后再关闭会话。
+> - 能否命中取决于映射语句使用的缓存区域、`useCache`、`CacheKey`（语句 ID、最终 SQL、参数、`RowBounds`、环境 ID），以及缓存期间是否失效。
+>
+> [DefaultSqlSession 源码](https://mybatis.org/mybatis-3/xref/org/apache/ibatis/session/defaults/DefaultSqlSession.html) · [CachingExecutor 源码](https://mybatis.org/mybatis-3/xref/org/apache/ibatis/executor/CachingExecutor.html) · [SqlSessionTemplate 源码](https://mybatis.org/spring/xref/org/mybatis/spring/SqlSessionTemplate.html)
+
     - `delegate`：真正的二级缓存（如 `PerpetualCache`）
     - `entriesToAddOnCommit`：本次事务待提交的缓存项
     - `entriesMissedInCache`：本次查询未命中的 key
@@ -2459,14 +2468,13 @@ mapper.selectById(1)
     - `putObject`：不直接写 `delegate`，放入 `entriesToAddOnCommit`
     - `commit`：把 `entriesToAddOnCommit` 刷入 `delegate`
     - `rollback`：清空 `entriesToAddOnCommit`，不写入
-  - **意义**：保证二级缓存只在 **commit 后** 对其他 `SqlSession` 可见，避免脏读
+  - **意义**：把缓存写入和失效延迟到缓存事务提交，避免共享未提交写入产生的查询结果。
 
 - **命中与失效**
   - 命中：
     - 同一 `namespace`
     - `CacheKey` 相同
-    - 二级缓存也用 `CacheKey`，组成同一级缓存
-    - 但 Cache 按 `namespace` 隔离
+    - 一级缓存和二级缓存使用相同的 `CacheKey` 计算规则。二级缓存区域默认按 `namespace` 隔离，可用 `<cache-ref>` 共享。
   - 失效 / 不走缓存：
     - `insert/update/delete` 默认 `flushCache=true`，清空当前 namespace 二级缓存
     - `<select useCache="false">` 不走二级缓存
@@ -3045,7 +3053,7 @@ TransactionSynchronizationManager.unbindResource(dataSource)
 > [!warning]
 > `ThreadLocal` 不跨线程：
 > 父线程开启事务，子线程默认拿不到这个事务资源。  
-> 异步、线程池、`CompletableFuture` 等场景下，需要手动传递事务上下文，或者避免在子线程中直接参与同一事务。
+> Spring JDBC 事务绑定到当前线程。异步任务切换线程后，原事务不会传播过去。需要同一次提交或回滚的数据库操作应在原事务线程执行。异步任务需要事务时，应在执行任务的线程建立自己的事务。[Spring @Transactional 文档](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html)
 
 > [!important]
 **`ThreadLocal` 是存储介质，`TransactionSynchronizationManager` 是管理入口，`ConnectionHolder` 是绑定对象，事务管理器负责绑定与解绑。**  

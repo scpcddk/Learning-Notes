@@ -79,8 +79,11 @@ class FrontendReaderTests(unittest.TestCase):
         self.write("JavaScript/JavaScript.md", '# JS\n\n```js\n' + source + '```\n\n[排版](../标记语言/LaTeX.md#公式)\n\n![示意](image.svg)')
         self.write("JavaScript/image.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>')
         self.write("Vue/Vue.md", '# Vue\n\n```vue\n' + vue + '```')
-        self.write("标记语言/Markdown.md", '# Markdown\n\n~~删除线~~ 与 `~~原始语法~~`。')
-        self.write("标记语言/LaTeX.md", '# LaTeX\n\n## 公式\n\n| 命令 | 结果 |\n| --- | --- |\n| `$x^2$` | $x^2$ |\n\n```tex\n$E=mc^2$\n\\[x^2\\]\n```\n')
+        self.write("标记语言/Markdown.md", '# Markdown\n\n~~删除线~~ 与 `~~原始语法~~`。'
+                   '\n\n> [!note]\n> 正文\n\n```markdown\n> [!NOTE]\n> 示例\n```\n')
+        self.write("标记语言/LaTeX.md", '# LaTeX\n\n## 公式\n\n| 命令 | 结果 |\n| --- | --- |\n'
+                   '| `$x^2$` | $x^2$ |\n\n\\( x_1^2 \\)\n\n\\[\nx_1^2 < x_2^2\n\\]\n\n'
+                   '```tex\n$E=mc^2$\n\\[x^2\\]\n```\n')
         text = self.build()
         latex = next(p for p in self.pages if p["title"] == "LaTeX")
         js = next(p for p in self.pages if p["title"] == "JavaScript")
@@ -88,7 +91,11 @@ class FrontendReaderTests(unittest.TestCase):
         markdown = next(p for p in self.pages if p["title"] == "Markdown")
         self.assertIn('<s>删除线</s>', markdown["full"])
         self.assertIn('<code>~~原始语法~~</code>', markdown["full"])
+        self.assertIn('<strong>补充理解</strong>', markdown["full"])
+        self.assertIn('&gt; [!NOTE]\n&gt; 示例', markdown["full"])
         self.assertIn('<span class="math-inline">\\(x^2\\)</span>', latex["full"])
+        self.assertIn('<span class="math-inline">\\(x_1^2\\)</span>', latex["full"])
+        self.assertIn('<div class="math-display">\\[x_1^2 &lt; x_2^2\\]</div>', latex["full"])
         self.assertIn('<code>$x^2$</code>', latex["full"])
         self.assertIn('$E=mc^2$\n\\[x^2\\]', latex["full"])
         self.assertNotIn('math-inline', js["full"])

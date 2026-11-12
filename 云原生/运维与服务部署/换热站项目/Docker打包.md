@@ -37,6 +37,7 @@ npm run build   # 生成生产环境静态文件（默认输出到 dist 目录�
 **原因**：`chunk-vendors.js` 等第三方库（如 Element Plus、ECharts）体积较大，超过了 Webpack 默认的建议大小。
 
 <details><summary>解决方法</summary>
+
 `chunk-vendors.js` 文件过大，是因为 Webpack 在打包时，会按模块引用、tree shaking 和 splitChunks 配置打包项目用到的依赖，不会无条件打包 node_modules 中全部文件。当项目依赖了 Element Plus、ECharts 等大型库时，这个文件就会变得非常庞大。
 
 通常可以按下面的思路来解决，你可以根据实际情况选择最合适的几种。
@@ -45,10 +46,12 @@ npm run build   # 生成生产环境静态文件（默认输出到 dist 目录�
 
 动手优化前，要先弄清楚到底是哪些库占用了最多的空间。
 
-在 `package.json` 的 `scripts` 中添加一条命令：
+将下面的 `report` 项合并到 `package.json` 已有的 `scripts` 中。
 ```json
-"scripts": {
-  "report": "vue-cli-service build --report"
+{
+  "scripts": {
+    "report": "vue-cli-service build --report"
+  }
 }
 ```
 然后运行 `npm run report`。构建完成后，项目 `dist` 目录下会生成一个 `report.html` 文件，在浏览器中打开它，就能看到一个直观的模块大小分析图，精准定位到最大的几个依赖包。

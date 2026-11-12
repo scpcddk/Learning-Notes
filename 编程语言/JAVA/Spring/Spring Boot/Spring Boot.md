@@ -829,19 +829,15 @@ public Result<User> create(@RequestBody @Valid UserDTO dto) {
 }
 ```
 
-收到，您直接把这整段**「@Validated 核心知识块」**插入到笔记 **「五、分层架构规范 → 5.3 全局异常处理与参数校验」** 这一节的 **末尾**（即放在 `// Controller 中使用` 代码示例之后）即可。它解答了面试中 90% 的校验相关问题。
-
----
-
 #### 5.3.3 **@Valid 与 @Validated 深度辨析**
 
-`@Valid`（JSR-303 标准）和 `@Validated`（Spring 专属）是参数校验的两大核心注解，它们既有重合又有区别，面试高频考点如下：
+`@Valid` 由 Bean Validation 规范定义，Spring Boot 3 使用 `jakarta.validation.Valid`。`@Validated` 由 Spring 提供，可为校验入口指定分组。
 
 | 对比维度 | `@Valid`（JSR-303 标准） | `@Validated`（Spring 专属） |
 | ---------- | -------------------------- | ----------------------------- |
 | **所属规范** | Jakarta Bean Validation 标准 | Spring 框架扩展注解 |
 | **核心功能** | 触发校验 | 触发校验 + 分组校验（groups） |
-| **支持分组校验** | ❌ 不支持（需配合 Spring 的 `@Validated`） | ✅ 原生支持 `groups` 属性 |
+| **指定校验组** | 注解本身没有分组参数。级联校验沿用入口传入的组，可用 `@ConvertGroup` 转换。 | 使用 `value` 指定组，例如 `@Validated(CreateGroup.class)` |
 | **支持嵌套校验** | ✅ 支持（对象内部包含对象时，用 `@Valid` 标记嵌套属性） | ❌ 不直接支持嵌套，需在嵌套属性上额外加 `@Valid` |
 | **可标注位置** | 方法、字段、构造器、参数、类型使用位置等 | 类、方法、方法参数；类级标注用于启用代理式方法校验，不会自动校验 `@PostConstruct` / `@PreDestroy` 生命周期回调 |
 | **触发异常类型** | 由校验入口决定，MVC 请求体校验通常抛 `MethodArgumentNotValidException` | 同样由入口决定：MVC 请求体校验通常抛 `MethodArgumentNotValidException`，AOP 方法校验默认抛 `ConstraintViolationException`；Spring MVC 6.1+ 内置方法校验抛 `HandlerMethodValidationException` |
@@ -898,14 +894,14 @@ public class UserService {
 }
 ```
 
-**典型用法四：分组校验（`@Validated` 独有优势）**
+**典型用法四：在 Controller 中选择校验组**
 
 同一个 DTO 在“新增”和“更新”时有不同校验规则（例如新增时 ID 必须为空，更新时 ID 必须不为空），用分组校验解决：
 
 ```java
-// 1. 定义分组接口（作为标识即可）
-public class CreateGroup {}
-public class UpdateGroup {}
+// 1. 定义标记接口
+interface CreateGroup {}
+interface UpdateGroup {}
 
 // 2. DTO 中按组标记校验规则
 @Data
@@ -915,7 +911,7 @@ public class UserDTO {
     private Long id;
 
     @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})
-    @Size(min = 2, max = 20)
+    @Size(min = 2, max = 20, groups = {CreateGroup.class, UpdateGroup.class})
     private String username;
 }
 
@@ -967,7 +963,7 @@ public class GlobalExceptionHandler {
 | 嵌套对象为 null 时不校验 | 只有 `@Valid`，但嵌套对象本身为空 | `@Valid` 会跳过 null；要求对象非空需同时加 `@NotNull`：`@Valid @NotNull private Address address;` |
 | 分组校验传了多个组 | `@Validated({CreateGroup.class, UpdateGroup.class})` | 合法，需满足所有被选组中的约束；默认不保证组间执行顺序，需要顺序时使用 `@GroupSequence` |
 
-MVC 内置方法校验及其与类级 `@Validated` 的关系参见 [Spring 官方校验文档](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html)。
+组标记需要用接口。显式选择 `CreateGroup` 或 `UpdateGroup` 时，仅属于 `Default` 组的约束不会被执行，因此示例中的用户名长度约束也声明了这两个组。[Jakarta Bean Validation 规范](https://jakarta.ee/specifications/bean-validation/3.0/jakarta-bean-validation-spec-3.0.html#constraintdeclarationvalidationprocess-groupsequence) · [Spring MVC 校验文档](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html)
 
 #### 5.3.4 常用校验注解速查
 
@@ -975,9 +971,9 @@ MVC 内置方法校验及其与类级 `@Validated` 的关系参见 [Spring 官�
 | ------ | ---------- | ------ |
 | `@NotNull` | 任意类型 | 值不能为 `null` |
 | `@Null` | 任意类型 | 值必须为 `null` |
-| `@NotBlank` | `String` | 非 `null` + 至少一个非空白字符（最常用） |
-| `@NotEmpty` | `String`、`Collection`、`Map`、数组 | 非 `null` 且大小 > 0 |
-| `@Size(min, max)` | `String`、`Collection`、`Map`、数组 | 长度/大小在指定区间内 |
+| `@NotBlank` | `CharSequence` | 非 `null` 且至少有一个非空白字符 |
+| `@NotEmpty` | `CharSequence`、`Collection`、`Map`、数组 | 非 `null` 且大小 > 0 |
+| `@Size(min, max)` | `CharSequence`、`Collection`、`Map`、数组 | 长度或大小在指定闭区间内。`null` 通过校验 |
 | `@Min(value)` | `BigDecimal`、`BigInteger`、`byte`、`short`、`int`、`long` 及包装类 | ≥ 指定值 |
 | `@Max(value)` | 同上 | ≤ 指定值 |
 | `@DecimalMin(value)` | 同上（支持高精度） | ≥ 指定值（字符串形式，适合金额） |

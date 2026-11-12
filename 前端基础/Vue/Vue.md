@@ -101,13 +101,25 @@ const online = ref(true)
 
 ## 📝 自测问题
 **Q1: 为什么 `{{ }}` 里不能写 if？**  
-<details><summary>答案</summary>插值只接受表达式，逻辑控制请用 v-if 或三元表达式。</details>
+<details><summary>答案</summary>
+
+插值只接受表达式，逻辑控制请用 v-if 或三元表达式。
+
+</details>
 
 **Q2: Vite 项目 index.html 的作用？**  
-<details><summary>答案</summary>提供 `#app` 挂载点，main.js 通过 createApp 挂载根组件。</details>
+<details><summary>答案</summary>
+
+提供 `#app` 挂载点，main.js 通过 createApp 挂载根组件。
+
+</details>
 
 **Q3: scoped 样式的原理？**  
-<details><summary>答案</summary>给元素添加 `data-v-xxx` 唯一属性，并改写选择器实现隔离。</details>
+<details><summary>答案</summary>
+
+给元素添加 `data-v-xxx` 唯一属性，并改写选择器实现隔离。
+
+</details>
 
 ---
 
@@ -238,13 +250,25 @@ watch(temp, (newVal) => {
 
 ## 📝 自测问题
 **Q1: ref 和 reactive 什么时候选哪个？**  
-<details><summary>答案</summary>基本类型用 ref，对象推荐用 reactive 或 ref 均可，但解构时 reactive 需配合 toRefs。</details>
+<details><summary>答案</summary>
+
+基本类型用 ref，对象推荐用 reactive 或 ref 均可，但解构时 reactive 需配合 toRefs。
+
+</details>
 
 **Q2: computed 和 method 有什么区别？**  
-<details><summary>答案</summary>computed 有缓存，依赖不变不重新执行；method 每次访问都执行。</details>
+<details><summary>答案</summary>
+
+computed 有缓存，依赖不变不重新执行；method 每次访问都执行。
+
+</details>
 
 **Q3: watchEffect 和 watch 的区别？**  
-<details><summary>答案</summary>watchEffect 自动跟踪内部响应式依赖，立即执行；watch 需显式指定源，可获新旧值。</details>
+<details><summary>答案</summary>
+
+watchEffect 自动跟踪内部响应式依赖，立即执行；watch 需显式指定源，可获新旧值。
+
+</details>
 
 ---
 
@@ -348,10 +372,18 @@ onUnmounted(() => {
 
 ## 📝 自测问题
 **Q1: onMounted 和 setup 执行顺序？**  
-<details><summary>答案</summary>setup 同步执行，onMounted 在 DOM 挂载后执行。数据请求放在 onMounted 可保证已有容器。</details>
+<details><summary>答案</summary>
+
+setup 同步执行，onMounted 在 DOM 挂载后执行。数据请求放在 onMounted 可保证已有容器。
+
+</details>
 
 **Q2: 为什么要在 onUnmounted 里清理？**  
-<details><summary>答案</summary>手动创建的定时器、连接和全局监听若继续运行，可能保留不再需要的数据或发起无意义请求。清理这些副作用；同步创建于 setup 的响应式 watcher 通常会自动停止。</details>
+<details><summary>答案</summary>
+
+手动创建的定时器、连接和全局监听若继续运行，可能保留不再需要的数据或发起无意义请求。清理这些副作用；同步创建于 setup 的响应式 watcher 通常会自动停止。
+
+</details>
 
 ---
 
@@ -484,10 +516,18 @@ const emit = defineEmits(['delete'])
 
 ## 📝 自测问题
 **Q1: 如何将父组件的所有属性批量传给子组件？**  
-<details><summary>答案</summary>在父组件中批量绑定一个属性对象可用 `v-bind="propsObject"`。`$attrs` 只包含当前组件未声明为 props/emits 的透传属性和监听器，并不是“全部 props”；`inheritAttrs: false` 配合 `v-bind="$attrs"` 用于自行控制透传位置。</details>
+<details><summary>答案</summary>
+
+在父组件中批量绑定一个属性对象可用 `v-bind="propsObject"`。`$attrs` 只包含当前组件未声明为 props/emits 的透传属性和监听器，并不是“全部 props”；`inheritAttrs: false` 配合 `v-bind="$attrs"` 用于自行控制透传位置。
+
+</details>
 
 **Q2: v-model 如何绑定多个值？**  
-<details><summary>答案</summary>使用具名 v-model:title="title" 等。</details>
+<details><summary>答案</summary>
+
+父组件可写 `v-model:title="title"`。子组件接收 `title`，并通过 `update:title` 通知父组件更新。
+
+</details>
 
 ---
 
@@ -566,7 +606,11 @@ const alarms = ref([
 
 ## 📝 自测问题
 **Q1: 为什么更新数组后视图没变？**  
-<details><summary>答案</summary>先确认操作的是响应式数组。Vue 3 对响应式数组的索引赋值和 length 修改都能追踪；“索引赋值不响应”是常见的 Vue 2 旧限制。filter 返回新数组，需要接收结果，例如 `list.value = list.value.filter(...)`；操作原始普通数组或丢失响应式引用也可能导致视图不更新。</details>
+<details><summary>答案</summary>
+
+先确认操作的是响应式数组。Vue 3 对响应式数组的索引赋值和 length 修改都能追踪；“索引赋值不响应”是常见的 Vue 2 旧限制。filter 返回新数组，需要接收结果，例如 `list.value = list.value.filter(...)`；操作原始普通数组或丢失响应式引用也可能导致视图不更新。
+
+</details>
 
 ---
 

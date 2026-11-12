@@ -424,7 +424,7 @@ for line in response.iter_lines():
 
 **正确理解：** `delta` 表示本次新增的字段或内容，也可能包含角色或没有文本：
 
-```json
+```jsonl
 {"choices": [{"delta": {"role": "assistant"}}]}
 {"choices": [{"delta": {"content": "你"}}]}
 {"choices": [{"delta": {"content": "好"}}]}

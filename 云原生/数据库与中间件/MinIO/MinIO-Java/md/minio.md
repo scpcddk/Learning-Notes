@@ -1,27 +1,30 @@
-# 一.minio安装
+# MinIO 与 Spring Boot 集成
 
-**1.下载：https://www.minio.org.cn/download.shtml#/windows**  
+## 一、本地启动 MinIO
 
-<img src="..\image\1.png" style="zoom: 50%;" />
+以下截图记录的是 Windows 上使用 `minio.exe` 的本地实验。下载渠道和安装方式随发行版而异。
 
-**2.任意创建好目录，把minio.exe放入目录中，并创建data目录**
-![](..\image\2.png)
+![Windows 下载页面](../image/1.png)
 
-**3.打开该目录的cmd，输入如下命令**
+在同一目录放置 `minio.exe`，并创建用于存放对象的 `data` 目录。
 
-.\minio.exe server  data目录 --console-address ":9001"
+![MinIO 程序与数据目录](../image/2.png)
 
-如：我的为 :      .\minio.exe server  D:\onlinerun\minio\data --console-address ":9001" 
+在该目录打开终端并运行：
 
-![](..\image\3.png)
+```powershell
+.\minio.exe server .\data --console-address ":9001"
+```
 
-然后访问 ： http://localhost:9001  默认账号密码默认都是 minioadmin  看到如下画面则成功了
+![MinIO 启动日志](../image/3.png)
 
-![](..\image\4.png)
+打开 <http://localhost:9001>，使用本地实例配置的账号和密码登录，并创建本例使用的 `testminio` 存储桶。后端连接的是 S3 API 端口 `9000`。
+
+![MinIO 管理控制台](../image/4.png)
 
 ---
 
-# 二.Springboot整合
+## 二、配置 Spring Boot
 
 **1.引入依赖**
 
@@ -80,8 +83,8 @@ spring:
 server:
   port: 8080
 minio:
-  access-key: minioadmin
-  secret-key: minioadmin
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
   endpoint: http://localhost:9000
   bucket: testminio
 knife4j:
@@ -90,7 +93,7 @@ knife4j:
   enable: true
 ```
 
-**3.创建配置类**（不知道创建在哪里的看下面目录结构）
+将 `MINIO_ACCESS_KEY` 和 `MINIO_SECRET_KEY` 设置为有权访问 `testminio` 的本地实验凭据，再创建配置类。
 
 ```java
 @Configuration
@@ -113,7 +116,7 @@ public class MinioConfig {
 
 ---
 
-# 三.准备工作
+## 三、创建服务类
 
 **1.创建MinioService.并注入MinioConfig以及MinioClient**
 
@@ -129,15 +132,15 @@ public class MinioService {
 
 **目前的目录结构：**
 
-![](..\image\5.png)
+![Spring Boot 项目目录](../image/5.png)
 
 ---
 
-# **四.操作minio**
+## 四、操作对象
 
-**如下方法都是在minioservice里面添加的**
+以下方法定义在 `MinioService` 中。接口用对象键定位文件。对象键和原始文件名可按需分别保存。[MinIO Java SDK 8.5.17](https://github.com/minio/minio-java/tree/8.5.17)
 
-## 1.上传文件
+### 1. 上传文件
 
 ```java
     /**
@@ -146,30 +149,22 @@ public class MinioService {
      * @return 文件在MinIO中的唯一标识（对象名称）
      */
     public String uploadFile(MultipartFile file) throws Exception {
-        // 1. 检查存储桶是否存在，不存在则创建
-        if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(minioConfig.getBucket()).build())) {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(minioConfig.getBucket()).build());
+        String objectName = UUID.randomUUID().toString();
+        String contentType = file.getContentType();
+        try (InputStream stream = file.getInputStream()) {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(minioConfig.getBucket())
+                            .object(objectName)
+                            .stream(stream, file.getSize(), -1)
+                            .contentType(contentType == null ? "application/octet-stream" : contentType)
+                            .build());
         }
-
-        // 2. 生成唯一文件名（避免重名）
-        String originalFilename = file.getOriginalFilename();
-        String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        String objectName = UUID.randomUUID().toString() + fileExtension;
-
-        // 3. 上传文件
-        minioClient.putObject(
-                PutObjectArgs.builder()
-                        .bucket(minioConfig.getBucket())                    // 存储桶名称
-                        .object(objectName)                                 // 对象名称（文件名）
-                        .stream(file.getInputStream(), file.getSize(), -1)  // 文件流和大小
-                        .contentType(file.getContentType())                 // 文件类型
-                        .build());
         return objectName;
-        //返回结果：test/随机字符串.txt
     }
 ```
 
-## 2.获取文件url(可通过浏览器访问)
+### 2. 获取临时访问 URL
 
 ```java
 	/**
@@ -179,7 +174,6 @@ public class MinioService {
      * @return 可访问的URL
      */
     public String getFileUrl(String objectName, int expiry) throws Exception {
-        //objectName = "随机字符串.txt"
         return minioClient.getPresignedObjectUrl(
                 GetPresignedObjectUrlArgs.builder()
                         .method(Method.GET)
@@ -187,11 +181,12 @@ public class MinioService {
                         .object(objectName)
                         .expiry(expiry, TimeUnit.MINUTES)
                         .build());
-        //返回结果：http://localhost:9000/bucket/随机字符串.txt?......
     }
 ```
 
-## 3.删除文件
+浏览器必须能访问预签名 URL 中的 S3 API 地址。使用 `localhost` 作为端点时，该地址只适用于与 MinIO 同机的浏览器。
+
+### 3. 删除文件
 
 ```java
  	/**
@@ -199,7 +194,6 @@ public class MinioService {
      * @param objectName 文件在MinIO中的唯一标识
      */
     public void deleteFile(String objectName) throws Exception {
-        //objectName = "随机字符串.txt"
         minioClient.removeObject(
                 RemoveObjectArgs.builder()
                         .bucket(minioConfig.getBucket())
@@ -210,11 +204,11 @@ public class MinioService {
 
 ---
 
-# 五.测试
+## 五、测试
 
-## 1.创建控制层
+### 1. 创建控制器
 
-创建**uploadFileController**
+创建 `UploadFileController`。本例的上传路径为 `POST /upload/upload`，文件字段名为 `file`。
 
 ```java
 @RestController
@@ -231,7 +225,7 @@ public class UploadFileController {
             return ResponseEntity.status(500).body("文件上传失败: " + e.getMessage());
         }
     }
-    @GetMapping("getUrl")
+    @GetMapping("/getUrl")
     public ResponseEntity<String> getFileUrl(@RequestParam String objectName) {
         try {
             String url = minioService.getFileUrl(objectName, 60);
@@ -255,15 +249,15 @@ public class UploadFileController {
 
 当前目录
 
-![](..\image\6.png)
+![控制器与服务类的目录结构](../image/6.png)
 
-## 2.启动项目访问
+### 2. 启动项目并验证
 
-访问  http://localhost:8080/doc.html
+打开 <http://localhost:8080/doc.html>。上传后复制返回的对象键，用 `GET /upload/getUrl` 获取访问地址，再用 `DELETE /upload/delete` 验证删除。
 
 看到如下画面就可以测试了：
 
-![](..\image\7.png)
+![Knife4j 接口调试界面](../image/7.png)
 
 后面测试内容请看视频讲解
 

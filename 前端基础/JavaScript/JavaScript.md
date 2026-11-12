@@ -349,7 +349,11 @@ for (let station of stationsData) {
 ### 📝 自测问题
 
 **Q1** `"10" > 5` 的结果是什么？  
-<details><summary>答案</summary>`true`，字符串"10"被隐式转换为数字10比较。</details>
+<details><summary>答案</summary>
+
+`true`，字符串"10"被隐式转换为数字10比较。
+
+</details>
 
 **Q2** 下面代码如何避免死循环？  
 ```js
@@ -358,10 +362,18 @@ while (temp < 80) {
   console.log(temp);
 }
 ```
-<details><summary>答案</summary>循环内必须改变 temp，如 `temp += 5;` 否则无限循环。</details>
+<details><summary>答案</summary>
+
+循环内必须改变 temp，如 `temp += 5;` 否则无限循环。
+
+</details>
 
 **Q3** 为什么建议在项目中使用 `===` 而非 `==`？  
-<details><summary>答案</summary>`==` 进行类型转换，`0==''` 为 true，可能隐藏 bug；`===` 严格比较类型和值，更安全可预测。</details>
+<details><summary>答案</summary>
+
+`==` 进行类型转换，`0==''` 为 true，可能隐藏 bug；`===` 严格比较类型和值，更安全可预测。
+
+</details>
 
 ---
 
@@ -498,13 +510,25 @@ for (var i = 1; i <= 3; i++) {
   setTimeout(() => console.log(i), 0);
 }
 ```
-<details><summary>答案</summary>`4,4,4`，因为 var 没有块作用域，循环完后 i 变为 4，回调执行时访问同一个 i。用 let 可解决。</details>
+<details><summary>答案</summary>
+
+`4,4,4`，因为 var 没有块作用域，循环完后 i 变为 4，回调执行时访问同一个 i。用 let 可解决。
+
+</details>
 
 **Q2** 闭包可能引起什么问题？  
-<details><summary>答案</summary>闭包会延长其仍然引用的数据的生命周期，但闭包本身不等于内存泄漏。只有不再需要的数据仍被定时器、监听器或缓存等可达引用保留时，才可能造成不必要的内存占用。应清理不再需要的引用和副作用。</details>
+<details><summary>答案</summary>
+
+闭包会延长其仍然引用的数据的生命周期，但闭包本身不等于内存泄漏。只有不再需要的数据仍被定时器、监听器或缓存等可达引用保留时，才可能造成不必要的内存占用。应清理不再需要的引用和副作用。
+
+</details>
 
 **Q3** 如何设计一个函数，既能被 `new` 调用又能普通调用？  
-<details><summary>答案</summary>内部用 `if (!new.target)` 判断，若普通调用则返回 new 实例。但通常避免混合使用，保持单一职责。</details>
+<details><summary>答案</summary>
+
+内部用 `if (!new.target)` 判断，若普通调用则返回 new 实例。但通常避免混合使用，保持单一职责。
+
+</details>
 
 ---
 
@@ -635,13 +659,25 @@ console.log("压力最高站:", maxPressureStation?.name ?? "暂无在线数据"
 ### 📝 自测问题
 
 **Q1** 怎样深拷贝一个含有嵌套对象的数组？  
-<details><summary>答案</summary>`JSON.parse(JSON.stringify(obj))` 适用于无函数/日期等类型，或使用 `structuredClone`，或 lodash 的 `cloneDeep`。</details>
+<details><summary>答案</summary>
+
+数据只包含可无损往返 JSON 的值时，可以用 `JSON.parse(JSON.stringify(obj))`。对于包含循环引用、`Date`、`Map` 或 `Set` 的数据，可以用 `structuredClone(obj)`。函数不能用 `structuredClone` 克隆。
+
+</details>
 
 **Q2** `const arr = [1,2,3]; arr.push(4);` 为什么可行？  
-<details><summary>答案</summary>`const` 限制的是变量引用不可变，但数组内容（堆内存）可以修改。</details>
+<details><summary>答案</summary>
+
+`const` 禁止给 `arr` 重新赋值。它指向的数组仍可变，因此可以调用 `arr.push(4)`。
+
+</details>
 
 **Q3** 解构时如何避免未定义属性报错？  
-<details><summary>答案</summary>对象存在但属性为 undefined 时，可用 `{ key = 'default' }`；属性为 null 时不会触发此默认值。对象本身可能为 null/undefined 时，先用 `const { key = 'default' } = obj ?? {}`，或读取 `obj?.key ?? 'default'`。</details>
+<details><summary>答案</summary>
+
+对象存在但属性为 undefined 时，可用 `{ key = 'default' }`；属性为 null 时不会触发此默认值。对象本身可能为 null/undefined 时，先用 `const { key = 'default' } = obj ?? {}`，或读取 `obj?.key ?? 'default'`。
+
+</details>
 
 ---
 
@@ -787,13 +823,25 @@ setInterval(() => {
 ### 📝 自测问题
 
 **Q1** `document.querySelector('.item')` 和 `getElementById('item')` 性能差异？  
-<details><summary>答案</summary>getElementById 更快，但 querySelector 更灵活。除非性能关键且大量调用，差异可忽略。</details>
+<details><summary>答案</summary>
+
+getElementById 更快，但 querySelector 更灵活。除非性能关键且大量调用，差异可忽略。
+
+</details>
 
 **Q2** 如何给动态添加的元素绑定事件？  
-<details><summary>答案</summary>事件委托，在父元素上监听，通过 `e.target` 判断实际元素。</details>
+<details><summary>答案</summary>
+
+事件委托，在父元素上监听，通过 `e.target` 判断实际元素。
+
+</details>
 
 **Q3** 为什么避免使用 `innerHTML` 插入用户提供的内容？  
-<details><summary>答案</summary>可能导致 XSS 攻击，用户恶意脚本被执行。应使用 `textContent` 或经过消毒处理。</details>
+<details><summary>答案</summary>
+
+可能导致 XSS 攻击，用户恶意脚本被执行。应使用 `textContent` 或经过消毒处理。
+
+</details>
 
 ---
 
@@ -945,13 +993,25 @@ setInterval(updateAllStations, REFRESH_INTERVAL);
 ### 📝 自测问题
 
 **Q1** `Promise.all` 中一个失败会怎样？  
-<details><summary>答案</summary>整体以最先发生的拒绝原因 reject，但其他已启动任务不会自动取消。需要获得每个任务的成功或失败结果时用 Promise.allSettled，再逐项处理失败。</details>
+<details><summary>答案</summary>
+
+整体以最先发生的拒绝原因 reject，但其他已启动任务不会自动取消。需要获得每个任务的成功或失败结果时用 Promise.allSettled，再逐项处理失败。
+
+</details>
 
 **Q2** `setTimeout(fn, 0)` 一定立即执行吗？  
-<details><summary>答案</summary>不会，它只是将回调放入宏任务队列，需等待当前执行栈和微任务清空。</details>
+<details><summary>答案</summary>
+
+在浏览器中，`setTimeout(fn, 0)` 安排一个定时器。计时结束后，回调成为待执行任务，仍要等当前任务完成和微任务检查点结束，再由事件循环调度。[HTML 定时器规范](https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timers)
+
+</details>
 
 **Q3** 如何在循环中顺序执行异步操作？  
-<details><summary>答案</summary>用 `for...of` 循环加上 `await`，因为 `forEach` 不支持 async 回调的等待。</details>
+<details><summary>答案</summary>
+
+用 `for...of` 循环加上 `await`，因为 `forEach` 不支持 async 回调的等待。
+
+</details>
 
 ---
 
@@ -1071,13 +1131,25 @@ console.log(checkRules(data1, station1Rules)); // { tempStatus: '超温', pressu
 ### 📝 自测问题
 
 **Q1** `{...obj}` 是深拷贝吗？  
-<details><summary>答案</summary>不是，只有一层属性浅拷贝，嵌套对象仍共享引用。深拷贝需用其他方法。</details>
+<details><summary>答案</summary>
+
+不是，只有一层属性浅拷贝，嵌套对象仍共享引用。深拷贝需用其他方法。
+
+</details>
 
 **Q2** 如何动态导入模块？  
-<details><summary>答案</summary>`import('./module.js').then(module => ...)` 返回 Promise，常用于代码分割。</details>
+<details><summary>答案</summary>
+
+`import('./module.js').then(module => ...)` 返回 Promise，常用于代码分割。
+
+</details>
 
 **Q3** `??` 和 `||` 区别举例。  
-<details><summary>答案</summary>`0 || 5` 得5，`0 ?? 5` 得0；`'' || 'def'` 得'def'，`'' ?? 'def'` 得''。?? 只视 null/undefined 为无效。</details>
+<details><summary>答案</summary>
+
+`0 || 5` 得5，`0 ?? 5` 得0；`'' || 'def'` 得'def'，`'' ?? 'def'` 得''。?? 只视 null/undefined 为无效。
+
+</details>
 
 ---
 
@@ -1216,13 +1288,25 @@ function updateStationCard(id, data) {
 ### 📝 自测问题
 
 **Q1** `try` 块中 `return` 语句后，`finally` 还会执行吗？  
-<details><summary>答案</summary>会，finally 始终执行，甚至在 return 之前。如果 finally 中 return，会覆盖 try 中的返回值。</details>
+<details><summary>答案</summary>
+
+会，finally 始终执行，甚至在 return 之前。如果 finally 中 return，会覆盖 try 中的返回值。
+
+</details>
 
 **Q2** 如何处理 `setTimeout` 中的错误？  
-<details><summary>答案</summary>在回调内部使用 try/catch，因为定时器回调是独立调用堆栈，外部 try 无法捕获。</details>
+<details><summary>答案</summary>
+
+在回调内部使用 try/catch，因为定时器回调是独立调用堆栈，外部 try 无法捕获。
+
+</details>
 
 **Q3** 为什么不推荐捕获所有错误并忽略？  
-<details><summary>答案</summary>隐藏了真实问题，导致数据不一致或难以排查，至少应记录日志。只捕获预期内的特定错误。</details>
+<details><summary>答案</summary>
+
+隐藏了真实问题，导致数据不一致或难以排查，至少应记录日志。只捕获预期内的特定错误。
+
+</details>
 
 ---
 

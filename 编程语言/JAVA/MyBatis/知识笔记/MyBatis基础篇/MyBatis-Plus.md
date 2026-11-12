@@ -256,7 +256,7 @@ int rows3 = studentMapper.deleteById(1L);
 Student student = studentMapper.selectById(1L);
 ```
 
-⚠️ **易混淆**：Mapper 层 CRUD 多数返回**影响行数 `int`**，而 Service 层常见方法多返回**`boolean`**。
+⚠️ **易混淆**：`BaseMapper` 的常见增删改方法返回影响行数（`int`），Service 层的 `save`、`updateById` 等方法返回 `boolean`。查询方法则按签名返回实体、集合或计数等结果。
 
 ---
 

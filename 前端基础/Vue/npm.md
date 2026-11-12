@@ -77,13 +77,15 @@ npm run test -- --grep="login"
 
 **2. pre / post 钩子**
 
-在 `package.json` 中定义：
+将以下三个脚本合并到 `package.json` 已有的 `scripts` 中。本例假设项目已定义 `lint` 脚本并安装 Webpack。
 
 ```json
-"scripts": {
-  "prebuild": "npm run lint",
-  "build": "webpack --mode production",
-  "postbuild": "echo Build success!"
+{
+  "scripts": {
+    "prebuild": "npm run lint",
+    "build": "webpack --mode production",
+    "postbuild": "echo Build success!"
+  }
 }
 ```
 
@@ -98,7 +100,7 @@ npm run lint && npm run test
 # 并行（需要安装 npm-run-all）
 npm i -D npm-run-all
 # 然后
-npm-run-all --parallel dev server
+npm exec -- npm-run-all --parallel dev server
 ```
 
 **4. 跨平台设置环境变量**
@@ -110,8 +112,10 @@ npm i -D cross-env
 ```
 
 ```json
-"scripts": {
-  "build": "cross-env NODE_ENV=production webpack"
+{
+  "scripts": {
+    "build": "cross-env NODE_ENV=production webpack"
+  }
 }
 ```
 

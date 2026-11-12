@@ -796,7 +796,7 @@ SELECT 0.1 + 0.2; -- MySQL 将这些精确数值字面量按 DECIMAL 运算，�
 -- FLOAT/DOUBLE 或科学计数法字面量才进入近似值运算，存在二进制舍入误差。
 ```
 
-`DECIMAL(M,D)` 内部使用**压缩的十进制定点表示（按每组 9 位十进制数字编码，不是逐位 4-bit BCD）**存储，本质是十进制存储，避免 `FLOAT/DOUBLE` 的二进制浮点误差。每 9 位十进制数约占用 4 字节。
+`DECIMAL(M,D)` 使用**压缩的十进制定点表示**。整数部分和小数部分分别打包，每满 9 位占 4 字节，剩余位数按表占 1～4 字节。在列的精度与小数位数范围内，可精确存储十进制值。[MySQL DECIMAL 存储规则](https://dev.mysql.com/doc/refman/8.4/en/precision-math-decimal-characteristics.html)
 
 ---
 
@@ -3053,18 +3053,20 @@ EXPLAIN FORMAT=JSON
 SELECT * FROM `order` WHERE user_id = 100 AND status = 'PAID';
 ```
 
-**关键字段**：
+下面截取一个表访问节点的 `cost_info` 作为示例。
 
 ```json
-"cost_info": {
-  "read_cost": "12.35",   // 磁盘 IO 成本
-  "eval_cost": "3.50",    // CPU 成本
-  "prefix_cost": "15.85", // 累计总成本
-  "data_read_per_join": "5K"
+{
+  "cost_info": {
+    "read_cost": "12.35",
+    "eval_cost": "3.50",
+    "prefix_cost": "15.85",
+    "data_read_per_join": "5K"
+  }
 }
 ```
 
-优化器选择 `prefix_cost` 最小的方案。
+`read_cost` 是访问该节点的估算读取成本，`eval_cost` 是评估行的估算成本，`prefix_cost` 是累计到该节点的估算成本。优化器按成本模型比较候选执行计划。单个节点的 `prefix_cost` 只描述计划的一部分。[MySQL 优化器成本模型](https://dev.mysql.com/doc/refman/8.4/en/cost-model.html)
 
 ---
 

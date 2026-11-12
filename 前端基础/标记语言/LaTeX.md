@@ -44,7 +44,7 @@
 |--------|------|----------|
 | **pdflatex** | 配合 CTeX/CJK 与合适字体也可排中文，但字体配置方式与 XeLaTeX 不同 | 按模板和字体环境选择 |
 | **xelatex** | 支持中文，字体处理现代 | 中文文档（推荐） |
-| **lualatex** | 功能最强，支持复杂字体操作 | 高级排版需求 |
+| **lualatex** | 支持 Unicode、OpenType 字体和 Lua 扩展 | 需要现代字体或 Lua 回调的模板 |
 
 ### 文档类选项
 
@@ -76,7 +76,7 @@
 ### 目录与摘要
 
 ```latex
-\tableofcontents   % 生成目录（需编译两次）
+\tableofcontents   % 读取上一轮编译写入的目录，首次生成通常至少编译两次
 \listoffigures     % 图目录
 \listoftables      % 表目录
 
@@ -84,6 +84,8 @@
   这是摘要内容……
 \end{abstract}
 ```
+
+标准 `article` 和 `report` 提供 `abstract` 环境。使用标准 `book` 时，可按模板要求用独立章节排版摘要。[LaTeX 标准文档类说明](https://www.latex-project.org/help/documentation/#source-code-documentation)
 
 ### 📘 分页与换行
 
@@ -98,7 +100,7 @@
 
 ## 常用宏包
 
-### ⭐ 必装宏包清单
+### 常用宏包
 
 ```latex
 \usepackage{amsmath,amssymb}   % 数学公式
@@ -192,7 +194,7 @@
 
 ```latex
 x^2, x_i, x_i^j, x^{i+j}
-\frac{a}{b}, \dfrac{a}{b}   % dfrac 更美观
+\frac{a}{b}, \dfrac{a}{b}   % dfrac（amsmath）强制使用陈列样式
 \sqrt{x}, \sqrt[n]{x}
 \sum_{i=1}^{n}, \prod_{i=1}^{n}
 \int_a^b, \iint_D, \oint_C

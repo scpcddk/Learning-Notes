@@ -334,7 +334,7 @@ def generate_calculus():
             label = {"note": "理解与联系", "tip": "解题提示", "warning": "易错提醒", "important": "关键结论"}[kind]
             return f'<blockquote class="callout {kind}"><p class="callout-label">{label}</p><p>'
 
-        out = re.sub(r"<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*", admonition, out)
+        out = re.sub(r"<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*", admonition, out, flags=re.I)
         out = re.sub(r"<table>([\s\S]*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', out)
         return out
 
@@ -695,7 +695,7 @@ def generate_linear_algebra():
             label = {'note': '理解与联系', 'tip': '解题提示', 'warning': '易错提醒', 'important': '关键结论'}.get(kind, '笔记')
             return f'<blockquote class="callout {kind}"><p class="callout-label">{label}</p><p>'
 
-        out = re.sub(r'<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*', admonition, out)
+        out = re.sub(r'<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT)\]\s*', admonition, out, flags=re.I)
         out = re.sub(r'<table>([\s\S]*?)</table>', r'<div class="table-scroll"><table>\1</table></div>', out)
         note_prefix = quote(Path(os.path.relpath(NOTES, ROOT)).as_posix()) + "/"
         out = re.sub(r'href="([^"#:/]+\.md)"', lambda m: 'href="' + note_prefix + quote(unquote(m[1])) + '"', out)
@@ -749,7 +749,7 @@ def enable_reader_math(md):
             return False
         closing = r"\)" if opening == r"\(" else "$"
         content_start = start + len(opening)
-        if content_start >= state.posMax or state.src[content_start].isspace():
+        if content_start >= state.posMax or (opening == "$" and state.src[content_start].isspace()):
             return False
         end = content_start
         while True:
@@ -760,11 +760,11 @@ def enable_reader_math(md):
                 break
             end += len(closing)
         content = state.src[content_start:end]
-        if not content or "\n" in content or content[-1].isspace():
+        if not content.strip() or "\n" in content or (opening == "$" and content[-1].isspace()):
             return False
         if not silent:
             token = state.push("math_inline", "", 0)
-            token.content = content
+            token.content = content.strip()
         state.pos = end + len(closing)
         return True
 
@@ -806,6 +806,16 @@ def enable_reader_math(md):
         '<div class="math-display">' + escape(r"\[" + tokens[index].content + r"\]") + '</div>\n')
 
 
+def render_callout_labels(markup, *, note="补充理解", tip="使用提示"):
+    labels = {"note": note, "tip": tip, "warning": "易错提醒",
+              "important": "关键结论", "caution": "注意事项"}
+    return re.sub(
+        r"(<blockquote>\s*<p>)\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\](?=\s|</p>)",
+        lambda match: match[1] + f"<strong>{labels[match[2].lower()]}</strong>",
+        markup, flags=re.I,
+    )
+
+
 def render_discrete(text, ident):
     text = re.sub(r"\A---\n[\s\S]*?\n---\n", "", text)
     protected = []
@@ -834,9 +844,7 @@ def render_discrete(text, ident):
     for i, value in enumerate(protected):
         result = result.replace(f"DISCRETEMATH{i}TOKEN", value)
     result = re.sub(r"<table>([\s\S]*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', result)
-    result = re.sub(r"\[!(NOTE|TIP|WARNING|IMPORTANT)\]", lambda m: {
-        "NOTE": "理解与联系", "TIP": "解题提示", "WARNING": "易错提醒", "IMPORTANT": "关键结论"}[m[1]], result)
-    return result
+    return render_callout_labels(result, note="理解与联系", tip="解题提示")
 
 
 def build_discrete(output, github, branch):
@@ -1270,8 +1278,7 @@ def build_linux(output, github, branch):
             markup = re.sub(r"(<pre\b[\s\S]*?</pre>)|==([^\n]+?)==",
                             lambda m: m[1] if m[1] else "<mark>"+m[2]+"</mark>", markup)
             markup = re.sub(r"<table>([\s\S]*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', markup)
-            return re.sub(r"\[!(NOTE|TIP|WARNING|IMPORTANT)\]", lambda m: {
-                "NOTE": "补充理解", "TIP": "使用提示", "WARNING": "易错提醒", "IMPORTANT": "关键结论"}[m[1]], markup)
+            return render_callout_labels(markup)
 
         if page["kind"] == "practice":
             match = re.search(r"(?m)^## (?:[一二三四五六七八九十]+[、.]\s*)?参考答案[^\n]*\n", text)
@@ -1419,7 +1426,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     elif frontend:
         group_order = ["标记语言", "JavaScript", "Vue"]
     elif ai:
-        group_order = ["基础知识", "AI实践记录", "提示词模板", "错题与易错点"]
+        group_order = ["基础知识", "Agent", "AI实践记录", "提示词模板", "错题与易错点"]
     group_names = {name.casefold(): index for index, name in enumerate(group_order)}
 
     def original(path):
@@ -1545,10 +1552,10 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             language["notes"] += not page["pending"]
             page["search"] = text
             md = MarkdownIt("commonmark", {"html": True}).enable("table")
-            if ai:
+            latex = frontend and path.stem.casefold() == "latex"
+            if ai or latex:
                 enable_reader_math(md)
-                md.enable("strikethrough")
-            if frontend:
+            if ai or frontend:
                 md.enable("strikethrough")
             if plans:
                 tasks = []
@@ -1604,25 +1611,21 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 markup = fence([token], 0, {}, {})
             else:
                 markup = md.render(text)
-            if ai:
+            if ai or latex:
                 page["math"] = bool(re.search(r'class="math-(?:inline|display)"', markup))
+            if ai:
                 page["chapters"] = []
                 for item in page["headings"]:
                     if page["section"] != "提示词模板" and item["level"] == 1 and re.match(r"^第.+篇[：:]", item["title"]):
                         page["chapters"].append(dict(id=item["id"], title=item["title"], headings=[]))
                     elif item["level"] == 2 and page["chapters"]:
                         page["chapters"][-1]["headings"].append(dict(id=item["id"], title=item["title"]))
-            if frontend and path.stem.casefold() == "latex":
-                page["math"] = True
-                markup = re.sub(r'(<pre\b[\s\S]*?</pre>)|(<code\b[^>]*>[\s\S]*?</code>)|(?<!\\)\$([^$\n<>]+?)\$',
-                                lambda match: match[1] or match[2] or '<span class="math-inline">\\(' + match[3] + '\\)</span>', markup)
             if plans:
                 page["tasks"] = dict(done=sum(tasks), total=len(tasks))
             markup = re.sub(r"(<figure class=\"code-block\">[\s\S]*?</figure>)|(<code\b[^>]*>[\s\S]*?</code>)|==([^\n]+?)==",
                             lambda m: m[1] or m[2] or "<mark>" + m[3] + "</mark>", markup)
             markup = re.sub(r"<table>([\s\S]*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', markup)
-            markup = re.sub(r"\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]", lambda m: {
-                "NOTE": "补充理解", "TIP": "使用提示", "WARNING": "易错提醒", "IMPORTANT": "关键结论", "CAUTION": "注意事项"}[m[1]], markup)
+            markup = render_callout_labels(markup)
             if page["kind"] == "practice" and "<details" not in markup:
                 answer = re.search(r'<h([1-6])\b[^>]*>[^<]*(?:<[^>]+>)*\s*参考答案', markup)
                 if answer:
@@ -1712,6 +1715,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "JavaScript": "从变量、函数和异步到 DOM 操作，结合 JSON 理解数据交互。",
                 "Vue": "连接响应式、组件与项目工具，查阅 Vue 3 与 npm 的使用方法。",
                 "基础知识": "理解模型原理、核心组件与应用开发，结合补充笔记理清易混淆概念。",
+                "Agent": "查阅 Agent 原理、工具用法、工作方法与实践记录。",
                 "AI实践记录": "直接阅读 Python 实践代码，回顾 API 调用、流式输出与错误处理。",
                 "提示词模板": "查阅笔记整理、知识点练习与学习计划模板，按需要复制使用。",
                 "错题与易错点": "回顾曾经出错的概念、原因与正确理解，在复习中巩固知识。",
