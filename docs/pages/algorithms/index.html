@@ -23,6 +23,15 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
 .brand{font-size:18px}.brand small{font-size:7px;letter-spacing:.07em}.filters button{padding:4px 8px;font-size:10px}.hero h1{font-size:clamp(33px,3.2vw,47px);letter-spacing:.03em}.primary{max-width:100%;gap:20px}.code-block{margin:25px 0;min-width:0;border:1px solid var(--line);border-radius:7px;overflow:hidden}.code-block figcaption{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--soft);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.04em}.copy-code{font-size:10px;color:var(--green);padding:2px 6px}.code-block pre{margin:0;border:0;border-radius:0;background:var(--paper);padding:19px;line-height:1.9;font-size:12px}.token-comment{color:var(--muted)}.token-string{color:#98643f}.token-keyword{color:#426a89;font-weight:600}.token-number{color:#8d6284}html[data-theme=dark] .token-keyword{color:#9fcae7}html[data-theme=dark] .token-string{color:#dbc294}html[data-theme=dark] .token-number{color:#d1afd7}.article-contents{border:1px solid var(--line);border-radius:7px;background:var(--paper);padding:12px 18px;margin:0 0 25px;font-size:12px}.article-contents summary{cursor:pointer;color:var(--green);font-weight:600}.toc-list{display:grid;grid-template-columns:1fr 1fr;gap:5px 22px;padding:13px 0 0}.toc-list a{font-size:11px;line-height:1.8;text-decoration:none}.resource-card{padding:35px;background:var(--paper);border:1px solid var(--line);border-radius:8px}.resource-card>span{font:italic 22px Georgia,serif;color:var(--green)}.resource-card p{font-size:13px;color:var(--muted)}.sort-demo{margin-top:34px;border:1px solid var(--line);border-radius:8px;padding:28px;background:var(--paper)}.demo-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:11px}.demo-heading>span{color:var(--muted)}.demo-heading button{border:1px solid var(--line);border-radius:4px;padding:5px 9px;margin-left:5px;font-size:10px}.demo-heading button:disabled{opacity:.45;cursor:default}.sort-bars{height:175px;display:flex;align-items:flex-end;gap:13px;padding:13px 20px 0;border-bottom:1px solid var(--line);margin-top:15px}.sort-bar{height:calc(var(--value)*17px + 22px);flex:1;background:var(--soft);border:1px solid var(--line);border-radius:5px 5px 0 0;display:flex;justify-content:center;align-items:flex-start;padding-top:8px;color:var(--green);font:italic 17px Georgia,serif;transition:height .22s,background .22s}.sort-bar.comparing{background:#d8b977;color:#493d25;border-color:#c7a361}.sort-bar.sorted{background:var(--green);color:var(--paper)}#sort-status{font-size:11px;color:var(--muted);min-height:20px;margin:15px 0 6px}.demo-link{font-size:11px;color:var(--green)}@media(max-width:1150px){.hero h1{font-size:35px}.code-block pre{font-size:11px}}@media(max-width:540px){.hero h1{font-size:35px}.hero .eyebrow{font-size:7px}.hero img{max-height:240px}.sort-demo{padding:20px}.demo-heading{align-items:flex-start;flex-direction:column;gap:10px}.demo-heading button{margin:0 5px 0 0}.sort-bars{gap:8px;padding-left:3px;padding-right:3px;height:165px}.sort-bar{font-size:15px}.toc-list{grid-template-columns:1fr}.resource-card{padding:22px}.code-block pre{font-size:11px;padding:14px}.document-head h1{font-size:24px}}@media(prefers-reduced-motion:reduce){.sort-bar{transition:none}}@media print{.copy-code,.article-contents,.sort-demo{display:none!important}.code-block pre{white-space:pre-wrap;overflow-wrap:anywhere}}
 
 #course-examples{font-size:14px}#course-examples>summary{width:fit-content}.course-example{margin:16px 0 20px}.course-example+.course-example{padding-top:16px;border-top:1px solid var(--line)}.course-example h2{font-size:18px}.course-example dl{margin:8px 0 12px}.course-example dt{font-weight:600;margin-top:10px}.course-example dd{margin:2px 0 0;color:var(--muted)}.course-example .code-block{margin:12px 0}.course-example .code-block summary{padding:8px 14px}.course-example>.copy-code{font-size:12px;border:1px solid var(--line);border-radius:4px;padding:5px 10px}
+.competition-section{margin:36px 0}
+.competition-cards h3{padding-right:18px}
+@media(min-width:1360px){.competition-cards{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.competition-back{color:var(--green);font-size:13px}
+.competition-files{list-style:none;margin:0;padding:0 22px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--card-shadow)}
+.competition-files li+li{border-top:1px solid var(--line)}
+.competition-files a{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;overflow-wrap:anywhere}
+.competition-files .type{flex-shrink:0;background:var(--soft);color:var(--muted);border-radius:var(--radius-sm);padding:2px 8px;font-size:11px}
+.competition-files .empty{padding:16px 0}
 </style>
   <script>window.MathJax={loader:{paths:{mathjax:'./mathjax'}},tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']],processEscapes:true},svg:{fontCache:'local'},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
   <script defer src="mathjax/tex-svg.js"></script>
@@ -43,11 +52,20 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
       <section id="overview">
         <div class="hero"><div class="hero-copy"><div class="eyebrow">THINK CLEARLY. SOLVE STEP BY STEP.</div><h1>把问题拆开，<br>让方法<em>有迹可循。</em></h1><p>从数据的组织，到问题的求解。<br>连接课程、代码与练习，走通每一步。</p><a id="start-reading" class="primary" href="#chapter-1">从第一章开始 <span>↗</span></a></div><img src="algorithms-hero.webp" alt="立体排序柱、二叉搜索树和动态规划状态网格" width="1536" height="1024"></div>
         <div class="stats"><div><strong>09</strong><span>章课程课件</span></div><div><strong>19</strong><span>篇专题与源码</span></div><div><strong>08</strong><span>份分类题单</span></div></div>
+        <section class="companion"><div><span class="eyebrow">UNDERSTAND. IMPLEMENT. PRACTICE.</span><h2>把学过的方法，变成会用的工具。</h2><p>排序、搜索、图论、动态规划与高精度，按专题逐项理解。已有代码可复制，题目集中在题单里，方便练习后回看。</p><div class="text-links"><a href="#search">选择搜索方法 ↗</a><a href="#practice-dp">开始一组练习 ↗</a></div></div><div class="reading-order"><span>建议阅读顺序</span><p><b>01</b> 课程主线与复杂度</p><p><b>02</b> 专题方法与代码</p><p><b>03</b> 分类题单与复盘</p></div></section>
         <section class="start"><div class="section-title"><h2>数据结构与算法（C语言版）</h2><p>选择章节，在网页中打开 PDF 课件。</p></div><div id="course-cards" class="course-cards"></div></section>
         <section class="sort-demo" aria-label="冒泡排序交互演示"><div class="section-title"><span>02 / MAKE THE STEPS VISIBLE</span><h2>让一步一步，看得见</h2><p>从一次比较开始，观察较大的数如何逐步移向右侧。</p></div><div class="demo-heading"><span>冒泡排序 · 升序</span><div><button id="demo-step">下一步</button><button id="demo-play">自动演示</button><button id="demo-reset">重新开始</button></div></div><div id="sort-bars" class="sort-bars" aria-label="当前数组"></div><p id="sort-status" role="status" aria-live="polite"></p><a class="demo-link" href="#bubble">阅读原理与代码 ↗</a></section>
-        <section class="companion"><div><span class="eyebrow">UNDERSTAND. IMPLEMENT. PRACTICE.</span><h2>把学过的方法，变成会用的工具。</h2><p>排序、搜索、图论、动态规划与高精度，按专题逐项理解。已有代码可复制，题目集中在题单里，方便练习后回看。</p><div class="text-links"><a href="#search">选择搜索方法 ↗</a><a href="#practice-dp">开始一组练习 ↗</a></div></div><div class="reading-order"><span>建议阅读顺序</span><p><b>01</b> 课程主线与复杂度</p><p><b>02</b> 专题方法与代码</p><p><b>03</b> 分类题单与复盘</p></div></section>
+        <section id="competition" class="competition-section" aria-labelledby="competition-heading">
+          <div class="section-title"><h2 id="competition-heading" tabindex="-1">算法竞赛（C 与 C++）</h2><p>选择文件夹，查看专题、源码、题单与集训资料。</p></div>
+          <div id="competition-cards" class="course-cards competition-cards"></div>
+        </section>
         <div class="resource-note"><p>侧栏收录 <!--RESOURCE_COUNT--> 份课件与资料。PDF 可在线阅读，其他资料可下载原件。</p><a href="<!--SOURCE_URL-->">查看算法目录 ↗</a></div>
         <footer>算法与数据结构 · 课程课件与竞赛专题</footer>
+      </section>
+      <section id="competition-view" aria-labelledby="competition-title" hidden>
+        <a class="competition-back" href="#competition">← 返回竞赛目录</a>
+        <div class="document-head"><h1 id="competition-title" tabindex="-1"></h1><div class="document-links"><a id="competition-source" target="_blank" rel="noopener">查看原文件夹 ↗</a></div></div>
+        <ul id="competition-files" class="competition-files"></ul>
       </section>
       <section id="document" hidden>
         <div class="document-head"><div><div id="doc-kind" class="eyebrow"></div><h1 id="doc-title"></h1><p id="doc-description"></p></div><div class="document-links"><a id="source" target="_blank" rel="noopener">查看原文件 ↗</a><a id="pdf-guide" target="algorithm-pdf-frame" hidden>本章导读</a><a id="download" download>下载 PDF ↓</a><a id="open-pdf" target="_blank" rel="noopener">独立阅读 ↗</a></div></div>
@@ -60,11 +78,15 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
     </main>
   </div>
   <script type="application/json" id="chapter-data"><!--CHAPTER_DATA--></script>
+  <script type="application/json" id="competition-data"><!--COMPETITION_DATA--></script>
 <script>
 /* Courseware navigation. PDF controls and rendering are provided by Mozilla PDF.js. */
 (() => {
   'use strict';
   const pages = JSON.parse(document.getElementById('chapter-data').textContent);
+  const folders = JSON.parse(document.getElementById('competition-data').textContent);
+  const pagesById = new Map(pages.map(page => [page.id, page]));
+  const foldersById = new Map(folders.map(folder => [folder.id, folder]));
   const $ = id => document.getElementById(id);
   const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const get = key => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -80,7 +102,8 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
     const query = $('search').value.trim().toLocaleLowerCase();
     const visible = pages.filter(page => matchFilter(page) && (!query || (page.title+' '+page.search).toLocaleLowerCase().includes(query)));
     let group = '';
-    $('catalog').innerHTML = '<a class="nav-home" href="#overview"'+(active==='overview'?' aria-current="page"':'')+'>课程总览</a>' + visible.map(page => {
+    $('catalog').innerHTML = '<a class="nav-home" href="#overview"'+(active==='overview'?' aria-current="page"':'')+'>算法总览</a>' +
+      '<a class="nav-home" href="#competition"'+(active==='competition'?' aria-current="page"':'')+'>竞赛目录</a>' + visible.map(page => {
       const heading = group === page.group ? '' : '<div class="nav-group">'+escape(page.group)+'</div>';
       group = page.group;
       return heading+'<a class="nav-link" href="#'+page.id+'"'+(active===page.id?' aria-current="page"':'')+'><span class="type">'+(page.format || labels[page.kind])+'</span><span>'+escape(page.title)+'</span></a>';
@@ -90,10 +113,13 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
   $('search').addEventListener('input', catalog);
   document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => { filter = button.dataset.filter; catalog(); }));
 
-  $('course-cards').innerHTML = pages.filter(page => page.kind === 'chapter').map(page =>
-    '<a class="course-card" href="#'+page.id+'"><b aria-hidden="true">↗</b><h3>'+
-    escape(page.title)+'</h3><p>'+escape(page.description)+'</p></a>').join('');
-  const last = pages.find(page => page.id === get('algorithms-last'));
+  function card({id, title}, description) {
+    return '<a class="course-card" href="#'+id+'"><b aria-hidden="true">↗</b><h3>'+
+      escape(title)+'</h3><p>'+escape(description)+'</p></a>';
+  }
+  $('course-cards').innerHTML = pages.filter(page => page.kind === 'chapter').map(page => card(page, page.description)).join('');
+  $('competition-cards').innerHTML = folders.map(folder => card(folder, folder.entries.length+' 份资料')).join('');
+  const last = pagesById.get(get('algorithms-last'));
   if (last) { $('start-reading').href='#'+last.id; $('start-reading').innerHTML='继续阅读：'+escape(last.title)+' <span>↗</span>'; }
 
   function menu(open) {
@@ -130,19 +156,23 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
     }).join('');
   }
 
-  function route() {
+  function route(event) {
     const id = location.hash.slice(1) || 'overview';
+    const competition = id === 'competition';
+    const folder = foldersById.get(id);
     const headingRoute = id.match(/^(.*)-h\d+$/);
-    const page = pages.find(item => item.id === id || item.id === headingRoute?.[1]);
+    const page = pagesById.get(id) || pagesById.get(headingRoute?.[1]);
     // Heading anchors belong to the current article, not a different document.
-    if (!page && id !== 'overview' && document.getElementById(id)) return;
+    if (!page && !competition && id !== 'overview' && document.getElementById(id)) return;
     stopDemo();
     const ticket = ++generation;
-    active = page ? page.id : 'overview';
-    $('overview').hidden = !!page;
+    active = page?.id || (competition || folder ? 'competition' : 'overview');
+    $('overview').hidden = !!(page || folder);
+    $('competition-view').hidden = !folder;
     $('document').hidden = !page;
-    $('crumb').textContent = page ? page.title : '';
-    document.title = page ? page.title+' · 算法与数据结构' : '算法与数据结构 · 学习笔记';
+    const title = page?.title || folder?.title || '';
+    $('crumb').textContent = title;
+    document.title = title ? title+' · 算法与数据结构' : '算法与数据结构 · 学习笔记';
     if (page && !matchFilter(page)) filter = 'all';
     catalog();
     menu(false);
@@ -153,6 +183,15 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
     showExamples(examples);
     if (window.MathJax?.typesetClear) MathJax.typesetClear([$('note-body')]);
     $('note-body').replaceChildren();
+    if (folder) {
+      $('competition-title').textContent = folder.title;
+      $('competition-source').href = folder.source;
+      $('competition-files').innerHTML = folder.entries.map(id => {
+        const item = pagesById.get(id);
+        return '<li><a href="#'+id+'"><span>'+escape(item.title)+'</span><span class="type">'+
+          escape(item.format || labels[item.kind])+'</span></a></li>';
+      }).join('') || '<li class="empty">暂无在线阅读资料。</li>';
+    }
     if (page) {
       save('algorithms-last', page.id);
       $('doc-kind').textContent = page.group+' / '+labels[page.kind];
@@ -226,7 +265,13 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
         if (item) { target.href='#'+item.id; target.textContent=prefix+item.title; }
       }
     }
-    window.scrollTo({top:0, behavior:'instant'});
+    if (competition) {
+      $('competition').scrollIntoView({block:'start'});
+      if (event?.type === 'hashchange') $('competition-heading').focus({preventScroll:true});
+    } else {
+      window.scrollTo({top:0, behavior:'instant'});
+      if (folder && event?.type === 'hashchange') $('competition-title').focus({preventScroll:true});
+    }
     if (headingRoute) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({block:'start'}));
   }
 
