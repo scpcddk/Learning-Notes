@@ -22,6 +22,7 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
 
 .brand{font-size:18px}.brand small{font-size:7px;letter-spacing:.07em}.filters button{padding:4px 8px;font-size:10px}.hero h1{font-size:clamp(33px,3.2vw,47px);letter-spacing:.03em}.primary{max-width:100%;gap:20px}.code-block{margin:25px 0;min-width:0;border:1px solid var(--line);border-radius:7px;overflow:hidden}.code-block figcaption{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--soft);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.04em}.copy-code{font-size:10px;color:var(--green);padding:2px 6px}.code-block pre{margin:0;border:0;border-radius:0;background:var(--paper);padding:19px;line-height:1.9;font-size:12px}.token-comment{color:var(--muted)}.token-string{color:#98643f}.token-keyword{color:#426a89;font-weight:600}.token-number{color:#8d6284}html[data-theme=dark] .token-keyword{color:#9fcae7}html[data-theme=dark] .token-string{color:#dbc294}html[data-theme=dark] .token-number{color:#d1afd7}.article-contents{border:1px solid var(--line);border-radius:7px;background:var(--paper);padding:12px 18px;margin:0 0 25px;font-size:12px}.article-contents summary{cursor:pointer;color:var(--green);font-weight:600}.toc-list{display:grid;grid-template-columns:1fr 1fr;gap:5px 22px;padding:13px 0 0}.toc-list a{font-size:11px;line-height:1.8;text-decoration:none}.resource-card{padding:35px;background:var(--paper);border:1px solid var(--line);border-radius:8px}.resource-card>span{font:italic 22px Georgia,serif;color:var(--green)}.resource-card p{font-size:13px;color:var(--muted)}.sort-demo{margin-top:34px;border:1px solid var(--line);border-radius:8px;padding:28px;background:var(--paper)}.demo-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:11px}.demo-heading>span{color:var(--muted)}.demo-heading button{border:1px solid var(--line);border-radius:4px;padding:5px 9px;margin-left:5px;font-size:10px}.demo-heading button:disabled{opacity:.45;cursor:default}.sort-bars{height:175px;display:flex;align-items:flex-end;gap:13px;padding:13px 20px 0;border-bottom:1px solid var(--line);margin-top:15px}.sort-bar{height:calc(var(--value)*17px + 22px);flex:1;background:var(--soft);border:1px solid var(--line);border-radius:5px 5px 0 0;display:flex;justify-content:center;align-items:flex-start;padding-top:8px;color:var(--green);font:italic 17px Georgia,serif;transition:height .22s,background .22s}.sort-bar.comparing{background:#d8b977;color:#493d25;border-color:#c7a361}.sort-bar.sorted{background:var(--green);color:var(--paper)}#sort-status{font-size:11px;color:var(--muted);min-height:20px;margin:15px 0 6px}.demo-link{font-size:11px;color:var(--green)}@media(max-width:1150px){.hero h1{font-size:35px}.code-block pre{font-size:11px}}@media(max-width:540px){.hero h1{font-size:35px}.hero .eyebrow{font-size:7px}.hero img{max-height:240px}.sort-demo{padding:20px}.demo-heading{align-items:flex-start;flex-direction:column;gap:10px}.demo-heading button{margin:0 5px 0 0}.sort-bars{gap:8px;padding-left:3px;padding-right:3px;height:165px}.sort-bar{font-size:15px}.toc-list{grid-template-columns:1fr}.resource-card{padding:22px}.code-block pre{font-size:11px;padding:14px}.document-head h1{font-size:24px}}@media(prefers-reduced-motion:reduce){.sort-bar{transition:none}}@media print{.copy-code,.article-contents,.sort-demo{display:none!important}.code-block pre{white-space:pre-wrap;overflow-wrap:anywhere}}
 
+#course-examples{font-size:14px}#course-examples>summary{width:fit-content}.course-example{margin:16px 0 20px}.course-example+.course-example{padding-top:16px;border-top:1px solid var(--line)}.course-example h2{font-size:18px}.course-example dl{margin:8px 0 12px}.course-example dt{font-weight:600;margin-top:10px}.course-example dd{margin:2px 0 0;color:var(--muted)}.course-example .code-block{margin:12px 0}.course-example .code-block summary{padding:8px 14px}.course-example>.copy-code{font-size:12px;border:1px solid var(--line);border-radius:4px;padding:5px 10px}
 </style>
   <script>window.MathJax={loader:{paths:{mathjax:'./mathjax'}},tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']],processEscapes:true},svg:{fontCache:'local'},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
   <script defer src="mathjax/tex-svg.js"></script>
@@ -49,8 +50,9 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
         <footer>算法与数据结构 · 课程课件与竞赛专题</footer>
       </section>
       <section id="document" hidden>
-        <div class="document-head"><div><div id="doc-kind" class="eyebrow"></div><h1 id="doc-title"></h1><p id="doc-description"></p></div><div class="document-links"><a id="source" target="_blank" rel="noopener">查看原文件 ↗</a><a id="download" download>下载 PDF ↓</a><a id="open-pdf" target="_blank" rel="noopener">独立阅读 ↗</a></div></div>
-        <div id="pdf-panel" hidden><p class="viewer-tip"><span id="viewer-hint">阅读器内可搜索课件正文、选择文字与翻页。</span><span id="pdf-status" role="status">正在载入课件…</span></p><iframe id="pdf-viewer" title="PDF 课件阅读器" allowfullscreen></iframe><p class="fallback">若阅读器无法显示，可<a id="raw-pdf" target="_blank" rel="noopener">直接打开 PDF</a>。</p></div>
+        <div class="document-head"><div><div id="doc-kind" class="eyebrow"></div><h1 id="doc-title"></h1><p id="doc-description"></p></div><div class="document-links"><a id="source" target="_blank" rel="noopener">查看原文件 ↗</a><a id="pdf-guide" target="algorithm-pdf-frame" hidden>本章导读</a><a id="download" download>下载 PDF ↓</a><a id="open-pdf" target="_blank" rel="noopener">独立阅读 ↗</a></div></div>
+        <details id="course-examples" class="article-contents" hidden><summary>C99 源码与用例</summary><div id="examples-list"></div></details>
+        <div id="pdf-panel" hidden><p class="viewer-tip"><span id="viewer-hint">阅读器内可搜索课件正文、选择文字与翻页。</span><span id="pdf-status" role="status">正在载入课件…</span></p><iframe id="pdf-viewer" name="algorithm-pdf-frame" title="PDF 课件阅读器" allowfullscreen></iframe><p class="fallback">若阅读器无法显示，可<a id="raw-pdf" target="_blank" rel="noopener">直接打开 PDF</a>。</p></div>
         <article id="note-body"></article>
         <nav class="document-pager" aria-label="相邻资料"><a id="previous"></a><a id="next"></a></nav>
       </section>
@@ -114,6 +116,20 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
   theme(get('learning-notes-theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
   $('theme').addEventListener('click', () => theme(document.documentElement.dataset.theme==='dark'?'light':'dark', true));
 
+  function showExamples(examples) {
+    const panel = $('course-examples');
+    panel.hidden = examples.length === 0;
+    panel.open = false;
+    $('examples-list').innerHTML = examples.map(example => {
+      const cases = example.cases.map(test => '<dt>'+escape(test.name)+'</dt>'+
+        '<dd>输入　'+escape(test.input)+'</dd><dd>预期　'+escape(test.expected)+'</dd>').join('');
+      return '<section class="course-example"><h2>'+escape(example.title)+'</h2><dl>'+cases+'</dl>'+
+        '<button class="copy-code" type="button">复制完整源码</button>'+
+        '<details class="code-block"><summary>查看完整源码</summary>'+
+        '<pre><code class="language-c">'+escape(example.code)+'</code></pre></details></section>';
+    }).join('');
+  }
+
   function route() {
     const id = location.hash.slice(1) || 'overview';
     const headingRoute = id.match(/^(.*)-h\d+$/);
@@ -133,6 +149,8 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
     $('pdf-viewer').onload = null;
     $('pdf-viewer').removeAttribute('src');
     $('pdf-panel').hidden = true;
+    const examples = page?.examples ?? [];
+    showExamples(examples);
     if (window.MathJax?.typesetClear) MathJax.typesetClear([$('note-body')]);
     $('note-body').replaceChildren();
     if (page) {
@@ -144,11 +162,19 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
       $('source').href = page.source;
       $('source').textContent = '查看原文件 ↗';
       $('download').hidden = $('open-pdf').hidden = !page.pdf;
+      const guided = page.kind === 'chapter' && !!page.pdf;
+      $('pdf-guide').hidden = !guided;
       if (page.pdf) {
         $('pdf-panel').hidden = false;
         $('viewer-hint').textContent = page.scanned ? '这份试卷是扫描件，可翻页、缩放和下载；正文暂不支持文字搜索。' : '阅读器内可搜索课件正文、选择文字与翻页。';
-        const saved = Number(get('algorithms-page-'+page.id)) || 1;
-        const reader = '../pdfjs/web/viewer.html?file='+encodeURIComponent(new URL(page.pdf, location.href).href)+'#page='+saved+'&zoom=page-width&pagemode=none';
+        const oldKey = 'algorithms-page-'+page.id;
+        const pageKey = guided ? 'algorithms-guided-page-'+page.id : oldKey;
+        const oldPage = Number(get(oldKey));
+        const saved = Number(get(pageKey)) || (guided && oldPage > 0 ? oldPage + 1 : 1);
+        const viewer = '../pdfjs/web/viewer.html?file='+encodeURIComponent(new URL(page.pdf, location.href).href);
+        const readerAt = number => viewer+'#page='+number+'&zoom=page-width&pagemode=none';
+        const reader = readerAt(saved);
+        if (guided) $('pdf-guide').href = readerAt(1);
         $('download').href = page.pdf;
         $('download').download = page.title+'.pdf';
         $('raw-pdf').href = page.pdf;
@@ -161,18 +187,25 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
             if (!app) { $('pdf-status').textContent='也可直接打开 PDF'; return; }
             await app.initializedPromise;
             if (ticket !== generation) return;
+            const updateStatus = number => {
+              const bodyPages = app.pagesCount - Number(guided) - examples.length;
+              const testPage = examples[number - bodyPages - 2];
+              $('pdf-status').textContent = testPage ? testPage.title+' · 用例' :
+                guided && number === 1 ? '本章导读' :
+                '第 '+(number - Number(guided))+' 页 / '+bodyPages+' 页';
+            };
             app.eventBus.on('pagechanging', event => {
               if (ticket !== generation) return;
-              save('algorithms-page-'+page.id, String(event.pageNumber));
-              $('pdf-status').textContent='第 '+event.pageNumber+' 页 / '+app.pagesCount+' 页';
+              save(pageKey, String(event.pageNumber));
+              updateStatus(event.pageNumber);
             });
             app.eventBus.on('pagesinit', () => {
-              if (ticket === generation) $('pdf-status').textContent='第 '+app.page+' 页 / '+app.pagesCount+' 页';
+              if (ticket === generation) updateStatus(app.page);
             });
             app.eventBus.on('documenterror', () => {
               if (ticket === generation) $('pdf-status').textContent='载入失败，请尝试下方“直接打开 PDF”';
             });
-            if (app.pdfDocument) $('pdf-status').textContent='第 '+app.page+' 页 / '+app.pagesCount+' 页';
+            if (app.pdfDocument) updateStatus(app.page);
           } catch { if (ticket === generation) $('pdf-status').textContent='可使用下方链接直接打开 PDF'; }
         };
         $('pdf-viewer').src = reader;
@@ -240,13 +273,26 @@ html[data-theme=dark]{color-scheme:dark;--bg:#19221c;--paper:#202b23;--ink:#dce6
       article.prepend(contents);
     }
   }
-  $('note-body').addEventListener('click',async event=>{
-    const button=event.target.closest('.copy-code');if(!button)return;
-    const text=button.closest('.code-block').querySelector('code').textContent;
-    try { await navigator.clipboard.writeText(text);button.textContent='已复制'; }
-    catch {button.textContent='请选中代码复制';}
-    setTimeout(()=>{if(button.isConnected)button.textContent='复制代码';},1800);
-  });
+  async function copyCode(event) {
+    const button = event.target.closest('.copy-code');
+    if (!button) return;
+    const label = button.dataset.copyLabel ??= button.textContent;
+    const code = (button.closest('.course-example') || button.closest('.code-block')).querySelector('code');
+    try { await navigator.clipboard.writeText(code.textContent); button.textContent = '已复制'; }
+    catch {
+      const details = code.closest('details');
+      if (details) details.open = true;
+      const range = document.createRange();
+      range.selectNodeContents(code);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      button.textContent = '已选中，请复制';
+    }
+    setTimeout(() => { if (button.isConnected) button.textContent = label; }, 1800);
+  }
+  $('note-body').addEventListener('click', copyCode);
+  $('examples-list').addEventListener('click', copyCode);
 
   $('print').addEventListener('click', () => {
     if (!$('pdf-panel').hidden) {
