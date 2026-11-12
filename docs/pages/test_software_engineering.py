@@ -1,5 +1,6 @@
 """Keep subject routes and repository links working after the engineering move."""
 from html.parser import HTMLParser
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -21,6 +22,49 @@ class Links(HTMLParser):
 
 
 class SoftwareEngineeringTests(unittest.TestCase):
+    def test_subject_readers_are_reachable_from_catalogs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo, output = root/'repo', root/'site'
+            sources = {
+                '软件工程/计算机组成原理/笔记/数字逻辑.md': '[课件](../课件资源/讲义.pdf)\n\n公式 $x+y$。',
+                '软件工程/软件需求与分析/课件/课程.md': '# 需求分析',
+                '通识与拓展/思维/问题解决.md': '# 问题解决',
+                '数学/概率论与数理统计/基础概念/事件.md': '# 随机事件\n\n概率 $P(A)$。',
+            }
+            for relative, content in sources.items():
+                path = repo/relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding='utf-8')
+            pdf = repo/'软件工程/计算机组成原理/课件资源/讲义.pdf'
+            pdf.parent.mkdir()
+            pdf.write_bytes(b'%PDF-1.7\n')
+            archive = pdf.with_name('附录.zip')
+            archive.write_bytes(b'PK\x05\x06' + bytes(18))
+            with patch.object(build_site, 'REPO', repo):
+                subjects = build_site.build_subject_readers(output, 'https://github.com/example/notes', 'main')
+                build_site.build_catalogs(output, 'https://github.com/example/notes', 'main', [], subjects)
+            for catalog, href in [
+                ('index.html', 'general-studies/'),
+                ('math/index.html', '../probability-statistics/'),
+                ('software-engineering/index.html', '../computer-organization/'),
+                ('software-engineering/index.html', '../software-requirements/'),
+            ]:
+                self.assertIn(href, Links((output/catalog).read_text(encoding='utf-8')).hrefs)
+                target = (output/catalog).parent / href / 'index.html'
+                self.assertTrue(build_site.DATA.search(target.read_text(encoding='utf-8')))
+            subject = output/'computer-organization'
+            content = (subject/'index.html').read_text(encoding='utf-8')
+            notes = json.loads(build_site.DATA.search(content)[2])
+            note = next(entry for entry in notes if entry['format'] == 'MD')
+            lecture = next(entry for entry in notes if entry['kind'] == 'pdf')
+            self.assertTrue(note['math'])
+            self.assertIn(f'href="#{lecture["id"]}"', note['full'])
+            self.assertEqual((subject/lecture['pdf']).read_bytes(), pdf.read_bytes())
+            download = next(entry for entry in notes if entry['format'] == 'ZIP')
+            self.assertEqual((subject/download['download']).read_bytes(), archive.read_bytes())
+            self.assertIn('../software-engineering/', Links(content).hrefs)
+
     def test_moved_subjects_keep_routes_and_use_new_source_paths(self):
         scratch = Path(tempfile.gettempdir())
         with tempfile.TemporaryDirectory(dir=scratch) as temporary:

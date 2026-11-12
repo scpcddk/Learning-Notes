@@ -2,9 +2,9 @@
 
 [学习首页](https://scpcddk.github.io/Learning-Notes/) · [数学科目页](https://scpcddk.github.io/Learning-Notes/math/) · [高等数学](https://scpcddk.github.io/Learning-Notes/calculus/) · [线性代数](https://scpcddk.github.io/Learning-Notes/linear-algebra/) · [离散数学](https://scpcddk.github.io/Learning-Notes/discrete-math/) · [算法](https://scpcddk.github.io/Learning-Notes/algorithms/) · [编程语言](https://scpcddk.github.io/Learning-Notes/programming-languages/) · [Linux](https://scpcddk.github.io/Learning-Notes/linux/)
 
-网站首页展示仓库根目录的知识板块。点击数学进入数学科目页，再选择高等数学、线性代数、离散数学等；编程语言进入语言总览，再选择 C/C++、Java 或 Python。算法和 Linux 可直接进入各自的阅读页；[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/) 和 [前端基础](https://scpcddk.github.io/Learning-Notes/front-end/) 先选择学习板块，再进入笔记。[学习计划](https://scpcddk.github.io/Learning-Notes/learning-plans/) 按当前状态分类。其他板块展示现有目录，子项链接到仓库原笔记。
+网站首页展示仓库根目录的知识板块。数学科目页可以直接进入高等数学、线性代数、离散数学和[概率论与数理统计](https://scpcddk.github.io/Learning-Notes/probability-statistics/)。编程语言按 C/C++、Java 和 Python 阅读。算法和 Linux 有各自的阅读页。[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/)、[前端基础](https://scpcddk.github.io/Learning-Notes/front-end/)和[通识与拓展](https://scpcddk.github.io/Learning-Notes/general-studies/)按学习板块组织笔记。[学习计划](https://scpcddk.github.io/Learning-Notes/learning-plans/)按当前状态分类。
 
-[软件工程与计算基础](https://scpcddk.github.io/Learning-Notes/software-engineering/) 对应仓库的 `软件工程/`，按“计算机组成原理、软件需求与分析”选择科目。计组移动后的原始资料路径为 `软件工程/计算机组成原理/`，公开地址 `/computer-organization/` 保持不变；需求分析科目为 `/software-requirements/`。科目页可通过面包屑返回板块目录。
+[软件工程与计算基础](https://scpcddk.github.io/Learning-Notes/software-engineering/) 提供[计算机组成原理](https://scpcddk.github.io/Learning-Notes/computer-organization/)和[软件需求与分析](https://scpcddk.github.io/Learning-Notes/software-requirements/)两门科目的站内阅读入口。章节笔记、课件和习题按原目录归类，科目页可通过面包屑返回板块目录。
 
 AI 通过 `/ai/` 进入完整阅读页，收录基础知识、Agent、实践记录、提示词模板和错题与易错点，支持 Markdown 与 Python 源码阅读。首页 AI 卡片与阅读页共用总封面。[AI 阅读页说明](ai/README.md)
 
@@ -68,7 +68,7 @@ python -B -m unittest discover -s docs/pages
 python -B -m unittest discover -s "AI/AI实践记录"
 ~~~
 
-课件按原目录收录。PDF 支持在线阅读，保留为 PPT 或 PPTX 的课件提供原文件入口。课件的历史版本可通过 Git 提交记录查阅。
+课件按原目录收录。PDF 和已生成 PDF 阅读版的 Office 资料支持在线阅读。课件的原文件与历史版本可在仓库查阅。
 
 ## 本地阅读
 
@@ -134,7 +134,7 @@ MyBatis 板块按当前目录展示知识笔记与 `MyBatis实践记录/`，错�
 
 访问 `/cloud-native/`，首页展示 Docker、DevOps、数据库与中间件、运维与服务部署、Kubernetes、可观测性和微服务。数据库与中间件按主题展开，运维与服务部署按项目展开。空白笔记列在所属板块的“待学”入口中。侧栏展开当前主题，搜索覆盖全部云原生笔记。
 
-正文直接读取 `云原生/`，新增笔记或目录后随下次构建自动加入。完全相同的非空 Markdown 合并阅读入口，优先展示项目部署目录中的版本；原文件保留，原笔记互链会转到同一阅读入口。有差异的同名手册分别收录。PDF 沿用 PDF.js，PowerPoint 提供原文件入口，图片随站点打包。
+正文直接读取 `云原生/`，新增笔记或目录后随下次构建自动加入。完全相同的非空 Markdown 合并阅读入口，优先展示项目部署目录中的版本。原笔记互链会转到同一阅读入口，有差异的同名手册分别收录。PDF 和 PowerPoint 阅读版使用 PDF.js，图片与压缩包随站点打包。
 
 页面复用编程语言阅读模板，提供全文搜索、目录速览与完整笔记、代码复制、本篇目录、深色模式、打印和上次阅读记录。各板块的空白笔记放在自己的“待学”入口，补充正文后自动加入该板块正常目录，不移动源文件。[总封面、板块封面与提示词](cloud-native/README.md) 保存在 docs，使用内置 imagegen 生成。
 

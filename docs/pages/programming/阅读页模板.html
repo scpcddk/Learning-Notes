@@ -207,8 +207,12 @@
       $('resource').replaceChildren();
       if(!isNote){
         const panel=document.createElement('div');panel.className='resource-panel';const p=document.createElement('p');
-        p.textContent=page.kind==='diagram'?(config.diagramDescription||'保留原笔记中的交互图解，可在下方探索或独立打开。'):page.kind==='pdf'?'课件保留原始排版，可翻页、搜索、缩放和下载。':'这份资料保留原始格式，下载后使用对应软件打开。';panel.append(p);
-        const a=document.createElement('a');a.textContent=page.kind==='resource'?'查看与下载原文件 ↗':'独立打开 ↗';a.href=page.embed||page.pdf||page.source;a.target='_blank';a.rel='noopener';panel.append(a);$('resource').append(panel);
+        p.textContent=page.kind==='diagram'?(config.diagramDescription||'保留原笔记中的交互图解，可在下方探索或独立打开。'):page.kind==='pdf'?'课件保留原始排版，可翻页、搜索、缩放和下载。':'下载压缩包或原文件后，可使用对应软件打开。';panel.append(p);
+        const a=document.createElement('a');
+        a.textContent=page.download?'下载压缩包 ↓':page.kind==='resource'?'查看与下载原文件 ↗':'独立打开 ↗';
+        a.href=page.embed||page.pdf||page.download||page.source;
+        if(page.download){a.download=page.title+'.zip'}else{a.target='_blank';a.rel='noopener'}
+        panel.append(a);$('resource').append(panel);
         if(page.embed||page.pdf){const frame=document.createElement('iframe');frame.className='resource-frame';frame.title=page.title;if(page.embed){frame.setAttribute('sandbox','allow-scripts');frame.src=page.embed}else{frame.src='<!--PDF_BASE-->pdfjs/web/viewer.html?file='+encodeURIComponent(new URL(page.pdf,location.href).href)+'#zoom=page-width&pagemode=none'}$('resource').append(frame)}
       }
       const sequence=currentTopic?pages.filter(p=>p.section===currentSection.key&&p.topic===currentTopic.key):currentSection?pages.filter(p=>p.section===currentSection.key):pages,index=sequence.indexOf(page),previous=sequence[index-1],next=sequence[index+1],parent=currentTopic||currentSection,back=parent?.id||'overview',backTitle=parent?'返回 '+parent.title:'返回总览';

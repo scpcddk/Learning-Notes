@@ -1444,6 +1444,39 @@ def build_ai(output, github, branch):
                          profile="ai")[0]
 
 
+def build_subject_readers(output, github, branch):
+    """Publish notes and course materials at their existing subject addresses."""
+    engineering_parent = ("软件工程与计算基础", "../software-engineering/")
+    subjects = [
+        dict(slug="computer-organization", title="计算机组成原理", label="COMPUTER ORGANIZATION",
+             folder=REPO / "软件工程/计算机组成原理", cover="computer-organization-hero-v3.webp",
+             description="从数字逻辑、组合与时序电路，到运算器和存储系统。",
+             hero_lines=["从数字逻辑，", "到计算机系统。"], parent=engineering_parent,
+             section_order=["笔记", "课件资源", "习题"], math=True),
+        dict(slug="software-requirements", title="软件需求与分析", label="SOFTWARE REQUIREMENTS",
+             folder=REPO / "软件工程/软件需求与分析", cover="software-requirements-hero.webp",
+             description="从需求确定与可视化建模，到软件分析、设计和质量管理。",
+             hero_lines=["从确定需求，", "到分析与设计。"], parent=engineering_parent,
+             section_order=["课件", "软需"], section_titles={"软需": "课程笔记与习题"}),
+        dict(slug="general-studies", title="通识与拓展", label="GENERAL STUDIES",
+             folder=REPO / "通识与拓展", cover="general-studies-hero-v2.webp",
+             description="阅读金融、法律、思维与英语学习笔记。",
+             hero_lines=["通识与拓展，", "从问题出发。"], section_order=["金融", "法律", "思维", "英语"]),
+        dict(slug="probability-statistics", title="概率论与数理统计", label="PROBABILITY & STATISTICS",
+             folder=REPO / "数学/概率论与数理统计", cover="probability-statistics-hero-v2.webp",
+             description="从随机事件和概率分布，到抽样、估计与检验。",
+             hero_lines=["理解随机，", "用数据作出判断。"], parent=("数学", "../math/"),
+             section_order=["基础概念", "习题"], math=True),
+    ]
+    published = set()
+    for subject in subjects:
+        if subject["folder"].is_dir():
+            slug = subject["slug"]
+            build_readers(output, github, branch, [subject], PAGE_ROOT / slug, output, profile="subject")
+            published.add(slug)
+    return published
+
+
 def build_readers(output, github, branch, languages, source, destination, *, profile="programming"):
     """Generate readers from source notes; keep templates and all outputs in docs."""
     destination.mkdir(parents=True, exist_ok=True)
@@ -1451,7 +1484,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     plans = profile == "learning-plans"
     frontend = profile == "front-end"
     ai = profile == "ai"
-    standalone = cloud or plans or frontend or ai
+    subject = profile == "subject"
+    standalone = cloud or plans or frontend or ai or subject
     resource_root = destination / languages[0]["slug"] if standalone else destination
     shutil.copytree(source / "阅读资源", resource_root / "阅读资源", dirs_exist_ok=True)
     routes, headings = {}, {}
@@ -1468,6 +1502,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         group_order = ["标记语言", "JavaScript", "Vue"]
     elif ai:
         group_order = ["基础知识", "Agent", "AI实践记录", "提示词模板", "错题与易错点"]
+    elif subject:
+        group_order = languages[0]["section_order"]
     group_names = {name.casefold(): index for index, name in enumerate(group_order)}
 
     def original(path):
@@ -1483,10 +1519,18 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     def ai_section(path):
         return path.parts[0] if len(path.parts) > 1 else "错题与易错点" if "错题" in path.stem else "其他笔记"
 
+    def subject_order(name):
+        match = re.match(r"^第([一二三四五六七八九十])章|^(\d+)", name)
+        if match:
+            number = int(match[2]) if match[2] else "一二三四五六七八九十".index(match[1]) + 1
+            return (1, number, name)
+        return (0 if name in ("README", "阅读指南") else 2, 0, name)
+
     for language in languages:
         folder = language["folder"]
         entries = language["entries"] = []
         files = [p for p in folder.rglob("*") if p.is_file() and (p.suffix.lower() in supported or plans and not p.suffix)
+                 and not p.name.startswith("~$")
                  and not any(part.startswith('.') for part in p.relative_to(folder).parts)
                  and not (ai and p.suffix.lower() == ".py" and (p.stem.startswith("test_") or p.name == "conftest.py"))]
         if cloud:
@@ -1509,6 +1553,9 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             top = relative.parts[0] if len(relative.parts) > 1 else "学习方法" if plans else path.stem if cloud else ""
             if ai:
                 top = ai_section(relative)
+            if subject:
+                return (group_names.get(top.casefold(), len(group_order)),
+                        tuple(subject_order(part) for part in (*relative.parts[1:-1], path.stem)))
             suborder = {"核心语法": 0, "知识笔记": 0, "Spring Core": 0, "Spring MVC": 1,
                         "Spring Boot": 2, "补充理解": 1, "习题": 2, "期末复习": 3}
             parents = tuple((suborder.get(part, 4), part.casefold()) for part in relative.parts[1:-1])
@@ -1549,6 +1596,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 if path.suffix.lower() == ".py":
                     entry["title"] = path.name
                     entry["sourceLabel"] = "查看 Python 源码 ↗"
+            if subject and relative.endswith("/README.md"):
+                entry["title"] = "阅读指南"
             entries.append(entry)
             routes[path.resolve()] = (language["slug"], ident)
 
@@ -1563,7 +1612,8 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     for language in languages:
         target_folder = destination / language["slug"]
         target_folder.mkdir(parents=True, exist_ok=True)
-        if frontend or ai:
+        reader_math = ai or language.get("math", False)
+        if frontend or reader_math:
             copy_mathjax(target_folder)
         if ai:
             shutil.copyfile(PAGE_ROOT / "vendor/mermaid-11.12.1.min.js", target_folder / "阅读资源/mermaid.min.js")
@@ -1575,15 +1625,24 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             if page["kind"] not in ("note", "practice"):
                 language["resources"] += 1
                 page["search"] = page["title"] + " " + page["group"]
+                if path.suffix.lower() in (".ppt", ".pptx", ".doc", ".docx"):
+                    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+                    preview = source / "reading-pdfs" / (digest + ".pdf")
+                    if preview.is_file():
+                        path = preview
+                        page["kind"] = "pdf"
                 if plans and page["kind"] == "diagram":
                     content = re.sub(r'<(script|style)\b[^>]*>[\s\S]*?</\1>', '', path.read_text(encoding="utf-8-sig"), flags=re.I)
                     page["search"] += " " + html.unescape(re.sub(r'<[^>]+>', ' ', content))
-                if page["kind"] in ("diagram", "pdf"):
+                resource_field = {"diagram": "embed", "pdf": "pdf"}.get(page["kind"])
+                if path.suffix.lower() == ".zip":
+                    resource_field = "download"
+                if resource_field:
                     name = ident + path.suffix.lower()
                     resource = target_folder / "resources" / name
                     resource.parent.mkdir(exist_ok=True)
                     shutil.copyfile(path, resource)
-                    page["embed" if page["kind"] == "diagram" else "pdf"] = "resources/" + name
+                    page[resource_field] = "resources/" + name
                 continue
             text = path.read_text(encoding="utf-8-sig")
             is_code = ai and path.suffix.lower() == ".py"
@@ -1594,7 +1653,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             page["search"] = text
             md = MarkdownIt("commonmark", {"html": True}).enable("table")
             latex = frontend and path.stem.casefold() == "latex"
-            if ai or latex:
+            if reader_math or latex:
                 enable_reader_math(md)
             if ai or frontend:
                 md.enable("strikethrough")
@@ -1652,7 +1711,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 markup = fence([token], 0, {}, {})
             else:
                 markup = md.render(text)
-            if ai or latex:
+            if reader_math or latex:
                 page["math"] = bool(re.search(r'class="math-(?:inline|display)"', markup))
             if ai:
                 page["chapters"] = []
@@ -1779,7 +1838,9 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                     raise FileNotFoundError(f"Missing section cover: {cover}")
                 config["sections"].append(dict(
                     key=key, id="section-"+hashlib.sha256(key.casefold().encode()).hexdigest()[:12],
-                    title="实践记录" if ai and key == "AI实践记录" else "标记与排版" if frontend and key == "标记语言" else "Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记",
+                    title=language.get("section_titles", {}).get(key) or (
+                        "实践记录" if ai and key == "AI实践记录" else "标记与排版" if frontend and key == "标记语言" else
+                        "Python基础语法" if key.casefold() == "python基础语法" else key or "其他笔记"),
                     description=descriptions.get(key, "沿着这个板块的目录，继续阅读与实践。"),
                     count=len(entries), notes=sum(page["kind"] in ("note", "practice") and not page["pending"] for page in entries),
                     pending=sum(page["pending"] for page in entries),
@@ -1826,6 +1887,10 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
         config["source"] = original(language["folder"])
         config["coverUrl"] = ("阅读资源/" if standalone else "../阅读资源/") + language["cover"]
         config["heroLines"] = ["从理解模型，", "到构建智能应用。"] if ai else ["从页面到交互，", "把想法呈现出来。"] if frontend else ["从一个目标，", "到一步步做到。"] if plans else ["从部署一个服务，", "到理解整个系统。"] if cloud else ["从读懂代码，", "到写出自己的理解。"]
+        if subject:
+            config["heroLines"] = language["hero_lines"]
+            config["sectionHeading"] = "阅读目录"
+            config["sectionIntro"] = "选择板块，查看笔记或资料。"
         config["noteNoun"] = "篇计划记录" if plans else "篇学习笔记"
         config["sectionNoun"] = "个计划分类" if plans else "个学习板块"
         config["resourceNoun"] = "份 HTML 指南" if plans else "份图解与资料"
@@ -1848,7 +1913,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
             config["diagramDescription"] = "保留这份指南的原始排版，可在下方阅读或独立打开。"
         config["pending"] = sum(page["pending"] for page in language["entries"])
         math_assets = ""
-        if frontend or ai:
+        if frontend or ai or language.get("math", False):
             math_assets = ('<script>window.MathJax={startup:{typeset:false},loader:{paths:{mathjax:"./mathjax"}},'
                            'tex:{inlineMath:[["\\\\(","\\\\)"]],displayMath:[["\\\\[","\\\\]"]]},'
                            'svg:{fontCache:"local"},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script>'
@@ -1866,15 +1931,18 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                             '.diagram-block>details>summary{cursor:pointer;font-size:.85rem;opacity:.75}</style>')
         payload = json.dumps(language["entries"], ensure_ascii=False).replace("</", r"<\/")
         text = read_template(PAGE_ROOT / "programming" / "阅读页模板.html")
+        parent_crumb = "" if standalone else '<a href="../">编程语言</a><span>/</span>'
+        if parent := language.get("parent"):
+            parent_crumb = f'<a href="{escape(parent[1], quote=True)}">{escape(parent[0])}</a><span>/</span>'
         for key, value in {"TITLE": escape(language["title"]), "DESCRIPTION": escape(language["description"], quote=True),
                            "CHAPTER_DATA": payload, "LANGUAGE_DATA": json.dumps(config, ensure_ascii=False).replace("</", r"<\/"),
-                           "HOME_URL": "../" if standalone else "../../", "PARENT_CRUMB": "" if standalone else '<a href="../">编程语言</a><span>/</span>',
+                           "HOME_URL": "../" if standalone else "../../", "PARENT_CRUMB": parent_crumb,
                            "BACK_TEXT": "返回学习导航 ↗" if standalone else "返回编程语言总览 ↗",
                            "BACK_SHORT": "← 学习导航" if standalone else "全部语言 ↗",
-                           "READER_TITLE": "AI 学习笔记" if ai else "前端学习笔记" if frontend else "学习计划与记录" if plans else "云原生学习笔记" if cloud else "编程语言学习笔记",
-                           "DIRECTORY_LABEL": "AI 阅读目录" if ai else "前端阅读目录" if frontend else "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
-                           "BRAND_SYMBOL": "✧" if ai else "▤" if frontend else "✓" if plans else "☁" if cloud else "&lt;/&gt;",
-                           "BRAND_TAGLINE": "UNDERSTAND. BUILD. REFLECT." if ai else "STRUCTURE. STYLE. INTERACT." if frontend else "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
+                           "READER_TITLE": "学习笔记" if subject else "AI 学习笔记" if ai else "前端学习笔记" if frontend else "学习计划与记录" if plans else "云原生学习笔记" if cloud else "编程语言学习笔记",
+                           "DIRECTORY_LABEL": "阅读目录" if subject else "AI 阅读目录" if ai else "前端阅读目录" if frontend else "学习计划目录" if plans else "云原生阅读目录" if cloud else "语言阅读目录",
+                           "BRAND_SYMBOL": "▤" if subject or frontend else "✧" if ai else "✓" if plans else "☁" if cloud else "&lt;/&gt;",
+                           "BRAND_TAGLINE": escape(language["label"]) if subject else "UNDERSTAND. BUILD. REFLECT." if ai else "STRUCTURE. STYLE. INTERACT." if frontend else "PLAN. PRACTICE. REFLECT." if plans else "BUILD. DEPLOY. UNDERSTAND." if cloud else "READ. CODE. UNDERSTAND.",
                            "SWITCH_HIDDEN": "hidden" if standalone else "", "THEME_KEY": "learning-notes-theme",
                            "MATH_ASSETS": math_assets,
                            "PDF_BASE": "../" if standalone else "../../"}.items():
@@ -1885,7 +1953,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
     return languages
 
 
-def build_catalogs(output, github, branch, programming):
+def build_catalogs(output, github, branch, programming, reading_subjects=frozenset()):
     """Show repository boards first, then the subjects inside each board."""
     template = read_template(PAGE_ROOT / "index.html", catalog=True)
     catalog_covers = {
@@ -1930,7 +1998,7 @@ def build_catalogs(output, github, branch, programming):
                   "QUICK_INDEX": ('<nav class="quick-index" aria-label="板块速查"><div class="index-heading"><strong>板块速查</strong><span lang="en">QUICK INDEX</span></div><ol>'
                                   + ''.join(index_links) + '</ol></nav>') if index_links else "",
                   "HERO_ART": '<img class="catalog-cover" src="'+escape(hero, quote=True)+'" alt="" width="1536" height="1024" loading="eager" decoding="async" fetchpriority="high">' if hero else "",
-                  "READING_TIP": "数学、算法、编程语言、前端基础、Linux、云原生、AI 与学习计划已提供在线阅读。其他板块可进入 GitHub 查阅原笔记。"}
+                  "READING_TIP": "通过各科目的阅读目录查阅笔记、课件与习题。"}
         text = template
         for key, value in values.items():
             text = text.replace("<!--"+key+"-->", value)
@@ -1939,15 +2007,19 @@ def build_catalogs(output, github, branch, programming):
                                 'loading="eager" decoding="async" fetchpriority="high"', 1)
         (destination / "index.html").write_text(text, encoding="utf-8", newline="\n")
 
+    probability_reader = "probability-statistics" in reading_subjects
     math_cards = [
         card("高等数学", "极限与连续、微分与积分，从局部变化到空间里的累积。", "../calculus/", "进入阅读", ("10 章笔记", "16 篇专题", "30 道自测"), "../calculus/阅读资源/calculus-hero.webp", number="01 / CALCULUS"),
         card("线性代数", "向量、矩阵与线性变换，在计算背后理解空间结构。", "../linear-algebra/", "进入阅读", ("7 章笔记", "完整例题", "拓展阅读"), "../linear-algebra/阅读资源/linear-algebra-hero.webp", number="02 / LINEAR ALGEBRA"),
         card("离散数学", "逻辑、集合、关系与图，连接概念、课件与推理。", "../discrete-math/", "进入阅读", ("15 份课件", "笔记与练习", "历年试卷"), "../discrete-math/discrete-math-hero.webp", number="03 / DISCRETE MATHEMATICS"),
-        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。", repository_url(REPO / "数学/概率论与数理统计"), "查看原笔记", ("仓库目录",), "../probability-statistics/阅读资源/probability-statistics-hero-v2.webp", number="04 / PROBABILITY"),
+        card("概率论与数理统计", "随机事件、随机变量、分布与统计基础。",
+             "../probability-statistics/" if probability_reader else repository_url(REPO / "数学/概率论与数理统计"),
+             "进入阅读" if probability_reader else "查看原笔记", ("章节笔记", "分类习题") if probability_reader else ("仓库目录",),
+             "../probability-statistics/阅读资源/probability-statistics-hero-v2.webp", number="04 / PROBABILITY"),
         card("数值分析", "数值计算方法，后续继续整理。", repository_url(REPO / "数学/README.md"), "查看学习规划", ("计划补充",), "../numerical-analysis/阅读资源/numerical-analysis-hero-v2.webp", number="05 / NUMERICAL ANALYSIS"),
     ]
     page("math", "数学", '从变化到结构，<br>让理解<em>连起来。</em>', "选择一门科目，沿着概念、例题与公式建立知识框架。",
-         math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", "3 个在线阅读入口", "课件与练习"),
+         math_cards, REPO / "数学", "MATHEMATICS / SUBJECTS", ("5 门科目", f"{3 + probability_reader} 个在线阅读入口", "课件与练习"),
          "math-catalog", hero="阅读资源/"+catalog_covers["math"])
 
     language_cards = [card(item["title"], item["description"], item["slug"]+"/", "进入阅读",
@@ -2031,15 +2103,18 @@ def build_catalogs(output, github, branch, programming):
                     "software-"+hashlib.sha256(child.name.encode()).hexdigest()[:8], "沿着原目录查阅笔记、课件与学习资料。"))
                 entries = sorted((p for p in child.iterdir() if not p.name.startswith('.') and p.name != "README.md"),
                                  key=lambda p: (not p.is_dir(), p.name))
+                subject_hero = "阅读资源/"+catalog_covers[subject_slug] if subject_slug in catalog_covers else None
+                subject_cards.append(card(child.name, subject_description, "../"+subject_slug+"/",
+                                          "进入阅读" if subject_slug in reading_subjects else "查看科目目录",
+                                          (str(len(entries))+" 个目录与文件",),
+                                          image=f"../{subject_slug}/{subject_hero}" if subject_hero else None, symbol=symbol))
+                if subject_slug in reading_subjects:
+                    continue
                 entry_cards = [card(entry.stem if entry.is_file() else entry.name,
                                     "打开仓库目录，查看原始笔记与学习资料。" if entry.is_dir() else "查阅仓库中的原始学习文件。",
                                     repository_url(entry), "查看仓库目录" if entry.is_dir() else "查看原文件",
                                     ("目录" if entry.is_dir() else entry.suffix[1:].upper() or "文件",), symbol=symbol)
                                for entry in entries]
-                subject_hero = "阅读资源/"+catalog_covers[subject_slug] if subject_slug in catalog_covers else None
-                subject_cards.append(card(child.name, subject_description, "../"+subject_slug+"/", "查看科目目录",
-                                          (str(len(entries))+" 个目录与文件",),
-                                          image=f"../{subject_slug}/{subject_hero}" if subject_hero else None, symbol=symbol))
                 page(subject_slug, child.name, escape(child.name)+'，<br>从概念<em>走向理解。</em>',
                      subject_description, entry_cards, child, "SOFTWARE & COMPUTING / SUBJECT",
                      (str(len(entries))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero=subject_hero,
@@ -2054,10 +2129,13 @@ def build_catalogs(output, github, branch, programming):
                  hero="阅读资源/"+catalog_covers["software-engineering"])
             continue
         children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name!="README.md"), key=lambda p: (not p.is_dir(),p.name))
-        child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
         cover = slug+"/阅读资源/"+catalog_covers[slug] if slug in catalog_covers else None
         number = str(index).zfill(2) + (" / " + slug.replace("-", " ").upper() if cover else "")
-        root_cards.append(card(path.name, description, slug+"/", "打开板块", (str(len(children))+" 个目录与文件",), cover, symbol=symbol, number=number))
+        root_cards.append(card(path.name, description, slug+"/", "进入阅读" if slug in reading_subjects else "打开板块",
+                               (str(len(children))+" 个目录与文件",), cover, symbol=symbol, number=number))
+        if slug in reading_subjects:
+            continue
+        child_cards = [card(child.stem if child.is_file() else child.name, "打开仓库目录，查看原始笔记与学习资料。" if child.is_dir() else "查阅仓库中的原始学习文件。", repository_url(child), "查看仓库目录" if child.is_dir() else "查看原文件", ("目录" if child.is_dir() else child.suffix[1:].upper() or "文件",), symbol=symbol) for child in children]
         page(slug, path.name, escape(path.name)+'，<br>沿着目录<em>继续探索。</em>', description, child_cards, path, "LEARNING NOTES / "+slug.upper(), (str(len(children))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero="阅读资源/"+catalog_covers[slug] if cover else None)
     page("", "学习笔记", '从一本笔记，<br>走向<em>更完整的理解。</em>', "从数学推演到工程实践，按学科翻阅笔记、例题与项目记录。", root_cards, REPO, "LEARNING NOTES / PERSONAL COLLECTION", ("个人知识库", "持续整理中"), "root-catalog", "首页按仓库一级板块组织。先选择板块，再选择科目或目录。", index_links=index_links)
     print(f"Packaged learning catalog: {len(root_cards)} repository boards and a mathematics subject directory.")
@@ -2129,7 +2207,8 @@ def build(output, repository, branch):
     build_learning_plans(output, github, branch)
     build_frontend(output, github, branch)
     build_ai(output, github, branch)
-    build_catalogs(output, github, branch, programming)
+    reading_subjects = build_subject_readers(output, github, branch)
+    build_catalogs(output, github, branch, programming, reading_subjects)
     optimize_site_covers(output)
     shutil.copyfile(PAGE_ROOT / "favicon.svg", output / "favicon.svg")
     (output / ".nojekyll").write_text("", encoding="utf-8")
@@ -2173,7 +2252,7 @@ def validate(output):
             for entry in json.loads(match[2]):
                 parser.feed(entry.get("summary", ""))
                 parser.feed(entry.get("full", ""))
-                for resource in ("pdf", "embed"):
+                for resource in ("pdf", "embed", "download"):
                     if entry.get(resource):
                         parser.feed('<a href="' + escape(entry[resource], quote=True) + '"></a>')
 
