@@ -30,7 +30,7 @@ AI 通过 `/ai/` 进入完整阅读页，收录基础知识、Agent、实践记�
 | [programming/](programming/) | 编程语言共用阅读模板、四张封面及提示词；自动收录各语言目录的笔记、图解与资料 |
 | [cloud-native/](cloud-native/) | 云原生封面、提示词与说明；与编程语言共用阅读模板，按原目录自动收录 |
 | [learning-plans/](learning-plans/) | 学习计划阅读页说明与唯一总封面；按计划状态组织目录并保留原文任务记录 |
-| [front-end/](front-end/) | 前端基础阅读页说明与唯一总封面；自动收录原笔记，每个板块保留待学目录 |
+| [front-end/](front-end/) | 前端基础阅读页说明、总封面与板块封面；自动收录原笔记，每个板块保留待学目录 |
 | [ai/](ai/README.md) | AI 阅读页说明、首页与阅读页共用的总封面及最终提示词 |
 | [vendor/](vendor/README.md) | Mozilla PDF.js 5.4.624 官方发行包及许可证 |
 

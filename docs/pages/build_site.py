@@ -1431,7 +1431,10 @@ def build_learning_plans(output, github, branch):
 def build_frontend(output, github, branch):
     readers = [dict(slug="front-end", title="前端基础", label="FRONTEND",
                     description="从页面结构到交互组件，在语法、示例与项目中理解前端。",
-                    cover="frontend-hero.webp", folder=REPO / "前端基础")]
+                    cover="frontend-hero.webp", folder=REPO / "前端基础",
+                    section_covers={"标记语言": "section-markup.webp",
+                                    "JavaScript": "section-javascript.webp",
+                                    "Vue": "section-vue.webp"})]
     return build_readers(output, github, branch, readers, PAGE_ROOT / "front-end", output,
                          profile="front-end")[0]
 

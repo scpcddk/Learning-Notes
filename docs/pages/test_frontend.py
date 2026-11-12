@@ -54,7 +54,8 @@ class FrontendReaderTests(unittest.TestCase):
         self.build()
         self.assertEqual([s["title"] for s in self.config["sections"]], ["标记与排版", "JavaScript", "Vue"])
         self.assertEqual([s["pending"] for s in self.config["sections"]], [2, 0, 0])
-        self.assertTrue(all(not s["cover"] for s in self.config["sections"]))
+        self.assertEqual([s["cover"].rsplit("/", 1)[-1] for s in self.config["sections"]],
+                         ["section-markup.webp", "section-javascript.webp", "section-vue.webp"])
         self.assertTrue(all(len(s["topics"]) == 1 and s["topics"][0]["title"] == "待学" for s in self.config["sections"]))
         original = next(p for p in self.pages if p["title"] == "HTML")
         self.assertEqual((original["section"], original["topic"]), ("标记语言", "待学"))
@@ -105,7 +106,8 @@ class FrontendReaderTests(unittest.TestCase):
         self.assertIn('href="#' + latex["headings"][1]["id"] + '"', js["full"])
         self.assertIn('src="assets/', js["full"])
         folder = self.output / "front-end"
-        self.assertEqual(len(list((folder / "阅读资源").glob("*.webp"))), 1)
+        self.assertEqual({asset.name for asset in (folder / "阅读资源").glob("*.webp")},
+                         {"frontend-hero.webp", "section-markup.webp", "section-javascript.webp", "section-vue.webp"})
         self.assertTrue((folder / "mathjax/tex-svg.js").is_file())
         self.assertTrue((folder / "mathjax/LICENSE").is_file())
         self.assertNotIn('<!--MATH_ASSETS-->', text)
