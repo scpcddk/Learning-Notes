@@ -1984,6 +1984,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
         "math": "math-hero.webp",
         "software-engineering": "software-engineering-hero-v2.webp",
         "computer-organization": "computer-organization-hero-v3.webp",
+        "computer-networking": "computer-networking-hero.webp",
         "software-requirements": "software-requirements-hero.webp",
         "general-studies": "general-studies-hero-v2.webp",
         "probability-statistics": "probability-statistics-hero-v2.webp",
@@ -2121,6 +2122,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
         if path.name == "软件工程":
             subjects = {
                 "计算机组成原理": ("computer-organization", "从数字逻辑、组合与时序电路，到运算器和存储系统。"),
+                "计算机网络": ("computer-networking", "从以太网交换、分层封装，到数据包的跨网转发与路由选择。"),
                 "软件需求与分析": ("software-requirements", "从需求确定与可视化建模，到软件分析、设计和质量管理。"),
             }
             children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name != "README.md"),
