@@ -1461,7 +1461,15 @@ def build_subject_readers(output, github, branch):
         dict(slug="general-studies", title="通识与拓展", label="GENERAL STUDIES",
              folder=REPO / "通识与拓展", cover="general-studies-hero-v2.webp",
              description="阅读金融、法律、思维与英语学习笔记。",
-             hero_lines=["通识与拓展，", "从问题出发。"], section_order=["金融", "法律", "思维", "英语"]),
+             hero_lines=["通识与拓展，", "从问题出发。"], section_order=["金融", "法律", "思维", "英语"],
+             section_covers={"金融": "section-finance.webp", "法律": "section-law.webp",
+                             "思维": "section-thinking.webp", "英语": "section-english.webp"},
+             section_descriptions={
+                 "金融": "梳理金融基础、资产配置与投资决策复盘。",
+                 "法律": "查阅合同、劳动关系、公司法与个人信息保护等主题。",
+                 "思维": "练习界定问题、分析原因与检验解决方案。",
+                 "英语": "按词汇、听说、阅读写作和技术英语组织学习笔记。",
+             }),
         dict(slug="probability-statistics", title="概率论与数理统计", label="PROBABILITY & STATISTICS",
              folder=REPO / "数学/概率论与数理统计", cover="probability-statistics-hero-v2.webp",
              description="从随机事件和概率分布，到抽样、估计与检验。",
@@ -1821,6 +1829,7 @@ def build_readers(output, github, branch, languages, source, destination, *, pro
                 "错题与易错点": "回顾曾经出错的概念、原因与正确理解，在复习中巩固知识。",
             }
             section_keys = list(dict.fromkeys(page["section"] for page in language["entries"]))
+            descriptions.update(language.get("section_descriptions", {}))
             topic_descriptions = {
                 "MySQL": "从关系表、SQL 和索引入手，结合练习理解查询与数据管理。",
                 "Nginx": "沿着请求路径，理解反向代理、负载均衡与部署配置。",
@@ -1967,6 +1976,12 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
     }
     for slug in catalog_covers:
         shutil.copytree(PAGE_ROOT / slug / "阅读资源", output / slug / "阅读资源", dirs_exist_ok=True)
+    ornament = "catalog-corner.webp"
+    shutil.copyfile(PAGE_ROOT / "shared" / ornament, output / ornament)
+    ornaments = '<div class="catalog-ornament" aria-hidden="true">' + ''.join(
+        f'<img class="corner-{corner}" src="{ornament}" alt="" width="160" height="160" loading="lazy" decoding="async">'
+        for corner in ("top-left", "top-right", "bottom-left", "bottom-right")
+    ) + '</div>'
 
     def repository_url(path):
         if path == REPO:
@@ -1986,6 +2001,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
         prefix = "../" if slug else ""
         values = {"TITLE": escape(title), "SEO_DESCRIPTION": escape(description, quote=True),
                   "HOME_URL": prefix or "./", "ASSET_BASE": prefix, "REPO_URL": escape(github, quote=True),
+                  "ORNAMENTS": ornaments if not slug else "",
                   "BREADCRUMB": ('<nav class="catalog-trail" aria-label="位置"><a href="../">学习笔记</a><span>/</span>'
                                  + ('<a href="'+escape(parent[1], quote=True)+'">'+escape(parent[0])+'</a><span>/</span>' if parent else '')
                                  + '<span>'+escape(title)+'</span></nav>') if slug else '',

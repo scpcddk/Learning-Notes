@@ -60,6 +60,35 @@
 
   /* Catalogs: one rhythm from the main directory to the subject directories. */
   .catalog-page :is(header, main, footer) { width: min(1160px, calc(100% - 2 * var(--page-gutter))); }
+  .catalog-ornament { display: none; }
+  @media (min-width: 1320px) {
+    .catalog-page:has(.catalog-ornament) { position: relative; }
+    .catalog-ornament {
+      --frame-inset: clamp(18px, 2.5vw, 42px);
+      --corner-size: clamp(38px, calc((100vw - 1160px) / 2 - var(--frame-inset) - 18px), 168px);
+      position: absolute;
+      inset: 12px var(--frame-inset);
+      display: block;
+      pointer-events: none;
+    }
+    .catalog-ornament::before {
+      content: "";
+      position: absolute;
+      inset: var(--corner-size) calc(var(--corner-size) * .12);
+      border-inline: 1px solid color-mix(in srgb, var(--green) 14%, transparent);
+    }
+    .catalog-ornament img {
+      position: absolute;
+      width: var(--corner-size);
+      height: auto;
+      opacity: .64;
+    }
+    .corner-top-left { top: 0; left: 0; }
+    .corner-top-right { top: 0; right: 0; transform: scaleX(-1); }
+    .corner-bottom-left { bottom: 0; left: 0; transform: scaleY(-1); }
+    .corner-bottom-right { bottom: 0; right: 0; transform: rotate(180deg); }
+    html[data-theme="dark"] .catalog-ornament img { filter: brightness(1.6); opacity: .44; }
+  }
   .catalog-page header { height: 88px; }
   .catalog-actions { display: flex; align-items: center; gap: 20px; }
   .catalog-page .brand { font-size: 19px; }
@@ -98,7 +127,7 @@
   }
   .catalog-page .subjects { gap: 24px; align-items: stretch; }
   .catalog-page .subject { display: flex; flex-direction: column; border-radius: var(--radius); box-shadow: var(--card-shadow); }
-  .catalog-page .art { height: auto; aspect-ratio: 2/1; background: #fafbf8; border-bottom: 1px solid var(--line); }
+  .catalog-page .art { height: auto; aspect-ratio: 3/2; background: #fafbf8; border-bottom: 1px solid var(--line); }
   .catalog-page .art img { object-fit: contain; }
   .catalog-page .subject .subject-copy { padding: 20px 22px 16px; display: flex; flex-direction: column; flex: 1; }
   .catalog-page .subject h2 { font: 500 27px/1.55 var(--serif); letter-spacing: .01em; margin: 12px 0; }
@@ -282,5 +311,5 @@
   }
 }
 @media print {
-  .catalog-theme { display: none !important; }
+  .catalog-theme, .catalog-ornament { display: none !important; }
 }

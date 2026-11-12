@@ -1,9 +1,16 @@
 # 通识与拓展封面
 
-`阅读资源/general-studies-hero-v2.webp` 用于学习首页的通识卡片与 `/general-studies/` 目录页总封面，内部主题保持文字目录。
+`阅读资源/general-studies-hero-v2.webp` 用于学习首页的通识卡片与 `/general-studies/` 目录页总封面。金融、法律、思维和英语在阅读目录中各有一张封面。
 
 使用内置图像生成工具制作，以书本、地球、指南针和分支连接表现跨学科阅读、思考与探索。沿用暖白纸面、墨绿玻璃、黄铜细节与柔和光影。横向 3:2，无文字、不透明背景。
 
 [最终提示词](阅读资源/general-studies-hero-v2.prompt.txt) 与图片一起保存，统一构建脚本负责打包。原笔记仍在 `通识与拓展/` 维护。
+
+| 板块 | 画面 | 封面 | 最终提示词 |
+| --- | --- | --- | --- |
+| 金融 | 资产配置、价格曲线与硬币 | [封面](阅读资源/section-finance.webp) | [提示词](阅读资源/section-finance.prompt.txt) |
+| 法律 | 天平、案卷与印章 | [封面](阅读资源/section-law.webp) | [提示词](阅读资源/section-law.prompt.txt) |
+| 思维 | 分岔路径、玻璃迷宫与试验构件 | [封面](阅读资源/section-thinking.webp) | [提示词](阅读资源/section-thinking.prompt.txt) |
+| 英语 | 耳机、声波与词汇卡 | [封面](阅读资源/section-english.webp) | [提示词](阅读资源/section-english.prompt.txt) |
 
 新版以第一版为参考，通过内置图像生成工具精修玻璃通透层次、黄铜工艺、构图与光影。[第一版封面](阅读资源/general-studies-hero.webp) 与 [第一版提示词](阅读资源/general-studies-hero.prompt.txt) 保留用于比较。
