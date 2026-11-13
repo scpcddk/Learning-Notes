@@ -134,9 +134,188 @@
 
 ## 1. **核心概念**
 
-- **镜像（Image）**：一个只读的**模板**，包含运行环境（如 JDK + 应用 jar）
-- **容器（Container）**：镜像的**运行实例**，可启动、停止、删除，相互隔离
+- **镜像（Image）**：只读模板，包含应用和运行时文件（如 `app.jar`、Java 21 和相关库），也可指定默认启动命令。
+- **容器（Container）**：从镜像创建的实例，可启动、停止、删除。容器启动后，应用进程在其中执行。
 - **镜像仓库（Repository）**：同名镜像及其标签的集合；Docker Hub 是托管仓库的注册服务（Registry）
+
+### 1.1 容器化技术
+
+**容器化**把应用、运行时、依赖和可随应用分发的配置打包进镜像。部署时，从镜像创建容器来运行应用。
+
+#### 1.1.1 Spring Boot 应用怎么交付
+
+| 交付方式 | 交付内容 | 目标机器需要准备 |
+| :--- | :--- | :--- |
+| 直接交付 JAR | `app.jar` | 版本匹配的 Java 运行时及其他系统依赖 |
+| 交付容器镜像 | `app.jar`、Java 运行时和相关依赖 | 兼容的容器运行环境 |
+
+同一镜像可以减少不同机器上的依赖版本差异。同一台 Linux 服务器也可以同时运行项目 A（Java 17）和项目 B（Java 21），因为两个容器各自使用镜像里的 Java。
+
+> [!NOTE]
+> 数据库连接等配置仍需按部署环境提供。MySQL 作为独立服务运行时，应用容器需要能访问它。
+
+#### 1.1.2 `docker run` 如何启动应用
+
+假设镜像 `my-java-app` 包含 Java 21 和 `app.jar`，启动命令为 `java -jar app.jar`。
+
+```bash
+docker run my-java-app
+```
+
+1. **准备镜像**。Docker 管理目标机器上的镜像文件，将解包后的镜像层用于容器文件系统。
+2. **创建容器**。Docker 以只读镜像层为基础，默认给新容器添加自己的可写层。
+3. **启动应用**。容器内的 Java 21 执行 `app.jar`。宿主机无需单独安装 Java。
+
+[`docker run` 命令参考](https://docs.docker.com/reference/cli/docker/container/run/) · [镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
+
+#### 1.1.3 三种部署方式的资源开销
+
+假设同一个 Spring Boot 应用使用相同的 Java 21 运行时、JVM 参数和负载。应用本身的 CPU 和内存用量通常相近，整机开销还取决于部署方式。
+
+| 部署方式 | 运行环境的开销 |
+| :--- | :--- |
+| 在 Linux 上直接运行 | Java 进程直接使用宿主系统。 |
+| 在 Docker 容器中运行 | Java 进程共享底层 Linux 内核，整机用量还包括 Docker 和容器相关开销。 |
+| 在独立虚拟机中运行 | 整机用量还包括客户机内核和系统服务的开销。 |
+
+假设 Java 应用直接运行时使用 600 MB 内存，仅凭这个数值无法推算容器中的内存用量。实际用量还受资源限制影响。把 Java 放进镜像，主要是为了隔离依赖、简化部署和复用交付产物。 [Docker 容器与虚拟机](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/#containers-versus-virtual-machines-vms)
+
+> [!TIP]
+> **共享镜像层节省的是磁盘空间。** 多个镜像可以复用相同的 Java 21 基础层。每个单独启动的 Java 应用仍有自己的 JVM 进程和堆。比较磁盘占用时，还要算上镜像里的基础系统库。 [Docker 镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
+
+在 Windows 上使用 Docker Desktop 的 WSL 2 后端时，比较整机资源占用要计入 WSL 2 和 Docker Desktop 的开销。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
+
+容器可以发布端口供外部访问，也可以挂载宿主机目录来读写文件。
+
+#### 1.1.4 镜像怎么迁移
+
+- **通过镜像仓库**。在源机器用 `docker push` 推送，再在兼容的目标机器用 `docker pull` 拉取。[镜像仓库与版本管理](镜像仓库与版本管理.md)
+- **通过离线文件**。用 `docker save` 导出镜像归档，再在目标机器用 `docker load` 加载。
+
+---
+
+### 1.2 Docker 镜像是什么
+
+#### 1.2.1 镜像里有哪些内容
+
+以 Spring Boot 镜像 `my-java-app:1.0` 为例，镜像包含文件系统层和镜像配置。 [Docker 镜像基础](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/)
+
+| 组成 | 示例 |
+| :--- | :--- |
+| **文件系统层** | 基础系统文件和库、Java 21 可执行文件和运行库、`app.jar` |
+| **镜像配置** | 工作目录 `/app`、默认启动命令 `java -jar app.jar`、环境变量默认值 |
+
+Java 21 在镜像里以文件形式保存。容器启动时，才会按启动配置创建 Java 进程。见 [§1.1.2 `docker run` 如何启动应用](#112-docker-run-如何启动应用)。
+
+#### 1.2.2 同一个镜像如何运行多个容器
+
+从 `my-java-app:1.0` 可以创建多个容器。它们共享镜像的只读层，各自拥有容器可写层。每个容器启动后运行自己的 Java 进程。 [Docker 镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
+
+> [!NOTE]
+> **写入发生在各自的可写层。** 假设容器 A 执行 `touch /tmp/test.txt`，并把文件写入自己的可写层，那么使用同一镜像的容器 B 不会自动看到它。需要共享文件时，可以把同一个卷挂载到两个容器中。
+
+---
+
+### 1.3 Docker 解决了哪些问题
+
+#### 1.3.1 环境一致性、隔离与交付
+
+| 问题 | Docker 的做法 |
+| :--- | :--- |
+| **环境一致性** | 把 Spring Boot 应用和 Java 21 一起打包。不同机器部署同一镜像时，使用镜像里相同的运行时和依赖。 |
+| **环境隔离** | 让两个容器分别使用各自的 Java 17 和 Java 21。容器有各自的进程和文件系统视图，同时共享底层 Linux 内核。 |
+| **部署与迁移** | 把构建好的镜像交付给另一台兼容的机器，再创建容器运行。镜像可通过仓库分发，也可通过文件迁移。 |
+
+[§1.1.4 镜像怎么迁移](#114-镜像怎么迁移) · [Docker 容器基础](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/)
+
+#### 1.3.2 应用仍需要外部服务
+
+Spring Boot 镜像可以包含正确的 Java 21 和 `app.jar`。如果应用启动时必须连接 MySQL，数据库也要在配置的地址和端口上提供服务，而且应用容器需要能访问它。
+
+> [!NOTE]
+> 假设应用启动日志同时出现 `Communications link failure` 和 `Connection refused`，说明这次 TCP 连接被拒绝。可以检查 MySQL 是否已启动并监听目标端口，以及 Spring Boot 使用的数据库地址、端口和容器网络是否正确。应用如果在启动时必须连上数据库，就可能因此启动失败。 [Linux `connect(2)`](https://man7.org/linux/man-pages/man2/connect.2.html)
+
+#### 1.3.3 Spring Boot 和 MySQL 分开部署
+
+Spring Boot 容器运行应用镜像，MySQL 容器运行官方 `mysql` 镜像。两个容器加入同一个自定义 Docker 网络。若 Compose 中的数据库服务名是 `mysql`，应用可通过 `mysql:3306` 连接数据库。 [§4.3 自定义网络](#43-自定义网络) · [MySQL 官方镜像](https://hub.docker.com/_/mysql)
+
+- **独立更新**。发布新版 Spring Boot 时，只需替换应用容器，继续使用原有的 MySQL 容器。
+- **独立扩展**。可以增加 Spring Boot 实例，让它们连接同一个 MySQL 服务。 [Docker 多容器应用](https://docs.docker.com/get-started/docker-concepts/running-containers/multi-container-applications/)
+- **数据持久化**。给 MySQL 的数据目录 `/var/lib/mysql` 挂载命名卷。即使将来重建 MySQL 容器，也可以挂载原来的卷来保留数据。 [§4.2.2 命名卷](#422-命名卷方便备份与共享) · [Docker 卷的生命周期](https://docs.docker.com/engine/storage/volumes/#a-volumes-lifecycle)
+
+> [!NOTE]
+> 两个容器可以独立更新，服务之间仍有依赖。MySQL 停止后，Spring Boot 的数据库操作可能失败。
+
+---
+
+### 1.4 Docker 容器与虚拟机的区别
+
+#### 1.4.1 应用使用哪个内核
+
+| 部署方式 | 应用运行环境 | 应用使用的内核 |
+| :--- | :--- | :--- |
+| Ubuntu 虚拟机 | 虚拟化软件提供虚拟硬件，客户机启动自己的操作系统和系统服务 | Ubuntu 客户机的 Linux 内核 |
+| Linux 上的 Docker 容器 | 应用进程使用镜像提供的用户态文件，例如命令、库和 Java 运行时 | 运行这些容器的 Linux 宿主机内核 |
+
+多个容器共享一个内核，启动容器时只需启动配置好的应用进程及其所需进程。虚拟机还需要启动客户机操作系统。资源比较见 [§1.1.3 三种部署方式的资源开销](#113-三种部署方式的资源开销) · [Docker 容器与虚拟机](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/#containers-versus-virtual-machines-vms)。
+
+#### 1.4.2 Ubuntu 和 Alpine 容器
+
+> [!NOTE]
+> 同一台 Linux 服务器上的 Ubuntu 容器和 Alpine 容器各自使用基础镜像提供的命令和库。两者的进程由同一个宿主 Linux 内核运行。
+
+#### 1.4.3 Windows 上的 WSL 2 与 Docker
+
+**系统调用**是应用程序向操作系统内核请求服务的接口，例如打开文件、读取数据或创建进程。以 Python 读取文本文件为例，Python 运行时会通过系统调用向内核发出文件操作请求。 [Linux 系统调用手册](https://man7.org/linux/man-pages/man2/syscalls.2.html)
+
+```python
+with open("test.txt", "r", encoding="utf-8") as f:
+    print(f.read())
+```
+
+| 版本 | Linux 程序的请求如何处理 | 运行环境 |
+| :--- | :--- | :--- |
+| WSL 1 | 兼容层把 Linux 系统调用转换为 Windows 内核能够处理的操作。 | Windows 内核和兼容层 |
+| WSL 2 | Linux 内核直接处理 Linux 系统调用。 | 由 Windows 管理的轻量级虚拟机 |
+
+[Microsoft WSL 版本对比](https://learn.microsoft.com/zh-cn/windows/wsl/compare-versions)
+
+> [!NOTE]
+> **WSL 1 兼容的是系统调用。** `ls` 仍作为 Linux 程序执行。它请求读取目录时，兼容层将该请求转换为 Windows 内核能够处理的操作，再把结果返回给 `ls`。
+
+Docker Desktop 使用 WSL 2 后端时，Docker Engine 在专用的 `docker-desktop` WSL 发行版中运行。Docker 创建的 Linux 容器共享 WSL 2 虚拟机里的 Linux 内核。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
+
+> [!NOTE]
+> 同一个 Docker Engine 启动三个 Linux 容器时，三个容器里的应用进程共用 WSL 2 提供的 Linux 内核。虚拟化发生在 Windows 与 WSL 2 之间。
+
+---
+
+### 1.5 Docker 的典型使用场景
+
+| 场景 | 示例 | Docker 提供的便利 |
+| :--- | :--- | :--- |
+| **本地开发** | 为 Spring Boot 项目启动指定版本的 MySQL 或 Redis | 减少宿主机上的安装步骤，按项目管理服务版本和启动配置。 |
+| **应用部署** | 将 Spring Boot 和 Java 运行时打包为镜像，再部署到 Linux 服务器 | 用同一镜像交付应用及其运行环境，便于部署和迁移。 |
+| **自动化测试** | 在 CI 中为集成测试启动临时数据库 | 每次测试可从指定的镜像和初始化配置开始，任务结束后清理容器。 |
+
+> [!NOTE]
+> **MySQL 运行数据需要单独迁移。** 在新服务器上使用同一镜像可以启动相同版本的 MySQL。运行后创建的 `school` 数据库保存在数据目录里。迁移时可以备份并恢复数据库，也可以通过数据卷迁移数据。 [§4.2.2 命名卷](#422-命名卷方便备份与共享) · [Docker 卷的生命周期](https://docs.docker.com/engine/storage/volumes/#a-volumes-lifecycle)
+
+[CI/CD 笔记 §8.1 测试数据库](../DevOps/CI-CD.md#81-ci-数据库必须独立准备) · [GitHub Actions 服务容器](https://docs.github.com/en/actions/tutorials/use-containerized-services/use-docker-service-containers)
+
+---
+
+### 1.6 容器与宿主机的关系
+
+在原生 Linux 上，容器里的进程由宿主机内核调度，使用宿主机的 CPU、内存和磁盘。以一台 8 核 CPU、16 GB 内存、500 GB 磁盘的服务器为例，MySQL 和 Spring Boot 容器都从这台服务器获取资源，宿主机上的其他进程也会占用这些资源。
+
+| 资源 | 容器如何使用 |
+| :--- | :--- |
+| CPU | 宿主机内核为容器进程分配 CPU 时间。 |
+| 内存 | MySQL 缓冲区和 Spring Boot 的 JVM 堆都会占用宿主机内存。 |
+| 磁盘 | 镜像、容器可写层和本地数据卷都会占用宿主机的磁盘空间。 |
+
+默认情况下，容器在宿主机内核允许的范围内按需使用 CPU 和内存。部署时可以为单个容器设置上限，以减少资源竞争对其他服务的影响。 [Docker 资源限制](https://docs.docker.com/engine/containers/resource_constraints/)
 
 ---
 
@@ -146,7 +325,7 @@
 
 | **命令** | **功能** | **示例** |
 | --------------------- | -------------------------------- | ------------------------------------------ |
-| `docker run` | ==**启动**一个新的容器**并运行**命令== | `docker run -d ubuntu` |
+| `docker run` | ==**创建并启动**一个新容器，在其中运行命令== | `docker run -d ubuntu` |
 | `docker ps` | ==**列出**当前**正在运行**的容器== | `docker ps` |
 | `docker ps -a` | 列出**所有**容器（包括已停止的容器） | `docker ps -a` |
 | `docker build` | ==使用`Dockerfile`**构建镜像**== | `docker build -t my-image .` |
@@ -224,7 +403,7 @@
 
 ---
 
-### 🧩 一、镜像深度操作
+### 2.2 🧩 镜像深度操作
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
@@ -238,7 +417,7 @@
 
 ---
 
-### ⚙️ 二、容器高级控制与调试
+### 2.3 ⚙️ 容器高级控制与调试
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
@@ -253,7 +432,7 @@
 
 ---
 
-### 📂 三、文件与数据交互（主机↔容器）
+### 2.4 📂 文件与数据交互（主机↔容器）
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
@@ -262,7 +441,7 @@
 
 ---
 
-### 🌐 四、网络与卷（Volume）精细管理
+### 2.5 🌐 网络与卷（Volume）精细管理
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
@@ -277,7 +456,7 @@
 
 ---
 
-### 🔍 五、监控、排障与系统信息
+### 2.6 🔍 监控、排障与系统信息
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
@@ -290,7 +469,7 @@
 
 ---
 
-### 🧩 六、Docker Compose 深度补充
+### 2.7 🧩 Docker Compose 深度补充
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
@@ -303,7 +482,7 @@
 
 ---
 
-### ⚠️ 排障口诀
+### 2.8 ⚠️ 排障口诀
 
 - **`save` 配 `load`**：镜像迁移；**`export` 配 `import`**：文件系统快照（别混用）。
 - **`stop` 优雅退出** vs **`kill` 暴力强杀**：前者给进程 SIGTERM，后者直接 SIGKILL。
@@ -311,7 +490,7 @@
 
 ---
 
-### 2.2 **调试排障命令**
+### 2.9 **调试排障命令**
 
 | 场景 | 命令 |
 | ------ | ------ |
@@ -325,7 +504,7 @@
 
 ---
 
-### 2.3 🚑 **排障三板斧**（容器起不来时别慌）
+### 2.10 🚑 **排障三板斧**（容器起不来时别慌）
 
 遇到容器启动失败或崩溃，按这个顺序查，**能解决 95% 的问题**：
 
@@ -371,7 +550,7 @@
 | **CMD** | ==容器== 启动时的**默认命令**，可被 `docker run` 后面的命令覆盖（如果需要运行命令过多，可以创建**启动脚本**，直接运行脚本，如：CMD ["./start.sh"]） | `CMD ["java", "-jar", "app.jar"]` |
 | **ENTRYPOINT** | 容器启动时的**入口命令**，可用 `--entrypoint` 覆盖；exec 形式可接收追加参数 | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
 
-#### -e
+#### 3.1.1 `-e`
 
 `-e`: **把配置放在环境变量里，启动容器时再传入**
 
@@ -415,7 +594,7 @@
     ```
   - 没设置时 `printenv` 则通常不输出内容。
 
-#### CMD vs ENTRYPOINT
+#### 3.1.2 CMD vs ENTRYPOINT
 
 - **CMD**：适合可有可无的默认参数，运行`docker run image command`会直接替换`CMD`
 - **ENTRYPOINT**：固定启动命令，后面传参会追加到`ENTRYPOINT`之后
@@ -437,7 +616,7 @@
   ```
 
 - **关键规则：**
-  - 层是**只读**的，容器启动时在最上层添加**可写层**
+  - 镜像层是**只读**的。创建容器时，Docker 默认在镜像层上添加容器自己的**可写层**。 [Docker 镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
   - 某一层变化后，**该层之后的所有层缓存失效**，需重新构建
   - **优化技巧**：将变化频率低的指令放前面（如依赖安装），变化高的放后面（如代码 COPY）
 
@@ -713,14 +892,14 @@ docker run -d \
 
 ### 4.2 数据挂载三种方式
 
-#### ① 匿名卷（Docker 自动管理）
+#### 4.2.1 匿名卷（Docker 自动管理）
 
 ```yaml
 volumes:
   - /app/logs        # 容器内路径
 ```
 
-#### ② 命名卷（方便备份与共享）
+#### 4.2.2 命名卷（方便备份与共享）
 
 ```yaml
 volumes:
@@ -733,7 +912,7 @@ volumes:
   app-logs:          # 顶层声明
 ```
 
-#### ③ 宿主机目录挂载（开发调试最常用）
+#### 4.2.3 宿主机目录挂载（开发调试最常用）
 
 ```yaml
 volumes:
@@ -784,7 +963,7 @@ docker inspect 容器名 | grep -A 20 "NetworkSettings"
 # 自定义网络额外提供：内置 DNS，容器间可用服务名 ping 通
 ```
 
-### 4.4.0 回环地址（loopback）与容器网络
+#### 4.4.1 回环地址（loopback）与容器网络
 
 **回环地址**就是机器跟自己通信用的地址，常见写法：
 
@@ -797,7 +976,7 @@ docker inspect 容器名 | grep -A 20 "NetworkSettings"
 
 特点：**只有本机自己能访问，外部机器访问不到**。
 
-#### 4.4.0.1 关键：默认 bridge 网络中的容器有独立回环地址
+#### 4.4.2 关键：默认 bridge 网络中的容器有独立回环地址
 
 - **宿主机**的 `127.0.0.1` = 宿主机自己
 - **默认 bridge 容器内**的 `127.0.0.1` = **容器自己**，不是宿主机；host 模式或 container 模式会共享相应网络栈
@@ -811,7 +990,7 @@ connect(host="localhost", port=3306)   # ❌ 连的是容器自己，不是宿�
 
 如果 MySQL 装在宿主机上，容器内用 `localhost` 是**连不到的**，因为容器里的 `localhost` 指向容器自身。
 
-#### 4.4.0.2 宿主机 MySQL 只监听 127.0.0.1 时，容器也连不上
+#### 4.4.3 宿主机 MySQL 只监听 127.0.0.1 时，容器也连不上
 
 即使改用 `host.docker.internal`，如果宿主机 MySQL 配置为：
 
@@ -829,7 +1008,7 @@ bind-address = 0.0.0.0
 
 也可绑定容器可达的宿主机网卡地址。`bind-address` 接受监听地址，不接受 CIDR 网段；网段访问限制需配置防火墙及 MySQL 账号授权。以上是原生 Linux bridge 场景，Docker Desktop 的宿主机转发机制不同，应实测。
 
-#### 4.4.0.3 `-p` 绑定 IP：`127.0.0.1` vs `0.0.0.0`
+#### 4.4.4 `-p` 绑定 IP：`127.0.0.1` vs `0.0.0.0`
 
 `-p` 除了两段式，还可以写成三段式：
 
@@ -879,7 +1058,7 @@ ports:
   - "8080:8080"             # 绑所有网卡
 ```
 
-#### 4.4.0.4 一句话区分
+#### 4.4.5 一句话区分
 
 | 你在哪 | `localhost` / `127.0.0.1` 指谁 |
 | :--- | :--- |
@@ -890,7 +1069,7 @@ ports:
 | `-p 127.0.0.1:8081:8080` | 宿主机只在回环口监听，**只有本机能访问** |
 | `-p 8081:8080` | 宿主机绑 `0.0.0.0`，**外部也能访问** |
 
-### 4.4.1 容器如何访问宿主机服务（host.docker.internal）
+#### 4.4.6 容器如何访问宿主机服务（host.docker.internal）
 
 如果 MySQL / Redis 安装在**宿主机**上，而不是 Compose 里的服务，那么容器内**不能用 `localhost` 或 `127.0.0.1`**，因为容器里的 `localhost` 指容器自己。
 
@@ -941,7 +1120,7 @@ docker run --add-host=host.docker.internal:host-gateway ...
 > - **连接 Compose 里的 MySQL 服务**：`mysql:3306`，其中 `mysql` 是服务名
 > - **容器自身**：`localhost:3306`，当前容器自己
 
-### 4.4.2 `docker run --network` 用法补充
+#### 4.4.7 `docker run --network` 用法补充
 
 `docker network create` 只是**创建网络**，容器要加入网络，需要在 `docker run` 时用 `--network` 指定。
 
