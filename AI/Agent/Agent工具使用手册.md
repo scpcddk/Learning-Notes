@@ -2,7 +2,7 @@
 
 > 回答“Agent 工具如何安装、配置、启动、日常操作、管理会话、控制权限、排查问题”。任务设计见 [Agent工作流指南](./Agent实践案例/Agent工作流指南.md)，真实案例见 [Agent实践记录](./Agent实践案例/Agent实践记录.md)，工作原理见 [Agent原理与开发](./Agent原理与开发.md)。
 >
-> **更新时间**：2026-11-05；主要环境为 Windows + Windows Terminal + PowerShell，WSL2 按需使用。
+> **更新时间**：2026-11-13；主要环境为 Windows + Windows Terminal + PowerShell，WSL2 按需使用。
 >
 > **内容范围**：工具用途、操作命令、参数说明、配置方法和故障排查。示例路径按实际项目替换，命令随版本变化，优先查看 `<工具> --help` 和交互菜单。
 
@@ -95,6 +95,76 @@ Linux 原生 WSL 项目（示例）: ~/projects/learning-notes
 ```
 
 Windows 装好的 `codex` 不等于 WSL 里也装好了。需要时分别执行 `where.exe codex`（PowerShell）和 `command -v codex`（WSL）。
+
+默认挂载下，从 WSL 编辑 `/mnt/d/LearningNotes` 会直接修改 Windows 的 `D:\LearningNotes`。以 Linux 工具运行、且涉及大量文件读写的项目，通常放在 WSL 的 `~/projects/` 能获得更好的 I/O 性能。[Microsoft Learn：跨文件系统工作](https://learn.microsoft.com/en-us/windows/wsl/filesystems)
+
+### 2.4 在 PowerShell 中使用熟悉的命令
+
+Windows 上的 PowerShell 提供 `cd`、`pwd`、`ls`、`cat`、`cp`、`mv`、`rm` 等兼容别名，分别对应 `Set-Location`、`Get-Location`、`Get-ChildItem`、`Get-Content`、`Copy-Item`、`Move-Item`、`Remove-Item`。创建目录可用 `mkdir` 或 `New-Item -ItemType Directory`。这些入口使用 PowerShell 参数，例如列出隐藏项可用 `Get-ChildItem -Force`。[Microsoft Learn：PowerShell 别名](https://learn.microsoft.com/en-us/powershell/scripting/learn/shell/using-aliases)
+
+已安装 WSL 时，可在 PowerShell 用 `wsl` 进入默认发行版，或用 `wsl <命令>` 直接调用 Linux 程序。直接调用时，Linux 程序通常从 PowerShell 当前目录对应的挂载位置启动，显式传入的文件路径使用 WSL 路径格式。[Microsoft Learn：从 Windows 调用 Linux 工具](https://learn.microsoft.com/en-us/windows/wsl/filesystems#run-linux-tools-from-a-windows-command-line)
+
+> [!Example]
+>
+> ```powershell
+> Set-Location 'D:\LearningNotes'
+> wsl ls -la
+> wsl touch test.txt
+> ```
+
+如果只想在 PowerShell 里使用 `touch`，可选模块 `TouchCmd`。安装到当前用户后可在会话中导入。它在文件缺失时创建空文件，文件存在时更新最后写入时间。[TouchCmd 作者说明](https://github.com/ebdonato/touch-powershell#installation) · [PowerShell Gallery 1.0.1](https://www.powershellgallery.com/packages/TouchCmd/1.0.1)
+
+```powershell
+Install-Module -Name TouchCmd -Scope CurrentUser
+Import-Module TouchCmd
+touch test.txt
+```
+
+Windows Terminal 的背景色由所选配置文件的外观设置决定。可在「设置 → 对应的 Ubuntu 配置文件 → 外观」选择配色。排查 npm 安装时，结合报错、退出状态和实际命令路径判断，`npm notice` 中的版本提示只表示有可用更新。[Microsoft Learn：Windows Terminal 外观设置](https://learn.microsoft.com/en-us/windows/terminal/customize-settings/profile-appearance)
+
+### 2.5 在 WSL2 中配置 Linux 版 Node.js 和 Agent
+
+WSL 默认会把 Windows 的路径追加到 Linux 的 `PATH`。在 Ubuntu 的 Bash 中输入 `npm` 或 `codex` 时，可能找到 `/mnt/c/...` 或 `/mnt/d/...` 下的 Windows 安装。先检查当前命令解析结果和 npm 的全局前缀。[Microsoft Learn：WSL 互操作设置](https://learn.microsoft.com/en-us/windows/wsl/wsl-config#interop-settings)
+
+```bash
+type -a node npm codex
+npm config get prefix
+```
+
+如果 `node` 找不到、`npm` 和 `codex` 指向 Windows 安装目录，且前缀为 Windows 路径，可用 nvm 在 Ubuntu 用户目录配置 Linux 版 Node.js。已有 Windows CLI 可继续从 PowerShell 使用。下面以 Node.js 24 系列为例，安装 nvm 后加载 Bash 配置，核对 `node`、`npm` 及全局前缀是否位于 Linux 用户目录。[nvm 安装与加载](https://github.com/nvm-sh/nvm#installing-and-updating) · [nvm 用法](https://github.com/nvm-sh/nvm#usage)
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.41.0/install.sh | bash
+source ~/.bashrc
+command -v nvm
+nvm install 24
+nvm alias default 24
+node -v
+npm -v
+type -a node npm
+npm config get prefix
+```
+
+`nvm` 是由 Shell 加载的函数，`command -v nvm` 输出 `nvm` 即可确认当前 Bash 已加载。默认配置下，Node.js 和 npm 的路径形如 `~/.nvm/versions/node/v24.x.x/bin/` 下的 `node` 和 `npm`，全局前缀对应该版本目录。
+
+确认使用 Linux npm 后，可在 Bash 中按需要分别安装。Pi 的 npm 方式要求 Node.js `22.19` 或更新版本。DSH 安装前核对目标版本的 `engines`，当前官方 CLI 包定义要求 `>=24.9.0`。Codex 也提供独立的 Linux 安装器。[OpenAI Codex WSL 文档](https://learn.chatgpt.com/docs/windows/wsl#use-codex-cli-with-wsl) · [Pi Quickstart](https://pi.dev/docs/latest/quickstart) · [DSH CLI 包定义](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/apps/cli/package.json)
+
+```bash
+npm install -g @openai/codex
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+npm install -g @deepseek-ai/dsh
+```
+
+以 Codex 为例，安装后清除 Bash 的命令路径缓存，再核对实际入口、启动版本和登录状态。`type -a` 列出 Bash 能找到的候选，Linux 入口优先且 `codex --version` 成功时，即可确认当前 Shell 能启动 Linux 版。登录状态单独检查，未登录时再运行 `codex login`。[Codex CLI 登录命令参考](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-login)
+
+```bash
+hash -r
+type -a codex
+codex --version
+codex login status
+```
+
+实际排查与安装结果见[实践记录·WSL2 Agent 安装与验证](./Agent实践案例/Agent实践记录.md#wsl2-agent-安装与验证)。
 
 ---
 
@@ -330,6 +400,10 @@ codex exec --sandbox read-only "概括当前项目目录和主要文件，不要
 | 工具说成功但没改好 | 查看文件、`git diff`、执行测试 | 优先相信实际结果 |
 | 使用额度不足 | 查看 `/status` 和账号用量页面 | 不要把一次性截图数字当长期规则 |
 
+**WSL2 启动时提示找不到 `bubblewrap`**
+
+Codex 在 WSL2 中使用 Linux 沙箱。它优先使用 `PATH` 上找到的 `bwrap`，缺失时回退到内置版本。内置版本依赖系统允许创建非特权用户命名空间。启动警告说明选择了回退路径，实际工具执行还需单独验证。OpenAI 建议在 Ubuntu 或 Debian 中通过系统包管理器安装 `bubblewrap`（`sudo apt install bubblewrap`）。若已安装仍出现用户命名空间相关错误，按官方文档核对对应发行版的 AppArmor 配置。[OpenAI 沙箱文档（2026-11-13 核对）](https://learn.chatgpt.com/docs/sandboxing#prerequisites)
+
 **官方来源（2026-11-04）**：[Codex GitHub](https://github.com/openai/codex) · [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) · [开发命令与参数参考](https://learn.chatgpt.com/docs/developer-commands?surface=cli)。
 
 ---
@@ -372,6 +446,10 @@ pi
 2. 输入 `/model`，选择已授权且可用的模型。
 3. 输入 `/settings`，查看基础偏好。
 4. 先做文件阅读与分析，不从真实开发目录开始。
+
+在新环境中可先做一次纯文本对话验证模型连接，收到预期回复后再验证文件工具。Windows 与 WSL2 各自核对 Pi 的模型与认证状态。[Pi Quickstart](https://pi.dev/docs/latest/quickstart#3-choose-a-model)
+
+Pi 1.5.2 找不到可用的 `fd` 或 `rg`（ripgrep）时，会在支持的平台上尝试自动下载，默认放在 `~/.pi/agent/bin/`。遇到 `not found` 后先看是否接着显示安装路径，再用实际的文件搜索任务检查工具能否运行。[Pi 1.5.2 工具管理源码](https://raw.githubusercontent.com/earendil-works/pi/v1.5.2/packages/coding-agent/src/utils/tools-manager.ts) · [路径定义](https://raw.githubusercontent.com/earendil-works/pi/v1.5.2/packages/coding-agent/src/config.ts)
 
 **只读任务示例（自然语言要求不能代替系统权限）**：
 
@@ -738,9 +816,16 @@ npm list -g @deepseek-ai/dsh --depth=0
 ```
 
 > [!note] 处理 `npm warn install-scripts`
-> npm 可以在跳过未获准的依赖安装脚本后完成安装。先用 `dsh --version` 检查 CLI，再用 `dsh web` 检查启动。若启动或使用终端时出现原生模块加载错误，再根据报错定位具体依赖。
+> npm 可以在跳过未获准的依赖安装脚本后完成安装。先用 `dsh --version` 检查 CLI，再用 `dsh web` 检查启动，并在测试目录验证 Shell 执行和文件修改。若遇到原生模块加载或终端启动报错，再按实际报错定位依赖。
 >
-> 支持 `--allow-scripts` 的 npm 版本可以在全局安装时按包名授权安装脚本。确认报错与某个依赖的安装脚本相关后，将授权范围限定到该依赖。[npm 安装脚本说明](https://docs.npmjs.com/cli/v11/commands/npm-install-scripts/)
+> npm 11.19.1 支持在全局安装时用 `--allow-scripts` 对本次调用放行指定包的生命周期脚本。DSH `0.2.2-rc.1` 的 pnpm 源码构建配置允许 `node-pty`、`koffi` 和本地 subprocess 包的构建或安装脚本，跳过 `@google/genai` 和 `protobufjs` 的脚本。WSL2 上的 npm 安装是否需要运行某个脚本，取决于目标平台、预构建包和实际报错。[npm 11.19.1 安装脚本文档](https://github.com/npm/cli/blob/v11.19.1/docs/lib/content/commands/npm-install-scripts.md) · [DSH 0.2.2-rc.1 构建配置](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.1/pnpm-workspace.yaml#L28-L46)
+
+> [!Example]
+> 如果已确认需要重新安装并放行这三个包的脚本，可在 Ubuntu Bash 使用以下命令。列表按包名授权，执行前核对实际解析的依赖版本。
+>
+> ```bash
+> npm install -g @deepseek-ai/dsh@0.2.2-rc.1 --allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty
+> ```
 
 #### 启动和停止 Web UI
 
@@ -762,7 +847,7 @@ dsh web
 
 #### 查看版本与手动更新
 
-全局安装后，npm 会保留当前版本，直到执行安装或更新命令。需要定时更新时，可通过任务计划程序调度 npm 命令。
+在安装 DSH 的环境中检查版本并按需更新。通用的 npm 全局包管理见[第 10.1 节](#101-更新与切换环境时的检查)。
 
 ```powershell
 # 对照本机版本与发布标签
@@ -824,6 +909,14 @@ npx @deepseek-ai/dsh web --help
 **Headless：一次性任务模式**
 
 `dsh headless "<任务>"` 等价于启动 `headless` Profile：运行一个一次性会话，输出最终结果后退出；首次使用会从随附模板自动初始化。它不是 Codex、Pi 那样的持续聊天终端。
+
+> [!Example]
+> 在 Ubuntu Bash 中验证模型连接。先为当前 WSL2 环境配置可用的模型凭据，再进入独立测试目录运行一次纯文本任务。依据最终回复和退出状态判断本次模型调用结果，Shell 与文件操作另行测试。[DSH 0.2.2-rc.1 CLI 行为参考](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.1/apps/cli/reference/README.md#app-arguments)
+>
+> ```bash
+> mkdir -p ~/dsh-sandbox && cd ~/dsh-sandbox
+> dsh headless '请只回复：DSH WSL2 连接成功。不要调用工具或修改文件。'
+> ```
 
 参数（本机 `dsh headless --help`，`0.2.2-rc.1`）：
 
@@ -989,7 +1082,7 @@ opencode
 ### 9.1 一套通用诊断顺序
 
 1. **明确环境**：Windows PowerShell、PowerShell 7 还是 WSL2？是否启用了 Conda？
-2. **检查命令是否存在**：`where.exe <命令>` 或 PowerShell 的 `Get-Command <命令>`。
+2. **检查命令来源**：PowerShell 用 `Get-Command <命令> -All`，Ubuntu Bash 用 `type -a <命令>`。遇到 WSL 调用了 Windows 的 npm 或 Agent，见[第 2.5 节](#25-在-wsl2-中配置-linux-版-nodejs-和-agent)。
 3. **检查版本和帮助**：`node -v`、`npm -v`、`codex --version`、`pi --version`、`<工具> --help`。
 4. **核对工作目录**：`Get-Location`、项目根目录是否正确。
 5. **核对认证与模型**：登录状态、模型提供商、API Key 是否有效（不要打印密钥）。
@@ -1043,6 +1136,19 @@ npm list -g --depth=0
 4. 更新后检查版本、命令路径、模型连接、工作目录与权限，再执行范围明确的小任务验证。
 
 历史版本的行为不能直接推定到新版本，命令说明应与对应版本的帮助和官方文档核对。
+
+通过 npm 全局安装的工具由当前 npm 的全局前缀管理。npm 默认不会在后台升级这些包，工具自身的更新提示或机制按各自安装方式判断。更新前可用 `npm config get prefix` 核对操作的是 Windows 还是 WSL 中的安装。
+
+| 用途 | 命令 |
+| --- | --- |
+| 列出当前前缀的全局包 | `npm list -g --depth=0` |
+| 检查当前前缀的过期全局包 | `npm outdated -g --depth=0` |
+| 按发布标签更新一个包 | `npm install -g @openai/codex@latest`（以 Codex 为例） |
+| 批量更新当前前缀的全局包 | `npm update -g` |
+
+`latest` 是发布标签。批量更新可能把高于该标签的预发布版本降回 `latest`，更新前先对照当前版本与发布说明。[npm outdated](https://docs.npmjs.com/cli/v11/commands/npm-outdated/) · [npm update：全局包](https://docs.npmjs.com/cli/v11/commands/npm-update/#updating-globally-installed-packages)
+
+nvm 切换 Node.js 版本时，npm 的全局包通常也随版本目录切换。切换后先查看全局包列表，再按需重装或用 nvm 的迁移功能重新安装旧版本目录中的包。[nvm：迁移全局包](https://github.com/nvm-sh/nvm#migrating-global-packages-between-installed-versions)
 
 ### 10.2 操作笔记的维护格式
 

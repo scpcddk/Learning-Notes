@@ -28,6 +28,40 @@
 - **2026-11-06｜DSH Windows 沙箱授权失败**：`SetNamedSecurityInfoW failed (Win32 5): grantWrite(D:\demo\dsh-sandbox)`，待修复；未切换完全权限、未修改 ACL。
 - **2026-11-07｜Codex TUI 启动超时**：`workspace routing discovery timed out (code -32603)`；诊断显示 HTTPS 可达、WebSocket 握手超时、Windows 手动代理未启用，改用本地代理后仍失败。用户判断与网络环境有关，未继续排查 TUI。跨 Agent 只读审查后来用 `codex exec` 完成，见[案例 011](#案例-011codexpidsh-跨-agent-代码审查对比)。
 
+### WSL2 Agent 安装与验证
+
+**整理日期**：2026-11-13。环境为 WSL2 Ubuntu 24.04、Bash。据用户贴出的对话转述记录，尚未独立复核原始终端输出或截图。
+
+**初始现象**：在 Ubuntu 中运行 `npm install -g @openai/codex` 后曾看到 `changed 2 packages in 36s`。随后运行 `codex` 时，Windows npm 目录中的启动脚本报找不到 `node`。`type -a` 的转述结果显示 `node` 在当时的 Bash 中无法解析，`npm` 来自 `/mnt/d/Program Files/nodejs/npm`，`codex` 来自 `/mnt/c/Users/Lenovo/AppData/Roaming/npm/codex`。`npm config get prefix` 返回 Windows 路径 `C:\Users\Lenovo\AppData\Roaming\npm`。这组证据指向当时调用的是 Windows 的 npm 与 Codex。安装输出只表明 npm 做过包变更，具体改动的 Windows 包版本未核实。
+
+**调整与核对结果**
+
+| 验证项 | 据对话转述的结果 |
+| --- | --- |
+| nvm 加载 | 对话确认已安装并加载，未提供 nvm 版本 |
+| Linux 版 Node.js 与 npm | `node -v` 为 `v24.22.3`，`npm -v` 为 `11.19.1`，两者位于 `/home/lenovo/.nvm/` 下。nvm 默认版本指向 `24` 系列 |
+| Linux 版 Codex 命令路径 | `type -a codex` 首项为 `/home/lenovo/.nvm/versions/node/v24.22.3/bin/codex`，Windows 入口仍列在后面 |
+| Codex CLI 启动 | `codex --version` 返回 `0.169.0` |
+| Codex 登录与交互界面 | 后续截图转述显示已通过 ChatGPT 账号登录（Plus），交互界面已打开，模型显示为 `GPT-6.1-Sol` |
+| 工作目录与权限显示 | `/mnt/d/demo` 对应 Windows 的 `D:\demo`，界面显示 `Workspace（granular）` |
+| Linux 版 Pi 命令路径与版本 | `type -a pi` 首项为 `/home/lenovo/.nvm/versions/node/v24.22.3/bin/pi`，Windows 入口 `/mnt/c/Users/Lenovo/AppData/Roaming/npm/pi` 排在后面。`pi --version` 返回 `1.5.2` |
+| Pi 交互启动与模型调用 | 后续截图转述显示已登录 OpenAI，选中 `gpt-6.1-sol`，收到纯文本回复 `Hello! What can I help you with?`，界面显示用量统计 |
+| Linux 版 DSH 命令路径与版本 | `type -a dsh` 首项为 `/home/lenovo/.nvm/versions/node/v24.22.3/bin/dsh`，`dsh --version` 返回 `0.2.2-rc.1` |
+
+**启动警告**：据截图转述，Codex 提示在 `PATH` 上找不到系统的 `bubblewrap`，并报告将使用内置版本。交互界面已打开，仍需通过实际任务核对工具能否在该沙箱下执行。警告说明见[工具手册第 4.8 节](../Agent工具使用手册.md#48-codex-常见故障)。
+
+**Pi 安装输出**：据对话转述，npm 显示 `added 123 packages`，随后通过命令路径和版本确认 WSL2 优先使用 Linux 版 Pi。`packages are looking for funding` 是依赖的资助信息。[npm fund 文档](https://docs.npmjs.com/cli/v11/commands/npm-fund/)
+
+**Pi 首次启动与登录提示**：据截图转述，Pi 先提示 `fd not found`、`ripgrep not found`，随后报告已将 `fd` 和 `rg` 安装到 `/home/lenovo/.pi/agent/bin/`。登录时曾出现 `Failed to login to OpenAI Codex: Missing authorization code`，之后显示 `Logged in to OpenAI. Selected gpt-6.1-sol.`，并收到模型回复。判断本次登录是否成功，以后续状态和实际回复为准。[工具手册第 5.2 节](../Agent工具使用手册.md#52-启动模型认证与首次任务)
+
+**DSH 安装输出**：据对话转述，npm 11.19.1 首次全局安装时提示 5 个依赖的安装脚本未获准执行。随后使用 `--allow-scripts` 放行 `@deepseek-ai/dsh-subprocess-local`、`koffi`、`node-pty` 并重装 `0.2.2-rc.1`。重装完成后仍提示 `@google/genai` 和 `protobufjs` 的脚本未执行。现有结果确认到安装和 CLI 版本检查，脚本执行详情及其对运行功能的影响仍需实际输出或测试验证。[工具手册第 6.1 节](../Agent工具使用手册.md#61-全局安装启动与更新)
+
+**本次配置收尾**：按用户确认，WSL2 中已用 nvm 配置 Node.js `v24.22.3`，Codex `0.169.0` 已登录并打开交互界面，Pi `1.5.2` 已登录并收到模型回复，DSH `0.2.2-rc.1` 已安装。Windows 原有的三个 Agent 均保留，Windows 上的 DSH 沙箱 `Win32 5` 仍待修复。
+
+**下次从这里继续**：在 WSL2 为 DSH 配置 DeepSeek API Key，先用 [Headless 纯文本任务](../Agent工具使用手册.md#63-dsh-cli--运行配置profile基础)验证模型连接，再在独立测试目录验证 Shell 执行和文件修改。本次停在安装阶段，尚无 Headless、Web UI 或工具执行的实测结果。Codex 的文件读写和沙箱执行、Pi 的文件搜索与读写也仍待单独验证。
+
+复用命令见[工具手册第 2.5 节](../Agent工具使用手册.md#25-在-wsl2-中配置-linux-版-nodejs-和-agent)。
+
 ---
 
 ## 二、Codex CLI

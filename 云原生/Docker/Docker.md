@@ -309,6 +309,8 @@ Docker Desktop 使用 WSL 2 后端时，Docker Engine 在专用的 `docker-deskt
 
 在原生 Linux 上，容器里的进程由宿主机内核调度，使用宿主机的 CPU、内存和磁盘。以一台 8 核 CPU、16 GB 内存、500 GB 磁盘的服务器为例，MySQL 和 Spring Boot 容器都从这台服务器获取资源，宿主机上的其他进程也会占用这些资源。
 
+Linux 容器通常使用命名空间（namespace）隔离进程、网络等视图，并通过 cgroup 统计资源用量和实施已配置的限制。一个容器可以同时运行多个进程。例如，Nginx 容器中可以有一个 master 进程和多个 worker 进程。
+
 | 资源 | 容器如何使用 |
 | :--- | :--- |
 | CPU | 宿主机内核为容器进程分配 CPU 时间。 |

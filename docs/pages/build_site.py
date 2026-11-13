@@ -820,9 +820,9 @@ def enable_reader_math(md):
 
 def render_callout_labels(markup, *, note="补充理解", tip="使用提示"):
     labels = {"note": note, "tip": tip, "warning": "易错提醒",
-              "important": "关键结论", "caution": "注意事项"}
+              "important": "关键结论", "caution": "注意事项", "example": "示例"}
     return re.sub(
-        r"(<blockquote>\s*<p>)\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\](?=\s|</p>)",
+        r"(<blockquote>\s*<p>)\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION|EXAMPLE)\](?=\s|</p>)",
         lambda match: match[1] + f"<strong>{labels[match[2].lower()]}</strong>",
         markup, flags=re.I,
     )

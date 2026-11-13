@@ -88,7 +88,7 @@ LLM（Large Language Model）通过训练调整大量参数，学习语言和数
 
 ### 2.1 训练与推理的展开流程
 
-保留原笔记中展开的两条流程，用来对照“学参数”和“用参数”。
+对照“学参数”和“用参数”。
 
 **训练阶段（让模型学会规律）**：
 
@@ -184,7 +184,9 @@ ID 序列 → Embedding 查表 → 模型计算
 生成的新 ID 序列 → Tokenizer.decode → 文本
 ```
 
-例如“playing”**在某种切分下**可能拆为“play”“ing”；具体结果由 Tokenizer 决定。不同模型对同一文本的 Token 数可能不同。
+> [!Example]
+>
+> 例如“playing”**在某种切分下**可能拆为“play”“ing”；具体结果由 Tokenizer 决定。不同模型对同一文本的 Token 数可能不同。
 
 ⚠️ **易混淆**：ID 100 与 101 相邻，不代表含义相近；编号不承担语义距离。Token 的位置也不是 Token ID，同一 Token 出现在不同位置时 ID 可以相同。
 
@@ -234,11 +236,21 @@ Tokenizer.decode() 解码
 | Unigram | 从候选片段及其概率出发，选择文本的切分方式 | 同一字符串可能有多条候选切分路径 |
 | SentencePiece | 训练和使用 Tokenizer 的工具库，可支持 BPE、Unigram 等 | 不是与 BPE 并列的唯一一种切分算法 |
 
-例如在一个教学语料中，若 `u` 与 `g` 经常相邻，BPE 训练可能先学出 `u + g → ug`，再学习更长组合。模型实际如何切分“学习”“playing”，要使用它自己的 Tokenizer 查看，不能照此例子猜。[算法说明](https://huggingface.co/docs/transformers/main/tokenizer_summary)、[SentencePiece 项目](https://github.com/google/sentencepiece)
+> [!Example]
+>
+> 例如在一个教学语料中，若 `u` 与 `g` 经常相邻，BPE 训练可能先学出 `u + g → ug`，再学习更长组合。模型实际如何切分“学习”“playing”，要使用它自己的 Tokenizer 查看，不能照此例子猜。[算法说明](https://huggingface.co/docs/transformers/main/tokenizer_summary)、[SentencePiece 项目](https://github.com/google/sentencepiece)
 
-**训练与编码分开看**：BPE 训练常按语料中相邻片段的频次迭代合并；编码时复用合并规则。WordPiece 编码常采用从左到右的较长词表匹配；例如词表允许时，`playing` 可拆成 `play + ##ing`，其中 `##` 是某些实现表示词内续接的约定，不是所有 Tokenizer 的通用字符。
+**训练与编码分开看**：BPE 训练常按语料中相邻片段的频次迭代合并；编码时复用合并规则。WordPiece 编码常采用从左到右的较长词表匹配。
 
-Unigram 将候选片段赋予概率，在训练中精简词表；编码可比较不同切分路径的得分。例如一个词存在 `[ab,c]` 与 `[a,bc]` 两条路径，若片段概率分别为 `0.2×0.1` 与 `0.1×0.3`，后者乘积更大；实际通常用对数分数计算，并可能提供采样选项。具体切分还受规范化、预切分和模型设置影响。
+> [!Example]
+>
+> 例如词表允许时，`playing` 可拆成 `play + ##ing`，其中 `##` 是某些实现表示词内续接的约定，不是所有 Tokenizer 的通用字符。
+
+Unigram 将候选片段赋予概率，在训练中精简词表；编码可比较不同切分路径的得分。
+
+> [!Example]
+>
+> 例如一个词存在 `[ab,c]` 与 `[a,bc]` 两条路径，若片段概率分别为 `0.2×0.1` 与 `0.1×0.3`，后者乘积更大；实际通常用对数分数计算，并可能提供采样选项。具体切分还受规范化、预切分和模型设置影响。
 
 > [!important]
 > Tokenizer 的词表、合并规则、规范化方式与模型一起构成输入约定。不能随意换一个 Tokenizer，再把得到的 ID 发给原模型。
@@ -330,13 +342,15 @@ HTTP / SDK 调用模型服务
 
 【基础原理】模型不能直接对“苹果”这两个汉字做矩阵运算，先用 Token ID 查出对应向量。Embedding 表可以理解为一个由训练学到的数值表。
 
-```text
-Token ID = 7
-  ↓ 查 Embedding 表第 7 行
-[0.2, -0.4, 0.8, ...]
-  ↓ 后续层持续更新表示
-上下文化表示
-```
+> [!Example]
+>
+> ```text
+> Token ID = 7
+>   ↓ 查 Embedding 表第 7 行
+> [0.2, -0.4, 0.8, ...]
+>   ↓ 后续层持续更新表示
+> 上下文化表示
+> ```
 
 | 概念 | 作用 | 是否通常直接用于句子检索 |
 |---|---|---|
@@ -374,7 +388,11 @@ Position 提供顺序信息；Context 提供可用信息；Attention 在表示�
 
 Attention 让一个位置根据与其他位置的匹配程度，获取并汇总信息。
 
-以“学生把书放进书包，因为它很重”为例，模型需要结合上下文处理“它”与前面词语的关系。Attention 是实现信息交互的计算机制之一。
+> [!Example]
+>
+> 以“学生把书放进书包，因为它很重”为例，模型需要结合上下文处理“它”与前面词语的关系。
+
+Attention 是实现信息交互的计算机制之一。
 
 ```text
 当前表示 → 生成 Query
@@ -419,9 +437,11 @@ Wq、Wk、Wv 是学到的参数。Q/K/V 是输入经过参数变换后得到的�
 
 **点积 Dot Product**：对应位置相乘，再相加。
 
-```text
-[1, 2] · [3, 4] = 1×3 + 2×4 = 11
-```
+> [!Example]
+>
+> ```text
+> [1, 2] · [3, 4] = 1×3 + 2×4 = 11
+> ```
 
 **Softmax**：把一组实数转换成总和为 1 的正数权重。数值实现常先减去最大值，降低指数溢出的风险。
 
@@ -439,27 +459,29 @@ M 是可选掩码；允许位置加 0，禁止位置加负无穷。第一遍可�
 
 ### 10.1 一个不需要矩阵知识的例子
 
-设 `d_k=1`，Q=[1]，K1=[1]，K2=[0]，V1=[2,0]，V2=[0,4]。
-
-1. 分数：Q·K1=1，Q·K2=0；缩放系数为 √1=1。
-2. 权重：`e¹/(e¹+e⁰)≈0.731`，另一个约 0.269。
-3. 输出：`0.731×[2,0] + 0.269×[0,4] ≈ [1.462,1.076]`。
-
-```python
-# 独立示例：只依赖 Python 标准库，可直接运行。
-import math
-
-scores = [1.0, 0.0]
-# 所有分数减去同一个最大值，保持 Softmax 结果并降低指数溢出风险。
-shift = max(scores)
-exps = [math.exp(x - shift) for x in scores]
-weights = [x / sum(exps) for x in exps]
-values = [[2.0, 0.0], [0.0, 4.0]]
-# 按注意力权重聚合 Value；这里分别计算输出向量的两个维度。
-out = [sum(w * v[j] for w, v in zip(weights, values)) for j in range(2)]
-print([round(x, 3) for x in weights])  # [0.731, 0.269]
-print([round(x, 3) for x in out])      # [1.462, 1.076]
-```
+> [!Example]
+>
+> 设 `d_k=1`，Q=[1]，K1=[1]，K2=[0]，V1=[2,0]，V2=[0,4]。
+>
+> 1. 分数：Q·K1=1，Q·K2=0；缩放系数为 √1=1。
+> 2. 权重：`e¹/(e¹+e⁰)≈0.731`，另一个约 0.269。
+> 3. 输出：`0.731×[2,0] + 0.269×[0,4] ≈ [1.462,1.076]`。
+>
+> ```python
+> # 独立示例：只依赖 Python 标准库，可直接运行。
+> import math
+>
+> scores = [1.0, 0.0]
+> # 所有分数减去同一个最大值，保持 Softmax 结果并降低指数溢出风险。
+> shift = max(scores)
+> exps = [math.exp(x - shift) for x in scores]
+> weights = [x / sum(exps) for x in exps]
+> values = [[2.0, 0.0], [0.0, 4.0]]
+> # 按注意力权重聚合 Value；这里分别计算输出向量的两个维度。
+> out = [sum(w * v[j] for w, v in zip(weights, values)) for j in range(2)]
+> print([round(x, 3) for x in weights])  # [0.731, 0.269]
+> print([round(x, 3) for x in out])      # [1.462, 1.076]
+> ```
 
 为什么除以 √d_k：当向量维度增大时，点积的数值尺度可能增大，使 Softmax 过于集中。缩放帮助控制分数尺度；它与 LayerNorm 不是同一个操作。
 
@@ -478,11 +500,41 @@ print([round(x, 3) for x in out])      # [1.462, 1.076]
 
 ### 11.1 FFN
 
-基础形式：`FFN(x)=激活(xW1+b1)W2+b2`。先升维再降维是常见设计，配合非线性提升表达能力。FFN 通常对每个位置分别计算，各位置共享同一组参数。
+Attention 在可见位置之间聚合信息，FFN 对已经融合上下文的表示做进一步的非线性变换。基础 FFN 对每个位置分别计算，同一层的各位置共享一组参数。设 $x$ 是某个位置送入 FFN 的向量，$\sigma$ 是激活函数。 [Transformer 原论文 §3.3](https://arxiv.org/html/1706.03762#S3.SS3)
+
+$$
+\operatorname{FFN}(x)=\sigma(xW_1+b_1)W_2+b_2
+$$
+
+> [!Example]
+>
+> “这家刚发布新手机的公司是苹果。”以词为单位示意，“苹果”所在位置可以通过 Attention 利用前文的“手机”“公司”等线索，FFN 再对该位置融合了这些线索的特征做变换。
+
+**为什么需要激活函数？** 去掉中间的激活函数后，两层 Linear 可以合并为一次仿射变换。
+
+$$
+(xW_1+b_1)W_2+b_2=x(W_1W_2)+(b_1W_2+b_2)
+$$
+
+加入非线性激活后，FFN 就能表达单层仿射变换无法表达的关系。
+
+> [!Example]
+>
+> 例如 ReLU 会将负输入置零，保留正输入。
+
+> [!Example]
+>
+> **为什么常先升维再降维？** 以 `4 维 → 16 维 → 4 维` 为例，升维让网络能从同一个输入**学习更多中间特征**，并分别对它们应用激活函数。降回原维度后，FFN 的输出就能与残差分支逐元素相加。
+
+⚠️ **易混淆**：Attention 的 Softmax 也引入了非线性，用来计算跨位置聚合的权重。
 
 ### 11.2 残差连接
 
-`Y=X+F(X)`。比如 X=[1,2]，F(X)=[0.5,-0.5]，Y=[1.5,1.5]。
+`Y=X+F(X)`。
+
+> [!Example]
+>
+> 比如 X=[1,2]，F(X)=[0.5,-0.5]，Y=[1.5,1.5]。
 
 下一子层的残差使用它自己的当前输入 Y：`Z=Y+G(Y)`，不是再机械地加最早的 X。形状必须兼容，残差也有助于梯度传播与优化。
 
@@ -664,26 +716,30 @@ RAG 和工具能改善证据与能力边界，不能保证完全消除错误。�
 
 【应用开发】目标是自己理解 HTTP 调用，再逐步用 SDK 简化。Python SDK 是对接口的封装，不是另一个模型。
 
-在新建的练习目录运行：
-
-```powershell
-# Windows PowerShell：创建独立环境，不要求修改系统执行策略。
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install httpx "pydantic>=2,<3"
-# 用虚拟环境解释器运行；不激活环境也可以。
-.\.venv\Scripts\python.exe hello_ai.py
-```
+> [!Example]
+>
+> 在新建的练习目录运行：
+>
+> ```powershell
+> # Windows PowerShell：创建独立环境，不要求修改系统执行策略。
+> py -3.11 -m venv .venv
+> .\.venv\Scripts\python.exe -m pip install httpx "pydantic>=2,<3"
+> # 用虚拟环境解释器运行；不激活环境也可以。
+> .\.venv\Scripts\python.exe hello_ai.py
+> ```
 
 若没有 3.11，用已安装且满足项目要求的 Python；IDE 解释器、终端解释器和测试解释器应核对一致。
 
-```text
-ai-chat/
- ├── hello_ai.py       # 第 22 节的 client.py + 最小入口也可先放这里练习
- ├── client.py         # 调用模型与解析
- ├── cli.py            # 用户输入、历史、展示
- ├── .gitignore
- └── requirements.txt  # 记录实际使用的依赖版本
-```
+> [!Example]
+>
+> ```text
+> ai-chat/
+>  ├── hello_ai.py       # 第 22 节的 client.py + 最小入口也可先放这里练习
+>  ├── client.py         # 调用模型与解析
+>  ├── cli.py            # 用户输入、历史、展示
+>  ├── .gitignore
+>  └── requirements.txt  # 记录实际使用的依赖版本
+> ```
 
 依赖先按所需能力安装；项目跑通后锁定已验证版本。不要一次把 RAG、训练和部署依赖全部装进最小聊天项目。
 
@@ -756,16 +812,18 @@ print(response.json())
 
 这里 `json=body` 表示**将 body 转成 JSON 请求体发送**；`response.json()` 则是**将返回的 JSON 响应体解析为 Python 对象**。后面的 `httpx.post(...)` 是直接指定 POST 方法的常见写法。
 
-**对应的 HTTP 请求报文形式**：
-
-```http
-POST /chat/completions HTTP/1.1
-Host: api.example.com
-Authorization: Bearer YOUR_KEY
-Content-Type: application/json
-
-{"model":"YOUR_MODEL","messages":[{"role":"user","content":"你好"}]}
-```
+> [!Example]
+>
+> **对应的 HTTP 请求报文形式**：
+>
+> ```http
+> POST /chat/completions HTTP/1.1
+> Host: api.example.com
+> Authorization: Bearer YOUR_KEY
+> Content-Type: application/json
+>
+> {"model":"YOUR_MODEL","messages":[{"role":"user","content":"你好"}]}
+> ```
 
 | 方向 | 部分 | 作用 |
 |---|---|---|
@@ -856,15 +914,17 @@ JSON 是数据交换格式；`dict` / `list` 是 Python 中的对象。
 | boolean | bool | `true` → `True` |
 | null | None | `null` → `None` |
 
-```python
-# 独立示例：标准库。
-import json
-
-body = {"messages": [{"role": "user", "content": "你好"}], "stream": False}
-text = json.dumps(body, ensure_ascii=False)  # Python 对象 → JSON 文本：序列化
-obj = json.loads(text)                      # JSON 文本 → Python 对象：反序列化
-print(obj["messages"][0]["content"])          # 你好
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：标准库。
+> import json
+>
+> body = {"messages": [{"role": "user", "content": "你好"}], "stream": False}
+> text = json.dumps(body, ensure_ascii=False)  # Python 对象 → JSON 文本：序列化
+> obj = json.loads(text)                      # JSON 文本 → Python 对象：反序列化
+> print(obj["messages"][0]["content"])          # 你好
+> ```
 
 HTTPX 的 `json=body` 自动编码请求；`response.json()` 尝试解码响应，但不会替你证明业务成功。
 
@@ -907,20 +967,22 @@ Python 对象
 
 API Key 是凭证之一，不能因为它放在名叫 `Authorization` 的请求头中，就把所有认证与授权概念混成同一件事。
 
-```powershell
-# 仅当前 PowerShell 及其后续启动的子进程继承。
-$env:DEEPSEEK_API_KEY = "替换为自己的密钥"
-$env:LLM_API_URL = "https://api.deepseek.com/chat/completions"
-$env:LLM_MODEL = "填写账号当前可用的模型标识"
-```
-
-```python
-# 独立示例：只验证存在性，不打印凭证内容。
-import os
-
-key = os.environ.get("DEEPSEEK_API_KEY")
-print("已配置密钥" if key else "当前 Python 进程未读取到密钥")
-```
+> [!Example]
+>
+> ```powershell
+> # 仅当前 PowerShell 及其后续启动的子进程继承。
+> $env:DEEPSEEK_API_KEY = "替换为自己的密钥"
+> $env:LLM_API_URL = "https://api.deepseek.com/chat/completions"
+> $env:LLM_MODEL = "填写账号当前可用的模型标识"
+> ```
+>
+> ```python
+> # 独立示例：只验证存在性，不打印凭证内容。
+> import os
+>
+> key = os.environ.get("DEEPSEEK_API_KEY")
+> print("已配置密钥" if key else "当前 Python 进程未读取到密钥")
+> ```
 
 | 现象 | 重点检查 |
 |---|---|
@@ -932,15 +994,17 @@ print("已配置密钥" if key else "当前 Python 进程未读取到密钥")
 
 `.env` 只是普通文件，Python **不会自动读取它**；需要显式加载工具或配置系统。也不要把真实 Key 写进示例、日志、截图或前端。
 
-```gitignore
-# 示例 .gitignore：忽略本地环境、密钥和缓存。
-.venv/
-.env
-.env.*
-!.env.example
-__pycache__/
-*.pyc
-```
+> [!Example]
+>
+> ```gitignore
+> # 示例 .gitignore：忽略本地环境、密钥和缓存。
+> .venv/
+> .env
+> .env.*
+> !.env.example
+> __pycache__/
+> *.pyc
+> ```
 
 ⚠️ **易混淆**：`.gitignore` 不会自动取消已经追踪的文件，也不会删除 Git 历史中的密钥。泄露的 Key 应在服务商处失效/轮换，再处理仓库记录。
 
@@ -948,14 +1012,16 @@ __pycache__/
 
 ## 20. messages、角色与无状态接口
 
-```json
-[
-  {"role":"system","content":"你是学习助手，解释时给一个具体例子。"},
-  {"role":"user","content":"什么是 MyBatis？"},
-  {"role":"assistant","content":"它负责 SQL 映射与执行……"},
-  {"role":"user","content":"它与 JDBC 有什么关系？"}
-]
-```
+> [!Example]
+>
+> ```json
+> [
+>   {"role":"system","content":"你是学习助手，解释时给一个具体例子。"},
+>   {"role":"user","content":"什么是 MyBatis？"},
+>   {"role":"assistant","content":"它负责 SQL 映射与执行……"},
+>   {"role":"user","content":"它与 JDBC 有什么关系？"}
+> ]
+> ```
 
 | 角色 | 常见职责 | 谁组织 |
 |---|---|---|
@@ -998,12 +1064,14 @@ DeepSeek 当前文档说明思考模式下部分采样参数不生效，且 `top
 | 输出 Token 限制 | 模型、任务、历史、采样参数 | 选较小与较大输出预算 | 是否截断、finish_reason、实际输出用量、要点完整程度 |
 | top_p | 模型、任务、历史、Temperature | 单独改变候选概率范围 | 输出分布变化；先核对当前模型支持情况 |
 
-```python
-# 形式示例：client 复用第 22 节，messages 是本次固定的实验输入。
-choice, usage = client.complete(messages, temperature=0.5, max_tokens=128)
-print(choice["message"].get("content"))
-print("结束原因：", choice.get("finish_reason"), "实际用量：", usage)
-```
+> [!Example]
+>
+> ```python
+> # 形式示例：client 复用第 22 节，messages 是本次固定的实验输入。
+> choice, usage = client.complete(messages, temperature=0.5, max_tokens=128)
+> print(choice["message"].get("content"))
+> print("结束原因：", choice.get("finish_reason"), "实际用量：", usage)
+> ```
 
 选择“输出多条注意事项”等有一定长度的固定任务，便于观察预算不足时的行为；较小预算**可能**触发 `length`，不保证每次都触发。这里使用 `complete()` 是为了保留结束原因供观察，第 22 节的 `text()` 会把不完整回答作为异常处理。
 
@@ -1210,16 +1278,18 @@ response
 
 ### 24.2 浅拷贝到底复制了什么
 
-```python
-# 独立示例：外层列表独立，内部字典共享。
-messages = [{"role": "user", "content": "旧内容"}]
-backup = messages.copy()
-messages.append({"role": "assistant", "content": "回答"})
-print(len(messages), len(backup))  # 2 1
-# 内层字典仍是同一个对象，因此修改内容会同时反映到 backup。
-messages[0]["content"] = "改过"
-print(backup[0]["content"])       # 改过
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：外层列表独立，内部字典共享。
+> messages = [{"role": "user", "content": "旧内容"}]
+> backup = messages.copy()
+> messages.append({"role": "assistant", "content": "回答"})
+> print(len(messages), len(backup))  # 2 1
+> # 内层字典仍是同一个对象，因此修改内容会同时反映到 backup。
+> messages[0]["content"] = "改过"
+> print(backup[0]["content"])       # 改过
+> ```
 
 `list.copy()` 可以隔离追加/删除外层元素，不能隔离嵌套字典修改。需要递归隔离时考虑 `deepcopy()`。更简单的策略是：历史消息创建后不再原地改内容，每轮构造新的候选列表。
 
@@ -1272,18 +1342,20 @@ def fit_history(system, turns, question, counter, context_limit,
         selected.pop(0)
 ```
 
-接入第 4.4 节的 Tokenizer 时，计数器可以写成：
-
-```python
-# 接续示例：tokenizer 来自 inspect_tokens.py；仅适用于其支持的消息角色/模板。
-def make_chat_counter(tokenizer):
-    def counter(messages):
-        # 连角色标记和回答起点一起计数，比只数消息正文更接近实际输入。
-        return len(tokenizer.apply_chat_template(
-            messages, tokenize=True, add_generation_prompt=True
-        ))
-    return counter
-```
+> [!Example]
+>
+> 接入第 4.4 节的 Tokenizer 时，计数器可以写成：
+>
+> ```python
+> # 接续示例：tokenizer 来自 inspect_tokens.py；仅适用于其支持的消息角色/模板。
+> def make_chat_counter(tokenizer):
+>     def counter(messages):
+>         # 连角色标记和回答起点一起计数，比只数消息正文更接近实际输入。
+>         return len(tokenizer.apply_chat_template(
+>             messages, tokenize=True, add_generation_prompt=True
+>         ))
+>     return counter
+> ```
 
 在 `cli.py` 中，用 `fit_history(...)` 替换构造候选消息的调用即可；**只替换裁剪，不改变“完整成功后才提交历史”的策略**。有的模型不支持 system 角色，需要先按模型约定组织指令，不能强行套用模板。
 
@@ -1348,16 +1420,18 @@ def make_chat_counter(tokenizer):
 
 SSE 通常使用 `Content-Type: text/event-stream`。空行分隔事件；多条 `data:` 行组成同一个事件的数据，以换行连接；冒号开头的行是注释。
 
-```text
-: keep-alive
-
-data: {"choices":[{"delta":{"content":"你"},"finish_reason":null}]}
-
-data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
-
-data: [DONE]
-
-```
+> [!Example]
+>
+> ```text
+> : keep-alive
+>
+> data: {"choices":[{"delta":{"content":"你"},"finish_reason":null}]}
+>
+> data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+>
+> data: [DONE]
+>
+> ```
 
 `[DONE]` 是本文接口使用的结束数据，不是 JSON 文本。SSE 标准本身并没有强制所有服务使用这个标记。接收完最后一个完整事件不等于获得了完整回答，还要检查业务结束原因。[SSE 事件解析规范](https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream)
 
@@ -1596,21 +1670,23 @@ if __name__ == "__main__":
 | 有 `[DONE]`，但结束原因是 `length` | 生成达到限制、回答截断 | 基础 CLI 不当作完整答案保存 |
 | 文本已打印，但用户按 Ctrl+C | 用户取消当前尝试 | 清理资源并恢复历史，允许重新提问 |
 
-**采用旧式 `messages` 列表时的回滚形式**如下。这里只展示一轮的状态变化，发送、解析和打印复用第 27 节的 `stream_text()`：
-
-```python
-# 形式示例：messages 是已确认历史，question 来自外层输入循环。
-old_messages = messages.copy()  # 在追加、裁剪等本轮修改之前备份。
-messages.append({"role": "user", "content": question})
-try:
-    answer, usage = stream_text(client, messages)
-except (httpx.HTTPError, ResponseFormatError, ValueError, KeyboardInterrupt):
-    # 切片恢复原列表内容，让引用该列表的其他代码也看到回滚结果。
-    messages[:] = old_messages
-    print("\n本轮未完成，未写入历史；可以重新提问。")
-else:
-    messages.append({"role": "assistant", "content": answer})
-```
+> [!Example]
+>
+> **采用旧式 `messages` 列表时的回滚形式**如下。这里只展示一轮的状态变化，发送、解析和打印复用第 27 节的 `stream_text()`：
+>
+> ```python
+> # 形式示例：messages 是已确认历史，question 来自外层输入循环。
+> old_messages = messages.copy()  # 在追加、裁剪等本轮修改之前备份。
+> messages.append({"role": "user", "content": question})
+> try:
+>     answer, usage = stream_text(client, messages)
+> except (httpx.HTTPError, ResponseFormatError, ValueError, KeyboardInterrupt):
+>     # 切片恢复原列表内容，让引用该列表的其他代码也看到回滚结果。
+>     messages[:] = old_messages
+>     print("\n本轮未完成，未写入历史；可以重新提问。")
+> else:
+>     messages.append({"role": "assistant", "content": answer})
+> ```
 
 这个浅拷贝方案适用于**只修改外层列表、不改已有消息字典内容**的情况。若先修改 `messages[0]["content"]`，备份也会受到影响；见第 24.2 节。若本轮包含裁剪，要恢复裁剪前的快照，不能只记旧长度再截断，因为已经删掉的旧消息无法靠长度找回。
 
@@ -1635,35 +1711,39 @@ HTTPX 中 `TimeoutException` 属于 `RequestError` 的子类，`HTTPStatusError`
 
 ### 28.1 try / except / else / finally / raise
 
-```python
-# 独立示例：观察控制流，不访问网络。
-def parse_age(text):
-    try:
-        age = int(text)
-        if not 0 <= age <= 150:
-            raise ValueError("年龄超出范围")
-    except ValueError as exc:
-        raise ValueError("年龄输入不合法") from exc
-    else:
-        return age
-    finally:
-        # 示例只显示收尾时机；真实请求用 with 管理资源。
-        print("本次解析结束")
-
-
-print(parse_age("18"))
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：观察控制流，不访问网络。
+> def parse_age(text):
+>     try:
+>         age = int(text)
+>         if not 0 <= age <= 150:
+>             raise ValueError("年龄超出范围")
+>     except ValueError as exc:
+>         raise ValueError("年龄输入不合法") from exc
+>     else:
+>         return age
+>     finally:
+>         # 示例只显示收尾时机；真实请求用 with 管理资源。
+>         print("本次解析结束")
+>
+>
+> print(parse_age("18"))
+> ```
 
 `else` 仅在 try 没有异常时执行；`finally` 用于收尾，通常在离开作用域时执行。不要在 finally 中 `return`，以免覆盖原返回值或异常。`except Exception: pass` 会隐藏程序缺陷；只在能够解释并处理的层次捕获，顶层记录异常也不要泄露凭证和私人文本。
 
 ### 28.2 dict.get() 不是类型校验
 
-```python
-# 独立示例：默认值只在 key 缺失时使用。
-print({}.get("choices", [{}]))              # [{}]
-print({"choices": []}.get("choices", [{}])) # []
-print({"choices": None}.get("choices", [])) # None
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：默认值只在 key 缺失时使用。
+> print({}.get("choices", [{}]))              # [{}]
+> print({"choices": []}.get("choices", [{}])) # []
+> print({"choices": None}.get("choices", [])) # None
+> ```
 
 空列表 `[0]` 是 `IndexError`；对 None 调 `.get()` 是 `AttributeError`；缺字典键用 `[]` 是 `KeyError`。协议处理要检查类型与长度，不靠捕获所有异常“兼容”任意数据。
 
@@ -1681,21 +1761,23 @@ print({"choices": None}.get("choices", [])) # None
 
 HTTPX 的这项检查以 2xx 为成功范围，非 2xx 还包括重定向等情况，不能把它理解成仅检查 500。它不会重新发送请求、自动重试，也不会验证回答内容。`response.json()` 解析成功同样不代表 HTTP 成功。[HTTPX 状态检查](https://www.python-httpx.org/quickstart/#response-status-codes)
 
-**429 的最小模拟**只需构造响应对象，不必真实访问服务或故意触发限流：
-
-```python
-import httpx
-
-request = httpx.Request("POST", "https://offline.invalid/chat")
-response = httpx.Response(429, request=request, headers={"Retry-After": "2"},
-                          json={"error": "rate_limited"})
-print(response.status_code)  # 此时只是读取 429，还没有进入异常分支。
-try:
-    response.raise_for_status()
-except httpx.HTTPStatusError as exc:
-    print("HTTP 状态异常：", exc.response.status_code)
-    print("建议等待：", exc.response.headers.get("Retry-After"))
-```
+> [!Example]
+>
+> **429 的最小模拟**只需构造响应对象，不必真实访问服务或故意触发限流：
+>
+> ```python
+> import httpx
+>
+> request = httpx.Request("POST", "https://offline.invalid/chat")
+> response = httpx.Response(429, request=request, headers={"Retry-After": "2"},
+>                           json={"error": "rate_limited"})
+> print(response.status_code)  # 此时只是读取 429，还没有进入异常分支。
+> try:
+>     response.raise_for_status()
+> except httpx.HTTPStatusError as exc:
+>     print("HTTP 状态异常：", exc.response.status_code)
+>     print("建议等待：", exc.response.headers.get("Retry-After"))
+> ```
 
 给手工 Response 关联 Request，是为了让状态异常带有完整请求上下文；否则手工构造的对象可能先报“缺少 request”的使用错误。将 429 改为 401、500，比较异常类型与状态码；改为 200 时，该状态检查不抛异常。
 
@@ -1722,23 +1804,25 @@ httpx.HTTPError
 
 上图只列本阶段关注的分支。`ConnectError` 表示建立连接失败，**不等于服务器返回 500，也不等于 ConnectTimeout**；`TimeoutException` 表示相应操作等待超时。要分别提示它们，应先捕获具体子类，最后捕获 `RequestError` 作这一类错误的兜底。[HTTPX 异常继承关系](https://www.python-httpx.org/exceptions/)
 
-```python
-import httpx
-
-def fail_to_connect(request):
-    # MockTransport 在发送阶段主动抛错，模拟应用遇到连接失败的路径。
-    raise httpx.ConnectError("模拟连接失败", request=request)
-
-with httpx.Client(transport=httpx.MockTransport(fail_to_connect)) as http:
-    try:
-        http.post("https://offline.invalid/chat", json={"messages": []})
-    except httpx.ConnectError:
-        print("连接未建立，请检查网络、代理或服务地址。")
-    except httpx.RequestError:
-        print("其他请求/传输异常。")
-```
-
-这个模拟不依赖断网或某个地址恰好不可用。`MockTransport` 用指定函数替换真实传输，适合观察异常分支；它不证明实际 DNS、TLS 或网络环境已经通过测试。[MockTransport](https://www.python-httpx.org/advanced/transports/#mock-transports)
+> [!Example]
+>
+> ```python
+> import httpx
+>
+> def fail_to_connect(request):
+>     # MockTransport 在发送阶段主动抛错，模拟应用遇到连接失败的路径。
+>     raise httpx.ConnectError("模拟连接失败", request=request)
+>
+> with httpx.Client(transport=httpx.MockTransport(fail_to_connect)) as http:
+>     try:
+>         http.post("https://offline.invalid/chat", json={"messages": []})
+>     except httpx.ConnectError:
+>         print("连接未建立，请检查网络、代理或服务地址。")
+>     except httpx.RequestError:
+>         print("其他请求/传输异常。")
+> ```
+>
+> 这个模拟不依赖断网或某个地址恰好不可用。`MockTransport` 用指定函数替换真实传输，适合观察异常分支；它不证明实际 DNS、TLS 或网络环境已经通过测试。[MockTransport](https://www.python-httpx.org/advanced/transports/#mock-transports)
 
 ### 28.5 将分类提示整合进 ask_ai()
 
@@ -1863,37 +1947,45 @@ def text_with_retry(client, messages):
 
 ### 29.3 超时配置、异常捕获与无等待模拟
 
-连接超时是“连接尚未建立，等待超过限制”，读取超时是“等待下一段响应数据超过限制”。例如流式聊天已输出几个片段后长时间没有新数据，仍可能发生 `ReadTimeout`；HTTP 500 则已经收到服务端状态，属于不同路径。
+连接超时是“连接尚未建立，等待超过限制”，读取超时是“等待下一段响应数据超过限制”。
 
-```python
-# 配置形式：默认阶段限时 30 秒；连接 5 秒、连接池等待 2 秒单独设置。
-timeout = httpx.Timeout(30.0, connect=5.0, pool=2.0)
-# 交给第 22 节的 httpx.Client(timeout=timeout, ...) 使用。
-```
+> [!Example]
+>
+> 例如流式聊天已输出几个片段后长时间没有新数据，仍可能发生 `ReadTimeout`；HTTP 500 则已经收到服务端状态，属于不同路径。
+
+> [!Example]
+>
+> ```python
+> # 配置形式：默认阶段限时 30 秒；连接 5 秒、连接池等待 2 秒单独设置。
+> timeout = httpx.Timeout(30.0, connect=5.0, pool=2.0)
+> # 交给第 22 节的 httpx.Client(timeout=timeout, ...) 使用。
+> ```
 
 这些数值是练习起点，不是适用于所有模型的统一标准。结合网络、首字返回时间、片段间隔和交互目标调整；不能为了避免报错就直接无限等待。分阶段限时也不能替代第 27 节的业务总预算。[HTTPX 超时定义](https://www.python-httpx.org/advanced/timeouts/)
 
-沿用第 28.4 节的 MockTransport 写法，将故障函数换成以下形式，即可立即观察两种超时分支：
-
-```python
-import httpx
-
-def simulate_timeout(request):
-    raise httpx.ReadTimeout("模拟等待响应超时", request=request)
-    # 练习连接超时时，将上一行替换为 httpx.ConnectTimeout(..., request=request)。
-
-with httpx.Client(transport=httpx.MockTransport(simulate_timeout)) as http:
-    try:
-        http.post("https://offline.invalid/chat")
-    except httpx.ConnectTimeout:
-        print("建立连接超时。")
-    except httpx.ReadTimeout:
-        print("等待响应数据超时。")
-    except httpx.TimeoutException:
-        print("其他阶段超时。")
-```
-
-这里主动抛出超时异常，只测试**捕获和恢复逻辑**，没有实际等待，也没有验证超时计时器。给 MockTransport 的处理函数简单加 `sleep()`，不能据此证明 HTTPX 的真实网络读取计时行为。
+> [!Example]
+>
+> 沿用第 28.4 节的 MockTransport 写法，将故障函数换成以下形式，即可立即观察两种超时分支：
+>
+> ```python
+> import httpx
+>
+> def simulate_timeout(request):
+>     raise httpx.ReadTimeout("模拟等待响应超时", request=request)
+>     # 练习连接超时时，将上一行替换为 httpx.ConnectTimeout(..., request=request)。
+>
+> with httpx.Client(transport=httpx.MockTransport(simulate_timeout)) as http:
+>     try:
+>         http.post("https://offline.invalid/chat")
+>     except httpx.ConnectTimeout:
+>         print("建立连接超时。")
+>     except httpx.ReadTimeout:
+>         print("等待响应数据超时。")
+>     except httpx.TimeoutException:
+>         print("其他阶段超时。")
+> ```
+>
+> 这里主动抛出超时异常，只测试**捕获和恢复逻辑**，没有实际等待，也没有验证超时计时器。给 MockTransport 的处理函数简单加 `sleep()`，不能据此证明 HTTPX 的真实网络读取计时行为。
 
 超时后仍按第 27.3 节处理历史：候选历史不提交，或恢复本轮修改前的快照。即便服务端可能已经收到问题，客户端也不能凭半段内容确认本轮完整成功；可以继续接受用户下一次输入。
 
@@ -1927,14 +2019,16 @@ $$
 
 若使用第 28.5 节的 `ask_ai()`，需要重试时，把其 try 内的 `client.text(messages)` **替换**为 `text_with_retry(client, messages)`；不要同时调用两次。若先捕获 429 并返回 `None`，外层重试函数就收不到该异常，也无法按状态决定是否重试。
 
-| 模拟的结果顺序 | 预期请求次数 | 预期行为 |
-|---|---|---|
-| 429 → 200 | 2 | 按等待策略重试，成功后结束 |
-| 429 → 429 → 429 | 3 | 次数耗尽，交给调用层提示，不无限循环 |
-| 401 | 1 | 修正认证，不用同一份错误配置反复请求 |
-| 500 | 1，按当前示例 | 当前白名单仅含 429、502、503、504；是否加入 500 要明确规则 |
-| 协议结构错误 | 1 | 不当作暂时限流重试 |
-| 已打印部分流式正文后断开 | 当前尝试终止 | 标注本轮失败，由用户决定发起新尝试 |
+> [!Example]
+>
+> | 模拟的结果顺序 | 预期请求次数 | 预期行为 |
+> |---|---|---|
+> | 429 → 200 | 2 | 按等待策略重试，成功后结束 |
+> | 429 → 429 → 429 | 3 | 次数耗尽，交给调用层提示，不无限循环 |
+> | 401 | 1 | 修正认证，不用同一份错误配置反复请求 |
+> | 500 | 1，按当前示例 | 当前白名单仅含 429、502、503、504；是否加入 500 要明确规则 |
+> | 协议结构错误 | 1 | 不当作暂时限流重试 |
+> | 已打印部分流式正文后断开 | 当前尝试终止 | 标注本轮失败，由用户决定发起新尝试 |
 
 可用 `Mock.side_effect` 按顺序提供异常/成功值，测试时替换 `time.sleep` 记录等待而不真实暂停。HTTP 429 本身的构造复用第 28.3 节，不用复制整套请求程序。
 
@@ -1955,15 +2049,17 @@ tests/：纯解析、失败路径、协议契约
 
 **日志记录什么**：request_id、模型标识、尝试次数、耗时、结束原因、usage、错误类别。默认不记 Key、完整 Authorization 和私人原文。
 
-```python
-# 独立示例：基础日志；消息内容与密钥不进入日志。
-import logging
-import uuid
-
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-request_id = uuid.uuid4().hex
-logging.info("request_id=%s stage=%s status=%s", request_id, "parse", "ok")
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：基础日志；消息内容与密钥不进入日志。
+> import logging
+> import uuid
+>
+> logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+> request_id = uuid.uuid4().hex
+> logging.info("request_id=%s stage=%s status=%s", request_id, "parse", "ok")
+> ```
 
 **阶段 1 验收**：能新建环境、配置凭证、独立构造请求、理解返回路径、维护完整历史、解释 SSE 事件边界、处理网络/HTTP/格式失败，并完成可运行 CLI。不要因为抄到一份完整代码就直接勾选全部完成。
 
@@ -2233,7 +2329,11 @@ ask_ai / CLI：用户提示、历史提交与后续交互
 | WARNING | 429、准备重试、当前尝试被取消等需要关注的事件 | “稍后重试”“本轮已取消”等明确说明 |
 | ERROR | 请求最终失败、上游响应不符合约定等 | 说明失败类别、历史是否保留、下一步怎么做 |
 
-例如同一次 429，日志记录 `request_id、status=429、attempt、等待秒数`；用户看到“请求受限，稍后重试，本轮未写入历史”。日志用于定位过程，提示用于继续使用；不要把大段堆栈或完整上游响应直接当成聊天回复。
+> [!Example]
+>
+> 例如同一次 429，日志记录 `request_id、status=429、attempt、等待秒数`；用户看到“请求受限，稍后重试，本轮未写入历史”。
+
+日志用于定位过程，提示用于继续使用；不要把大段堆栈或完整上游响应直接当成聊天回复。
 
 第 30 节已有 `logging.basicConfig()` 与参数化日志的常见写法。后续接入真实请求时复用该 logger，在捕获异常和决定重试的位置记录；避免同一异常被每一层重复打印。参数实验的方法与记录字段见第 21.1 节。
 
@@ -2268,13 +2368,15 @@ ask_ai / CLI：用户提示、历史提交与后续交互
 
 【应用开发】如果后续程序要排序、入库、发通知，就需要明确字段和类型，而不是靠正则从一大段回答里猜。
 
-```text
-“张三十八岁，计划学 RAG”
-  ↓ 明确约定结构
-{"name":"张三","age":18,"topic":"RAG"}
-  ↓ 解析 + Schema 校验 + 业务检查
-可供程序使用的数据
-```
+> [!Example]
+>
+> ```text
+> “张三十八岁，计划学 RAG”
+>   ↓ 明确约定结构
+> {"name":"张三","age":18,"topic":"RAG"}
+>   ↓ 解析 + Schema 校验 + 业务检查
+> 可供程序使用的数据
+> ```
 
 | 层次 | 解决什么 | 仍可能有什么问题 |
 |---|---|---|
@@ -2291,19 +2393,21 @@ ask_ai / CLI：用户提示、历史提交与后续交互
 
 Schema 描述“允许什么数据”，它不是实例数据。
 
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {"type":"string","minLength":1},
-    "age": {"type":"integer","minimum":0,"maximum":150},
-    "level": {"type":"string","enum":["beginner","intermediate","advanced"]},
-    "topics": {"type":"array","items":{"type":"string"}}
-  },
-  "required": ["name","age","level","topics"],
-  "additionalProperties": false
-}
-```
+> [!Example]
+>
+> ```json
+> {
+>   "type": "object",
+>   "properties": {
+>     "name": {"type":"string","minLength":1},
+>     "age": {"type":"integer","minimum":0,"maximum":150},
+>     "level": {"type":"string","enum":["beginner","intermediate","advanced"]},
+>     "topics": {"type":"array","items":{"type":"string"}}
+>   },
+>   "required": ["name","age","level","topics"],
+>   "additionalProperties": false
+> }
+> ```
 
 | 关键词 | 含义 | 例子 |
 |---|---|---|
@@ -2319,7 +2423,11 @@ Schema 描述“允许什么数据”，它不是实例数据。
 
 **Field 与 Type**：Field 是具体数据项（如 age），Type 是该项允许的数据类型（如 integer）。`number` 可以表示小数，`integer` 要求整数。空字符串、空数组、字段缺失、值为 null 是四种不同情况，应按业务分别约定。
 
-嵌套结构例如 `{"student":{"name":"张三"},"tasks":[{"title":"复习 API"}]}`，需要分别为 student 对象和 tasks 元素定义结构。服务商未必支持完整 JSON Schema，传入之前需核对支持子集。
+> [!Example]
+>
+> 嵌套结构例如 `{"student":{"name":"张三"},"tasks":[{"title":"复习 API"}]}`，需要分别为 student 对象和 tasks 元素定义结构。
+
+服务商未必支持完整 JSON Schema，传入之前需核对支持子集。
 
 ---
 
@@ -2431,14 +2539,16 @@ Prompt 是向模型传达任务的输入结构。有效的 Prompt 要让信息�
 
 **Zero-shot / One-shot / Few-shot**：不给样例、给一个样例、给少量样例。样例要包含正常情况与易错边界；错误示例会把错误模式一起教给模型。
 
-```text
-任务：判断笔记条目是否已经完成。
-定义：只有明确说明“能独立解释并完成练习”才判 done。
-示例1：“听过 RAG” → todo
-示例2：“能独立搭建检索并解释结果” → done
-输出：{"status":"todo或done","evidence":"原文证据"}
-待判断材料：...
-```
+> [!Example]
+>
+> ```text
+> 任务：判断笔记条目是否已经完成。
+> 定义：只有明确说明“能独立解释并完成练习”才判 done。
+> 示例1：“听过 RAG” → todo
+> 示例2：“能独立搭建检索并解释结果” → done
+> 输出：{"status":"todo或done","evidence":"原文证据"}
+> 待判断材料：...
+> ```
 
 **调试流程**：固定一小组样例 → 每次只改变一个主要因素 → 比较失败类型 → 记录版本与效果 → 再扩展样例。不要只凭一条回答“看起来更好了”就替换正式版本。
 
@@ -2712,20 +2822,22 @@ if __name__ == "__main__":
 
 **搜索实现**：文本 A/B/C → 同一模型向量化 → 保存 → 新问题向量化 → 计算相似度 → 取 Top-K。
 
-```python
-# 接续示例：同目录 embedding_client.py；向量函数按第 38 节保存为 vectors.py。
-from embedding_client import embed
-from vectors import cosine
-
-texts = ["SqlSession 不能跨线程共享", "HTTP 状态码 401 表示认证问题", "容器共享宿主机内核"]
-doc_vectors = embed(texts)
-# 查询与文档使用同一个 Embedding 接口，才能在同一向量空间比较。
-q = embed(["MyBatis 会话能被多个线程一起使用吗？"])[0]
-scores = [(cosine(q, v), text) for text, v in zip(texts, doc_vectors)]
-# 余弦相似度越大越靠前，这里只展示前两条候选。
-for score, text in sorted(scores, reverse=True)[:2]:
-    print(round(score, 4), text)
-```
+> [!Example]
+>
+> ```python
+> # 接续示例：同目录 embedding_client.py；向量函数按第 38 节保存为 vectors.py。
+> from embedding_client import embed
+> from vectors import cosine
+>
+> texts = ["SqlSession 不能跨线程共享", "HTTP 状态码 401 表示认证问题", "容器共享宿主机内核"]
+> doc_vectors = embed(texts)
+> # 查询与文档使用同一个 Embedding 接口，才能在同一向量空间比较。
+> q = embed(["MyBatis 会话能被多个线程一起使用吗？"])[0]
+> scores = [(cosine(q, v), text) for text, v in zip(texts, doc_vectors)]
+> # 余弦相似度越大越靠前，这里只展示前两条候选。
+> for score, text in sorted(scores, reverse=True)[:2]:
+>     print(round(score, 4), text)
+> ```
 
 不要把某个固定分数如 0.8 宣称为普适的“语义相同”阈值；模型、语料和问题分布都会影响分数。用自己的标注样例选择阈值。
 
@@ -2799,17 +2911,19 @@ Document Loader 把不同格式变成文本与元数据。**加载成功不等�
 | 扫描 PDF | OCR 后再整理 | OCR 置信度与页码 |
 | 表格 | 保留表头与记录关系 | 行列语义、单位、来源 |
 
-```python
-# 独立示例：只读取自己选择的本地 Markdown，不会自动上传。
-from pathlib import Path
-
-path = Path("data/notes/mybatis.md")
-if path.is_file():
-    text = path.read_text(encoding="utf-8")
-    print(text[:200])
-else:
-    print("先把用于练习的笔记副本放到 data/notes/mybatis.md")
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：只读取自己选择的本地 Markdown，不会自动上传。
+> from pathlib import Path
+>
+> path = Path("data/notes/mybatis.md")
+> if path.is_file():
+>     text = path.read_text(encoding="utf-8")
+>     print(text[:200])
+> else:
+>     print("先把用于练习的笔记副本放到 data/notes/mybatis.md")
+> ```
 
 清洗可以移除重复页眉、不可见噪声和多余空白，但不要删掉代码缩进、表格表头、否定词与版本限制。文档中的“不能跨线程共享”如果被错误清洗成“跨线程共享”，检索再准也会给出错误材料。
 
@@ -2997,11 +3111,13 @@ if __name__ == "__main__":
 | Reranking | 对问题与候选成对细评，再排序 | 比向量近邻更慢，应限制候选数 |
 | Metadata Filtering | 按版本、标签、权限、时间筛选 | 过滤过严可能降低召回 |
 
-```text
-问题 → BM25 Top-20 ─┐
-                  ├→ 去重/融合 → 40 条以内候选 → 重排 → 取 3～5 个片段
-问题 → 向量 Top-20 ─┘
-```
+> [!Example]
+>
+> ```text
+> 问题 → BM25 Top-20 ─┐
+>                   ├→ 去重/融合 → 40 条以内候选 → 重排 → 取 3～5 个片段
+> 问题 → 向量 Top-20 ─┘
+> ```
 
 数字只是示例。Top-K 越大不一定越好：可能召回更多相关内容，也会增加无关内容、重排延迟和生成成本。
 
@@ -3035,14 +3151,16 @@ if __name__ == "__main__":
 去重 → 过滤版本与权限 → 选取证据 → 预算裁剪 → 标注来源 → 构造 Prompt
 ```
 
-推荐片段格式：
-
-```text
-[S1]
-source: MyBatis/事务.md
-section: REQUIRED 与 rollback-only
-content: 内层经过事务代理并加入共享事务时……
-```
+> [!Example]
+>
+> 推荐片段格式：
+>
+> ```text
+> [S1]
+> source: MyBatis/事务.md
+> section: REQUIRED 与 rollback-only
+> content: 内层经过事务代理并加入共享事务时……
+> ```
 
 | 要求 | 程序如何帮助 |
 |---|---|
@@ -3062,24 +3180,28 @@ content: 内层经过事务代理并加入共享事务时……
 
 下面的 `rag.py` 复用第 22 节 `client.py`、第 39 节 `embedding_client.py`，以及第 38 节保存的 `vectors.py`（含 cosine 函数）。它用本地 JSON 保存小型向量索引，避免先引入数据库框架。
 
-```text
-personal-rag/
- ├── client.py
- ├── embedding_client.py
- ├── vectors.py
- ├── rag.py
- └── data/notes/         # 只放你选择用于实验的笔记副本
-      ├── mybatis.md
-      └── mysql.md
-```
+> [!Example]
+>
+> ```text
+> personal-rag/
+>  ├── client.py
+>  ├── embedding_client.py
+>  ├── vectors.py
+>  ├── rag.py
+>  └── data/notes/         # 只放你选择用于实验的笔记副本
+>       ├── mybatis.md
+>       └── mysql.md
+> ```
 
 配置两组独立服务：聊天的 `LLM_*` 与向量的 `EMBEDDING_*`。**执行索引会把选定文本发给向量服务，提问会把候选片段发给聊天服务**；只在数据允许这样处理时运行。
 
-```powershell
-# 在自己的练习目录运行，不要直接对整个电脑目录建立索引。
-python rag.py index
-python rag.py ask "MyBatis 中异常被 catch 后一定提交吗？"
-```
+> [!Example]
+>
+> ```powershell
+> # 在自己的练习目录运行，不要直接对整个电脑目录建立索引。
+> python rag.py index
+> python rag.py ask "MyBatis 中异常被 catch 后一定提交吗？"
+> ```
 
 ```python
 # rag.py：接续三个本地模块；为小规模、单用户、可信本地语料设计。
@@ -3279,31 +3401,35 @@ sequenceDiagram
 | tool_call_id | 将结果对应到某次调用 | 避免多工具结果错配 |
 | tool result | 程序实际执行结果 | found、score、error 等 |
 
-```json
-{
-  "type":"function",
-  "function":{
-    "name":"get_student",
-    "description":"按学生ID查询当前用户有权访问的学生信息；不要猜测ID。",
-    "parameters":{
-      "type":"object",
-      "properties":{"student_id":{"type":"integer","minimum":1}},
-      "required":["student_id"],
-      "additionalProperties":false
-    }
-  }
-}
-```
+> [!Example]
+>
+> ```json
+> {
+>   "type":"function",
+>   "function":{
+>     "name":"get_student",
+>     "description":"按学生ID查询当前用户有权访问的学生信息；不要猜测ID。",
+>     "parameters":{
+>       "type":"object",
+>       "properties":{"student_id":{"type":"integer","minimum":1}},
+>       "required":["student_id"],
+>       "additionalProperties":false
+>     }
+>   }
+> }
+> ```
 
 不同接口对 Schema 支持不同；严格工具模式也不是所有服务都支持。上面只是本文接口族的定义形状。[工具调用文档](https://api-docs.deepseek.com/zh-cn/guides/tool_calls/)
 
-```json
-{
-  "role":"tool",
-  "tool_call_id":"call_123",
-  "content":"{\"found\":true,\"score\":95}"
-}
-```
+> [!Example]
+>
+> ```json
+> {
+>   "role":"tool",
+>   "tool_call_id":"call_123",
+>   "content":"{\"found\":true,\"score\":95}"
+> }
+> ```
 
 **消息顺序**：保存 assistant 中的工具请求 → 执行 → 添加每个对应的 tool 结果 → 再次请求模型。不要只加 tool 结果，丢掉它对应的 assistant 请求。流式工具调用的 arguments 可能分片，必须先组装完整，再解析和执行。
 
@@ -3462,13 +3588,15 @@ def stream_message(client, messages, tools, **options):
 
 将第 58 节循环中的 `choice, usage = client.complete(...)` 替换为下面的调用方式，其余白名单、次数预算、结果回传和终止判断保留：
 
-```python
-# 机制示意：client/messages/TOOLS/options 来自 agent.py 的当前循环。
-from tool_stream import stream_message
-
-message, reason = stream_message(client, messages, TOOLS, **options)
-choice = {"message": message, "finish_reason": reason}
-```
+> [!Example]
+>
+> ```python
+> # 机制示意：client/messages/TOOLS/options 来自 agent.py 的当前循环。
+> from tool_stream import stream_message
+>
+> message, reason = stream_message(client, messages, TOOLS, **options)
+> choice = {"message": message, "finish_reason": reason}
+> ```
 
 不要同时保留旧的 `complete()`，否则会向模型发出两次请求。上面的简化适配没有汇总流式 usage，需要费用核算时应同时采集相关事件。仍使用第 58 节的非思考模式作为入门；思考模式要求回传哪些字段，应按厂商约定另行实现。
 
@@ -3509,15 +3637,17 @@ choice = {"message": message, "finish_reason": reason}
 
 ## 53. 与 Spring Boot、MyBatis、MySQL 结合
 
-```text
-LLM 请求 get_student(student_id)
-   ↓ Python 工具适配器：携带可信用户身份
-Spring Boot Controller：参数接收与认证
-   ↓ Service：业务规则、权限、事务边界
-Mapper / MyBatis：参数绑定与 SQL 执行
-   ↓ MySQL
-DTO → 工具结构化结果 → LLM 表达 → 用户
-```
+> [!Example]
+>
+> ```text
+> LLM 请求 get_student(student_id)
+>    ↓ Python 工具适配器：携带可信用户身份
+> Spring Boot Controller：参数接收与认证
+>    ↓ Service：业务规则、权限、事务边界
+> Mapper / MyBatis：参数绑定与 SQL 执行
+>    ↓ MySQL
+> DTO → 工具结构化结果 → LLM 表达 → 用户
+> ```
 
 | 层次 | 应负责 | 不应依赖 |
 |---|---|---|
@@ -4277,7 +4407,9 @@ print("轮廓系数：", round(silhouette_score(X_scaled, labels), 3))
 
 ## 71. 导数、偏导、梯度与优化
 
-单变量函数 `f(x)=x²` 的导数为 `2x`，描述 x 附近函数变化率。多变量函数 `f(x,y)=x²+3y²` 的偏导为 `2x` 与 `6y`，组成梯度 `(2x,6y)`。
+> [!Example]
+>
+> 单变量函数 `f(x)=x²` 的导数为 `2x`，描述 x 附近函数变化率。多变量函数 `f(x,y)=x²+3y²` 的偏导为 `2x` 与 `6y`，组成梯度 `(2x,6y)`。
 
 ```text
 梯度：在欧氏度量下指向局部上升最快方向
@@ -4285,7 +4417,9 @@ print("轮廓系数：", round(silhouette_score(X_scaled, labels), 3))
 参数更新：w_new = w_old − learning_rate × gradient
 ```
 
-例如 w=3，损失 L(w)=w²，学习率 0.1，则梯度 6，更新得到 2.4。
+> [!Example]
+>
+> 例如 w=3，损失 L(w)=w²，学习率 0.1，则梯度 6，更新得到 2.4。
 
 **梯度为零意味着什么**：可能是局部极小、局部极大、鞍点或其他平坦情况，不能直接说“训练已经找到最好答案”。极值判断需要结合邻域、二阶信息或问题结构。
 
@@ -4295,12 +4429,14 @@ print("轮廓系数：", round(silhouette_score(X_scaled, labels), 3))
 
 若 `u=g(x)`，`y=f(u)`，则 `dy/dx=(dy/du)(du/dx)`。神经网络是大量复合运算，反向传播沿计算图把局部导数组合起来。
 
-```text
-w → z=2w → y=z² → L
-反向：dL/dy → dy/dz → dz/dw → dL/dw
-```
-
-若 L=y，w=3，则 z=6，`dy/dz=12`，`dz/dw=2`，所以 `dL/dw=24`。
+> [!Example]
+>
+> ```text
+> w → z=2w → y=z² → L
+> 反向：dL/dy → dy/dz → dz/dw → dL/dw
+> ```
+>
+> 若 L=y，w=3，则 z=6，`dy/dz=12`，`dz/dw=2`，所以 `dL/dw=24`。
 
 **Backward 与 Update 不同**：反向传播计算梯度，优化器使用梯度更新参数。只调用 `backward()`，不代表参数已经改变。
 
@@ -4391,19 +4527,21 @@ w → z=2w → y=z² → L
 | autograd | 沿计算图求导 | requires_grad 参数参与运算时 |
 | device | CPU/GPU 等运行位置 | 模型和输入需兼容 |
 
-```python
-# 独立示例：依赖 torch；没有 torch 时先安装与本机平台匹配的 PyTorch。
-import torch
-
-x = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
-w = torch.ones(2, 3, requires_grad=True)
-# 矩阵乘法：[2,2] × [2,3] → [2,3]；梯度会沿这条计算路径回传。
-y = x @ w
-loss = y.mean()
-loss.backward()
-print(y.shape)       # torch.Size([2, 3])
-print(w.grad.shape)  # torch.Size([2, 3])
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：依赖 torch；没有 torch 时先安装与本机平台匹配的 PyTorch。
+> import torch
+>
+> x = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+> w = torch.ones(2, 3, requires_grad=True)
+> # 矩阵乘法：[2,2] × [2,3] → [2,3]；梯度会沿这条计算路径回传。
+> y = x @ w
+> loss = y.mean()
+> loss.backward()
+> print(y.shape)       # torch.Size([2, 3])
+> print(w.grad.shape)  # torch.Size([2, 3])
+> ```
 
 `dtype` 不一致可能影响运算或精度；`device` 不一致通常会报错；`requires_grad=True` 让相关运算被自动微分追踪，不代表这个 Tensor 会自动更新。
 
@@ -4421,16 +4559,18 @@ flowchart LR
     O --> F
 ```
 
-基础训练步骤：
-
-```python
-# 机制示意：model、optimizer、loss_fn、xb、yb 由训练脚本提供。
-optimizer.zero_grad()           # 清理上一批梯度。
-logits = model(xb)              # Forward。
-loss = loss_fn(logits, yb)      # 与目标比较。
-loss.backward()                # 计算并累积梯度。
-optimizer.step()               # 更新参数。
-```
+> [!Example]
+>
+> 基础训练步骤：
+>
+> ```python
+> # 机制示意：model、optimizer、loss_fn、xb、yb 由训练脚本提供。
+> optimizer.zero_grad()           # 清理上一批梯度。
+> logits = model(xb)              # Forward。
+> loss = loss_fn(logits, yb)      # 与目标比较。
+> loss.backward()                # 计算并累积梯度。
+> optimizer.step()               # 更新参数。
+> ```
 
 **为什么清零**：PyTorch 的参数梯度默认会累积。故意做梯度累积时可以跨多个小 Batch 再更新，但要正确缩放损失和控制更新时机。
 
@@ -4471,17 +4611,19 @@ optimizer.step()               # 更新参数。
 | 语言模型 Logits | `[B,L,V]` | 每位置对词表的分数 |
 | 语言模型标签 | `[B,L]` | 每位置对应的目标 Token ID |
 
-```python
-# 独立示例：依赖 torch；验证输入 logits、标签形状。
-import torch
-from torch import nn
-
-logits = torch.tensor([[2.0, 0.0, -1.0], [0.0, 2.0, 1.0]])
-labels = torch.tensor([0, 1], dtype=torch.long)
-# 直接传原始 Logits 与类别索引，交叉熵内部完成对应的对数概率计算。
-loss = nn.CrossEntropyLoss()(logits, labels)
-print(round(loss.item(), 4))
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：依赖 torch；验证输入 logits、标签形状。
+> import torch
+> from torch import nn
+>
+> logits = torch.tensor([[2.0, 0.0, -1.0], [0.0, 2.0, 1.0]])
+> labels = torch.tensor([0, 1], dtype=torch.long)
+> # 直接传原始 Logits 与类别索引，交叉熵内部完成对应的对数概率计算。
+> loss = nn.CrossEntropyLoss()(logits, labels)
+> print(round(loss.item(), 4))
+> ```
 
 `ignore_index` 可用于忽略不参与损失的位置，例如某些 Padding；注意平均分母与 mask 的口径。回归常用 MSE/MAE 类目标，不要因为看到标签就统一套分类交叉熵。
 
@@ -4604,26 +4746,28 @@ if best_state is not None:
 
 `K.transpose(-2,-1)` 交换最后两轴；Softmax 沿 Key 所在的最后一轴归一化。对错轴做 Softmax 往往不会报 shape 错误，但语义已经错了。
 
-```python
-# 独立示例：依赖 torch；标准多头 Attention 的核心矩阵计算。
-import math
-import torch
-
-# B=批量，H=头数，L=序列长度，d=每个头的向量维度。
-B, H, L, d = 2, 4, 6, 8
-torch.manual_seed(42)
-q = torch.randn(B, H, L, d)
-k = torch.randn(B, H, L, d)
-v = torch.randn(B, H, L, d)
-# 转置最后两维后，让每个 Query 与所有 Key 配对，得到 [B,H,L,L] 分数。
-scores = (q @ k.transpose(-2, -1)) / math.sqrt(d)
-allowed = torch.tril(torch.ones(L, L, dtype=torch.bool))
-scores = scores.masked_fill(~allowed, float("-inf"))
-# 沿 Key 位置归一化，使每个 Query 对可访问位置的权重和为 1。
-weights = torch.softmax(scores, dim=-1)
-out = weights @ v
-print(scores.shape, out.shape)  # [2,4,6,6] 和 [2,4,6,8]
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：依赖 torch；标准多头 Attention 的核心矩阵计算。
+> import math
+> import torch
+>
+> # B=批量，H=头数，L=序列长度，d=每个头的向量维度。
+> B, H, L, d = 2, 4, 6, 8
+> torch.manual_seed(42)
+> q = torch.randn(B, H, L, d)
+> k = torch.randn(B, H, L, d)
+> v = torch.randn(B, H, L, d)
+> # 转置最后两维后，让每个 Query 与所有 Key 配对，得到 [B,H,L,L] 分数。
+> scores = (q @ k.transpose(-2, -1)) / math.sqrt(d)
+> allowed = torch.tril(torch.ones(L, L, dtype=torch.bool))
+> scores = scores.masked_fill(~allowed, float("-inf"))
+> # 沿 Key 位置归一化，使每个 Query 对可访问位置的权重和为 1。
+> weights = torch.softmax(scores, dim=-1)
+> out = weights @ v
+> print(scores.shape, out.shape)  # [2,4,6,6] 和 [2,4,6,8]
+> ```
 
 ---
 
@@ -4754,32 +4898,36 @@ if __name__ == "__main__":
 
 ## 88. Next Token Prediction 的训练对齐
 
-```text
-输入位置：   [我] [喜欢] [机器] [学习]
-目标位置：   [喜欢] [机器] [学习] [EOS]
-```
+> [!Example]
+>
+> ```text
+> 输入位置：   [我] [喜欢] [机器] [学习]
+> 目标位置：   [喜欢] [机器] [学习] [EOS]
+> ```
 
 训练可以在因果 Mask 下同时计算多个位置的预测，但每个位置仍不能看到自己的未来目标。推理时新 Token 未知，通常逐步生成。
 
-```python
-# 独立示例：依赖 torch；演示 logits 与下一个 Token 标签对齐。
-import torch
-from torch import nn
-
-# B=批量，L=序列长度，V=词表大小；每个位置输出 V 个候选分数。
-B, L, V = 2, 5, 10
-torch.manual_seed(42)
-ids = torch.randint(0, V, (B, L))
-logits = torch.randn(B, L, V, requires_grad=True)
-shift_logits = logits[:, :-1, :]  # 前 L-1 个位置的预测。
-shift_labels = ids[:, 1:]        # 后 L-1 个真实 Token：目标向前对齐一位。
-# 把批量与位置合并成样本轴，最后一维仍保留词表候选。
-loss = nn.CrossEntropyLoss()(
-    shift_logits.reshape(-1, V), shift_labels.reshape(-1)
-)
-loss.backward()
-print("loss 为标量：", loss.ndim == 0)
-```
+> [!Example]
+>
+> ```python
+> # 独立示例：依赖 torch；演示 logits 与下一个 Token 标签对齐。
+> import torch
+> from torch import nn
+>
+> # B=批量，L=序列长度，V=词表大小；每个位置输出 V 个候选分数。
+> B, L, V = 2, 5, 10
+> torch.manual_seed(42)
+> ids = torch.randint(0, V, (B, L))
+> logits = torch.randn(B, L, V, requires_grad=True)
+> shift_logits = logits[:, :-1, :]  # 前 L-1 个位置的预测。
+> shift_labels = ids[:, 1:]        # 后 L-1 个真实 Token：目标向前对齐一位。
+> # 把批量与位置合并成样本轴，最后一维仍保留词表候选。
+> loss = nn.CrossEntropyLoss()(
+>     shift_logits.reshape(-1, V), shift_labels.reshape(-1)
+> )
+> loss.backward()
+> print("loss 为标量：", loss.ndim == 0)
+> ```
 
 不要仅说“标签右移一位”而不给出索引方向，容易把训练目标写反；直接核对“位置 t 的 Logits 预测 Token t+1”。一些库会在模型内部完成 shift，外部再移一次会出错。
 
@@ -5140,7 +5288,9 @@ KV 字节数 ≈ 2 × B × L × 层数 × Hkv × d × 每元素字节数
 
 其中 B 是同时保留的序列数量，L 是保留长度，Hkv 是 K/V 头数，2 表示 K 与 V。若 dk 与 dv 不同，应改用 `(dk+dv)`，不能机械乘 2d。
 
-**估算例子**：B=1，L=4096，32 层，Hkv=8，d=128，FP16=2 字节，则 `2×1×4096×32×8×128×2=536870912` 字节，约 512 MiB，仅为这部分 K/V 数据，未包含权重、临时工作区等。
+> [!Example]
+>
+> **估算例子**：B=1，L=4096，32 层，Hkv=8，d=128，FP16=2 字节，则 `2×1×4096×32×8×128×2=536870912` 字节，约 512 MiB，仅为这部分 K/V 数据，未包含权重、临时工作区等。
 
 ⚠️ **易混淆**：KV Cache 是计算中间状态，不是 RAG 文档库，不是答案缓存，也不是对所有用户共享的语义记忆。
 
@@ -5302,16 +5452,18 @@ RAG 工程化不仅是更换向量数据库，还包括资料生命周期、权�
 
 ### 100.3 检索指标手算：位置和相关程度都要看
 
-设相关片段是 `A、C`，等级为 `A=3、C=1`；检索前 3 条为 `[B,A,C]`。本文约定等级范围为 0～3，0 表示不相关。
-
-| 指标 | 本例计算 | 结果 |
-|---|---|---|
-| Precision@3 | 命中数 / K = 2/3 | 约 0.6667 |
-| Recall@3 | 命中数 / 相关总数 = 2/2 | 1 |
-| RR@3 | 首个相关结果排第 2，取 1/2 | 0.5 |
-| DCG@3 | `(2^0-1)/log2(2) + (2^3-1)/log2(3) + (2^1-1)/log2(4)` | 约 4.9165 |
-| IDCG@3 | 理想排序 `[A,C]`：`7/log2(2) + 1/log2(3)` | 约 7.6309 |
-| NDCG@3 | DCG / IDCG | 约 0.6443 |
+> [!Example]
+>
+> 设相关片段是 `A、C`，等级为 `A=3、C=1`；检索前 3 条为 `[B,A,C]`。本文约定等级范围为 0～3，0 表示不相关。
+>
+> | 指标 | 本例计算 | 结果 |
+> |---|---|---|
+> | Precision@3 | 命中数 / K = 2/3 | 约 0.6667 |
+> | Recall@3 | 命中数 / 相关总数 = 2/2 | 1 |
+> | RR@3 | 首个相关结果排第 2，取 1/2 | 0.5 |
+> | DCG@3 | `(2^0-1)/log2(2) + (2^3-1)/log2(3) + (2^1-1)/log2(4)` | 约 4.9165 |
+> | IDCG@3 | 理想排序 `[A,C]`：`7/log2(2) + 1/log2(3)` | 约 7.6309 |
+> | NDCG@3 | DCG / IDCG | 约 0.6443 |
 
 **MRR@K 是多条查询的 RR@K 均值**，不是把所有命中位置的倒数相加。本例使用指数增益 `2^grade-1`，有些工具使用原始相关性增益，比较时必须统一约定。标注粒度也要一致：文档级命中不能直接冒充片段级命中。
 
@@ -5319,12 +5471,14 @@ RAG 工程化不仅是更换向量数据库，还包括资料生命周期、权�
 
 ### 100.4 固定 JSONL 数据集与离线评价脚本
 
-把下面两行保存为 `retrieval_cases.jsonl`。`relevant` 是人工标注的相关 ID→等级，`ranked_ids` 是实际检索结果；真实项目应从第 49 节或向量库的检索阶段导出 ID，不能填模型自己声称的引用。保留问题原文和语料/切分版本；切分变化导致 ID 变化时，应先重新核对标注。
-
-```jsonl
-{"id":"q1","question":"MyBatis 参数如何绑定？","corpus_version":"notes-v1","relevant":{"A":3,"C":1},"ranked_ids":["B","A","C"]}
-{"id":"q2","question":"Docker 容器是什么？","corpus_version":"notes-v1","relevant":{"D":2},"ranked_ids":["D"]}
-```
+> [!Example]
+>
+> 把下面两行保存为 `retrieval_cases.jsonl`。`relevant` 是人工标注的相关 ID→等级，`ranked_ids` 是实际检索结果；真实项目应从第 49 节或向量库的检索阶段导出 ID，不能填模型自己声称的引用。保留问题原文和语料/切分版本；切分变化导致 ID 变化时，应先重新核对标注。
+>
+> ```jsonl
+> {"id":"q1","question":"MyBatis 参数如何绑定？","corpus_version":"notes-v1","relevant":{"A":3,"C":1},"ranked_ids":["B","A","C"]}
+> {"id":"q2","question":"Docker 容器是什么？","corpus_version":"notes-v1","relevant":{"D":2},"ranked_ids":["D"]}
+> ```
 
 ```python
 # eval_retrieval.py：独立示例；仅标准库，不调用模型、向量服务或网络。
@@ -5445,7 +5599,11 @@ python eval_retrieval.py retrieval_cases.jsonl baseline.json --k 3
 python eval_retrieval.py candidate_cases.jsonl candidate.json --k 3 --baseline baseline.json
 ```
 
-两条示例的均值应约为 `Precision=0.5、Recall=1、MRR=0.75、NDCG=0.8221`。脚本固定 Precision 分母为 K，返回不足 K 条也不改用实际条数；空标注的无答案问题不计入上述均值，报告同时展示有效数量。小样本变化不代表统计上显著；教学门槛是均值不得下降，业务可另设容忍区间，并检查类别、权限与逐条退化。
+> [!Example]
+>
+> 两条示例的均值应约为 `Precision=0.5、Recall=1、MRR=0.75、NDCG=0.8221`。
+
+脚本固定 Precision 分母为 K，返回不足 K 条也不改用实际条数；空标注的无答案问题不计入上述均值，报告同时展示有效数量。小样本变化不代表统计上显著；教学门槛是均值不得下降，业务可另设容忍区间，并检查类别、权限与逐条退化。
 
 > [!warning]
 > 检索指标高，仍可能生成错误答案。另存 `question、retrieved_ids、answer、citations、reference_points、人工评价和版本`；逐条核对证据支持、要点完整、引用正确和材料不足时拒答。延迟、成本、工具执行成功率分别测量，不用“答案包含关键词”代替事实评价。无答案/越权集要单独统计错误回答率，不能从上述均值中消失。
@@ -5461,13 +5619,17 @@ python eval_retrieval.py candidate_cases.jsonl candidate.json --k 3 --baseline b
        + Embedding + 重排 + 外部工具 + 自托管资源
 ```
 
-具体服务商会把某些项目合并，不能重复计算。以“每百万 Token 单价”的简单接口为例：
+具体服务商会把某些项目合并，不能重复计算。
 
-```text
-聊天费 = 未缓存输入数/1e6 × 未缓存输入单价
-       + 缓存输入数/1e6 × 缓存输入单价
-       + 输出数/1e6 × 输出单价
-```
+> [!Example]
+>
+> 以“每百万 Token 单价”的简单接口为例：
+>
+> ```text
+> 聊天费 = 未缓存输入数/1e6 × 未缓存输入单价
+>        + 缓存输入数/1e6 × 缓存输入单价
+>        + 输出数/1e6 × 输出单价
+> ```
 
 价格由配置或价格表提供，usage 来自实际响应。不要算完费用再随意减一个“缓存节省”“小模型节省”，导致重复折扣。不同模型与批处理的账单应按真实价格口径分别计算。
 
@@ -5662,13 +5824,19 @@ async def chat(req: ChatRequest):
                     (time.monotonic() - started) * 1000)
 ```
 
-```powershell
-# 依赖与服务配置就绪后，在本地运行。
-python -m pip install fastapi uvicorn
-python -m uvicorn app:app --host 127.0.0.1 --port 8000
-```
+> [!Example]
+>
+> ```powershell
+> # 依赖与服务配置就绪后，在本地运行。
+> python -m pip install fastapi uvicorn
+> python -m uvicorn app:app --host 127.0.0.1 --port 8000
+> ```
 
-测试请求为 `POST /chat`，JSON Body `{"question":"解释一下 API"}`。该接口只返回完整文本，若扩展 Streaming，需要把增量协议、代理缓冲、中断与取消一并设计。
+> [!Example]
+>
+> 测试请求为 `POST /chat`，JSON Body `{"question":"解释一下 API"}`。
+
+该接口只返回完整文本，若扩展 Streaming，需要把增量协议、代理缓冲、中断与取消一并设计。
 
 **队列任务状态**可设计为 queued/running/succeeded/failed/cancelled；客户端提交后获得 task_id，再查询进度。任务重投可能产生重复执行，所以写工具仍需幂等。
 
@@ -5805,16 +5973,18 @@ docker run --rm --env-file .env -p 127.0.0.1:8000:8000 personal-ai-api
 
 Nginx 可负责 TLS、反向代理与路由。若实现了 SSE 路由，需核对代理缓冲、读取超时、连接中断和客户端取消。
 
-```nginx
-# 配置片段：仅用于已经实现 /chat/stream 的服务，并非第 105 节自动提供。
-location /chat/stream {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_http_version 1.1;
-    # 关闭此代理层的响应缓冲，让上游片段及时传给下游。
-    proxy_buffering off;
-    proxy_read_timeout 120s;
-}
-```
+> [!Example]
+>
+> ```nginx
+> # 配置片段：仅用于已经实现 /chat/stream 的服务，并非第 105 节自动提供。
+> location /chat/stream {
+>     proxy_pass http://127.0.0.1:8000;
+>     proxy_http_version 1.1;
+>     # 关闭此代理层的响应缓冲，让上游片段及时传给下游。
+>     proxy_buffering off;
+>     proxy_read_timeout 120s;
+> }
+> ```
 
 关闭代理缓冲有助于及时转发增量，但应用服务器、上游和浏览器也要实际流式读取。`proxy_read_timeout` 不是整个任务硬 deadline。
 
@@ -5850,14 +6020,16 @@ location /chat/stream {
 
 ## 111. 企业/个人文档 RAG 问答项目
 
-```text
-docs/               原始资料与授权元数据
-ingestion/          加载、清洗、切分、索引更新
-retrieval/          向量、关键词、过滤、重排
-generation/         上下文、Prompt、模型适配
-evaluation/         问题集、相关证据、答案规则
-api/                问题入口、身份、响应与引用
-```
+> [!Example]
+>
+> ```text
+> docs/               原始资料与授权元数据
+> ingestion/          加载、清洗、切分、索引更新
+> retrieval/          向量、关键词、过滤、重排
+> generation/         上下文、Prompt、模型适配
+> evaluation/         问题集、相关证据、答案规则
+> api/                问题入口、身份、响应与引用
+> ```
 
 **从第 49 节扩展**：先支持 Markdown/TXT，再支持 PDF；固定一批问题作为质量基线；加入文档变更、删除、索引版本和用户权限；最后替换本地 JSON 为合适存储。
 
@@ -5877,17 +6049,19 @@ api/                问题入口、身份、响应与引用
 
 ## 112. 带工具的报告 Agent 工作流
 
-任务例子：“查询本月允许访问的销售记录，计算合计，生成报告草稿”。
-
-```text
-确认时间范围与用户身份
-  ↓ 受控后端查询（只返回授权数据）
-程序计算与核对统计
-  ↓ 模型整理报告
-结构、数字与引用验证
-  ↓ 保存草稿
-若用户要求发送：展示对象与内容，执行受控发送步骤
-```
+> [!Example]
+>
+> 任务例子：“查询本月允许访问的销售记录，计算合计，生成报告草稿”。
+>
+> ```text
+> 确认时间范围与用户身份
+>   ↓ 受控后端查询（只返回授权数据）
+> 程序计算与核对统计
+>   ↓ 模型整理报告
+> 结构、数字与引用验证
+>   ↓ 保存草稿
+> 若用户要求发送：展示对象与内容，执行受控发送步骤
+> ```
 
 固定的查数、计算和报告步骤可以先做 Workflow；只有需要动态补查时再加入 Agent 决策。数据统计应由 SQL/程序确认，不要求模型凭长表口算。
 
