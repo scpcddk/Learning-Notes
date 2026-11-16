@@ -494,13 +494,13 @@ hello
 # 3. API Key 与安全
 
 * [x] 理解 API Key
-* [ ] 理解认证 / 授权基本概念
-* [ ] 环境变量
+* [x] 理解认证 / 授权基本概念
+* [x] 环境变量
 * [x] Python 读取环境变量
 * [x] 不把 Key 写入代码
-* [ ] `.gitignore`
-* [ ] 避免 Key 提交 Git
-* [ ] 基础 Secret 安全意识
+* [x] `.gitignore`
+* [x] 避免 Key 提交 Git
+* [x] 基础 Secret 安全意识
 
 ---
 
@@ -513,7 +513,7 @@ hello
 * [x] `assistant`
 * [x] `temperature`
 * [x] 输出 Token 限制
-* [ ] 理解常用参数对输出的影响
+* [x] 理解常用参数对输出的影响
 
 ---
 

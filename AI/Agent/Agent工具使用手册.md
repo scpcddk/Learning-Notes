@@ -895,7 +895,11 @@ DSH 的 `dsh` 启动器按 **Profile** 组合插件与配置。通过 `npx` 启�
 | `dsh web --no-open` | 启动服务器但不自动打开浏览器 | 服务器或远程环境 |
 | `dsh web --port 8080` | 换用指定端口 | 默认端口被占用 |
 | `dsh headless "任务"` | 执行一次任务后退出 | 终端任务、脚本自动化 |
+| `dsh acp` | 通过标准输入和输出提供 Agent Client Protocol（ACP）接口 | 由兼容客户端提供交互界面 |
+| `dsh sdk` / `dsh sdk-minimal` | 通过标准输入和输出提供 JSON-RPC 接口 | 程序化集成，两者加载的组件不同 |
 | `dsh plugin --profile web ...` | 管理指定 Profile 的插件 | 插件管理；具体参数见官方帮助 |
+
+在 `0.2.2-rc.1` 中，`tui` 是官方文档中配置额外界面插件时使用的自定义 Profile 名称。仅命名或创建 Profile 并不会生成终端交互界面。该版本随附的交互界面可通过 `dsh web` 使用。[DSH 0.2.2-rc.1 CLI 行为参考](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.1/apps/cli/reference/README.md#profile-boot) · [TUI 配置示例来源](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.1/apps/cli/reference/README.md#plugin-management)
 
 **无需全局安装也可以查询 Web 帮助**。本地没有所需包时，`npx` 可能从 registry 下载并安装到 npm 缓存。[npm exec 文档](https://docs.npmjs.com/cli/v11/commands/npm-exec/)
 
@@ -939,7 +943,6 @@ dsh --profile headless --session-id <id> "继续"
 - 需要多轮修改时用 `--session-id` 恢复会话，否则每次调用都是独立任务。
 - `--approval-policy ask` 只设定审批行为；非交互模式没有可点击的审批界面，需要审批的操作可能无法完成（行为细节待实测）。
 - `--add-dir` 会扩大可写范围，只在确有需要时使用；不要为绕过 `Win32 5` 而额外授权目录或切到完全权限。
-- DSH 默认不提供 Codex 风格 TUI；社区有第三方 `dsh-tui`，不是官方内置功能。
 - 提示词里的"不要修改文件"只是任务约束；只读或写入范围应由权限预设控制。
 - Windows 沙箱的 `SetNamedSecurityInfoW failed (Win32 5)` 不会因改用 Headless 而消失。
 
@@ -1071,6 +1074,12 @@ opencode
 | 对比上下文管理 | Pi | `/session`、`/resume`、`/compact` | 对照实际上下文变化 |
 | 研究插件式 Agent | DSH | `dsh web`（全局安装后）→ 选模型和工作区 | 检查 Profile 与权限 |
 | 对比不同模型提供商 | OpenCode | 选择明确产品版本，再配置提供商 | 记录模型、任务与结果，避免混淆变量 |
+
+**按任务发起方式选择入口**
+
+- **人工交互**适合反复讨论范围、查看差异和调整方案。按工作环境选择 IDE、桌面或 Web 客户端，也可在终端使用交互式 CLI。通过 SSH 且只有终端可用时，可优先核对所用工具是否提供交互式 TUI。
+- **非交互式 CLI**适合由 Shell、Git 或 CI 触发的重复任务，例如批量汇总项目依赖、生成变更摘要，或在 Maven 测试失败后读取现成日志并给出诊断报告。接入时明确工作目录、输入、权限、退出状态和结果去向。Codex 的调用方式见[第 4.6 节](#46-继续会话和非交互执行)。[Codex 非交互模式](https://learn.chatgpt.com/docs/non-interactive-mode)
+- **程序化接口**适合由应用管理任务、会话和结果。可以由脚本串联非交互命令，也可以根据产品支持的接口选用 SDK 或协议。例如，脚本可以把实现产生的 diff 交给另一个 Agent 只读审查，再将差异、测试结果和审查意见交给人验收。
 
 > [!tip] 每次任务记住四个动作
 > **进入正确目录 → 核对权限 → 检查 diff 和测试 → 记录可复用经验**。普通成功对话无需逐条存档。

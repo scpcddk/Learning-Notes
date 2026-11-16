@@ -2571,54 +2571,49 @@ flowchart LR
 **完整流程**：
 
 ```mermaid
+%%{init: {"htmlLabels": true, "theme": "base", "themeVariables": {"fontSize": "16px", "lineColor": "#65788f", "edgeLabelBackground": "#f7faff"}, "flowchart": {"curve": "linear", "diagramPadding": 12, "rankSpacing": 28, "padding": 12, "wrappingWidth": 680, "subGraphTitleMargin": {"top": 10, "bottom": 12}}}}%%
 flowchart TB
-    %% ============ 阶段一：开启事务 ============
-    subgraph P1["🚀 阶段一 · 开启事务"]
+    subgraph P1["<b>阶段一 · 开启事务</b>"]
         direction TB
-        A(["① Controller 调用 Service"]):::entry
-        B["② Spring 事务代理拦截"]:::spring
-        C["③ 开启事务"]:::spring
-        D["④ 获取 Connection"]:::spring
-        E["⑤ 设置事务状态<br/><small>典型为 autoCommit = false</small>"]:::spring
-        F["⑥ Connection 与当前事务线程关联<br/><small>ThreadLocal 绑定</small>"]:::core
+        A("<div style='width:620px;text-align:center;line-height:1.6'><b>① Controller 调用 Service</b></div>"):::entry
+        B("<div style='width:620px;text-align:center;line-height:1.6'><b>② Spring 事务代理拦截</b></div>"):::spring
+        C("<div style='width:620px;text-align:center;line-height:1.6'><b>③ 开启事务</b></div>"):::spring
+        D("<div style='width:620px;text-align:center;line-height:1.6'><b>④ 获取 Connection</b></div>"):::spring
+        E("<div style='width:620px;text-align:center;line-height:1.6'><b>⑤ 设置事务状态</b><br/>典型为 autoCommit = false</div>"):::spring
+        F("<div style='width:620px;text-align:center;line-height:1.6'><b>⑥ 将 Connection 绑定到当前线程</b><br/>通过 ThreadLocal 关联事务连接</div>"):::connection
         A --> B --> C --> D --> E --> F
     end
 
-    %% ============ 阶段二：执行业务 ============
-    subgraph P2["⚙️ 阶段二 · 执行业务"]
+    subgraph P2["<b>阶段二 · 执行业务</b>"]
         direction TB
-        G["⑦ Mapper 调用"]:::mybatis
-        H["⑧ MyBatis 获取当前事务环境中的<br/>SqlSession / Connection"]:::mybatis
-        I(["⑨ decreaseA()"]):::biz
-        J(["⑩ increaseB()"]):::biz
+        G("<div style='width:620px;text-align:center;line-height:1.6'><b>⑦ 调用 Mapper</b></div>"):::mybatis
+        H("<div style='width:620px;text-align:center;line-height:1.6'><b>⑧ MyBatis 获取当前事务中的资源</b><br/>SqlSession / Connection</div>"):::mybatis
+        I("<div style='width:620px;text-align:center;line-height:1.6'><b>⑨ decreaseA()</b></div>"):::business
+        J("<div style='width:620px;text-align:center;line-height:1.6'><b>⑩ increaseB()</b></div>"):::business
         G --> H --> I --> J
     end
 
-    %% ============ 阶段三：提交事务 ============
-    subgraph P3["✅ 阶段三 · 提交事务"]
+    subgraph P3["<b>阶段三 · 提交事务</b>"]
         direction TB
-        K(["⑪ Service 正常结束"]):::entry
-        L["⑫ Spring TransactionManager<br/>commit()"]:::spring
-        M[("⑬ MySQL 提交事务<br/>InnoDB")]:::db
+        K("<div style='width:620px;text-align:center;line-height:1.6'><b>⑪ Service 正常结束</b></div>"):::entry
+        L("<div style='width:620px;text-align:center;line-height:1.6'><b>⑫ Spring TransactionManager</b><br/>调用 commit()</div>"):::commit
+        M("<div style='width:620px;text-align:center;line-height:1.6'><b>⑬ MySQL 提交事务</b><br/>InnoDB</div>"):::commit
         K --> L --> M
     end
 
-    F ==> G
-    J ==> K
+    P1 ==>|"复用事务连接"| P2
+    P2 ==> P3
 
-    %% ============ 样式 ============
-    classDef entry   fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D47A1,rx:20,ry:20;
-    classDef spring  fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20;
-    classDef mybatis fill:#FFF3E0,stroke:#FB8C00,stroke-width:2px,color:#E65100;
-    classDef biz     fill:#FFFDE7,stroke:#FDD835,stroke-width:2px,color:#F57F17;
-    classDef core    fill:#FCE4EC,stroke:#D81B60,stroke-width:3px,color:#880E4F;
-    classDef db      fill:#EDE7F6,stroke:#5E35B1,stroke-width:3px,color:#311B92;
+    classDef entry      fill:#e5f2ff,stroke:#72aaf0,color:#183f73,stroke-width:1.5px;
+    classDef spring     fill:#e1f8e8,stroke:#68c589,color:#174e31,stroke-width:1.5px;
+    classDef connection fill:#ffe8f2,stroke:#e980aa,color:#7a2850,stroke-width:2px;
+    classDef mybatis    fill:#ffeed8,stroke:#f0ad59,color:#713a10,stroke-width:1.5px;
+    classDef business   fill:#fff5c6,stroke:#e7bc48,color:#60470e,stroke-width:1.5px;
+    classDef commit     fill:#eee8ff,stroke:#a793ea,color:#433275,stroke-width:1.5px;
 
-    style P1 fill:#F1F8E9,stroke:#AED581,stroke-dasharray:6 4,color:#33691E
-    style P2 fill:#FFF8E1,stroke:#FFD54F,stroke-dasharray:6 4,color:#E65100
-    style P3 fill:#EDE7F6,stroke:#B39DDB,stroke-dasharray:6 4,color:#311B92
-
-    linkStyle default stroke:#90A4AE,stroke-width:1.5px
+    style P1 fill:#f5fcf7,stroke:#a9dcb6,color:#205338
+    style P2 fill:#fffbf1,stroke:#efd296,color:#6b4515
+    style P3 fill:#faf7ff,stroke:#c9baef,color:#503c7f
 ```
 
 **若 ⑨ 或 ⑩ 抛异常**：

@@ -173,6 +173,8 @@ git reset HEAD 文件名
 git restore --staged 文件名
 ```
 
+这些写法以 `HEAD` 为来源，适用于仓库已有提交的情况。首次提交前误暂存新文件时，可参照[敏感文件误入 Git 的处理](#敏感文件误入-git-的处理)。
+
 ### 3.修改最近一次提交信息（未 push）
 
 ```bash
@@ -279,7 +281,7 @@ git stash list            # 查看暂存列表
 
 在仓库根目录创建 `.gitignore` 文件，示例内容：
 
-```bash
+```gitignore
 # 编译产物
 target/
 *.class
@@ -290,14 +292,79 @@ Thumbs.db
 
 # 日志
 *.log
+
+# 本地敏感配置
+.env
 ```
 
-如果文件已被跟踪，需先取消跟踪：
+忽略规则适用于匹配的未跟踪文件。某个文件已经被 Git 跟踪时，需要从索引中移除它，再提交这一变更。[Git `.gitignore` 文档](https://git-scm.com/docs/gitignore)
+
+### 敏感文件误入 Git 的处理
+
+如果真实 API Key 已经泄露，或无法确认暴露范围，先在服务商处撤销旧 Key 或轮换凭证，再处理仓库记录。[GitHub 敏感数据清理指南](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
+
+**Git 的完整流程**
+
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"flowchart":{"curve":"linear","diagramPadding":12,"rankSpacing":28,"padding":16,"wrappingWidth":680},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    W("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>工作区（Working Directory）</b><br/>创建或修改 .env 文件</div>")
+    S("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>① 暂存区（Staging Area）</b><br/>已暂存，尚未提交<br/>已有 HEAD 时可用 git restore --staged -- .env 撤销暂存</div>")
+    L("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>② 本地仓库（Local Repository）</b><br/>已提交，尚未推送<br/>按需修订或清理本地提交历史</div>")
+    R("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>③ 远程仓库（Remote Repository）</b><br/>已推送到 GitHub 等平台<br/>考虑远程历史及其他副本</div>")
+
+    W -->|"git add ."| S
+    S -->|"git commit"| L
+    L -->|"git push"| R
+
+    classDef workspace fill:#fff4e9,stroke:#d5a58b,color:#382820,stroke-width:1px;
+    classDef staged fill:#ffe2cc,stroke:#bd7f5d,color:#382820,stroke-width:1px;
+    classDef local fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    classDef remote fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class W workspace;
+    class S staged;
+    class L local;
+    class R remote;
+```
+
+图中以 `.env` 实际被加入暂存区为例。匹配忽略规则的未跟踪 `.env` 会被 `git add .` 默认跳过。
+
+| `.env` 的状态 | 处理方式 |
+|---|---|
+| 仅暂存，尚未提交 | 撤销暂存，检查忽略规则和待提交列表。 |
+| 已提交到本地，尚未推送 | 先暂停推送。若仅最近一次本地提交包含密钥，可以修订该提交。若更早的提交也包含密钥，需要清理相应的历史范围。 |
+| 已推送到远程 | 处理凭证后，再评估是否需要重写并更新远程历史，以及如何处理协作者和平台保留的副本。 |
+
+**撤销刚加入暂存区的 `.env`**
+
+已有提交且 `.env` 只作为新文件进入暂存区时，下面的命令从 `HEAD` 恢复索引，磁盘上的 `.env` 仍可供本地程序使用。随后确认 `.gitignore` 含有 `.env`，并检查待提交列表。[Git `restore` 文档](https://git-scm.com/docs/git-restore)
 
 ```bash
-# 操作前区分源路径和目标路径，核对操作后的文件位置。
-git rm --cached 文件名
+git restore --staged -- .env
+git status
 ```
+
+首次提交前还没有可供恢复的 `HEAD`。如果暂存的 `.env` 与磁盘上的文件一致，可以用下面的 `git rm --cached` 命令把它移出索引，再用 `git status` 检查。[Git `rm` 文档](https://git-scm.com/docs/git-rm)
+
+**让后续版本排除已跟踪的 `.env`**
+
+在 `.gitignore` 中加入 `.env`，然后从索引移除该文件并暂存忽略规则。`--cached` 只操作索引，本地文件可继续使用。核对暂存内容后提交这两项变更。[Git `rm` 文档](https://git-scm.com/docs/git-rm)
+
+```bash
+git rm --cached -- .env
+git add -- .gitignore
+git status
+```
+
+> [!Example]
+>
+> 在提交 A 中加入 `.env`，在提交 B 中记录删除。提交 B 的文件快照已经排除 `.env`，从提交 A 仍可读取旧文件。`git revert` 同样会创建一个新提交并保留原提交。
+
+如果发现时当前分支仍停在提交 A，而且 A 尚未推送、只有该次提交包含密钥，可以先暂存正确的内容，再用第四节的 `git commit --amend` 替换分支顶端的提交。如果已创建提交 B，直接推送仍可能把包含密钥的提交 A 一并上传。[Git `commit` 文档](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---amend)
+
+**清理已发布的历史**
+
+`git-filter-repo` 可按指定路径或内容重写历史。改写会改变受影响的提交 ID，更新远程可能需要强制推送，并与协作者协调分支和克隆。旧数据仍可能保留在克隆、Fork、Pull Request 引用或平台缓存中。根据暴露范围核对这些副本，再决定是否需要协调清理或联系平台支持。[GitHub 敏感数据清理指南](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
 
 ---
 

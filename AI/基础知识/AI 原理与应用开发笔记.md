@@ -665,6 +665,7 @@ $$
 多模态模型可以处理图像、音频、视频等输入。**文本 Tokenizer 不负责把所有模态统一“按字分词”**；通常还需要图像/音频预处理器和编码模块。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart LR
     T[文本] --> TT[Tokenizer / 文本 Embedding]
     I[图像 / 音频] --> E[模态预处理与编码器]
@@ -672,6 +673,11 @@ flowchart LR
     TT --> M[模型的信息融合与计算]
     P --> M
     M --> O[文本 Token 或相应模态输出]
+
+    classDef input fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class T,I input;
+    classDef result fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class O result;
 ```
 
 | 任务 | 输入/输出 | 需要理解 |
@@ -962,15 +968,84 @@ Python 对象
 
 ## 19. API Key、认证、授权与环境变量
 
-**认证 Authentication**：识别调用者是谁或持有什么凭证。
-**授权 Authorization**：决定此调用者能访问什么模型、数据、工具或操作。
+### 19.1 认证与授权
 
-API Key 是凭证之一，不能因为它放在名叫 `Authorization` 的请求头中，就把所有认证与授权概念混成同一件事。
+**认证（Authentication）**：
+检查调用凭证是否有效，并识别凭证所对应的身份。API Key 对应的身份可以是账户、项目或应用，具体由服务商决定。
+
+**授权（Authorization）**：
+检查该身份能否访问目标资源或执行指定操作，例如调用某个模型。服务端根据资源的权限规则决定是否放行。
+
+调用 DeepSeek 的 Chat Completions 接口时，客户端通过 `Authorization: Bearer <API_KEY>` 请求头提交身份凭证。这里的 `Authorization` 是 HTTP 请求头的名称，其值携带服务端用于认证的 API Key。[DeepSeek 对话 API 调用示例](https://api-docs.deepseek.com/zh-cn/#调用对话-api)
 
 > [!Example]
 >
+> 假设某个 AI 平台提供普通模型和高级模型，当前账户仅获准调用普通模型。
+>
+> | 请求 | 认证结果 | 授权结果 |
+> |---|---|---|
+> | 有效 Key，请求普通模型 | 通过，识别出账户 | 允许调用 |
+> | 有效 Key，请求高级模型 | 通过，识别出同一账户 | 拒绝，账户缺少该模型的权限 |
+> | 无效 Key，请求需要认证的模型 | 失败，未确认调用身份 | 在认证阶段拒绝，未进入账户权限检查 |
+
+#### 19.1.1 状态码与排查方向
+
+- `401 Unauthorized` 在 HTTP 中表示缺少访问目标资源所需的有效认证凭证。DeepSeek 将错误 API Key 列为 `401` 认证失败的原因。[RFC 9110 §15.5.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.2) · [DeepSeek 错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes/)
+- `403 Forbidden` 表示服务器理解了请求并拒绝执行。权限不足是可能原因之一，实际排查时结合响应体和对应接口的错误码文档确认拒绝原因。[RFC 9110 §15.5.4](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.4)
+
+### 19.2 环境变量与密钥排查
+
+#### 19.2.1 进程作用域与子进程继承
+
+环境变量是进程环境中的字符串键值对。在 `api_key = os.environ.get("DEEPSEEK_API_KEY")` 中，`DEEPSEEK_API_KEY` 是当前 Python 进程要查找的环境变量名，`api_key` 是保存读取结果的 Python 变量。没有找到同名变量时，`.get()` 返回 `None`。[Python 3.11 `os.environ` 文档](https://docs.python.org/3.11/library/os.html#os.environ)
+
+在 Windows PowerShell 中，`$env:` 修改当前 PowerShell 进程的环境。从该会话启动的子进程默认继承启动时的一份环境副本。[Windows 进程环境变量文档](https://learn.microsoft.com/en-us/windows/win32/procthread/environment-variables)
+
+> [!Example]
+>
+> 两个 PowerShell 窗口彼此独立，只有窗口 A 临时设置了 `DEEPSEEK_API_KEY`。假设用户级、系统级和窗口 B 的启动配置都没有提供同名变量。
+>
+> ```mermaid
+> %%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
+> flowchart TB
+>     A["PowerShell A：已设置环境变量"] -->|启动 Python| PA["继承该值，读取到 Key"]
+>     B["PowerShell B：环境中没有该变量"] -->|启动 Python| PB["查找不到，返回 None"]
+>
+>     classDef available fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+>     class PA available;
+>     classDef missing fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+>     class PB missing;
+> ```
+
+#### 19.2.2 临时设置与持久设置
+
+| 比较项 | 在 PowerShell 中临时设置 | 在 Windows 中持久设置 |
+|---|---|---|
+| 保存位置 | `$env:` 修改当前 PowerShell 的进程环境 | 保存到 Windows 的用户级或系统级配置 |
+| 关闭原终端后 | 当前进程的设置随之结束，仍在运行的子进程保留已继承的值 | 配置持续保留 |
+| 后续启动 Python 时 | 从已设置变量的 PowerShell 启动时默认继承，独立终端使用自己的环境 | 从已加载新配置的终端或 IDE 启动时可读到新值，仍在运行的应用可能沿用旧值 |
+
+> [!Example]
+>
+> 以 `DEMO_MODE=test` 为例，可以在 Windows 的「高级系统设置 → 高级 → 环境变量」中新增用户变量，也可以在 PowerShell 中任选下面一种方式写入当前用户的持久配置。
+>
 > ```powershell
-> # 仅当前 PowerShell 及其后续启动的子进程继承。
+> # setx 默认使用用户级作用域
+> setx DEMO_MODE "test"
+>
+> # .NET 接口显式指定用户级作用域
+> [Environment]::SetEnvironmentVariable("DEMO_MODE", "test", "User")
+> ```
+>
+> 持久配置的写入与进程环境的读取是两个步骤。保存后，重新打开负责启动 Python 的 PowerShell 或 IDE，再到实际启动的 Python 中检查 `DEMO_MODE`。[Microsoft `setx` 文档](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/setx) · [PowerShell 7.5 持久环境变量设置](https://learn.microsoft.com/zh-cn/powershell/module/microsoft.powershell.core/about/about_environment_variables?view=powershell-7.5)
+
+临时变量和持久变量都可以用同一段 Python 代码读取。`os.environ.get()` 查询当前 Python 进程中的值，所以同一份 `main.py` 在不同终端或 IDE 运行配置下可能读到不同结果。
+
+> [!Example]
+>
+> 在运行程序的 PowerShell 会话中设置变量，再启动 Python。
+>
+> ```powershell
 > $env:DEEPSEEK_API_KEY = "替换为自己的密钥"
 > $env:LLM_API_URL = "https://api.deepseek.com/chat/completions"
 > $env:LLM_MODEL = "填写账号当前可用的模型标识"
@@ -980,19 +1055,49 @@ API Key 是凭证之一，不能因为它放在名叫 `Authorization` 的请求�
 > # 独立示例：只验证存在性，不打印凭证内容。
 > import os
 >
-> key = os.environ.get("DEEPSEEK_API_KEY")
-> print("已配置密钥" if key else "当前 Python 进程未读取到密钥")
+> api_key = os.environ.get("DEEPSEEK_API_KEY")
+> print("已读取到非空 API Key：", bool(api_key))
 > ```
+
+#### 19.2.3 按作用域检查 API Key
+
+在 Windows 中，`GetEnvironmentVariable()` 的 `User` 和 `Machine` 分别读取当前用户和本机的持久配置。`$env:` 读取当前 PowerShell 进程实际拥有的值。直接读取会得到变量的原始内容，检查 API Key 时用 `[bool]` 只显示是否有非空值。[.NET `GetEnvironmentVariable` 文档](https://learn.microsoft.com/en-us/dotnet/api/system.environment.getenvironmentvariable?view=net-9.0) · [PowerShell 布尔转换规则](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_booleans?view=powershell-7.5)
+
+```powershell
+# 用户级持久配置
+[bool][Environment]::GetEnvironmentVariable("DEEPSEEK_API_KEY", "User")
+
+# 系统级持久配置
+[bool][Environment]::GetEnvironmentVariable("DEEPSEEK_API_KEY", "Machine")
+
+# 当前 PowerShell 进程
+[bool]$env:DEEPSEEK_API_KEY
+```
+
+`True` 表示对应范围有非空值，`False` 表示缺少变量或值为空。两个 `True` 可以对应不同的值，API Key 是否有效仍由服务端验证。
 
 | 现象 | 重点检查 |
 |---|---|
 | 终端可用，IDE 不可用 | IDE 进程是否继承环境、运行配置是否单独设置 |
 | 应用可用，JUnit 不可用 | 测试是否使用另一份运行配置 |
 | 新终端变量消失 | 之前是否只设置当前会话 |
+| 修改持久配置后仍读到旧值 | 重新打开启动 Python 的终端或 IDE，并检查运行配置是否覆盖了该值 |
 | 有 Key 仍然 401 | Key 是否有效、服务商是否匹配、Header 是否正确 |
 | 403 | 权限、组织、模型访问等服务端限制 |
 
-`.env` 只是普通文件，Python **不会自动读取它**；需要显式加载工具或配置系统。也不要把真实 Key 写进示例、日志、截图或前端。
+通过环境变量提供 API Key，可以在切换运行环境时更换凭证而无需修改代码。环境变量的值通常以明文存放，持久设置会让凭证在会话结束后继续留在本机配置中。两种方式都需要保护进程环境，并避免在终端历史、日志、截图或前端暴露真实 Key。[Microsoft Learn 的密钥配置说明](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0#environment-variables)
+
+### 19.3 `.gitignore` 与提交前检查
+
+#### 19.3.1 运行配置与忽略规则
+
+| 对象 | 在 AI 项目中的作用 |
+|---|---|
+| 环境变量 | 向运行中的程序提供配置。Python 用 `os.environ` 读取当前进程可见的值。 |
+| `.env` | 保存本地配置的普通文件，需要由加载工具或配置系统显式读取。 |
+| `.gitignore` | 告诉 Git 哪些未跟踪的文件或目录应被忽略，降低它们被意外加入版本管理的风险。 |
+
+如果项目使用 `.env` 保存本地配置，可以在项目根目录的 `.gitignore` 中写入 `.env`。Git 按照生效的规则忽略匹配的未跟踪文件。使用 Windows 用户级环境变量的项目可以直接从进程环境取 Key，练习忽略规则时用无敏感内容的文件即可。[Git `.gitignore` 文档](https://git-scm.com/docs/gitignore)
 
 > [!Example]
 >
@@ -1006,7 +1111,104 @@ API Key 是凭证之一，不能因为它放在名叫 `Authorization` 的请求�
 > *.pyc
 > ```
 
-⚠️ **易混淆**：`.gitignore` 不会自动取消已经追踪的文件，也不会删除 Git 历史中的密钥。泄露的 Key 应在服务商处失效/轮换，再处理仓库记录。
+⚠️ **易混淆**：`.gitignore` 不会自动取消已经跟踪的文件。文件状态与旧提交的处理见 [第 19.4 节](#194-api-key-误入-git-时的处理)。
+
+#### 19.3.2 提交前用 `git status` 检查暂存区
+
+在项目目录运行以下命令，查看工作区和暂存区的状态。默认输出会省略被忽略的未跟踪文件。[Git `git status` 文档](https://git-scm.com/docs/git-status)
+
+```powershell
+git status
+```
+
+> [!Example]
+>
+> 假设某个 AI 项目的状态如下。
+>
+> ```text
+> On branch main
+>
+> Changes to be committed:
+>         new file: main.py
+>         new file: .env
+>
+> Untracked files:
+>         notes.txt
+> ```
+
+| 输出分组 | 含义 |
+|---|---|
+| `Changes to be committed` | 这些变更已暂存，直接执行 `git commit` 会提交暂存区中的内容。 |
+| `Untracked files` | 这些文件尚未被 Git 跟踪。将文件加入暂存区后，它才会进入普通提交。 |
+
+提交前先查看待提交的路径。如果 `.env` 已列在待提交分组中且含有真实 API Key，先处理暂存状态，再提交。接着检查已暂存的文件内容。即使待提交列表只出现 `main.py`，仍要检查暂存版本里是否有硬编码的密钥。
+
+### 19.4 API Key 误入 Git 时的处理
+
+真实 API Key 已泄露或暴露范围不明时，先在 API 服务商处撤销旧 Key 或轮换凭证，再处理 Git 记录。[GitHub 敏感数据清理指南](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
+
+**Git 的完整流程**
+
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"flowchart":{"curve":"linear","diagramPadding":12,"rankSpacing":28,"padding":16,"wrappingWidth":680},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    W("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>工作区（Working Directory）</b><br/>创建或修改 .env 文件</div>")
+    S("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>① 暂存区（Staging Area）</b><br/>已暂存，尚未提交<br/>已有 HEAD 时可用 git restore --staged -- .env 撤销暂存</div>")
+    L("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>② 本地仓库（Local Repository）</b><br/>已提交，尚未推送<br/>按需修订或清理本地提交历史</div>")
+    R("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>③ 远程仓库（Remote Repository）</b><br/>已推送到 GitHub 等平台<br/>考虑远程历史及其他副本</div>")
+
+    W -->|"git add ."| S
+    S -->|"git commit"| L
+    L -->|"git push"| R
+
+    classDef workspace fill:#fff4e9,stroke:#d5a58b,color:#382820,stroke-width:1px;
+    classDef staged fill:#ffe2cc,stroke:#bd7f5d,color:#382820,stroke-width:1px;
+    classDef local fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    classDef remote fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class W workspace;
+    class S staged;
+    class L local;
+    class R remote;
+```
+
+图中以 `.env` 实际被加入暂存区为例。匹配忽略规则的未跟踪 `.env` 会被 `git add .` 默认跳过。
+
+| 发现时的状态 | 处理方式 |
+|---|---|
+| `.env` 仅暂存，尚未提交 | 仓库已有提交时，用 `git restore --staged` 撤销新增暂存，保留本地文件。首次提交前按 Git 笔记中的无 `HEAD` 情况处理，再核对忽略规则和待提交列表。 |
+| `.env` 已提交，尚未推送 | 先暂停推送，确认哪些提交包含旧 Key，再修订或清理相应历史。`git rm --cached` 可从索引移除 `.env` 并保留本地文件。将移除记录另作新提交时，含 Key 的旧提交仍可能随分支推送。 |
+| 含 Key 的提交已推送 | 凭证处理后按需评估历史重写。更新远程历史后，克隆、Fork 和平台缓存中仍可能有旧副本。 |
+
+具体命令和适用条件见 [Git 笔记：敏感文件误入 Git 的处理](../../云原生/DevOps/Git.md#敏感文件误入-git-的处理)。
+
+### 19.5 基础 Secret 安全意识
+
+Secret（敏感凭证）是需要保密的认证或签名材料。凭证泄露后，其他人可能在其权限范围内冒用它。例如，泄露的 DeepSeek API Key 可能被用于调用接口，消耗账户额度或产生费用。[OWASP Secret 管理指南](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
+
+| 凭证类型 | 示例 |
+|---|---|
+| API Key | DeepSeek API Key |
+| 数据库密码 | MySQL 连接密码 |
+| Access Token | 调用 API 的访问令牌 |
+| 私钥 | SSH 私钥、用于签名的私钥 |
+
+> [!important]
+>
+> **1. 存储安全**
+>
+> 通过运行配置提供真实凭证，源码和共享示例只写变量名或占位符。项目使用 `.env` 保存本地配置时，用 `.gitignore` 降低文件被误提交的风险。
+>
+> **2. 使用安全**
+>
+> 只把凭证交给需要认证的调用。如果 `headers` 中包含 `Authorization: Bearer ...`，直接打印整个字典会把凭证一起输出。日志和分享的排错信息只保留必要字段，例如状态码和脱敏后的错误信息。[OWASP 日志安全指南](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html#data-to-exclude)
+>
+> **3. 泄露后的处理**
+>
+> 怀疑真实凭证已泄露时，先在服务商处撤销旧凭证或轮换，再清理暴露凭证的代码、日志或仓库记录。涉及 Git 时按上面的文件状态选择处理方式。
+
+#### 19.5.1 安全排查 HTTP 401
+
+排查时先用 [第 19.2.2 节](#1922-临时设置与持久设置)的 Python 示例检查 `bool(api_key)`。`False` 时回查实际启动程序的终端或 IDE 配置。`True` 表示当前进程已读到非空值，这时再检查凭证是否有效，以及发送的 `Authorization` 请求头是否正确。[DeepSeek 错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes/)
 
 ---
 
@@ -1052,7 +1254,7 @@ API Key 是凭证之一，不能因为它放在名叫 `Authorization` 的请求�
 
 **示例是接口族，不是通用协议标准**：有的 API 使用 `input`、`max_output_tokens` 或不同事件类型；不能只改 Base URL 就认定全部功能兼容。
 
-DeepSeek 当前文档说明思考模式下部分采样参数不生效，且 `top_p` 行为因模型和模式不同。本文基础客户端不默认发送这些可选采样参数；需要实验时再明确加入。[思考模式说明](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/)
+DeepSeek 对话接口文档说明，`temperature` 在思考模式下不生效，`top_p` 的行为取决于模型和模式。本文基础客户端在实验需要时才发送这些可选采样参数。[DeepSeek 对话接口文档](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/)
 
 ### 21.1 参数实验：一次改变一个条件
 
@@ -1076,6 +1278,58 @@ DeepSeek 当前文档说明思考模式下部分采样参数不生效，且 `top
 选择“输出多条注意事项”等有一定长度的固定任务，便于观察预算不足时的行为；较小预算**可能**触发 `length`，不保证每次都触发。这里使用 `complete()` 是为了保留结束原因供观察，第 22 节的 `text()` 会把不完整回答作为异常处理。
 
 **记录格式**：模型/模式与版本、固定输入、参数、输出、结束原因、usage、耗时、你的判断。单次差异可能只是采样波动，应在相同条件下观察多次；低 Temperature 也不能保证绝对确定或事实正确。
+
+### 21.2 `temperature` 对输出的影响
+
+`temperature` 调整下一 Token 的采样分布。温度降低时，概率更集中在高分候选上。温度升高时，分布更平缓，原本低概率的候选有更多机会被采样。原理见 [第 13 节](#13-logits概率temperature-与-next-token-prediction)。
+
+> [!Example]
+>
+> 假设某一步只有三个候选 Token，温度为 `1` 时的概率分别为 `70%`、`20%` 和 `10%`。固定这一步的模型分数，按 `softmax(logits / T)` 计算。
+>
+> | 温度 | 候选 A | 候选 B | 候选 C |
+> |---|---:|---:|---:|
+> | `0.5` | 约 90.7% | 约 7.4% | 约 1.9% |
+> | `1` | 70% | 20% | 10% |
+> | `2` | 约 52.3% | 约 27.9% | 约 19.8% |
+>
+> 这是单步采样的教学示例。三行里 A 都是概率最高的候选，变化的是它领先的程度。
+
+如果接口与模式支持这个参数，可以用 `0.1` 作为低温实验值。对「解释 MyBatis 中 `SqlSession` 的作用」这类任务，比较重复请求的措辞和结构是否更稳定。对生成 AI 应用创意的任务，可以提高温度来观察方案是否更多样，再单独评价创意质量。回答长度和事实准确性也需要分别检查。
+
+### 21.3 `max_tokens` 与输出上限
+
+在 DeepSeek 的 Chat Completions 接口中，`max_tokens` 设置本次生成的最大 Token 数，实际可用空间还受模型上下文长度限制。模型可以在预算用完前自然结束。`max_tokens=500` 给出的是生成预算，实际用量可看 `usage.completion_tokens`。Token 和汉字的对应关系取决于分词器，见 [第 4 节](#4-tokentokenizervocabulary-与-token-id)。[DeepSeek 对话接口文档](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/)
+
+> [!Example]
+>
+> 同一个问题「什么是 MyBatis？」在不同预算下可能出现以下情况。两段回答都是教学示意。
+>
+> **`max_tokens=20`：预算较小**
+>
+> 「MyBatis 是一个 Java 持久层框架，它能够帮助开发者……」
+>
+> 还在解释时达到上限，输出可能在句子中间截断。
+>
+> **`max_tokens=500`：预算较宽松**
+>
+> 「MyBatis 是一个 Java 持久层框架。它通过 SQL 映射把查询结果转换为 Java 对象，帮助开发者减少重复的 JDBC 操作。」
+>
+> 回答可以在完成解释后提前结束，实际用量可能远低于 500 Token。
+
+**流式响应的结束判断**。在 DeepSeek 的 SSE 响应里，`[DONE]` 表示事件流已结束，`finish_reason` 给出模型停止生成的原因。收到 `[DONE]` 且 `finish_reason` 为 `length` 时，应按长度受限处理，检查输出上限与上下文预算。CLI 的处理方式见 [第 27.1 节](#271-这份代码的设计边界)。[DeepSeek 对话接口文档](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/)
+
+### 21.4 按任务搭配 `temperature` 和 `max_tokens`
+
+先在 `messages` 中明确任务、上下文和输出要求，再用 `temperature` 调整采样的多样性，用 `max_tokens` 为所需内容留出生成空间。比如要五个创意并附简短介绍，应把数量和格式写进提示词。
+
+| 任务 | `temperature` 示例 | `max_tokens` 示例 | 参数选择依据 |
+|---|---:|---:|---|
+| 解释 `@Transactional` 何时失效 | `0.1` | `500` | 用偏低温度减少采样波动，为解释适用条件和常见情形留出空间。 |
+| 给出五个 AI Agent 创意，每个附简短介绍 | `0.8` | `1000` | 适当提高温度，观察方案是否更多样，并为五个条目预留篇幅。 |
+| 分析 Spring Boot 启动失败日志 | `0.1` | `800` | 用偏低温度保持分析风格相对稳定，给原因说明和排查步骤留出空间。 |
+
+这些数值是支持采样温度时的教学起点。实际项目要结合模型和模式、任务复杂度、真实输出及 `finish_reason` 调整。技术问答还需要单独核对事实和排查步骤。
 
 ---
 
@@ -2617,12 +2871,18 @@ Schema 有效吗？
 **为什么能搜索**：适合检索的 Embedding 模型经过训练，使相关文本与问题在向量空间中具有可利用的关系。它提供候选排序信号，不提供“这条内容一定正确”的证明。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart LR
     A[文档片段] --> B[同一 Embedding 模型]
     Q[用户问题] --> B
     B --> V[向量空间]
     V --> S[相似度计算]
     S --> R[相关候选排序]
+
+    classDef input fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class A,Q input;
+    classDef result fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class R result;
 ```
 
 > [!important]
@@ -2678,6 +2938,7 @@ if __name__ == "__main__":
 | Cross-Encoder | 将问题与某个候选一起送入模型 | 对每一对候选评分，用于重排等任务 | 每个问题需要重新处理各个候选 |
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart LR
     D[文档] --> DE[文档编码]
     DE --> V[(可预计算向量)]
@@ -2688,6 +2949,11 @@ flowchart LR
     Q --> CE[问题与候选共同编码]
     C --> CE
     CE --> R[Cross-Encoder 重排]
+
+    classDef input fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class D,Q input;
+    classDef result fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class V,R result;
 ```
 
 这里 Bi-Encoder 的两侧可能共享权重，也可能由兼容的两路编码器实现。Cross-Encoder 输出可能是原始分数或经过变换的结果，**不是所有模型都固定输出 0～1，也不能跨不同模型直接比较分数**。
@@ -2871,6 +3137,7 @@ if __name__ == "__main__":
 它适合私人笔记、企业文档、变化较快的资料、需要引用来源的任务。它通常不需要为每份新文档重新训练生成模型。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart TB
     subgraph I[离线索引流程]
         A[文档与权限元数据] --> B[加载与清洗]
@@ -2886,6 +3153,11 @@ flowchart TB
         K --> L[引用检查与回答]
     end
     E --> H
+
+    classDef input fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class A,F input;
+    classDef result fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class E,L result;
 ```
 
 这张图是应用工程中的基础组织方式；RAG 原论文还涉及联合训练等研究设计，不能把所有 RAG 都归结为某一个框架 API。[RAG 原论文](https://arxiv.org/abs/2005.11401)
@@ -3367,6 +3639,7 @@ if __name__ == "__main__":
 【应用开发】模型返回“希望调用哪个工具、传什么参数”的结构化请求；实际函数由应用执行。模型说“已查询”不能替代程序真实调用。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 sequenceDiagram
     participant U as 用户
     participant A as 应用
@@ -3717,6 +3990,7 @@ MCP（Model Context Protocol）用于连接应用与工具/资源等能力的协
 | Termination | 完成、预算耗尽、无进展或取消 | 任务结束 |
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 stateDiagram-v2
     [*] --> INIT
     INIT --> DECIDE
@@ -3730,6 +4004,11 @@ stateDiagram-v2
     ACT --> STOP: 权限或不可恢复失败
     DONE --> [*]
     STOP --> [*]
+
+    classDef ready fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class INIT,DONE ready;
+    classDef stopped fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class STOP stopped;
 ```
 
 State 不能只存在模型长文本中：预算、权限、工具是否真的执行、写操作 ID，应由程序保存并检查。
@@ -3771,6 +4050,7 @@ State 不能只存在模型长文本中：预算、权限、工具是否真的�
 “把 messages 放到全局变量”只能维持当前进程的临时状态。持久化还需要用户隔离、序列化、并发更新、删除与保留规则；框架的内存 checkpointer 也不等于跨进程可靠保存。[LangGraph 对持久化边界的说明](https://docs.langchain.com/oss/python/langgraph/persistence)
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 stateDiagram-v2
     [*] --> queued
     queued --> running: 领取任务并保存版本
@@ -3782,6 +4062,11 @@ stateDiagram-v2
     recovery_required --> running: 查询实际执行状态后决定
     failed --> [*]
     succeeded --> [*]
+
+    classDef ready fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class queued,succeeded ready;
+    classDef attention fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class awaiting_approval,failed,recovery_required attention;
 ```
 
 ### 57.2 SQLite 持久化示例：state_store.py
@@ -4550,6 +4835,7 @@ print("轮廓系数：", round(silhouette_score(X_scaled, labels), 3))
 ## 77. Forward、Backward、Gradient 与 Optimizer
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart LR
     D[Batch 输入与标签] --> F[Forward]
     F --> P[预测 Logits]
@@ -4557,6 +4843,11 @@ flowchart LR
     L --> B[Backward 计算梯度]
     B --> O[Optimizer 更新参数]
     O --> F
+
+    classDef input fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class D input;
+    classDef result fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class O result;
 ```
 
 > [!Example]
@@ -5675,6 +5966,7 @@ CD：构建可回滚镜像 → 测试环境验证 → 小范围流量 → 扩大
 【工程实践】生产系统既要生成答案，也要管理身份、数据、状态、失败、部署和维护。
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"darkMode":false,"background":"#ffffff","primaryColor":"#ffe2cc","primaryTextColor":"#382820","primaryBorderColor":"#bd7f5d","secondaryColor":"#e7eac6","tertiaryColor":"#f5ddea","textColor":"#382820","lineColor":"#755d50","edgeLabelBackground":"#fff8f2","actorBkg":"#e7eac6","actorBorder":"#838b50","actorTextColor":"#382820","signalColor":"#755d50","signalTextColor":"#382820","labelBoxBkgColor":"#ffe2cc","activationBkgColor":"#f5ddea","noteBkgColor":"#f5ddea","noteBorderColor":"#af7897","noteTextColor":"#382820","clusterBkg":"#fff6ed","clusterBorder":"#d5b49d"},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart TB
     U[用户 / 前端] --> G[API 网关 / Spring Boot]
     G --> A[认证、授权、业务 Service]
@@ -5687,6 +5979,11 @@ flowchart TB
     A --> M[(MySQL / MyBatis)]
     P --> E[评价、日志、指标、Trace]
     G --> E
+
+    classDef input fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    class U input;
+    classDef result fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class V,M,E result;
 ```
 
 | 模块 | 主要负责 | 不应混在一起 |
