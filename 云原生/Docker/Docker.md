@@ -189,8 +189,22 @@ docker run my-java-app
 
 #### 1.1.4 镜像怎么迁移
 
-- **通过镜像仓库**。在源机器用 `docker push` 推送，再在兼容的目标机器用 `docker pull` 拉取。[镜像仓库与版本管理](镜像仓库与版本管理.md)
-- **通过离线文件**。用 `docker save` 导出镜像归档，再在目标机器用 `docker load` 加载。
+**构建结果保存在哪里。** 使用默认的 Docker 构建驱动时，`docker build` 成功后会将镜像导入构建所用的 Docker Engine 的镜像存储。向 Registry 发布需要显式推送，例如构建后执行 `docker push`，或在适用的构建命令里指定推送输出。 [默认 Docker 构建驱动](https://docs.docker.com/build/builders/drivers/docker/) · [构建输出方式](https://docs.docker.com/build/exporters/)
+
+镜像交给兼容的 Linux 服务器时，可以走镜像仓库或传输归档文件。
+
+- **通过镜像仓库**。为镜像添加指向目标仓库的完整引用，有权限的源机器用 `docker push` 发布，目标服务器用同一个引用执行 `docker pull`。 [镜像仓库与版本管理](镜像仓库与版本管理.md)
+- **通过归档文件**。在开发机把镜像导出为 `app.tar`。 [`docker save` 参考](https://docs.docker.com/reference/cli/docker/image/save/)
+
+  ```powershell
+  docker save -o app.tar my-spring-app:1.0
+  ```
+
+  把 `app.tar` 传到 Linux 服务器，在文件所在目录执行加载。导入后可用 `docker image ls` 核对镜像和标签。 [`docker load` 参考](https://docs.docker.com/reference/cli/docker/image/load/)
+
+  ```bash
+  docker load -i app.tar
+  ```
 
 ---
 
@@ -209,10 +223,21 @@ Java 21 在镜像里以文件形式保存。容器启动时，才会按启动配
 
 #### 1.2.2 同一个镜像如何运行多个容器
 
-从 `my-java-app:1.0` 可以创建多个容器。它们共享镜像的只读层，各自拥有容器可写层。每个容器启动后运行自己的 Java 进程。 [Docker 镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
+在同一个 Docker Engine 上，可以从同一份 `nginx:latest` 镜像创建 `web1` 和 `web2`。两个容器共享镜像的只读层，各自拥有独立的可写层，并分别运行自己的 Nginx 进程。 [Docker 镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
+
+```text
+nginx:latest（共享的只读镜像层）
+├─ web1 的可写层（写入了 /tmp/test.txt）
+└─ web2 的可写层
+```
 
 > [!NOTE]
-> **写入发生在各自的可写层。** 假设容器 A 执行 `touch /tmp/test.txt`，并把文件写入自己的可写层，那么使用同一镜像的容器 B 不会自动看到它。需要共享文件时，可以把同一个卷挂载到两个容器中。
+> **写入发生在各自的可写层。** 假设没有配置共享挂载，`web1` 写入可写层的 `/tmp/test.txt` 只出现在 `web1` 的文件系统中。需要共享文件时，可以把同一个卷挂载到两个容器中。
+
+| 命令 | 删除的对象和影响 |
+| :--- | :--- |
+| `docker rm web1` | `web1` 停止后，可用此命令删除该容器及其可写层。默认保留挂载数据和原镜像，`web2` 可以继续运行。 [删除容器](https://docs.docker.com/reference/cli/docker/container/rm/) |
+| `docker rmi nginx:latest` | 操作的是本地镜像引用。镜像有多个标签时，可以只移除指定标签。镜像仍被 `web2` 等运行中的容器使用时，删除镜像本身会受限制。 [删除镜像](https://docs.docker.com/reference/cli/docker/image/rm/) |
 
 ---
 
@@ -286,7 +311,59 @@ with open("test.txt", "r", encoding="utf-8") as f:
 Docker Desktop 使用 WSL 2 后端时，Docker Engine 在专用的 `docker-desktop` WSL 发行版中运行。Docker 创建的 Linux 容器共享 WSL 2 虚拟机里的 Linux 内核。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
 
 > [!NOTE]
-> 同一个 Docker Engine 启动三个 Linux 容器时，三个容器里的应用进程共用 WSL 2 提供的 Linux 内核。虚拟化发生在 Windows 与 WSL 2 之间。
+> **WSL 2 虚拟机运行完整的 Linux 内核。** 同一个 Docker Engine 启动多个 Linux 容器时，这些容器里的应用进程都向该 Linux 内核发出系统调用。 [Microsoft WSL 版本对比](https://learn.microsoft.com/zh-cn/windows/wsl/compare-versions)
+
+**多个终端与发行版**
+
+在同一个 Windows 用户的常规 WSL 2 环境中，多个发行版可以同时运行在一台轻量级虚拟机里，共享该虚拟机的 Linux 内核。 [WSL 2 架构](https://learn.microsoft.com/en-us/windows/wsl/compare-versions#wsl-2-architecture) · [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/#enable-docker-in-a-wsl-2-distribution)
+
+| 场景 | 分开的部分 | 共享的部分 |
+| :--- | :--- | :--- |
+| 同一个 Ubuntu 发行版的多个终端窗口 | 各自的 Shell 会话，可运行不同程序 | Ubuntu 的根文件系统、WSL 2 虚拟机及其 Linux 内核 |
+| 同时运行 Ubuntu、Debian 等 WSL 2 发行版 | 各发行版的根文件系统和进程命名空间 | WSL 2 虚拟机及其 Linux 内核 |
+| 同一个 Docker Engine 启动的两个普通 Linux 容器 | 各自的容器可写层 | 同一个 Linux 内核。若来自同一镜像，也共享镜像的只读层 |
+
+同一个 Linux 内核可以同时运行使用不同文件系统视图的进程。WSL 为每个发行版挂载自己的虚拟磁盘作为根文件系统。各发行版的进程命名空间决定其中的进程能看到哪些进程。发行版之间也可以通过共享挂载点访问文件，例如 `/mnt/wsl`。 [WSL 发行版的启动过程](https://wsl.dev/technical-documentation/init/#wsl2-specific-distributions-startup) · [§1.2.2 容器的可写层](#122-同一个镜像如何运行多个容器)
+
+**在两个窗口查看同一个文件**
+
+假设两个窗口进入同一个 Ubuntu WSL 2 发行版，并使用同一 Linux 用户的家目录。
+
+```bash
+# 窗口 A：创建文件
+touch ~/docker-test.txt
+
+# 窗口 B：查看文件
+ls ~/docker-test.txt
+```
+
+窗口 A 成功创建文件后，窗口 B 能列出它。两个窗口各有自己的 Shell 会话，但 `~` 都展开为同一个 Ubuntu 文件系统中的同一家目录，因此两条命令访问的是同一个路径。 [Bash 的波浪号展开规则](https://www.gnu.org/software/bash/manual/html_node/Tilde-Expansion.html)
+
+**查看内核版本**
+
+在两个 Ubuntu 终端中运行以下命令，可以比较它们看到的内核发行版本。
+
+```bash
+uname -r
+```
+
+相同的输出只表明内核发行版本相同。判断是否共享同一个内核实例，要看两个终端所在的发行版是否运行于同一台 WSL 2 虚拟机。 [GNU `uname` 命令参考](https://www.gnu.org/software/coreutils/manual/html_node/uname-invocation.html)
+
+#### 1.4.4 一台物理机如何运行多个内核
+
+操作系统内核是管理进程、内存和设备的核心软件。两台虚拟机可以各自启动一套内核，由同一台物理机的 CPU 执行这些内核的指令。**Hypervisor（虚拟机监控器）** 与宿主的虚拟化组件为每台虚拟机提供独立的虚拟硬件视图。客户机内核管理自己看到的处理器、内存和设备。虚拟化层协调各客户机对物理硬件的使用，并隔离它们的内存和设备访问。 [Microsoft Hyper-V 架构](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/architecture)
+
+```text
+物理硬件（CPU、内存、磁盘）
+└─ Hypervisor（协调资源使用并提供隔离）
+   ├─ 虚拟机 A（虚拟 CPU、内存）→ Linux 内核和应用
+   └─ 虚拟机 B（虚拟 CPU、内存）→ Windows 内核和应用
+```
+
+- **CPU**。客户机内核把应用的工作分配给虚拟 CPU（vCPU），虚拟化层再把可运行的 vCPU 调度到宿主的 CPU 上。假设宿主有 4 个物理核心，两台虚拟机各配置 4 个 vCPU。每台虚拟机都看到 4 个虚拟处理器，宿主仍有 4 个物理核心。两台虚拟机同时满载时可能竞争 CPU 时间。 [Hyper-V 的虚拟处理器调度](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/manage/manage-hyper-v-scheduler-types#understand-how-hyper-v-virtualizes-processors)
+- **内存**。各客户机看到独立的内存地址范围，虚拟化层把这些地址映射到宿主的实际内存。若宿主有 16 GB 物理内存，宿主系统和各虚拟机共同使用这 16 GB。虚拟机的实际占用随配置和运行需求而变。 [Hyper-V 的内存处理](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/architecture#interrupt-and-memory-handling)
+
+WSL 2 利用 Hyper-V 的部分虚拟化能力，在轻量级虚拟机中运行 Linux 内核。Docker Desktop 使用 WSL 2 后端时，Linux 容器的隔离由这台虚拟机里的 Linux 内核提供。同一个后端启动的容器共享该内核。 [Microsoft WSL 常见问题](https://learn.microsoft.com/en-us/windows/wsl/faq#does-wsl-2-use-hyper-v) · [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
 
 ---
 
@@ -318,6 +395,162 @@ Linux 容器通常使用命名空间（namespace）隔离进程、网络等视�
 | 磁盘 | 镜像、容器可写层和本地数据卷都会占用宿主机的磁盘空间。 |
 
 默认情况下，容器在宿主机内核允许的范围内按需使用 CPU 和内存。部署时可以为单个容器设置上限，以减少资源竞争对其他服务的影响。 [Docker 资源限制](https://docs.docker.com/engine/containers/resource_constraints/)
+
+---
+
+### 1.7 Docker CLI 与守护进程
+
+#### 1.7.1 组件职责
+
+| 组件 | 职责 |
+| :--- | :--- |
+| Docker CLI（`docker`） | 解析命令，通过 Docker API 向目标守护进程发出请求，再显示返回的结果。 |
+| Docker Daemon（`dockerd`） | 接收请求，管理镜像、容器、网络和数据卷。启动容器时，协调底层运行时。 |
+
+守护进程在后台持续接收请求并管理容器。每次在终端调用 CLI，CLI 都可以向同一个守护进程查询或操作它管理的容器。CLI 和守护进程可以分别运行在不同的系统环境或机器上。 [Docker 官方架构说明](https://docs.docker.com/get-started/docker-overview/#docker-architecture)
+
+#### 1.7.2 命令执行过程
+
+**查询运行中的容器**
+
+```powershell
+docker ps
+```
+
+1. **PowerShell** 找到并启动 `docker.exe`，把 `ps` 作为参数传给它。
+2. **Docker CLI** 解析 `ps`，通过 Docker API 向守护进程请求容器列表。
+3. **`dockerd`** 查询容器状态，返回正在运行的容器列表。
+4. **Docker CLI** 将返回的结果显示为表格。
+
+> [!NOTE]
+> - **连接失败**。CLI 可以解析 `ps`。目标守护进程未运行时，查询在连接阶段失败，CLI 会报告连接错误。 [守护进程连接故障排查](https://docs.docker.com/engine/daemon/troubleshoot/#unable-to-connect-to-the-docker-daemon)
+> - **列表为空**。守护进程正常响应且没有运行中的容器时，命令成功，表格没有容器条目。 [`docker ps` 命令参考](https://docs.docker.com/reference/cli/docker/container/ls/)
+
+**启动 Nginx 容器**
+
+```powershell
+docker run -d --name web nginx
+```
+
+`--name web` 将新容器命名为 `web`。`-d` 让它在后台运行。 [`docker run` 命令参考](https://docs.docker.com/reference/cli/docker/container/run/)
+
+1. **PowerShell 启动客户端**。PowerShell 调用 `docker.exe`，把镜像名和运行选项传给它。
+2. **CLI 请求创建容器**。CLI 解析参数，通过 Docker API 将创建请求发给守护进程。
+3. **守护进程检查镜像并创建容器**。在默认的 `missing` 拉取策略下，守护进程直接使用已有的本地镜像。缺少镜像时，守护进程告知 CLI，由 CLI 请求拉取。拉取成功后，CLI 重试创建。拉取失败时，这次命令会在创建容器前结束。创建容器时，守护进程会准备配置和可写层。 [镜像拉取策略](https://docs.docker.com/reference/cli/docker/container/run/#set-the-pull-policy---pull) · [§1.1.2 `docker run` 如何启动应用](#112-docker-run-如何启动应用)
+4. **Nginx 开始运行**。容器创建完成后，CLI 发出启动请求。守护进程协调底层组件启动 Nginx 主进程。其中 `containerd` 负责管理容器的生命周期，默认使用 `runc` 作为容器运行时。 [Docker 容器运行时](https://docs.docker.com/engine/daemon/alternative-runtimes/)
+
+> [!NOTE]
+> **CLI 退出之后**。`docker run -d` 成功时，CLI 输出容器 ID 并退出。`dockerd` 负责容器管理和启动协调，容器中的 Nginx 主进程由 Linux 内核调度执行。Docker 后端和 Nginx 主进程继续运行时，关闭 PowerShell 后，在新终端连接同一个守护进程仍能查询到 `web` 容器。 [§1.6 容器与宿主机的关系](#16-容器与宿主机的关系) · [Docker 后台运行模式](https://docs.docker.com/reference/cli/docker/container/run/#detached-mode--d---detach)
+
+#### 1.7.3 Windows 与 WSL 2 中的运行位置
+
+- **Windows**。从 PowerShell 调用的 Docker CLI 在这里运行。
+- **WSL 2**。Docker Desktop 使用 WSL 2 后端时，守护进程和它启动的 Linux 容器在这里运行。容器共享 WSL 2 提供的 Linux 内核。 [§1.4.3 Windows 上的 WSL 2 与 Docker](#143-windows-上的-wsl-2-与-docker) · [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
+
+#### 1.7.4 哪些命令需要连接守护进程
+
+| 命令 | 信息来自哪里 | 需要连接守护进程 |
+| :--- | :--- | :--- |
+| `docker --version` | 本地 Docker CLI 的版本信息 | 否 |
+| `docker ps` | 守护进程管理的运行中容器列表 | 是 |
+
+排查时，可以用 `docker --version` 确认本地 CLI 能运行，再用 `docker ps` 检查守护进程能否响应。 [Docker 版本命令参考](https://docs.docker.com/reference/cli/docker/version/) · [`docker ps` 命令参考](https://docs.docker.com/reference/cli/docker/container/ls/)
+
+---
+
+### 1.8 Docker Engine
+
+**Docker Engine** 是 Docker 用来构建镜像、运行和管理容器的核心系统。它采用客户端与服务端架构。Docker CLI 提供命令行入口，Docker Engine API 定义客户端和服务端的通信接口，`dockerd` 是在后台持续运行的服务端进程，负责管理镜像、容器、网络和数据卷。 [Docker Engine 官方说明](https://docs.docker.com/engine/)
+
+```text
+Docker CLI（docker）
+    ↕ Docker Engine API（请求和响应）
+Docker Daemon（dockerd）
+    ↓ 协调容器操作
+containerd 等运行组件
+```
+
+CLI 可以连接本机或远程的 Engine 服务端。守护进程收到创建或启动容器的请求后，会协调 `containerd` 等组件在服务端所在的环境中执行操作。 [Docker 客户端与服务端架构](https://docs.docker.com/get-started/docker-overview/#docker-architecture) · [Docker 容器运行时](https://docs.docker.com/engine/daemon/alternative-runtimes/)
+
+> [!NOTE]
+> **容器查询遇到连接错误**。`docker --version` 成功只说明 CLI 能完成本地版本查询。若 `docker ps` 提示无法连接守护进程，可从三个方面排查。 [§1.7.4 命令与守护进程的关系](#174-哪些命令需要连接守护进程)
+>
+> - **服务状态**。确认目标守护进程是否运行。本机 Docker Desktop 的后台服务未启动时也会出现这个现象。 [Docker 守护进程连接故障排查](https://docs.docker.com/engine/daemon/troubleshoot/#unable-to-connect-to-the-docker-daemon)
+> - **连接地址**。确认 CLI 指向的地址正确且可达。 [检查 CLI 连接的目标](https://docs.docker.com/engine/daemon/troubleshoot/#check-which-host-your-client-is-connecting-to)
+> - **访问权限**。确认当前用户能访问目标服务的通信端点。例如在 Linux 上，访问 Docker 的 Unix 套接字需要相应权限。 [Docker Engine 在 Linux 上的权限说明](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user)
+
+---
+
+### 1.9 Docker Registry 与镜像拉取
+
+#### 1.9.1 Registry 与 Docker Hub
+
+**Registry（镜像仓库服务）**负责存储和分发容器镜像。比如在 Windows 上构建好 Spring Boot 镜像 `my-java-app:1.0` 后，可以用 `docker tag` 为它添加一个包含目标仓库地址的镜像引用，再推送到该仓库。有访问权限的 Linux 服务器可用同一个完整引用拉取。 [§1.1.4 镜像怎么迁移](#114-镜像怎么迁移) · [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
+
+**Docker Hub** 是 Docker 运营的镜像托管平台。Docker 默认使用它提供的 Registry 服务。Hub 还提供账号和组织管理、公开与私有仓库、访问权限和网页管理功能。 [Docker Hub 功能](https://docs.docker.com/docker-hub/) · [Docker Hub 仓库管理](https://docs.docker.com/docker-hub/repos/)
+
+**自建 Registry** 也可以分发镜像。例如公司可以自己部署私有 Registry，开发人员和部署服务器用包含该仓库地址的镜像引用，按各自获得的权限推送或拉取。 [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
+
+一个 Registry 可以托管多个 Repository，同一个 Repository 可以用不同的标签标记镜像版本。 [镜像仓库与版本管理](镜像仓库与版本管理.md)
+
+#### 1.9.2 一次 `docker pull` 如何完成
+
+```bash
+docker pull nginx:latest
+```
+
+`nginx:latest` 是镜像引用的简写，按 Docker 的默认命名规则展开为 `docker.io/library/nginx:latest`。CLI 通过 Docker Engine API 发出拉取请求，守护进程从 Registry 获取标签指向的镜像内容，下载缺少的层并复用已有的层。 [镜像引用规则](https://docs.docker.com/reference/cli/docker/image/tag/) · [`docker pull` 命令参考](https://docs.docker.com/reference/cli/docker/image/pull/)
+
+```text
+Docker CLI
+    ↓ 发出拉取请求
+dockerd  ↔  Registry（请求和下载镜像）
+    ↓ 保存镜像内容
+目标 Docker Engine 的镜像存储
+```
+
+**本地镜像**以 CLI 当前连接的 Docker Engine 为准。连到远程 Engine 时，拉取结果保存在远程 Engine 管理的镜像存储中。 [§1.8 Docker Engine](#18-docker-engine)
+
+| 命令 | 作用 |
+| :--- | :--- |
+| `docker pull nginx:latest` | 拉取镜像，使它在目标 Engine 上可用 |
+| `docker image ls` | 查看目标 Engine 已保存的镜像 |
+| `docker run --name web nginx:latest` | 用镜像创建并启动名为 `web` 的容器 |
+| `docker ps` | 查看目标 Engine 上正在运行的容器 |
+
+单独执行 `docker pull` 只完成镜像拉取。需要创建并启动容器时，使用 `docker run`。它默认使用目标 Engine 中已有的镜像，缺少时再尝试拉取。 [镜像列表](https://docs.docker.com/reference/cli/docker/image/ls/) · [容器列表](https://docs.docker.com/reference/cli/docker/container/ls/) · [§1.7.2 创建与拉取流程](#172-命令执行过程)
+
+---
+
+### 1.10 Docker 基本架构串联
+
+以从 PowerShell 执行 `docker run -d --name web nginx` 为例，Docker Engine 是这套容器运行与管理系统。CLI 通过 Docker Engine API 向核心服务端进程 `dockerd` 发出请求。 [§1.8 Docker Engine](#18-docker-engine)
+
+```text
+PowerShell → Docker CLI
+    ↓ 通过 Docker Engine API 发出请求
+dockerd（Engine 服务端进程）
+    ├─ 镜像已存在 → 使用本地镜像
+    └─ 镜像缺失   → 按默认策略，由 CLI 请求从 Registry 拉取
+    ↓ 根据镜像创建容器
+容器运行组件启动 Nginx 主进程
+```
+
+镜像提供 Nginx 的程序文件和默认启动配置。容器是从该镜像创建的实例。容器中的 Nginx 进程由 Engine 所在 Linux 环境的内核调度。 [§1.2 Docker 镜像](#12-docker-镜像是什么) · [§1.7.2 启动 Nginx 的过程](#172-命令执行过程)
+
+> [!NOTE]
+> **通信结果和请求处理结果需要分别判断。** 在上面的 Nginx 示例中，守护进程先向 CLI 返回镜像缺失的结果，CLI 随后发出拉取请求。守护进程能把处理错误返回给 CLI，说明这次 API 请求和响应已经完成。 [Docker 默认拉取策略](https://docs.docker.com/reference/cli/docker/container/run/#set-the-pull-policy---pull)
+
+| 提示 | 能确认的环节 | 排查方向 |
+| :--- | :--- | :--- |
+| `Cannot connect to the Docker daemon` | CLI 未能连接到目标守护进程 | 检查守护进程状态、连接地址和访问权限。 [§1.8 Docker Engine](#18-docker-engine) |
+| 拉取报错含 `Error response from daemon` 和 `pull access denied` | CLI 已收到守护进程的响应，操作在获取镜像时失败，本次命令还未启动 Nginx。 | 核对镜像引用及拉取权限。 |
+| `docker ps` 成功返回容器列表 | 守护进程响应了这一次查询，空列表也是有效响应。 | 比较两条命令的结果时，先确认它们连接同一个 Engine。 [`docker ps`](https://docs.docker.com/reference/cli/docker/container/ls/) · [Docker 连接上下文](https://docs.docker.com/engine/manage-resources/contexts/) |
+| 守护进程返回 `The container name "/web" is already in use` | 新容器在创建阶段遇到名称冲突，`web` 已被同一个 Engine 中的容器占用。 | 用 `docker ps -a` 查看 `NAMES` 和 `STATUS`，包括已停止的容器。 |
+
+`pull access denied` 可以定位到镜像拉取失败。具体原因仍需核实，例如镜像引用写错、仓库不存在，或访问私有仓库时未登录有拉取权限的账号。 [Moby 拉取错误处理](https://github.com/moby/moby/blob/master/daemon/containerd/image_pull.go#L237-L245) · [Registry 认证与访问范围](https://docs.docker.com/reference/api/registry/auth/)
+
+如果 `docker ps -a` 中的 `web` 显示为 `Exited (0)`，它已停止运行，容器对象和名称仍然保留。`docker stop` 停止容器中的进程，删除容器对象会释放它占用的名称。 [列出所有容器](https://docs.docker.com/reference/cli/docker/container/ls/#show-both-running-and-stopped-containers--a---all) · [停止容器](https://docs.docker.com/reference/cli/docker/container/stop/) · [删除容器](https://docs.docker.com/reference/cli/docker/container/rm/)
 
 ---
 

@@ -91,14 +91,14 @@
 
 ### 2. Docker 基本架构
 
-- [ ] Docker Client
-- [ ] Docker Daemon（dockerd）
-- [ ] Docker Engine
+- [x] Docker Client（概念题通过）
+- [x] Docker Daemon（dockerd，概念题通过）
+- [x] Docker Engine（概念题通过）
 - [x] Docker Image（概念理解通过）
-- [ ] Docker Container
-- [ ] Docker Registry
-- [ ] Docker Hub
-- [ ] Docker CLI 与守护进程之间的关系
+- [x] Docker Container
+- [x] Docker Registry（概念理解通过）
+- [x] Docker Hub（概念理解通过）
+- [x] Docker CLI 与守护进程之间的关系（概念题通过）
 
 ### 3. Docker 运行环境
 
@@ -1157,9 +1157,10 @@ docker logs
 
 # 十六、当前学习进度与下一步
 
-- **已完成**。容器化、镜像与容器、Docker 的用途与边界、容器与虚拟机的区别及 WSL 2、Docker 的典型使用场景。
-- **当前进度**。阶段 0「容器与宿主机之间的关系」，已学习容器如何使用宿主机资源。 [Docker 笔记 §1.6](../../../云原生/Docker/Docker.md#16-容器与宿主机的关系)
-- **下一步**。完成内存资源练习，再学「Docker 基本架构」。
+- **阶段 0（学习中）**。Docker 基础已完成概念学习，Docker 基本架构概念验收基本通过。第 1、2、3、5 题通过，第 4 题部分通过。 [架构与故障定位](../../../云原生/Docker/Docker.md#110-docker-基本架构串联)
+- **待巩固**。Engine、Daemon 与底层运行组件的分工，以及构建结果的保存位置和镜像分发方式。 [Engine](../../../云原生/Docker/Docker.md#18-docker-engine) · [镜像迁移](../../../云原生/Docker/Docker.md#114-镜像怎么迁移)
+- **旧练习**。WSL 2 文件共享题待复核，内存资源练习待确认。 [WSL 2 文件共享](../../../云原生/Docker/Docker.md#143-windows-上的-wsl-2-与-docker) · [内存资源](../../../云原生/Docker/Docker.md#16-容器与宿主机的关系)
+- **下一步**。停在本次验收。「Docker 运行环境」和「基础原理入门」待系统学习。
 
 ---
 
