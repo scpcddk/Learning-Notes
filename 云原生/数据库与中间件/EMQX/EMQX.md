@@ -49,6 +49,7 @@ MQTT 是**应用层**协议，依赖 TCP（**传输层**）提供可靠的双向
 - **主题（Topic）**：如 `station/1/temperature`，用 `/` 分层，可用通配符订阅：
   - **单层** `+`：`station/+/temperature` 匹配所有站温度
   - **多层** `#`：`station/#` 匹配所有站所有数据
+  - 客户端连接成功后，Broker 仍按订阅过滤器匹配发布主题。`device/#` 只匹配 `device` 分支，要接收 `sensor/temp`，可以订阅 `sensor/temp` 或 `sensor/#`。
 - **会话（Session）**：客户端断开后，若设置了 `Clean Session = false`，EMQX 会保留未接收的 QoS 1/2 消息，重连后推送。
 - **保留消息（Retained Message）**：主题最后一条消息会被存储，新订阅者立即获得当前值，适合获取设备最新状态。
 - **遗嘱消息（Will Message）**：客户端异常断开时，EMQX 自动发布一条消息，可用来检测设备离线。

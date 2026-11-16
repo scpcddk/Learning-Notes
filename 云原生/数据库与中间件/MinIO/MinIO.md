@@ -51,6 +51,8 @@ docker run -d --name minio \
   server /data --console-address ":9001"
 ```
 
+**数据目录与持久化**。`server /data` 指定容器内的数据目录，`-v /data/minio:/data` 将它绑定到宿主机的 `/data/minio`。删除容器会移除容器可写层，其中的对象数据随之丢失。重建时把原宿主机目录或原命名卷挂载到 MinIO 实际使用的数据目录，即可继续使用原有数据。
+
 **端口说明**：
 
 - `9000`：S3 API 端口（程序上传下载用）

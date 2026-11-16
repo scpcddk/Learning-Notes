@@ -79,16 +79,59 @@ server {
 
 项目曾经切换校园网和云端入口，宿主进程、容器进程与前端文件挂载曾造成混淆。接手时先记录当前部署用哪个 Nginx、实际监听端口和挂载源。修改宿主文件后，需要确认它是否被目标实例 include 或绑定挂载。配置落盘和成功重载是两回事。
 
+排查旧的前端容器时，用 `docker ps -a` 找到候选容器，包括已停止的容器。端口映射和列表中截断的启动命令可用于初筛。再用 `docker inspect` 查看容器配置中的镜像、入口程序和启动参数，容器已停止时也可以读取这些信息。
+
 ```bash
-# NGINX_CONTAINER 填当前部署实际使用的容器名。
-: "${NGINX_CONTAINER:?请设置 Nginx 容器名}"
+# NGINX_CONTAINER 填待核对的容器名。
+: "${NGINX_CONTAINER:?请设置容器名}"
+docker inspect --format 'Image={{.Config.Image}} Entrypoint={{json .Config.Entrypoint}} Cmd={{json .Config.Cmd}}' "$NGINX_CONTAINER"
 docker inspect --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}' "$NGINX_CONTAINER"
 docker exec "$NGINX_CONTAINER" nginx -t
 docker logs --since 5m "$NGINX_CONTAINER"
 ```
 
-宿主机部署就在宿主检查 `nginx -t` 和对应服务状态。需要确认 include 时，可在目标实例执行 `nginx -T` 查实际配置。整份输出可能包含内网地址和敏感参数，交接只记录命中的 `server_name`、location、上游以及配置文件。尤其要区分访问地址用的端口与上游监听端口，修改一个不会自动改另一个。
+例如，`Entrypoint=["/docker-entrypoint.sh"]` 和 `Cmd=["nginx","-g","daemon off;"]` 分别表示入口脚本和传给它的启动命令。官方 Nginx 镜像的入口脚本完成初始化后，用 `exec` 执行该命令。`-g` 从命令行传入全局指令，`daemon off;` 让 Nginx 主进程留在前台，作为容器内持续运行的服务进程。 [官方镜像入口脚本](https://raw.githubusercontent.com/nginx/docker-nginx/master/entrypoint/docker-entrypoint.sh) · [Nginx 命令行参数](https://nginx.org/en/docs/switches.html) · [`daemon` 指令](https://nginx.org/en/docs/ngx_core_module.html#daemon)
 
+需要启动已停止的容器时，`docker start 容器名` 会按已有配置重新运行启动命令，沿用原容器的可写层、挂载和端口映射。用 `docker ps` 核对目标的 `STATUS`。容器处于运行状态时，可用 `docker exec` 在容器内执行 `nginx -t` 等检查命令。 [Docker start](https://docs.docker.com/reference/cli/docker/container/start/) · [Docker exec](https://docs.docker.com/reference/cli/docker/container/exec/)
+
+宿主机部署时，在宿主机执行 `nginx -t` 并检查服务状态。排查反向代理时，分别核对入口监听端口和 `proxy_pass` 指向的上游端口。
+
+#### 查看已停止容器的日志
+
+容器仍存在、日志仍保留且日志驱动支持读取时，`docker logs` 可以查看已停止容器记录的标准输出和标准错误。`--tail 30` 读取末尾最多 30 行。官方 Nginx 镜像默认将访问日志和错误日志分别接到标准输出和标准错误。自定义镜像若把日志写入普通文件，应按实际的 `access_log` 和 `error_log` 配置查找。 [Docker 日志命令](https://docs.docker.com/reference/cli/docker/container/logs/) · [Docker 容器日志说明](https://docs.docker.com/engine/logging/)
+
+```bash
+docker logs --tail 30 "$NGINX_CONTAINER"
+```
+
+以下是进程日志和访问日志的两个片段。
+
+```text
+[notice] 1#1: start worker process 41
+"GET / HTTP/1.1" 200 694
+```
+
+- `[notice]` 是通知级别。第一行记录 Nginx 启动了 PID 为 `41` 的工作进程。 [Nginx 进程启动日志源码](https://raw.githubusercontent.com/nginx/nginx/master/src/os/unix/ngx_process.c)
+- 在默认的 `combined` 访问日志格式中，第二行记录了对根路径 `/` 的一次 GET 请求。状态码是 `200`，`694` 是发给客户端的响应体字节数。自定义格式的字段顺序以实际 `log_format` 为准。 [Nginx 访问日志格式](https://nginx.org/en/docs/http/ngx_http_log_module.html#log_format) · [Nginx 日志变量](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_body_bytes_sent)
+
+历史日志中的 `200` 只确认日志所记时间、路径和请求的响应。验证服务当前是否可用时，重新请求目标路径，并对照这次请求产生的日志。
+
+
+#### 用本地镜像创建验证容器
+
+`docker image ls nginx` 按仓库名查找镜像。自建前端镜像也可以包含 Nginx，应按实际仓库名和标签查找。下面以本地已有的 `cloud-frontend:latest` 为例。`docker run` 从镜像创建并启动新容器，`-d` 使其在后台运行，`--name` 指定容器名。端口映射把容器的 `80` 端口发布到宿主机回环地址的 `8088` 端口。新容器有自己的可写层，运行所需的挂载、环境变量和外部依赖需单独核对。 [Docker 镜像列表](https://docs.docker.com/reference/cli/docker/image/ls/) · [Docker run](https://docs.docker.com/reference/cli/docker/container/run/) · [端口映射](https://docs.docker.com/engine/network/port-publishing/)
+
+```powershell
+docker image ls cloud-frontend:latest
+docker run -d --name nginx-lab -p 127.0.0.1:8088:80 cloud-frontend:latest
+```
+
+返回容器 ID 表示 Docker 已创建容器并发起启动。用 `docker ps` 核对名称和当前状态，确认显示 `Up` 后，再从宿主机验证映射端口的 HTTP 响应。若运行列表里找不到目标容器，用 `docker ps -a` 查看它是否已退出，并检查启动日志。 [Docker 容器列表](https://docs.docker.com/reference/cli/docker/container/ls/)
+
+```powershell
+docker ps --filter "name=nginx-lab"
+curl.exe -I http://127.0.0.1:8088/
+```
 
 ---
 
@@ -146,6 +189,81 @@ curl -sS --max-time 10 --resolve "$SITE_HOST:443:$EDGE_IP" \
 
 早期版本（`38a9411`）把 Nginx 容器内直连返回 200 作为继续检查配置与重载的分支。复用这一步时先确认访问的是预期上游和路径，再核对实际生效配置、命中站点和重载结果。一次 200 能证明该请求可用，上游地址是否变化仍要对照记录。
 
+
+#### 用独立监听验证上游连接失败
+
+在独立的 Nginx 验证容器中，如果主配置包含 `/etc/nginx/conf.d/*.conf`，可用一个新文件定义额外的 `server`。以下示例让它在容器内监听 `8081`，将 `/lab/` 转发到同一容器内的 `127.0.0.1:9999`。在 `9999` 没有进程监听时，请求到达这个代理路径后，预期会出现连接被拒和 HTTP `502`。
+
+这里用 IP 字面量跳过上游域名解析，使失败发生在处理请求、建立上游连接时。若 `proxy_pass` 写的是配置加载时就要解析的固定域名，域名无法解析时，`nginx -t` 就可能报 `host not found in upstream`。 [Nginx 上游初始化源码](https://raw.githubusercontent.com/nginx/nginx/master/src/http/ngx_http_upstream_round_robin.c) · [Nginx 地址解析源码](https://raw.githubusercontent.com/nginx/nginx/master/src/core/ngx_inet.c)
+
+```powershell
+@'
+server {
+    listen 8081;
+    server_name localhost;
+
+    location /lab/ {
+        proxy_pass http://127.0.0.1:9999/;
+    }
+}
+'@ | docker exec -i nginx-lab sh -c 'cat > /etc/nginx/conf.d/lab.conf'
+
+docker exec nginx-lab nginx -t
+```
+
+PowerShell 单引号 here-string 保留多行配置的字面内容。`docker exec -i` 把它传给容器内的标准输入，由 `sh -c` 中的 `>` 写入容器内文件。使用可写目录和新文件名，已有同名文件会被 `>` 截断。配置测试通过后还需成功重载，监听和转发规则才会用于新请求。 [PowerShell 引号规则](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_quoting_rules#here-strings) · [Docker exec](https://docs.docker.com/reference/cli/docker/container/exec/)
+
+`listen 8081` 配置的是容器内监听。已有的 `8088:80` 只把宿主机的 `8088` 转发到容器的 `80`。从宿主机测试时，在创建验证容器时发布容器的 `8081`，再访问对应的宿主机端口。 [Docker 端口发布](https://docs.docker.com/engine/network/port-publishing/)
+
+重载后，若容器内有 `wget`，可直接在容器内向 `8081` 发 GET 请求。`-S` 显示服务器响应头，`-O /dev/null` 将下载内容写到空设备。这个请求先访问 Nginx，再由 Nginx 连接代理配置里的 `9999`。 [Wget 参数手册](https://manpages.debian.org/bookworm/wget/wget.1.en.html)
+
+```bash
+docker exec nginx-lab wget -S -O /dev/null http://127.0.0.1:8081/lab/
+```
+
+##### 关联访问日志和错误日志
+
+```text
+127.0.0.1 - - [16/Nov/2026:05:14:19 +0000] "GET /lab/ HTTP/1.1" 502 157 "-" "Wget" "-"
+```
+
+下表按 Nginx 示例配置中的 `main` 格式解读。排障时以实际 `access_log` 选用的 `log_format` 为准。默认的 `combined` 格式到 User-Agent 为止，末尾的转发地址字段由格式另行指定。 [Nginx 日志格式](https://nginx.org/en/docs/http/ngx_http_log_module.html#log_format) · [Nginx 示例配置](https://raw.githubusercontent.com/nginx/nginx/master/conf/nginx.conf)
+
+| 片段 | 字段 | 含义 |
+| --- | --- | --- |
+| `127.0.0.1` | `$remote_addr` | 客户端地址。本例的请求在容器内经回环地址发出。 |
+| `- -` | 固定短横线、`$remote_user` | 第一个是格式里的字面字符，第二个表示远程用户名缺省。 |
+| `[16/Nov/2026:05:14:19 +0000]` | `$time_local` | `+0000` 表示 UTC。换算到北京时间为当天 `13:14:19`。 |
+| `"GET /lab/ HTTP/1.1"` | `$request` | 请求行，依次为方法、请求目标和 HTTP 版本。 |
+| `502` | `$status` | Nginx 返回的 HTTP 状态码。 |
+| `157` | `$body_bytes_sent` | 发给客户端的响应体字节数，响应头另计。 |
+| `"-"` | `$http_referer` | 本次请求未记录到 Referer。 |
+| `"Wget"` | `$http_user_agent` | 请求携带的 User-Agent。 |
+| 末尾的 `"-"` | `$http_x_forwarded_for` | 若格式定义了该字段，表示本次请求的 X-Forwarded-For 无值。 |
+
+访问日志给出失败的请求和 HTTP 状态。再按同一请求的时间与路径查错误日志，用 `upstream` 字段核对实际连接的目标。若错误日志输出到标准错误，可用容器日志读取。
+
+```bash
+docker logs --tail 20 nginx-lab
+```
+
+```text
+connect() failed (111: Connection refused) while connecting to upstream
+```
+
+`111` 在该 Linux 环境中对应系统错误 `ECONNREFUSED`。本例的 `GET /lab/` 已进入代理规则，失败发生在连接上游时。此时优先核对错误日志中的目标地址、端口和后端监听状态。用服务名指定上游时，还要从 Nginx 所在网络确认它解析到了预期地址。 [Linux errno 定义](https://raw.githubusercontent.com/torvalds/linux/master/include/uapi/asm-generic/errno.h)
+
+##### 修正上游并复测
+
+确认同一容器的 `80` 端口正在提供静态首页后，在 `lab.conf` 的 `location /lab/` 中将上游端口改成 `80`。
+
+```nginx
+proxy_pass http://127.0.0.1:80/;
+```
+
+这里的 `proxy_pass` 带有 URI `/`，会将匹配到的 `/lab/` 前缀替换为 `/`。因此 `GET /lab/` 从容器内的 `8081` 进入，再由 Nginx 向容器内的 `80` 端口请求静态首页。 [Nginx proxy_pass 指令](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)
+
+配置测试通过并成功重载后，用相同的 GET 请求再次访问 `127.0.0.1:8081/lab/`。预期返回 `200 OK`。若响应头里含 `Content-Length: 694`，它声明该 GET 响应的内容长度。查看同次访问日志中的 `$body_bytes_sent`，可核对 Nginx 发送了多少响应体字节。用同一入口和路径比较修复前后的状态码与日志，可以确认这条代理链路是否恢复。 [HTTP Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6)
 
 ---
 
@@ -365,7 +483,25 @@ cp /opt/nginx/conf.d/default.conf /opt/nginx/conf.d/default.conf.bak.$(date +%Y%
 # 在已运行容器内执行命令，命令使用容器里的路径和网络。
 docker exec docker-nginx-1 nginx -t
 ```
-看到 `syntax is ok` 和 `test is successful` 后再重载。
+`nginx -t` 检查配置语法，并尝试打开配置引用的文件。出现 `syntax is ok` 和 `test is successful` 表示本次配置测试通过，可以继续重载。上游是否可达、关键路径是否返回预期响应，要用实际请求验证。 [Nginx 命令行参数](https://nginx.org/en/docs/switches.html)
+
+需要核对主配置及 `include` 引入的文件时，用 `nginx -T`。它执行相同的检查，并将本次读取的配置输出到标准输出。若实例启动时使用了 `-c` 或 `-p`，检查时沿用相同参数。配置文件修改后，运行中的进程会继续使用已加载的配置，直到成功重载或重新启动。 [Nginx 命令行参数](https://nginx.org/en/docs/switches.html) · [Nginx 配置重载](https://nginx.org/en/docs/control.html#reconfiguration)
+
+```bash
+docker exec docker-nginx-1 nginx -T
+```
+
+这里 `docker exec` 在运行中的容器内执行指定命令，`docker-nginx-1` 选定容器，`nginx` 是容器内要执行的程序，`-T` 是传给 `nginx` 的参数。 [Docker exec](https://docs.docker.com/reference/cli/docker/container/exec/)
+
+按请求的容器内端口和 Host 核对 `listen` 与 `server_name`，再按 URI 找到匹配的 `location`。例如，端口映射为 `8088:80` 时，宿主机访问 `8088`，配置中查 `listen 80`。静态路径继续核对 `root` 或 `alias`，代理路径核对 `proxy_pass`。交接时只摘录相关规则和配置文件路径，遮盖凭据等敏感参数。
+
+若 `nginx -T` 显示 `include /etc/nginx/conf.d/*.conf;`，可以列出该目录的文件名、权限和属主。配置检查读到哪些文件，以 `nginx -T` 中列出的文件路径为准。 [Nginx include 指令](https://nginx.org/en/docs/ngx_core_module.html#include)
+
+```bash
+docker exec docker-nginx-1 ls -l /etc/nginx/conf.d/
+```
+
+`-rw-r--r--` 开头的 `-` 表示普通文件，后三组分别是属主读写、属组只读、其他用户只读。属主和属组两列若显示 `root root`，表示文件归 `root` 用户及 `root` 组所有。 [GNU ls 长列表](https://www.gnu.org/software/coreutils/manual/html_node/What-information-is-listed.html)
 
 ### 4.3 重载配置
 
@@ -374,11 +510,16 @@ docker exec docker-nginx-1 nginx -t
 docker exec docker-nginx-1 nginx -s reload
 ```
 
+`nginx -s reload` 向正在运行的主进程发出重载信号。主进程成功应用新配置后启动新的工作进程，旧工作进程处理完已有请求后退出。应用失败时仍使用上次成功加载的配置。 [Nginx 配置重载](https://nginx.org/en/docs/control.html#reconfiguration)
+
+重载前后都可以用 `nginx -T` 核对磁盘上的配置。判断工作进程是否已应用新规则，要结合重载时的错误日志和一次命中新规则的实际请求。 [Nginx 命令行参数](https://nginx.org/en/docs/switches.html)
+
 ### 4.4 验证关键路径
 
+先核对请求命中的 `location`。由 `root` 和 `index` 提供的静态首页，以及由 `return 200` 直接返回的入口响应，都由 Nginx 本地处理。验证后端时，访问一条由 `proxy_pass` 转发的已知只读接口。
+
 ```bash
-# 后端 API
-# 仅测 Nginx 静态入口；后端健康需另查实际健康端点
+# Nginx 入口，本手册配置中的精确路径 /iot-api/ 由 return 200 直接响应。
 curl -i http://localhost/iot-api/
 
 # 前端
@@ -393,6 +534,19 @@ curl --http1.1 -i --max-time 5 \
   -H "Sec-WebSocket-Version: 13" \
   -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" http://localhost/ws/events
 ```
+
+#### 从宿主机发送 HEAD 请求
+
+从宿主机访问 Docker 映射后的端口。以下以容器 `nginx-web` 将宿主机的 `8080` 映射到容器的 `80` 为例，在 Windows PowerShell 中执行。
+
+```powershell
+curl.exe -I http://localhost:8080/
+docker logs --tail 10 nginx-web
+```
+
+对 HTTP 地址，`-I` 发送 `HEAD` 请求并显示响应头。若访问日志记录了请求行，可按时间、方法、路径和状态码核对当次请求，例如 `"HEAD / HTTP/1.1" 200 0`。按 `combined` 格式解读，`200` 说明这次 HEAD 请求成功，末尾的 `0` 是 `$body_bytes_sent`，表示本次发送了零字节响应体。验证网页正文时，用 GET 请求同一路径。 [curl 手册](https://curl.se/docs/manpage.html) · [HTTP HEAD 语义](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.3.2)
+
+配置检查通过后若实际请求返回 `502`，按请求时间查看 Nginx 错误日志中的上游地址和连接错误。配置语法有效时，`proxy_pass` 仍可能指向错误端口，上游也可能尚未监听。
 
 #### 同时验收 API、媒体和静态资源
 
@@ -417,7 +571,7 @@ docker exec docker-nginx-1 nginx -s reload
 | 检查配置语法 | `docker exec docker-nginx-1 nginx -t` |
 | 重载配置 | `docker exec docker-nginx-1 nginx -s reload` |
 | 查看最近错误日志 | `docker logs --tail 50 docker-nginx-1 \| grep -i "error\|403\|404\|502"` |
-| 查看当前生效配置 | `docker exec docker-nginx-1 cat /etc/nginx/conf.d/default.conf` |
+| 检查并输出配置及包含的文件 | `docker exec docker-nginx-1 nginx -T` |
 | 测试容器到宿主机连通性 | `docker exec docker-nginx-1 curl -s -o /dev/null -w "%{http_code}" http://宿主机IP:端口/` |
 | 检查文件锁定 | `lsattr /opt/nginx/conf.d/default.conf` |
 | 解锁文件 | `chattr -i /opt/nginx/conf.d/default.conf` |
@@ -457,7 +611,7 @@ access_log /var/log/nginx/route-check.log route_check;
 ## 6. 经验教训总结
 
 1. **每次修改配置前先备份**，出问题时可以快速回滚。
-2. **502 几乎都是 IP 变化或后端未启动**，先用 `docker exec` 测试连通性再改配置。
+2. **502 先查当次请求的错误日志**。若日志显示连接被拒，从 Nginx 所在网络核对实际使用的上游地址、端口和监听状态。
 3. **403 先从权限和锁定排查**，再检查后端安全配置。
 4. **前端缓存问题用无痕模式验证**，如果无痕正常就是浏览器缓存。
 5. **只读目录挂载仍会反映宿主机修改**；配置更新后先 `nginx -t` 再 reload，静态文件还需排查缓存与发布目录。

@@ -761,7 +761,7 @@ location ~* \.(jpg|png|css|js)$ {
 
 ### 13.5 故障排查：502 Bad Gateway
 
-**含义**：Nginx 作为代理，无法与后端建立有效连接或收到无效响应。
+**502 Bad Gateway** 表示网关或代理在处理请求时未能从上游获得有效响应。Nginx 正常运行时，上游端口没有进程监听也可能使它返回 `502`。根据该请求的错误日志，再判断该查代理配置、网络还是上游服务。 [HTTP 502 语义](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.6.3)
 
 **核心排查三步法**：
 
@@ -783,12 +783,8 @@ location ~* \.(jpg|png|css|js)$ {
 |----------|----------|----------|
 | 后端服务挂了或未启动 | `curl` 或检查容器状态 | 启动后端，修复健康检查 |
 | 后端端口与 Nginx 配置不一致 | 检查 `upstream` 端口 | 修正配置并 `nginx -s reload` |
-| 连接超时（`proxy_connect_timeout` 太短） | 查看 error.log 超时信息 | 适当调大 `proxy_connect_timeout` |
 | 后端响应头过大或格式错误 | 检查后端日志，确认返回非法 HTTP 头 | 修复后端，或调大 `proxy_buffer_size` |
 | 防火墙/SELinux 拦截 | 检查 iptables、SELinux 日志 | 临时关闭测试或配置放行规则 |
-
-> [!TIP]
-> **口诀**：**502 = 后端服务不可达**（连不上或拒绝连接）
 
 ### 13.6 故障排查：504 Gateway Timeout
 
@@ -796,7 +792,7 @@ location ~* \.(jpg|png|css|js)$ {
 
 **定位与优化**：
 
-- **日志线索**：`error.log` 中出现 `upstream timed out`
+- **日志线索**：`error.log` 中的 `upstream timed out` 表示等待上游超时，后续短语指明发生在哪一步。`while connecting to upstream` 指建立连接时超时，`while reading response header from upstream` 指等待上游响应头时超时。遇到后者，按失败请求的时间和路径核对上游日志及处理耗时。
 - **诊断后端瓶颈**：检查数据库慢 SQL、代码死循环、CPU/内存资源耗尽或容器限制
 - **应急方案**：临时调大超时  
   
