@@ -225,10 +225,21 @@ Java 21 在镜像里以文件形式保存。容器启动时，才会按启动配
 
 在同一个 Docker Engine 上，可以从同一份 `nginx:latest` 镜像创建 `web1` 和 `web2`。两个容器共享镜像的只读层，各自拥有独立的可写层，并分别运行自己的 Nginx 进程。 [Docker 镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
 
-```text
-nginx:latest（共享的只读镜像层）
-├─ web1 的可写层（写入了 /tmp/test.txt）
-└─ web2 的可写层
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":12,"nodeSpacing":32,"rankSpacing":28,"padding":16,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    IMAGE("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>nginx:latest 镜像</b><br/>两个容器共享的只读镜像层</div>")
+    WEB1("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>web1 容器</b><br/>独立可写层，写入 /tmp/test.txt</div>")
+    WEB2("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>web2 容器</b><br/>独立可写层，保留自己的写入</div>")
+
+    IMAGE --> WEB1 & WEB2
+
+    classDef image fill:#b9ebff,stroke:#16789e,color:#172033,stroke-width:1px;
+    classDef left fill:#bdf5d8,stroke:#218555,color:#172033,stroke-width:1px;
+    classDef right fill:#efd1ff,stroke:#8e48ad,color:#172033,stroke-width:1px;
+    class IMAGE image;
+    class WEB1 left;
+    class WEB2 right;
 ```
 
 > [!NOTE]
@@ -323,7 +334,9 @@ Docker Desktop 使用 WSL 2 后端时，Docker Engine 在专用的 `docker-deskt
 | 同时运行 Ubuntu、Debian 等 WSL 2 发行版 | 各发行版的根文件系统和进程命名空间 | WSL 2 虚拟机及其 Linux 内核 |
 | 同一个 Docker Engine 启动的两个普通 Linux 容器 | 各自的容器可写层 | 同一个 Linux 内核。若来自同一镜像，也共享镜像的只读层 |
 
-同一个 Linux 内核可以同时运行使用不同文件系统视图的进程。WSL 为每个发行版挂载自己的虚拟磁盘作为根文件系统。各发行版的进程命名空间决定其中的进程能看到哪些进程。发行版之间也可以通过共享挂载点访问文件，例如 `/mnt/wsl`。 [WSL 发行版的启动过程](https://wsl.dev/technical-documentation/init/#wsl2-specific-distributions-startup) · [§1.2.2 容器的可写层](#122-同一个镜像如何运行多个容器)
+同一个 Linux 内核可以同时运行使用不同文件系统视图的进程。WSL 为每个发行版挂载自己的虚拟磁盘作为根文件系统，并用进程命名空间限制进程的可见范围。 [WSL 发行版的启动过程](https://wsl.dev/technical-documentation/init/#wsl2-specific-distributions-startup) · [§1.2.2 容器的可写层](#122-同一个镜像如何运行多个容器)
+
+发行版之间也可以通过共享挂载点访问文件，例如 `/mnt/wsl`。
 
 **在两个窗口查看同一个文件**
 
@@ -351,13 +364,29 @@ uname -r
 
 #### 1.4.4 一台物理机如何运行多个内核
 
-操作系统内核是管理进程、内存和设备的核心软件。两台虚拟机可以各自启动一套内核，由同一台物理机的 CPU 执行这些内核的指令。**Hypervisor（虚拟机监控器）** 与宿主的虚拟化组件为每台虚拟机提供独立的虚拟硬件视图。客户机内核管理自己看到的处理器、内存和设备。虚拟化层协调各客户机对物理硬件的使用，并隔离它们的内存和设备访问。 [Microsoft Hyper-V 架构](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/architecture)
+操作系统内核是管理进程、内存和设备的核心软件。两台虚拟机可以各自启动一套内核，由同一台物理机的 CPU 执行这些内核的指令。
 
-```text
-物理硬件（CPU、内存、磁盘）
-└─ Hypervisor（协调资源使用并提供隔离）
-   ├─ 虚拟机 A（虚拟 CPU、内存）→ Linux 内核和应用
-   └─ 虚拟机 B（虚拟 CPU、内存）→ Windows 内核和应用
+**Hypervisor（虚拟机监控器）** 与宿主的虚拟化组件为每台虚拟机提供独立的虚拟硬件视图。客户机内核管理自己看到的处理器、内存和设备，虚拟化层负责协调对物理硬件的访问并提供隔离。 [Microsoft Hyper-V 架构](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/architecture)
+
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":12,"nodeSpacing":32,"rankSpacing":28,"padding":16,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    HARDWARE("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>同一台物理机</b><br/>CPU、内存和磁盘</div>")
+    HYPERVISOR("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>Hypervisor</b><br/>协调对物理资源的访问，为虚拟机提供隔离</div>")
+    LINUX("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>虚拟机 A</b><br/>虚拟 CPU 和内存<br/>Linux 内核和应用</div>")
+    WINDOWS("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>虚拟机 B</b><br/>虚拟 CPU 和内存<br/>Windows 内核和应用</div>")
+
+    HARDWARE --> HYPERVISOR
+    HYPERVISOR --> LINUX & WINDOWS
+
+    classDef host fill:#b9ebff,stroke:#16789e,color:#172033,stroke-width:1px;
+    classDef hypervisor fill:#bdf5d8,stroke:#218555,color:#172033,stroke-width:1px;
+    classDef linux fill:#ffe49e,stroke:#ae7014,color:#172033,stroke-width:1px;
+    classDef windows fill:#efd1ff,stroke:#8e48ad,color:#172033,stroke-width:1px;
+    class HARDWARE host;
+    class HYPERVISOR hypervisor;
+    class LINUX linux;
+    class WINDOWS windows;
 ```
 
 - **CPU**。客户机内核把应用的工作分配给虚拟 CPU（vCPU），虚拟化层再把可运行的 vCPU 调度到宿主的 CPU 上。假设宿主有 4 个物理核心，两台虚拟机各配置 4 个 vCPU。每台虚拟机都看到 4 个虚拟处理器，宿主仍有 4 个物理核心。两台虚拟机同时满载时可能竞争 CPU 时间。 [Hyper-V 的虚拟处理器调度](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/manage/manage-hyper-v-scheduler-types#understand-how-hyper-v-virtualizes-processors)
@@ -388,13 +417,18 @@ WSL 2 利用 Hyper-V 的部分虚拟化能力，在轻量级虚拟机中运行 L
 
 Linux 容器通常使用命名空间（namespace）隔离进程、网络等视图，并通过 cgroup 统计资源用量和实施已配置的限制。一个容器可以同时运行多个进程。例如，Nginx 容器中可以有一个 master 进程和多个 worker 进程。
 
-| 资源 | 容器如何使用 |
-| :--- | :--- |
-| CPU | 宿主机内核为容器进程分配 CPU 时间。 |
-| 内存 | MySQL 缓冲区和 Spring Boot 的 JVM 堆都会占用宿主机内存。 |
-| 磁盘 | 镜像、容器可写层和本地数据卷都会占用宿主机的磁盘空间。 |
+| 对象 | 磁盘（SSD/HDD） | 运行时的 RAM 与 CPU |
+| :--- | :--- | :--- |
+| 镜像 | 保存程序、依赖和只读镜像层。 | 拉取、解包和读取时可能短期使用内存和 CPU。 |
+| 已停止的容器 | 保留容器配置和可写层，挂载的数据另计。 | 容器里的程序已退出。 |
+| 运行中的容器 | 读写可写层、挂载的数据或日志。 | 内核调度容器进程，JVM 堆和 MySQL 缓冲区会占用内存。 |
+| Docker Engine | 保存守护进程的配置、元数据等。 | 守护进程和配套组件运行时使用内存和 CPU。 |
+
+以 Java 应用为例，镜像体积表示它的存储规模。启动容器后，JVM 根据配置和运行负载使用堆等内存，运行时用量要单独查看。 [容器存储](https://docs.docker.com/engine/storage/) · [容器资源用量](https://docs.docker.com/reference/cli/docker/container/stats/)
 
 默认情况下，容器在宿主机内核允许的范围内按需使用 CPU 和内存。部署时可以为单个容器设置上限，以减少资源竞争对其他服务的影响。 [Docker 资源限制](https://docs.docker.com/engine/containers/resource_constraints/)
+
+**WSL 2 使用 Windows 电脑的物理 RAM。** Windows 程序和 WSL 2 虚拟机共享整台电脑的物理内存。在 Docker Desktop 的 WSL 2 后端中，守护进程与容器进程使用的是虚拟机分到的内存。WSL 2 按需分配内存，也能将部分可回收内存返还给 Windows。Linux 页缓存何时回收受 WSL 配置影响，例如 `autoMemoryReclaim`。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/) · [Microsoft WSL 配置参考](https://learn.microsoft.com/en-us/windows/wsl/wsl-config)
 
 ---
 
@@ -436,8 +470,12 @@ docker run -d --name web nginx
 
 1. **PowerShell 启动客户端**。PowerShell 调用 `docker.exe`，把镜像名和运行选项传给它。
 2. **CLI 请求创建容器**。CLI 解析参数，通过 Docker API 将创建请求发给守护进程。
-3. **守护进程检查镜像并创建容器**。在默认的 `missing` 拉取策略下，守护进程直接使用已有的本地镜像。缺少镜像时，守护进程告知 CLI，由 CLI 请求拉取。拉取成功后，CLI 重试创建。拉取失败时，这次命令会在创建容器前结束。创建容器时，守护进程会准备配置和可写层。 [镜像拉取策略](https://docs.docker.com/reference/cli/docker/container/run/#set-the-pull-policy---pull) · [§1.1.2 `docker run` 如何启动应用](#112-docker-run-如何启动应用)
-4. **Nginx 开始运行**。容器创建完成后，CLI 发出启动请求。守护进程协调底层组件启动 Nginx 主进程。其中 `containerd` 负责管理容器的生命周期，默认使用 `runc` 作为容器运行时。 [Docker 容器运行时](https://docs.docker.com/engine/daemon/alternative-runtimes/)
+3. **守护进程检查镜像并创建容器**。取得镜像后，守护进程准备容器配置和可写层。在默认的 `missing` 策略下，镜像检查有两种结果。 [镜像拉取策略](https://docs.docker.com/reference/cli/docker/container/run/#set-the-pull-policy---pull) · [§1.1.2 `docker run` 如何启动应用](#112-docker-run-如何启动应用)
+
+   - **镜像已存在**。守护进程直接使用已有镜像。
+   - **镜像缺失**。守护进程通知 CLI，由 CLI 请求拉取。成功后 CLI 重试创建，失败时命令在创建容器前结束。
+
+4. **Nginx 开始运行**。CLI 请求启动已创建的容器，守护进程协调底层组件启动 Nginx 主进程。`containerd` 管理容器的生命周期，默认使用 `runc` 按 OCI 运行时规范创建和启动容器。 [Docker 容器运行时](https://docs.docker.com/engine/daemon/alternative-runtimes/) · [runc 项目说明](https://github.com/opencontainers/runc)
 
 > [!NOTE]
 > **CLI 退出之后**。`docker run -d` 成功时，CLI 输出容器 ID 并退出。`dockerd` 负责容器管理和启动协调，容器中的 Nginx 主进程由 Linux 内核调度执行。Docker 后端和 Nginx 主进程继续运行时，关闭 PowerShell 后，在新终端连接同一个守护进程仍能查询到 `web` 容器。 [§1.6 容器与宿主机的关系](#16-容器与宿主机的关系) · [Docker 后台运行模式](https://docs.docker.com/reference/cli/docker/container/run/#detached-mode--d---detach)
@@ -454,13 +492,17 @@ docker run -d --name web nginx
 | `docker --version` | 本地 Docker CLI 的版本信息 | 否 |
 | `docker ps` | 守护进程管理的运行中容器列表 | 是 |
 
-排查时，可以用 `docker --version` 确认本地 CLI 能运行，再用 `docker ps` 检查守护进程能否响应。 [Docker 版本命令参考](https://docs.docker.com/reference/cli/docker/version/) · [`docker ps` 命令参考](https://docs.docker.com/reference/cli/docker/container/ls/)
+排查时，可以用 `docker --version` 确认本地 CLI 能运行，再用 `docker ps` 检查守护进程能否响应。若要查询服务端版本，见 [§1.11.5 查看 Docker 版本](#1115-查看-docker-版本)。 [`docker ps` 命令参考](https://docs.docker.com/reference/cli/docker/container/ls/)
 
 ---
 
 ### 1.8 Docker Engine
 
-**Docker Engine** 是 Docker 用来构建镜像、运行和管理容器的核心系统。它采用客户端与服务端架构。Docker CLI 提供命令行入口，Docker Engine API 定义客户端和服务端的通信接口，`dockerd` 是在后台持续运行的服务端进程，负责管理镜像、容器、网络和数据卷。 [Docker Engine 官方说明](https://docs.docker.com/engine/)
+**Docker Engine** 用于构建镜像、运行和管理容器。它采用客户端与服务端架构。 [Docker Engine 官方说明](https://docs.docker.com/engine/)
+
+- **CLI** 提供命令行入口。
+- **Engine API** 定义客户端与服务端的通信接口。
+- **`dockerd`** 在后台持续运行，管理镜像、容器、网络和数据卷。
 
 ```text
 Docker CLI（docker）
@@ -470,7 +512,9 @@ Docker Daemon（dockerd）
 containerd 等运行组件
 ```
 
-CLI 可以连接本机或远程的 Engine 服务端。守护进程收到创建或启动容器的请求后，会协调 `containerd` 等组件在服务端所在的环境中执行操作。 [Docker 客户端与服务端架构](https://docs.docker.com/get-started/docker-overview/#docker-architecture) · [Docker 容器运行时](https://docs.docker.com/engine/daemon/alternative-runtimes/)
+**Server（服务端）** 是以 `dockerd` 为核心、提供 Docker API 的软件服务，可以与 CLI 在同一台电脑上运行，也可以部署在远程主机。 [Docker 客户端与服务端架构](https://docs.docker.com/get-started/docker-overview/#docker-architecture)
+
+收到创建或启动容器的请求后，守护进程会协调 `containerd` 等组件在服务端环境中执行操作。 [Docker 容器运行时](https://docs.docker.com/engine/daemon/alternative-runtimes/)
 
 > [!NOTE]
 > **容器查询遇到连接错误**。`docker --version` 成功只说明 CLI 能完成本地版本查询。若 `docker ps` 提示无法连接守护进程，可从三个方面排查。 [§1.7.4 命令与守护进程的关系](#174-哪些命令需要连接守护进程)
@@ -485,11 +529,13 @@ CLI 可以连接本机或远程的 Engine 服务端。守护进程收到创建�
 
 #### 1.9.1 Registry 与 Docker Hub
 
-**Registry（镜像仓库服务）**负责存储和分发容器镜像。比如在 Windows 上构建好 Spring Boot 镜像 `my-java-app:1.0` 后，可以用 `docker tag` 为它添加一个包含目标仓库地址的镜像引用，再推送到该仓库。有访问权限的 Linux 服务器可用同一个完整引用拉取。 [§1.1.4 镜像怎么迁移](#114-镜像怎么迁移) · [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
+**Registry（镜像仓库服务）** 负责存储和分发容器镜像。 [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
 
 **Docker Hub** 是 Docker 运营的镜像托管平台。Docker 默认使用它提供的 Registry 服务。Hub 还提供账号和组织管理、公开与私有仓库、访问权限和网页管理功能。 [Docker Hub 功能](https://docs.docker.com/docker-hub/) · [Docker Hub 仓库管理](https://docs.docker.com/docker-hub/repos/)
 
 **自建 Registry** 也可以分发镜像。例如公司可以自己部署私有 Registry，开发人员和部署服务器用包含该仓库地址的镜像引用，按各自获得的权限推送或拉取。 [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
+
+例如，在 Windows 构建好 Spring Boot 镜像 `my-java-app:1.0` 后，用 `docker tag` 为它添加包含目标仓库地址的引用，再推送到该仓库。有权限的 Linux 服务器可用同一个完整引用拉取。 [§1.1.4 镜像怎么迁移](#114-镜像怎么迁移)
 
 一个 Registry 可以托管多个 Repository，同一个 Repository 可以用不同的标签标记镜像版本。 [镜像仓库与版本管理](镜像仓库与版本管理.md)
 
@@ -526,14 +572,30 @@ dockerd  ↔  Registry（请求和下载镜像）
 
 以从 PowerShell 执行 `docker run -d --name web nginx` 为例，Docker Engine 是这套容器运行与管理系统。CLI 通过 Docker Engine API 向核心服务端进程 `dockerd` 发出请求。 [§1.8 Docker Engine](#18-docker-engine)
 
-```text
-PowerShell → Docker CLI
-    ↓ 通过 Docker Engine API 发出请求
-dockerd（Engine 服务端进程）
-    ├─ 镜像已存在 → 使用本地镜像
-    └─ 镜像缺失   → 按默认策略，由 CLI 请求从 Registry 拉取
-    ↓ 根据镜像创建容器
-容器运行组件启动 Nginx 主进程
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","edgeLabelBackground":"#ffffff","background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":12,"nodeSpacing":32,"rankSpacing":28,"padding":16,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    CLI("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>PowerShell 调用 Docker CLI</b><br/>docker run -d --name web nginx</div>")
+    ENGINE("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>Docker Engine 服务端（dockerd）</b><br/>按默认拉取策略检查所需镜像</div>")
+    LOCAL("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>本地已有镜像</b><br/>使用本地镜像</div>")
+    REGISTRY("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>本地缺少镜像</b><br/>CLI 请求从 Registry 拉取</div>")
+    CONTAINER("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>创建并启动 web 容器</b><br/>Engine 根据镜像创建容器，协调运行组件启动 Nginx</div>")
+
+    CLI -->|"Docker Engine API"| ENGINE
+    ENGINE --> LOCAL & REGISTRY
+    LOCAL --> CONTAINER
+    REGISTRY -->|"拉取成功后重试创建"| CONTAINER
+
+    classDef cli fill:#b9ebff,stroke:#16789e,color:#172033,stroke-width:1px;
+    classDef engine fill:#bdf5d8,stroke:#218555,color:#172033,stroke-width:1px;
+    classDef local fill:#ffe49e,stroke:#ae7014,color:#172033,stroke-width:1px;
+    classDef registry fill:#efd1ff,stroke:#8e48ad,color:#172033,stroke-width:1px;
+    classDef container fill:#ffd3be,stroke:#b9522e,color:#172033,stroke-width:1px;
+    class CLI cli;
+    class ENGINE engine;
+    class LOCAL local;
+    class REGISTRY registry;
+    class CONTAINER container;
 ```
 
 镜像提供 Nginx 的程序文件和默认启动配置。容器是从该镜像创建的实例。容器中的 Nginx 进程由 Engine 所在 Linux 环境的内核调度。 [§1.2 Docker 镜像](#12-docker-镜像是什么) · [§1.7.2 启动 Nginx 的过程](#172-命令执行过程)
@@ -551,6 +613,221 @@ dockerd（Engine 服务端进程）
 `pull access denied` 可以定位到镜像拉取失败。具体原因仍需核实，例如镜像引用写错、仓库不存在，或访问私有仓库时未登录有拉取权限的账号。 [Moby 拉取错误处理](https://github.com/moby/moby/blob/master/daemon/containerd/image_pull.go#L237-L245) · [Registry 认证与访问范围](https://docs.docker.com/reference/api/registry/auth/)
 
 如果 `docker ps -a` 中的 `web` 显示为 `Exited (0)`，它已停止运行，容器对象和名称仍然保留。`docker stop` 停止容器中的进程，删除容器对象会释放它占用的名称。 [列出所有容器](https://docs.docker.com/reference/cli/docker/container/ls/#show-both-running-and-stopped-containers--a---all) · [停止容器](https://docs.docker.com/reference/cli/docker/container/stop/) · [删除容器](https://docs.docker.com/reference/cli/docker/container/rm/)
+
+---
+
+### 1.11 Docker 运行环境
+
+#### 1.11.1 Docker Desktop 与 Linux Docker Engine
+
+- **Docker Engine** 负责构建镜像、运行和管理容器。 [§1.8 Docker Engine](#18-docker-engine)
+- **Docker Desktop** 是桌面应用，集成 Engine、Docker CLI、Compose 和图形界面，也负责管理本机后端，例如 Windows 上的 WSL 2 后端。 [Docker Desktop 官方说明](https://docs.docker.com/desktop/)
+
+Linux 容器里的进程由 Linux 内核调度。内核还提供 namespace 来隔离进程、网络等视图，并通过 cgroup 统计和限制资源用量。因此，在符合要求的 Ubuntu 服务器上直接安装 Docker Engine，就能用服务器现有的 Linux 内核运行容器。 [§1.6 容器与宿主机的关系](#16-容器与宿主机的关系) · [Ubuntu 上的 Docker Engine](https://docs.docker.com/engine/install/ubuntu/)
+
+| 场景 | 命令发到哪里 | Linux 容器使用的内核 |
+| :--- | :--- | :--- |
+| Ubuntu 服务器直接安装 Engine | Ubuntu 上的 CLI → 同机 Engine | Ubuntu 服务器的 Linux 内核 |
+| Windows 上的 Docker Desktop 使用 WSL 2 后端 | PowerShell 中的 CLI → Desktop 管理的 Engine | WSL 2 虚拟机的 Linux 内核 |
+
+CLI 指向 Desktop 管理的本地 Engine 时，图形界面和命令行看到的是同一套容器、镜像和卷。CLI 也适用于没有桌面界面的 Linux 服务器，可用于部署和排障。 [Docker Desktop 图形界面](https://docs.docker.com/desktop/use-desktop/) · [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/)
+
+---
+
+#### 1.11.2 Docker 在 Windows 与 WSL 2 中的运行方式
+
+**WSL 2 与发行版**
+
+- **WSL 2** 提供轻量级虚拟机和 Linux 内核。选择 WSL 2 后端前，Windows 上需要有可用的 WSL 2。 [Docker Desktop 安装要求](https://docs.docker.com/desktop/setup/install/windows-install/#system-requirements)
+- **`docker-desktop`** 是 Docker Desktop 管理的专用发行版，在其中运行 Docker Engine。
+- **Ubuntu 24.04** 是可选的用户发行版，可以另外安装。Docker Desktop 可以仅用自己的后端运行 Linux 容器。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
+
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":12,"nodeSpacing":32,"rankSpacing":28,"padding":16,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    HOST("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>Windows 主机</b><br/>提供 WSL 2 运行所需的虚拟化支持</div>")
+    WSL("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>WSL 2 轻量级虚拟机</b><br/>为下面两个发行版提供共享的 Linux 内核</div>")
+    DESKTOP("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>docker-desktop</b><br/>独立根文件系统<br/>Docker Desktop 管理，运行 Engine</div>")
+    UBUNTU("<div style='width:278px;text-align:center;line-height:1.6'><b style='font-size:18px'>Ubuntu 24.04</b><br/>独立根文件系统<br/>可选的用户发行版，提供 Bash</div>")
+
+    HOST --> WSL
+    WSL --> DESKTOP & UBUNTU
+
+    classDef host fill:#b9ebff,stroke:#16789e,color:#172033,stroke-width:1px;
+    classDef wsl fill:#bdf5d8,stroke:#218555,color:#172033,stroke-width:1px;
+    classDef desktop fill:#ffe49e,stroke:#ae7014,color:#172033,stroke-width:1px;
+    classDef ubuntu fill:#efd1ff,stroke:#8e48ad,color:#172033,stroke-width:1px;
+    class HOST host;
+    class WSL wsl;
+    class DESKTOP desktop;
+    class UBUNTU ubuntu;
+```
+
+在同一 Windows 用户的常规配置下，两者可以共享 WSL 2 的 Linux 内核。各发行版有独立的根文件系统和进程环境，`/etc`、`/usr` 等目录各归所属发行版。发行版可通过共享挂载点交换文件。 [Microsoft WSL 架构说明](https://learn.microsoft.com/en-us/windows/wsl/compare-versions#wsl-2-architecture) · [§1.4.3 多个终端与发行版](#143-windows-上的-wsl-2-与-docker)
+
+> [!NOTE]
+> **Docker Desktop 的 Hyper-V 后端。** 如果 Docker Desktop 使用独立的 Hyper-V 后端运行 Linux 容器，Desktop 的容器虚拟机和 Ubuntu 所在的 WSL 2 虚拟机分别使用自己的 Linux 内核。 [Windows 上的 Docker Desktop 后端选项](https://docs.docker.com/desktop/setup/install/windows-install/#system-requirements) · [Docker Desktop 的 WSL 2 隔离说明](https://docs.docker.com/desktop/features/wsl/#wsl-2-security-in-docker-desktop)
+
+**后来安装 Ubuntu 24.04**
+
+在 WSL 2 已经可用的环境中，可以用下列命令添加 Ubuntu 24.04。发行版名称以 `wsl --list --online` 列出的结果为准。 [Microsoft WSL 基本命令](https://learn.microsoft.com/en-us/windows/wsl/basic-commands)
+
+```powershell
+wsl --install -d Ubuntu-24.04
+```
+
+**从 Ubuntu 访问 Docker Engine**
+
+Docker Desktop 使用 WSL 2 后端运行 Linux 容器时，可以为指定的 Ubuntu 发行版启用集成。 [Docker Desktop 的 WSL 集成](https://docs.docker.com/desktop/features/wsl/#enable-docker-in-a-wsl-2-distribution)
+
+1. 在 Docker Desktop 中打开 **Settings → Resources → WSL Integration**。
+2. 开启目标 Ubuntu 发行版的开关，并应用设置。
+
+- **启用集成后**，Ubuntu 终端的 CLI 可通过 Docker API 向 Desktop 的 Engine 发送请求，例如用 `docker ps` 查询容器。 [§1.7.2 命令执行过程](#172-命令执行过程)
+- **在 PowerShell 和 Ubuntu 中对照**。两个 CLI 指向同一个 Engine，且两次查询间容器运行状态相同时，`docker ps` 会列出同一组容器。切换 Docker Context 可以改变连接目标。 [Docker 连接上下文](https://docs.docker.com/engine/manage-resources/contexts/) · [`docker ps` 命令参考](https://docs.docker.com/reference/cli/docker/container/ls/)
+- **在 Ubuntu 中独立运行 Engine**。也可安装 Linux 版 Engine，让 CLI 连接 Ubuntu 自己的守护进程。在同一发行版里混用 Desktop 的 WSL 集成与直接安装的 Engine 或 CLI 可能发生冲突。 [Ubuntu 上的 Docker Engine](https://docs.docker.com/engine/install/ubuntu/) · [Docker Desktop 的 WSL 2 后端配置](https://docs.docker.com/desktop/features/wsl/#turn-on-docker-desktop-wsl-2)
+
+**查看已安装的发行版及运行状态**
+
+```powershell
+wsl -l -v
+```
+
+示例输出如下。
+
+```text
+  NAME              STATE      VERSION
+* Ubuntu-24.04      Running    2
+  docker-desktop    Running    2
+```
+
+这里的 `VERSION` 是 WSL 版本。两行都标为 `Running` 和 `2`，表示两个 WSL 2 发行版都在运行。内核的共享关系要结合 Desktop 的实际后端和 WSL 2 架构判断。 [Microsoft WSL 发行版列表命令](https://learn.microsoft.com/en-us/windows/wsl/basic-commands#list-installed-linux-distributions)
+
+---
+
+#### 1.11.3 Docker Engine 与 Docker Compose V2
+
+**`compose.yaml` 声明服务配置**，包括镜像、端口、环境变量、网络和数据卷。例如，`web` 服务可以使用 `nginx:latest`，并通过 `8080:80` 将宿主机的 8080 端口映射到容器的 80 端口。 [Compose 应用模型](https://docs.docker.com/compose/intro/compose-application-model/)
+
+**Compose 读取配置、检查现有资源，再通过 API 请求 Engine 操作。** 服务配置和镜像都未变化时，默认可以复用已有容器。 [`docker compose up` 命令参考](https://docs.docker.com/reference/cli/docker/compose/up/)
+
+```text
+compose.yaml（声明 Spring Boot、MySQL、Redis 服务）
+    ↓ 读取项目配置
+Docker Compose（docker compose up -d）
+    ↓ 发出 Docker API 请求
+Docker Engine（创建和启动容器，管理网络和数据卷）
+```
+
+**命令写法**
+
+- **V1** 使用独立命令 `docker-compose`。
+- **V2 和 V5** 作为 Docker CLI 插件使用 `docker compose`。用 `docker compose version` 查看已安装的版本。 [Compose 版本演进](https://docs.docker.com/compose/intro/history/) · [版本命令参考](https://docs.docker.com/reference/cli/docker/compose/version/)
+
+YAML 配置与多服务项目的实操安排在学习计划的阶段 6。 [§4 Docker Compose 模板](#4-docker-compose-模板多服务编排)
+
+---
+
+#### 1.11.4 Docker 服务的启动与停止
+
+在 Windows 使用 Desktop 的本地 Linux Engine 时，先启动 Desktop 并等 Engine 就绪。执行 `docker run -d --name web nginx` 后，Engine 创建并启动 `web` 容器，Nginx 进程随后运行。
+
+| 操作对象 | 启动 | 停止 | 查看状态 |
+| --- | --- | --- | --- |
+| Windows 上的 Docker Desktop | `docker desktop start` | `docker desktop stop` | `docker desktop status` |
+| Linux 上由 `systemd` 管理的 `docker.service` | `sudo systemctl start docker` | `sudo systemctl stop docker` | `sudo systemctl status docker` |
+| 已存在的 `web` 容器（Engine 可用时） | `docker start web` | `docker stop web` | `docker ps -a` |
+
+**使用条件**
+
+- **Windows**。使用桌面应用启停，或在支持 Desktop CLI 的版本中使用表中的 `docker desktop` 命令。 [Docker Desktop CLI](https://docs.docker.com/desktop/features/desktop-cli/)
+- **Linux**。在管理该 Engine 的 Linux 系统中运行 `systemctl`。如果当前发行版的 PID 1 不是 `systemd`，命令在访问 Docker 服务前就会失败。使用 WSL 集成时，Desktop 的 Engine 由 Windows 上的 Docker Desktop 管理。 [Linux 上启动 Docker Daemon](https://docs.docker.com/engine/daemon/start/) · [WSL 的 systemd 说明](https://learn.microsoft.com/en-us/windows/wsl/systemd) · [§1.11.2 WSL 运行方式](#1112-docker-在-windows-与-wsl-2-中的运行方式)
+- **单个容器**。确保 Engine 可用且容器已存在。`docker ps -a` 列出当前 Engine 上的所有容器，包括已停止的容器。 [§2.1 基础命令](#21-基础命令)
+
+正常退出 Desktop 后，本地 Linux Engine 停止提供服务。正在运行的容器通常也会停止，镜像和容器配置仍会保留。重新启动 Desktop 后，容器能否自动启动取决于重启策略和停止前的状态。 [Docker Daemon 停止时的默认行为](https://docs.docker.com/engine/daemon/live-restore/) · [容器重启策略](https://docs.docker.com/engine/containers/start-containers-automatically/)
+
+---
+
+#### 1.11.5 查看 Docker 版本
+
+| 命令 | 读取的信息 | 对 Engine 连接的要求 |
+| --- | --- | --- |
+| `docker --version` | 本机 Docker CLI 的版本 | 无需连接 Engine |
+| `docker version` | 本机 `Client` 及目标 `Server` 的版本信息 | 获取 `Server` 信息时需要 |
+
+**怎么看输出**
+
+- **`Client`**。`OS/Arch` 是客户端的目标系统和架构，`Context` 是当前的 Docker 连接配置名。 [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/)
+- **`Server`**。通过 Docker API 取得 Engine 和运行组件的信息。`Engine` 下的 `OS/Arch` 对应服务端平台。能读到这些信息，说明目标 Engine 已响应版本查询。 [Docker 版本命令参考](https://docs.docker.com/reference/cli/docker/version/) · [§1.8 Docker Engine](#18-docker-engine)
+- **连接错误**。连接失败时可能仍有 `Client` 输出。错误中的地址是本次尝试访问的 API 端点，例如 Windows 上的 `npipe://` 表示本机命名管道。 [Docker Desktop 的连接端点](https://docs.docker.com/desktop/troubleshoot-and-support/faqs/general/#how-do-i-connect-to-the-remote-docker-engine-api)
+
+---
+
+#### 1.11.6 查看 Docker 系统信息
+
+```powershell
+docker info
+```
+
+输出的 `Server` 部分显示当前连接的 Engine 管理的资源和运行环境。 [`docker info` 命令参考](https://docs.docker.com/reference/cli/docker/system/info/)
+
+| 字段 | 含义 |
+| :--- | :--- |
+| `Containers` | Engine 管理的容器总数，包括已停止的容器。 |
+| `Images` | 该 Engine 上的镜像数量。同一镜像的多个标签只计一次。 |
+| `Server Version` | Engine 服务端的版本。 |
+| `Operating System` | Engine 报告的操作系统或运行环境名称。 |
+| `Kernel Version` | Engine 运行环境使用的内核版本。 |
+| `OSType` | 服务端的容器平台类型，例如 `linux`。 |
+| `Architecture` | 服务端报告的架构，例如 `x86_64`。 |
+| `Name` | Engine 报告的主机名。 |
+| `CPUs` | Engine 进程可见的逻辑 CPU 数。 |
+| `Total Memory` | Engine 运行环境报告的总内存。 |
+| `Docker Root Dir` | Engine 报告的 Docker 数据根目录。 |
+
+- **平台**。把 `Operating System`、`OSType` 和 `Kernel Version` 一起读。Windows 上使用 Docker Desktop 的 WSL 2 后端时，Engine 仍使用 Linux 内核。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
+- **资源**。`CPUs` 和 `Total Memory` 描述 Engine 运行环境可见的资源容量。用 `docker stats` 查看运行中容器的实时 CPU 和 RAM 用量。 [Engine 系统信息实现](https://github.com/moby/moby/blob/master/daemon/info.go) · [`docker stats` 命令参考](https://docs.docker.com/reference/cli/docker/container/stats/)
+- **路径**。`Docker Root Dir` 以 Engine 服务端的文件系统为参照。在 Windows 的 Docker Desktop Linux 后端中，它是 Docker Desktop 管理的 Linux 环境里的路径。 [Docker Daemon 的数据目录](https://docs.docker.com/engine/daemon/#daemon-data-directory)
+
+按需查看其他配置字段。`Storage Driver` 对应镜像与容器的存储后端，`Logging Driver` 对应日志驱动，`Cgroup Version` 和 `Runtimes` 对应资源隔离与容器运行时，代理字段可用于排查镜像拉取。 [`docker info` 输出示例](https://docs.docker.com/reference/cli/docker/system/info/#examples)
+
+---
+
+#### 1.11.7 Docker 基本目录与数据存放位置
+
+使用 Docker Desktop 的 WSL 2 后端时，从 Windows 桌面等本地目录执行 `docker pull`，CLI 会向当前 Docker Context 指定的 Engine 发出请求，镜像由该 Engine 保存。同一台机器上的 Ubuntu 发行版也有自己的根文件系统。 [镜像拉取与存储](#192-一次-docker-pull-如何完成) · [Docker Context](https://docs.docker.com/engine/manage-resources/contexts/) · [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
+
+```mermaid
+%%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","edgeLabelBackground":"#ffffff","darkMode":false,"background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":12,"rankSpacing":26,"padding":16,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
+flowchart TB
+    PS("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>Windows PowerShell</b><br/>在 Windows 目录中调用 Docker CLI</div>")
+    ENGINE("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>Docker Desktop 管理的 Linux 环境</b><br/>Engine 处理请求，报告数据根目录 /var/lib/docker</div>")
+    DISK("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>Windows 磁盘</b><br/>Docker Desktop 管理的虚拟磁盘保存 Linux 后端的数据</div>")
+    UBUNTU("<div style='width:620px;text-align:center;line-height:1.6'><b style='font-size:18px'>另外安装的 WSL 2 Ubuntu</b><br/>独立的发行版根文件系统，拥有自己的 /home 和 /etc</div>")
+
+    PS -->|"Docker API"| ENGINE
+    ENGINE -->|"持久化到虚拟磁盘"| DISK
+    DISK ~~~ UBUNTU
+
+    classDef shell fill:#b9ebff,stroke:#16789e,color:#172033,stroke-width:1px;
+    classDef engine fill:#bdf5d8,stroke:#218555,color:#172033,stroke-width:1px;
+    classDef disk fill:#ffe49e,stroke:#ae7014,color:#172033,stroke-width:1px;
+    classDef ubuntu fill:#efd1ff,stroke:#8e48ad,color:#172033,stroke-width:1px;
+    class PS shell;
+    class ENGINE engine;
+    class DISK disk;
+    class UBUNTU ubuntu;
+```
+
+| 位置 | 如何理解 |
+| :--- | :--- |
+| Engine 报告的 `Docker Root Dir` | 在 Linux 上通常是 `/var/lib/docker`。卷、配置等数据由守护进程管理。 |
+| containerd 镜像存储 | 启用时，镜像内容和容器快照由 containerd 管理。在典型的 Linux 安装中，其默认目录为 `/var/lib/containerd`。 |
+| Windows 上的磁盘映像 | Docker Desktop 将 WSL 2 后端的数据持久化到 Windows 磁盘上的虚拟磁盘（VHDX）。 |
+
+**在 Windows 上定位磁盘映像。** WSL 2 后端的默认数据目录是 `C:\Users\<用户名>\AppData\Local\Docker\wsl`。要确认它实际占用哪块 Windows 磁盘，在 Docker Desktop 的 **Settings → Resources → Advanced → Disk image location** 查看已配置的位置。 [Docker Desktop 的 WSL 2 存储](https://docs.docker.com/desktop/features/wsl/) · [Desktop 数据与虚拟磁盘](https://docs.docker.com/desktop/settings-and-maintenance/backup-and-restore/)
+
+镜像、可写层以及挂载数据的生命周期在阶段 5 实操。 [Engine 数据目录与 containerd](https://docs.docker.com/engine/daemon/#daemon-data-directory)
 
 ---
 
@@ -698,9 +975,24 @@ dockerd（Engine 服务端进程）
 | `docker top` | 查看容器内运行的**进程列表**（类似 Linux `top`） | `docker top container_name` |
 | `docker events` | 实时打印 Docker 守护进程的**事件流**（调试利器） | `docker events --since 1h` |
 | `docker port` | 查看容器**端口映射**情况 | `docker port container_name` |
-| `docker system df` | 查看 Docker 磁盘占用详情（镜像/容器/卷/构建缓存） | `docker system df -v` |
-| `docker system prune` | 清理停止的容器、未使用网络、悬空镜像和未使用构建缓存；`-a` 扩大镜像清理范围，卷需另加 `--volumes` | `docker system prune -f` |
+| `docker system df` | 只读查看镜像、容器、本地卷和构建缓存的磁盘占用。 [`docker system df` 命令参考](https://docs.docker.com/reference/cli/docker/system/df/) | `docker system df -v` |
+| `docker system prune` | 清理停止的容器、未使用的网络、悬空镜像和未使用的构建缓存。`-a` 扩大镜像清理范围，`--volumes` 额外清理未使用的匿名卷。 [`docker system prune` 命令参考](https://docs.docker.com/reference/cli/docker/system/prune/) | `docker system prune -f` |
 | `docker system events` | （同 `docker events`，系统级事件查看） | `docker system events` |
+
+#### 2.6.1 读懂 `docker system df`
+
+`TOTAL` 是每类资源的总数，`ACTIVE` 的统计口径随资源类型变化。 [`docker system df` 命令参考](https://docs.docker.com/reference/cli/docker/system/df/) · [Engine 29.5.2 的空间统计](https://raw.githubusercontent.com/moby/moby/docker-v29.5.2/daemon/disk_usage.go)
+
+| 类型 | `ACTIVE` 统计什么 | `SIZE` 怎么读 |
+| :--- | :--- | :--- |
+| `Images` | 被至少一个容器引用的镜像，已停止的容器也可以持有引用。 | 镜像数据的占用。详细模式中的 `SHARED SIZE` 和 `UNIQUE SIZE` 分别显示共享和独占的镜像数据。 |
+| `Containers` | 运行中、暂停中或重启中的容器。 | 统计容器可写层。镜像层、容器日志和挂载数据需另看。 |
+| `Local Volumes` | 有容器引用的本地卷。 | 统计本地卷的数据。查看 Bind Mount 的数据时，应检查容器的 `Mounts` 和对应的宿主机路径。 |
+| `Build Cache` | 正在使用的构建缓存记录。 | 构建缓存数据的占用。后续构建可复用匹配的缓存。 [§3.2 镜像分层与构建缓存](#32-镜像分层与构建缓存) |
+
+**容器停止与删除。** 停止容器会保留它对镜像的引用，删除容器才会移除这项引用。只要还有其他容器引用该镜像，它仍计入镜像行的 `ACTIVE`。 [删除镜像的规则](https://docs.docker.com/engine/manage-resources/pruning/#prune-images)
+
+**可回收空间。** `RECLAIMABLE` 是 Docker 按当前状态报告的可回收空间。构建缓存可能与镜像共享数据，因此应查看 `RECLAIMABLE`，并结合引用关系和清理规则判断实际能释放多少。查看单项占用时可用 `docker system df -v`。 [`docker system df` 详细模式](https://docs.docker.com/reference/cli/docker/system/df/#examples) · [构建缓存与镜像共享存储](https://docs.docker.com/reference/cli/docker/buildx/du/) · [Bind Mount](https://docs.docker.com/engine/storage/bind-mounts/)
 
 ---
 
