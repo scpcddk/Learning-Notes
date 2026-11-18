@@ -111,11 +111,11 @@
 
 ### 4. 基础原理入门
 
-- [ ] 理解容器并不是一台完整虚拟机
-- [ ] 容器共享宿主机内核的基本含义
-- [ ] Linux Namespace 的作用
-- [ ] Linux cgroups 的作用
-- [ ] 容器文件系统隔离的基本概念
+- [x] 理解容器并不是一台完整虚拟机
+- [x] 容器共享宿主机内核的基本含义
+- [x] Linux Namespace 的作用
+- [x] Linux cgroups 的作用
+- [x] 容器文件系统隔离的基本概念
 
 此阶段只要求理解作用，不要求深入 Linux 内核实现。
 
@@ -123,101 +123,16 @@
 
 - [x] 检查 Docker Engine 是否可用（`docker version` 已收到服务端响应）
 - [x] 查看 Docker 版本与运行信息
-- [ ] 拉取并运行 `hello-world`
+- [x] 拉取并运行 `hello-world`
 - [x] 观察 Docker Desktop 与 CLI 的对应关系（已对照启停后的版本查询）
-- [ ] 解释 Windows + WSL2 环境下容器实际运行在哪里
-
-### 阶段 0 实操记录
-
-以下是学习对话转述的终端输出节选。
-
-#### Windows PowerShell · Desktop 启停
-
-| 命令 | 输出 |
-| --- | --- |
-| `docker desktop start` | `Starting Docker Desktop` |
-| `docker desktop stop` | `Stopping Docker Desktop` |
-| `docker desktop status`（发出停止请求后） | `Could not retrieve status.`，随后提示 `Is Docker Desktop running?` |
-
-前两条是发起启停时的提示。最后一条仅表明当时未能读取 Desktop 状态。 [Docker 服务的启动与停止](../../../云原生/Docker/Docker.md#1114-docker-服务的启动与停止)
-
-#### Windows PowerShell · 版本与连接检查
-
-**发出停止请求后**，`docker --version` 返回 `Docker version 29.5.2, build 79eb04c`。`docker version` 显示 `Client`，但未取得 `Server` 信息。
-
-```text
-Client:
- Version: 29.5.2
- OS/Arch: windows/amd64
- Context: desktop-linux
-
-failed to connect to the docker API
-at npipe:////./pipe/dockerDesktopLinuxEngine
-```
-
-**Desktop 启动后**，用同一 `desktop-linux` Context 重跑 `docker version`，收到服务端响应。
-
-```text
-Client:
- Version: 29.5.2
- OS/Arch: windows/amd64
- Context: desktop-linux
-
-Server: Docker Desktop 4.76.0
- Engine:
-  Version: 29.5.2
-  OS/Arch: linux/amd64
-```
-
-**实操通过。** 两次查询都读到了 Windows CLI 的版本。启动 Desktop 后，CLI 成功读到 Linux Engine 的版本。结合已知的 WSL 2 后端配置，这次查询从 Windows 发出，由 Desktop 管理的 Linux Engine 响应。 [查看 Docker 版本](../../../云原生/Docker/Docker.md#1115-查看-docker-版本)
-
-#### Windows PowerShell · 系统信息
-
-`docker info` 显示 Engine 版本为 `29.5.2`，其余输出按主题节选如下。 [查看 Docker 系统信息](../../../云原生/Docker/Docker.md#1116-查看-docker-系统信息)
-
-| 项目 | 本次查询结果 |
-| --- | --- |
-| 容器与镜像 | 7 个容器（2 个运行、5 个停止），36 个镜像。 |
-| 平台 | `Operating System: Docker Desktop`，`OSType: linux`，`Architecture: x86_64`，`Name: docker-desktop`。 |
-| 内核 | `6.6.87.2-microsoft-standard-WSL2`，与 Desktop 的 WSL 2 后端配置一致。 |
-| 资源规模 | `CPUs: 32`，`Total Memory: 7.615GiB`。这是 Engine 可见的资源容量，WSL 2 当时的实际内存用量未记录。 |
-| 数据根目录 | `Docker Root Dir: /var/lib/docker`，路径位于 Desktop 管理的 Linux 环境中。 |
-
-运行配置还报告了 `overlayfs` 存储驱动、`json-file` 日志驱动、cgroup v2，以及可用运行时 `runc`。`overlayfs` 与 containerd 镜像存储的默认快照器一致。实际的 containerd 数据目录和 Windows 虚拟磁盘位置尚未核对。 [Docker 数据路径](../../../云原生/Docker/Docker.md#1117-docker-基本目录与数据存放位置) · [containerd 镜像存储](https://docs.docker.com/engine/storage/containerd/)
-
-#### Windows PowerShell · 磁盘占用盘点
-
-已完成 `docker system df` 的汇总查询。 [字段说明](../../../云原生/Docker/Docker.md#261-读懂-docker-system-df)
-
-| 资源 | `TOTAL` | `ACTIVE` | `SIZE` | `RECLAIMABLE` |
-| :--- | ---: | ---: | ---: | ---: |
-| `Images` | 36 | 4 | 2.367 GB | 966.2 MB（40%） |
-| `Containers` | 7 | 2 | 258 kB | 249.9 kB（96%） |
-| `Local Volumes` | 0 | 0 | 0 B | 0 B |
-| `Build Cache` | 284 | 0 | 742 MB | 58.84 MB |
-
-这次查询记录了 Engine 报告的占用和可回收空间。镜像 `ACTIVE` 的理解题已通过。宿主机剩余空间、容器的 Bind Mount 及其占用仍待确认。
-
-**现有资源安排。** 暂时保留容器、镜像和构建缓存。先确认两个运行中容器的用途，已停止的容器留作阶段 1 的检查和管理练习。
-
-#### WSL 2 Ubuntu · 服务启动检查
-
-执行 `sudo systemctl start docker` 后，出现以下提示。
-
-```text
-System has not been booted with systemd as init system (PID 1).
-```
-
-本次 Ubuntu 会话未以 `systemd` 作为 PID 1 运行，命令在访问 Docker 服务前就已失败。Ubuntu 内是否安装 Docker Engine、服务状态如何，尚未通过这条命令验证。此次验证使用 Desktop 管理的 Engine。 [Docker 服务的启动与停止](../../../云原生/Docker/Docker.md#1114-docker-服务的启动与停止)
+- [x] 解释 Windows + WSL2 环境下容器实际运行在哪里
 
 ## 阶段验收
 
-- [ ] 能解释 Docker、镜像、容器、仓库的关系
-- [ ] 能描述一条 Docker 命令如何交给 Docker Engine 执行
-- [ ] 能解释 Docker 与虚拟机的主要区别
-- [ ] 能独立确认 Docker 环境正常工作
-
-**复习记录。** 基本架构的待巩固点是 Engine、Daemon 与底层组件的分工，以及构建结果的保存位置和镜像分发方式。同一 Ubuntu 发行版的两窗口文件共享题、早期内存资源题留待复核。 [Engine](../../../云原生/Docker/Docker.md#18-docker-engine) · [镜像迁移](../../../云原生/Docker/Docker.md#114-镜像怎么迁移) · [WSL 2 文件共享](../../../云原生/Docker/Docker.md#143-windows-上的-wsl-2-与-docker) · [内存资源](../../../云原生/Docker/Docker.md#16-容器与宿主机的关系)
+- [x] 能解释 Docker、镜像、容器、仓库的关系
+- [x] 能描述一条 Docker 命令如何交给 Docker Engine 执行
+- [x] 能解释 Docker 与虚拟机的主要区别
+- [x] 能独立确认 Docker 环境正常工作
 
 ---
 
@@ -1242,17 +1157,7 @@ docker logs
 
 ---
 
-# 十六、当前学习进度与下一步
-
-- **第一部分 · Docker 基础**。概念学习完成。
-- **第二部分 · Docker 基本架构**。综合测试基本通过，第 1、2、3、5 题通过，第 4 题部分通过。 [架构与故障定位](../../../云原生/Docker/Docker.md#110-docker-基本架构串联)
-- **第三部分 · Docker 运行环境**。基础学习与实操完成。 [阶段 0 实操记录](#阶段-0-实操记录)
-- **第四部分 · 基础原理入门**。尚未完成。
-- **下次**。说「开始」后，从 Linux Namespace 继续，随后学习 cgroups 和容器文件系统隔离。按细致讲解、少量练习和必要实操推进。
-
----
-
-# 十七、最终能力验收
+# 十六、最终能力验收
 
 当全部阶段完成后，应能够做到：
 
