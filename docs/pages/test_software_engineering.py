@@ -30,7 +30,7 @@ class SoftwareEngineeringTests(unittest.TestCase):
                 '软件工程/计算机组成原理/笔记/数字逻辑.md': '[课件](../课件资源/讲义.pdf)\n\n公式 $x+y$。',
                 '软件工程/软件需求与分析/课件/课程.md': '# 需求分析',
                 '通识与拓展/思维/问题解决.md': '# 问题解决',
-                '数学/概率论与数理统计/基础概念/事件.md': '# 随机事件\n\n概率 $P(A)$。',
+                '数学/概率论与数理统计/基础概念/事件.md': '# 随机事件\n\n> [!example] 解析\n>\n> $$P(A)\n> =0.5$$\n',
             }
             for relative, content in sources.items():
                 path = repo/relative
@@ -64,6 +64,11 @@ class SoftwareEngineeringTests(unittest.TestCase):
             download = next(entry for entry in notes if entry['format'] == 'ZIP')
             self.assertEqual((subject/download['download']).read_bytes(), archive.read_bytes())
             self.assertIn('../software-engineering/', Links(content).hrefs)
+            probability = (output/'probability-statistics/index.html').read_text(encoding='utf-8')
+            event = json.loads(build_site.DATA.search(probability)[2])[0]
+            self.assertTrue(event['math'])
+            self.assertIn('<div class="math-display">\\[P(A)\n=0.5\\]</div>', event['full'])
+            self.assertIn('<strong>示例</strong>', event['full'])
 
     def test_moved_subjects_keep_routes_and_use_new_source_paths(self):
         scratch = Path(tempfile.gettempdir())

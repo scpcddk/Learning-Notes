@@ -796,7 +796,11 @@ def enable_reader_math(md):
             parts = [content]
             for next_line in range(start_line + 1, end_line):
                 line = state.src[state.bMarks[next_line] + state.tShift[next_line]:state.eMarks[next_line]]
-                if line.strip() == closing:
+                if line.strip() and state.sCount[next_line] < state.blkIndent:
+                    return False
+                # Markdown previews also accept the closing delimiter after TeX.
+                if line.rstrip().endswith(closing):
+                    parts.append(line.rstrip()[:-len(closing)])
                     break
                 parts.append(line)
             else:
