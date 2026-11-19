@@ -15,6 +15,7 @@ spec = importlib.util.spec_from_file_location(
     "error_handling_practice", Path(__file__).with_name("错误处理.py")
 )
 main = importlib.util.module_from_spec(spec)
+# 脚本在载入时读取环境配置，因此先注入测试专用的密钥和模型名。
 with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "DEEPSEEK_MODEL": "test-model"}):
     spec.loader.exec_module(main)
 
@@ -48,6 +49,7 @@ class StreamingPracticeTests(unittest.TestCase):
         main.messages = self.history.copy()
 
     def call(self, contexts):
+        # 按顺序提供各次模拟响应，并替换 sleep，便于断言重试等待而无需真的暂停。
         with patch.object(main.httpx, "stream", side_effect=contexts) as stream:
             with patch.object(main.time, "sleep") as sleep:
                 with contextlib.redirect_stdout(io.StringIO()) as output:

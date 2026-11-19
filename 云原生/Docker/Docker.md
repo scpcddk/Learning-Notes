@@ -354,6 +354,7 @@ docker run -d --name web nginx
 ```
 
 `--name web` 将新容器命名为 `web`。`-d` 让它在后台运行。 [`docker run` 命令参考](https://docs.docker.com/reference/cli/docker/container/run/)
+  - 命令中的 `-d` 表示 detached mode（分离模式），即容器启动后，Docker CLI 不需要一直保持连接。
 
 1. **PowerShell 启动客户端**。PowerShell 调用 `docker.exe`，把镜像名和运行选项传给它。
 2. **CLI 请求创建容器**。CLI 解析参数，通过 Docker API 将创建请求发给守护进程。

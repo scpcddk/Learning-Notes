@@ -1,3 +1,4 @@
+# 示例把多轮对话、SSE 解析、429 重试和失败回滚放在同一个命令行程序中。
 import os
 import json
 import httpx

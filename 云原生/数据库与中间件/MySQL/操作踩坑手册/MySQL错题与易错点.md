@@ -442,3 +442,48 @@ ROLLBACK;
 > `PARTITION BY` 决定分区范围，`ORDER BY` 决定分区内的排序依据。不要把个人成绩和班级平均分混淆，也不要混淆三个排名函数的跳号规则。
 
 ---
+
+## 18. 联合索引跳过中间列 ≠ 整个索引失效
+
+❌ 错误理解：
+
+> 联合索引 `(class_name, score, age)` 中，如果查询使用 `class_name` 和 `age`，但没有使用 `score`，那么整个联合索引就不能使用。
+
+✅ 正确理解：
+
+联合索引：
+
+```sql
+CREATE INDEX idx_class_score_age
+ON student(class_name, score, age);
+```
+
+查询：
+
+```sql
+SELECT *
+FROM student
+WHERE class_name = '一班'
+  AND age = 20;
+```
+
+仍然可以利用最左列 `class_name` 进行索引定位。
+
+但由于跳过了中间的 `score`，通常不能继续利用 `age` 缩小连续的索引扫描范围。
+
+简单记：
+
+```text
+class_name = '一班'
+→ 可以利用索引定位
+
+age = 20
+→ 通常不能继续缩小索引扫描范围
+→ 可能通过索引条件下推等方式过滤
+```
+
+**易错点：**
+
+> 联合索引没有连续匹配所有字段，不等于整个索引失效。必须区分“能否使用索引”和“哪些字段能参与索引范围定位”。
+
+---
