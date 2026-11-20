@@ -108,7 +108,7 @@ public class AppConfig {
         HikariDataSource ds = new HikariDataSource();
         ds.setJdbcUrl("jdbc:mysql://localhost:3306/test");
         ds.setUsername("root");
-        ds.setPassword("123456");
+        ds.setPassword("REPLACE_WITH_DEMO_DB_PASSWORD");
         return ds;
     }
 

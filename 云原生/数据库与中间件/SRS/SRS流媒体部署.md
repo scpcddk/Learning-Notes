@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **目标**：为 Jetson 摄像头提供推流接收服务，并将 RTMP 流转换为 HLS 格式，使前端可通过网页直接播放 
-> **环境**：实验室 Ubuntu 22.04 服务器（校园网地址 `202.199.6.249`），已运行 Spring Boot 后端（占用 8080）、Nginx 容器（占用 80）、MySQL 等。
+> **环境**：实验室 Ubuntu 22.04 服务器（校园网地址 `192.0.2.10`），已运行 Spring Boot 后端（占用 8080）、Nginx 容器（占用 80）、MySQL 等。
 > **约束**：服务器无外网，需离线部署；不能影响已有服务；最终通过统一入口（80 端口）提供播放地址
 
 ---
@@ -36,14 +36,14 @@ docker save ossrs/srs:5 -o srs.tar
 
 ```powershell
 # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
-scp C:\Users\Lenovo\Desktop\srs.tar neu@202.199.6.249:/home/neu/
+scp C:\Users\Lenovo\Desktop\srs.tar campus-user@192.0.2.10:/home/campus-user/
 ```
 
 ### 2.3 服务器加载镜像
 
 ```bash
 # 在文件和 Docker 制品之间转换，导入后核对标签或容器所需文件。
-docker load -i /home/neu/srs.tar
+docker load -i /home/campus-user/srs.tar
 ```
 
 ---
@@ -101,7 +101,7 @@ docker run -d --name srs \
 
 ### 4.1 为什么需要 Nginx 代理
 
-- SRS 的 HLS 播放地址为 `http://202.199.6.249:8081/live/device1.m3u8`，带非标准端口，不美观。
+- SRS 的 HLS 播放地址为 `http://192.0.2.10:8081/live/device1.m3u8`，带非标准端口，不美观。
 - 前端页面和 API 都在 80 端口，统一入口可避免跨域问题和端口不一致的麻烦。
 
 ### 4.2 复用已有 Nginx 容器
@@ -140,11 +140,11 @@ cat -n /etc/nginx/conf.d/default.conf | grep -E "location /|server_name"
 
 ```bash
 # 读取或筛选本地文件，按实际路径与输出核对关键字段。
-sed -i '43i\    location /live/ {\n        proxy_pass http://202.199.6.249:8081/live/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }' /etc/nginx/conf.d/default.conf
+sed -i '43i\    location /live/ {\n        proxy_pass http://192.0.2.10:8081/live/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }' /etc/nginx/conf.d/default.conf
 ```
 
 - `43i`：在第 43 行（`location / {`）之前插入新内容
-- `proxy_pass` 使用宿主机真实 IP `202.199.6.249`，而不是 `127.0.0.1` 或 Docker 网关，因为容器内测试发现 Docker 网关 `172.17.0.1` 不通，但宿主机内网 IP 可达
+- `proxy_pass` 使用宿主机真实 IP `192.0.2.10`，而不是 `127.0.0.1` 或 Docker 网关，因为容器内测试发现 Docker 网关 `172.17.0.1` 不通，但宿主机内网 IP 可达
 
 ### 4.5 测试并重载
 
@@ -193,8 +193,8 @@ curl -fsS --max-time 10 "$HLS_URL" | sed -n '1,24p'
 
 | 方式 | 地址 |
 |------|------|
-| 直接访问 SRS | `http://202.199.6.249:8081/live/device1.m3u8` |
-| 通过 Nginx（最终使用） | `http://202.199.6.249/live/device1.m3u8` |
+| 直接访问 SRS | `http://192.0.2.10:8081/live/device1.m3u8` |
+| 通过 Nginx（最终使用） | `http://192.0.2.10/live/device1.m3u8` |
 
 ---
 
@@ -212,7 +212,7 @@ curl -fsS --max-time 10 "$HLS_URL" | sed -n '1,24p'
 @RequestMapping("/api/stream")
 public class StreamController {
 
-    @Value("${stream.base-url:http://202.199.6.249/live}")
+    @Value("${stream.base-url:http://192.0.2.10/live}")
     private String streamBaseUrl;
 
     @GetMapping("/{deviceId}")
@@ -233,7 +233,7 @@ public class StreamController {
 **阅读提示**　hls 和 flv 是同一流的两个播放入口，客户端按所用协议选择。
 
 ```json
-{"hls":"http://202.199.6.249/live/device1.m3u8","flv":"http://202.199.6.249/live/device1.flv"}
+{"hls":"http://192.0.2.10/live/device1.m3u8","flv":"http://192.0.2.10/live/device1.flv"}
 ```
 
 ### 5.3 解决 Spring Security 403 拦截
@@ -257,9 +257,9 @@ public class StreamController {
 ```bash
 # 通过服务管理器操作目标进程，再核对它的状态和错误日志。
 ./mvnw clean package -DskipTests
-scp target/*.jar neu@202.199.6.249:/home/neu/
+scp target/*.jar campus-user@192.0.2.10:/home/campus-user/
 sudo systemctl stop iot-api
-sudo mv /home/neu/*.jar /opt/iot-backend/app.jar
+sudo mv /home/campus-user/*.jar /opt/iot-backend/app.jar
 sudo systemctl start iot-api
 ```
 
@@ -267,7 +267,7 @@ sudo systemctl start iot-api
 
 ```bash
 curl http://localhost/iot-api/stream/device1
-# 返回 {"hls":"http://202.199.6.249/live/device1.m3u8","flv":"http://202.199.6.249/live/device1.flv"}
+# 返回 {"hls":"http://192.0.2.10/live/device1.m3u8","flv":"http://192.0.2.10/live/device1.flv"}
 ```
 
 ---
@@ -278,12 +278,12 @@ curl http://localhost/iot-api/stream/device1
 Jetson 摄像头
     │
     │ FFmpeg 推 RTMP 流
-    │ rtmp://202.199.6.249:1935/live/device1
+    │ rtmp://192.0.2.10:1935/live/device1
     ▼
 SRS 容器 (:1935)
     │
     │ 自动转封装为 HLS
-    │ http://202.199.6.249:8081/live/device1.m3u8
+    │ http://192.0.2.10:8081/live/device1.m3u8
     ▼
 Nginx 容器 (:80)  location /live/
     │ proxy_pass → SRS 的 8081
@@ -291,7 +291,7 @@ Nginx 容器 (:80)  location /live/
     ▼
 前端浏览器
     │ 1. 调用 /iot-api/stream/device1 获取播放地址
-    │ 2. hls.js 加载 http://202.199.6.249/live/device1.m3u8
+    │ 2. hls.js 加载 http://192.0.2.10/live/device1.m3u8
     ▼
 用户看到实时视频
 ```
@@ -308,7 +308,7 @@ Nginx 容器 (:80)  location /live/
 | 问题 | 原因 | 解决 |
 |------|------|------|
 | SRS 启动失败（端口冲突） | 8080 被 Spring Boot 占用 | 映射 8081:8080 避开冲突 |
-| Nginx 容器内无法连宿主机 8080 | Docker 默认网桥 `172.17.0.1` 不通 | 使用宿主机真实校园网地址 `202.199.6.249` |
+| Nginx 容器内无法连宿主机 8080 | Docker 默认网桥 `172.17.0.1` 不通 | 使用宿主机真实校园网地址 `192.0.2.10` |
 | 新增 `/live/` 代理后 404 | 可能尚无流，也可能路径或配置错误；需比较上游日志与直连结果 | 推流后验证 `m3u8` 文件下载正常 |
 | 后端接口 403 | Spring Security 未放行 `/stream/**` | 在 SecurityConfig 中 permitAll |
 | 服务器无外网 | 校园网限制 | 离线 docker save/load + scp 传输 |
@@ -338,7 +338,7 @@ ffprobe -v error -show_entries stream=codec_type,codec_name,width,height \
 
 | 角色 | 需要的信息 |
 |------|-----------|
-| **Jetson 同学** | 推流地址：`rtmp://202.199.6.249:1935/live/设备编号` |
+| **Jetson 同学** | 推流地址：`rtmp://192.0.2.10:1935/live/设备编号` |
 | **前端同学** | 调用 `GET /iot-api/stream/设备编号` 获取 HLS 地址，用 hls.js 播放 |
 | **后端同学** | `stream.base-url` 配置在 `/opt/iot-backend/application.properties` |
 

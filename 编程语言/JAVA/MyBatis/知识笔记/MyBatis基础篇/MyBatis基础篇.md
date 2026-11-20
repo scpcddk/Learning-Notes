@@ -237,7 +237,7 @@ public interface StudentMapper {
                 <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
                 <property name="url" value="jdbc:mysql://localhost:3306/test?serverTimezone=Asia/Shanghai"/>
                 <property name="username" value="root"/>
-                <property name="password" value="123456"/>
+                <property name="password" value="REPLACE_WITH_DEMO_DB_PASSWORD"/>
             </dataSource>
         </environment>
     </environments>

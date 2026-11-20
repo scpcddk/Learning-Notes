@@ -1,5 +1,7 @@
 # EMQX + MinIO 部署手册
 
+> 运行命令前，在当前执行环境中设置示例引用的口令变量。 复现 MinIO 长度校验失败时，把 `MINIO_SHORT_TEST_PASSWORD` 设置为 6 位测试口令。
+
 ---
 
 ## 项目背景
@@ -14,7 +16,7 @@
 
 ## 准备工作
 
-登录服务器 `202.199.6.249`（用户 `neu`）后，先摸清现有资源：
+登录服务器 `192.0.2.10`（用户 `campus-user`）后，先摸清现有资源：
 
 ```bash
 # 用容器状态和近期日志确认启动进度及失败位置。
@@ -30,7 +32,7 @@ docker ps
 
 - Docker 已安装，版本 27.5.1，无需安装。
 - 服务器未配置外网代理，无法直接拉取 Docker Hub 镜像。
-- 存在 Docker 组权限问题，用户 `neu` 需加入 `docker` 组才能无 `sudo` 使用。
+- 存在 Docker 组权限问题，用户 `campus-user` 需加入 `docker` 组才能无 `sudo` 使用。
 
 ---
 
@@ -39,7 +41,7 @@ docker ps
 ### 1. 用户权限修复
 
 `docker ps` 报错 `permission denied`。  
-**解决**：将 `neu` 加入 `docker` 组并刷新会话。  
+**解决**：将 `campus-user` 加入 `docker` 组并刷新会话。\
 
 ```bash
 sudo usermod -aG docker $USER
@@ -82,14 +84,14 @@ sudo systemctl restart docker
 
 #### 代理探测
 
-根据实验室提供的 `202.199.6.249` 测试 HTTP 代理（常见端口 8080、3128）：
+根据实验室提供的 `192.0.2.10` 测试 HTTP 代理（常见端口 8080、3128）：
 
 ```bash
-curl -I --proxy http://202.199.6.249:8080 https://www.baidu.com   # 连接被拒绝
-curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒绝
+curl -I --proxy http://192.0.2.10:8080 https://www.baidu.com   # 连接被拒绝
+curl -I --proxy http://192.0.2.10:3128 https://www.baidu.com   # 连接被拒绝
 ```
 
-确认该地址并非 HTTP 代理，不能据此确定代理服务位置，且 `202.199.6.249` 不属于 RFC 1918 私有 IPv4 地址段。
+确认该地址并非 HTTP 代理，不能据此确定代理服务位置，且 `192.0.2.10` 不属于 RFC 1918 私有 IPv4 地址段。
 
 ### 3. 最终方案：离线镜像导入
 
@@ -109,16 +111,16 @@ curl -I --proxy http://202.199.6.249:3128 https://www.baidu.com   # 连接被拒
   
   ```powershell
   # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
-  scp emqx.tar neu@202.199.6.249:/home/neu/
-  scp minio.tar neu@202.199.6.249:/home/neu/
+  scp emqx.tar campus-user@192.0.2.10:/home/campus-user/
+  scp minio.tar campus-user@192.0.2.10:/home/campus-user/
   ```
 
 - 服务器加载：
   
   ```bash
   # 在文件和 Docker 制品之间转换，导入后核对标签或容器所需文件。
-  docker load -i /home/neu/emqx.tar
-  docker load -i /home/neu/minio.tar
+  docker load -i /home/campus-user/emqx.tar
+  docker load -i /home/campus-user/minio.tar
   ```
 
 **收获**：掌握了 Docker 离线部署能力，理解守护进程配置、代理设置与镜像分发的多种手段。
@@ -152,7 +154,7 @@ docker run -d \
   --name emqx \
   -p 1883:1883 \
   -p 18083:18083 \
-  -e EMQX_DASHBOARD__DEFAULT_PASSWORD=123456 \
+  -e "EMQX_DASHBOARD__DEFAULT_PASSWORD=${EMQX_DASHBOARD_PASSWORD:?请先设置 EMQX_DASHBOARD_PASSWORD}" \
   emqx/emqx:latest
 ```
 
@@ -160,7 +162,7 @@ docker run -d \
 - `18083`：Web 管理界面端口。
 - 设置管理员密码（测试环境用弱密码，生产需强化）。
 
-验证：浏览器访问 `http://202.199.6.249:18083`（账号 `admin`，密码 `123456`），进入 Dashboard 即成功。
+验证：浏览器访问 `http://192.0.2.10:18083`（账号 `admin`，密码 `${EMQX_DASHBOARD_PASSWORD}`），进入 Dashboard 即成功。
 
 ---
 
@@ -175,7 +177,7 @@ docker run -d \
   -p 9000:9000 \
   -p 9001:9001 \
   -e MINIO_ROOT_USER=admin \
-  -e MINIO_ROOT_PASSWORD=123456 \
+  -e "MINIO_ROOT_PASSWORD=${MINIO_SHORT_TEST_PASSWORD:?请先设置 MINIO_SHORT_TEST_PASSWORD}" \
   -v minio_data:/data \
   minio/minio server /data --console-address ":9001"
 ```
@@ -186,19 +188,19 @@ docker run -d \
 FATAL: MINIO_ROOT_PASSWORD length should be at least 8 characters
 ```
 
-**原因**：MinIO 强制密码长度 ≥8，`123456` 仅 6 位。
+**原因**：MinIO 强制密码长度 ≥8，示例口令仅 6 位。
 
 ### 解决
 
-删除容器并重建，设置新密码 `admin123456`：
+删除容器并重建，设置新密码 `${MINIO_ROOT_PASSWORD}`：
 
 ```bash
 # 用指定镜像创建容器，核对启动参数、宿主端口和挂载位置。
 docker rm minio
-docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
+docker run -d ... -e "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?请先设置 MINIO_ROOT_PASSWORD}" ...
 ```
 
-访问 `http://202.199.6.249:9001`，用 `admin / admin123456` 登录成功。
+访问 `http://192.0.2.10:9001`，用 `admin / ${MINIO_ROOT_PASSWORD}` 登录成功。
 
 **体会**：环境变量的细微约束往往在日志中直白体现，`docker logs` 是排错第一利器。
 
@@ -216,11 +218,11 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
 
 操作流程（通过 Web 界面）：
 
-1. 登录 `http://202.199.6.249:18083` → `Access Control` → `Authentication`。
+1. 登录 `http://192.0.2.10:18083` → `Access Control` → `Authentication`。
 2. 创建 `Password-Based` 认证，后端选择 `Built-in Database`。
 3. 进入新认证器的 `Users` 页，添加用户如 `jetson` / `jetson123`。
 
-**验证**：使用 MQTTX 客户端连接 `mqtt://202.199.6.249:1883`，输入上述凭据，成功订阅/发布消息。
+**验证**：使用 MQTTX 客户端连接 `mqtt://192.0.2.10:1883`，输入上述凭据，成功订阅/发布消息。
 
 ### 2. MinIO 创建 Bucket 并测试预签名 URL
 
@@ -242,7 +244,7 @@ docker run -d ... -e MINIO_ROOT_PASSWORD=admin123456 ...
   你的后端服务（用仅有相应对象权限的专用账号）生成一个**带有效期、防篡改的 URL**，然后下发给 Jetson。Jetson 拿着这个 URL 就能在指定时间内下载最新的模型，或者上传一段视频。
 - **举例**：  
   你更新了 `yolov8.engine` 模型上传到 `models` Bucket。  
-  后端调用 MinIO API 生成一个 24 小时有效的预签名 URL：  `http://202.199.6.249:9000/models/yolov8.engine?X-Amz-...&X-Amz-Expires=86400`  
+  后端调用 MinIO API 生成一个 24 小时有效的预签名 URL：  `http://192.0.2.10:9000/models/yolov8.engine?X-Amz-...&X-Amz-Expires=86400`\
   Jetson 收到这个 URL 后直接下载，无需知道自己身在哪个 MinIO 实例，也不知道密码。链接到期后失效；有效期内任何持有链接的人均可能重复使用，应通过 HTTPS 传输并避免泄露。
 
 

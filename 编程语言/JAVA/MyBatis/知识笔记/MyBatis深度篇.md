@@ -340,7 +340,7 @@ public class CodeGenerator {
     public static void main(String[] args) {
         FastAutoGenerator.create(
                 "jdbc:mysql://localhost:3306/order_db",
-                "root", "123456")
+                "root", "REPLACE_WITH_DEMO_DB_PASSWORD")
             .globalConfig(builder -> builder
                 .author("dev")
                 .outputDir(System.getProperty("user.dir") + "/src/main/java")
@@ -437,13 +437,13 @@ spring:
         driver-class-name: com.mysql.cj.jdbc.Driver
         jdbc-url: jdbc:mysql://localhost:3306/order_db_0
         username: root
-        password: 123456
+        password: REPLACE_WITH_DEMO_DB_PASSWORD
       order_db_1:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
         jdbc-url: jdbc:mysql://localhost:3306/order_db_1
         username: root
-        password: 123456
+        password: REPLACE_WITH_DEMO_DB_PASSWORD
     rules:
       sharding:
         tables:

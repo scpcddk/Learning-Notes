@@ -106,10 +106,10 @@ rtmp://服务器IP:1935/live/流名
   
   ```bash
   # 区分媒体输入与输出，检查协议、编码参数和服务返回。
-  ffmpeg -f v4l2 -i /dev/video0 -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://39.102.213.11:1935/live/camera01
+  ffmpeg -f v4l2 -i /dev/video0 -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://198.51.100.20:1935/live/camera01
   ```
 
-- 用 OBS 推流：设置 → 推流 → 服务选“自定义” → 服务器填 `rtmp://39.102.213.11:1935/live/` → 串流密钥填 `camera01`
+- 用 OBS 推流：设置 → 推流 → 服务选“自定义” → 服务器填 `rtmp://198.51.100.20:1935/live/` → 串流密钥填 `camera01`
 
 ### 3.2 播放地址
 

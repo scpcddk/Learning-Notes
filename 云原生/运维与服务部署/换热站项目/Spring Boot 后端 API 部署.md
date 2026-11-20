@@ -1,11 +1,13 @@
 # 校园网零成本 Spring Boot 后端 API 部署完整复盘
 
+> 运行命令前，在当前执行环境中设置示例引用的口令变量。 在本地执行 SQL 或 JSON 示例时，用当前环境的口令填写 `REPLACE_WITH_…` 占位符。 批量命令使用容器内的 MySQL 登录路径。先执行 `docker exec -it mysql_8.0 mysql_config_editor set --login-path=project-app --user=clouduser --password`，按提示输入相应账户的口令。
+
 ---
 
 ## 1. 项目背景与核心需求
 
 **项目**：换热站边缘计算平台（CloudPlatform）  
-**硬件**：实验室一台 Ubuntu 22.04 服务器（校园网地址 `202.199.6.249`），校园网内可路由
+**硬件**：实验室一台 Ubuntu 22.04 服务器（校园网地址 `192.0.2.10`），校园网内可路由
 **成员分布**：后端开发、前端开发、边缘设备调试，分散在实验室和宿舍  
 **核心目标**：为前端页面和 Jetson 边缘盒子提供一个**稳定、可路由、长期可用**的后端 API 地址，使得所有人无论在实验室还是宿舍，都能像调用线上服务一样调用后端接口，且整个过程不花一分钱。
 
@@ -83,14 +85,14 @@ newgrp docker
 
   ```powershell
   # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
-  scp "C:\Users\Lenovo\Downloads\OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz" neu@202.199.6.249:/home/neu/
+  scp "C:\Users\Lenovo\Downloads\OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz" campus-user@192.0.2.10:/home/campus-user/
   ```
 
 - 服务器端解压到 `/opt`：
 
   ```bash
   # 核对归档输入和输出位置，完成后检查文件清单。
-  sudo tar -xzf /home/neu/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz -C /opt/
+  sudo tar -xzf /home/campus-user/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz -C /opt/
   ```
 
 - 验证：
@@ -132,7 +134,7 @@ newgrp docker
 
 ```powershell
 # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
-scp "D:\换热站\CloudPlatform\CloudPlatform\target\CloudPlatform-0.0.1-SNAPSHOT.jar" neu@202.199.6.249:/home/neu/
+scp "D:\换热站\CloudPlatform\CloudPlatform\target\CloudPlatform-0.0.1-SNAPSHOT.jar" campus-user@192.0.2.10:/home/campus-user/
 ```
 
 #### 核对构建产物与目标机 Java
@@ -169,8 +171,8 @@ jar tf "$APP_JAR" | grep -E '(^META-INF/MANIFEST.MF$|^BOOT-INF/(classes|lib)/)' 
 ```bash
 # 修改指定文件或目录的权限，核对实际运行服务的用户。
 sudo mkdir -p /opt/iot-backend
-sudo mv /home/neu/CloudPlatform-0.0.1-SNAPSHOT.jar /opt/iot-backend/app.jar
-sudo chown -R neu:neu /opt/iot-backend
+sudo mv /home/campus-user/CloudPlatform-0.0.1-SNAPSHOT.jar /opt/iot-backend/app.jar
+sudo chown -R campus-user:campus-user /opt/iot-backend
 ```
 
 将 JAR 统一放在 `/opt/iot-backend/app.jar`，便于管理和后续更新（只需替换该文件即可）。
@@ -186,7 +188,7 @@ Description=IoT Backend API Service
 After=network.target
 
 [Service]
-User=neu
+User=campus-user
 WorkingDirectory=/opt/iot-backend
 ExecStart=/opt/jdk-17.0.20+8/bin/java -jar /opt/iot-backend/app.jar
 SuccessExitStatus=143
@@ -200,7 +202,7 @@ WantedBy=multi-user.target
 **逐行解释**：
 
 - `After=network.target`：仅规定启动顺序，不保证网络或数据库已就绪；应用需连接重试，必要时结合 network-online.target 与对应 wait-online 服务。
-- `User=neu`：以普通用户而非 root 运行，安全。
+- `User=campus-user`：以普通用户而非 root 运行，安全。
 - `WorkingDirectory`：设置工作目录，某些应用可能依赖相对路径。
 - `ExecStart`：指定 Java 17 路径，避免使用系统 Java 11。
 - `SuccessExitStatus=143`：Java 程序收到 `SIGTERM`（正常停止信号）时会返回 143，systemd 默认认为非 0 就是失败。加上这行将 143 归类为成功退出；Restart=always 仍会重启自行退出的进程，但 systemctl stop 主动停止不会触发它。
@@ -308,7 +310,7 @@ sudo nano /opt/iot-backend/application.properties
 # 数据库地址从应用所在网络选择，连接信息与驱动、字符集配置一起核对。
 spring.datasource.url=jdbc:mysql://127.0.0.1:3306/cloudplatform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
 spring.datasource.username=clouduser
-spring.datasource.password=cloudpass123
+spring.datasource.password=${APP_DB_PASSWORD}
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 spring.jpa.hibernate.ddl-auto=update
 ```
@@ -347,10 +349,13 @@ journalctl -u "$APP_SERVICE" --since "10 minutes ago" --no-pager -n 100
 sudo nano /etc/systemd/system/iot-api.service
 ```
 
-将 `ExecStart` 改为：
+在部署机的 `/etc/iot-api.env` 中设置 `APP_DB_PASSWORD`，内容使用与建库示例相同的应用数据库口令。限制该文件的读取权限。
+
+在服务的 `[Service]` 节中配置：
 
 ```ini
 # 把键值放到读取该配置的文件或节中，核对覆盖顺序与重启后的生效值。
+EnvironmentFile=/etc/iot-api.env
 ExecStart=/opt/jdk-17.0.20+8/bin/java -jar /opt/iot-backend/app.jar --spring.config.additional-location=file:/opt/iot-backend/application.properties
 ```
 
@@ -391,7 +396,7 @@ docker exec -it mysql_8.0 mysql -u root -p
 ```sql
 -- 创建独立数据库作为练习范围，后续建表前核对当前库。
 CREATE DATABASE IF NOT EXISTS cloudplatform CHARACTER SET utf8mb4;
-CREATE USER 'clouduser'@'%' IDENTIFIED BY 'cloudpass123';
+CREATE USER 'clouduser'@'%' IDENTIFIED BY 'REPLACE_WITH_APP_DB_PASSWORD';
 GRANT ALL PRIVILEGES ON cloudplatform.* TO 'clouduser'@'%';
 FLUSH PRIVILEGES;
 EXIT;
@@ -408,14 +413,14 @@ EXIT;
 
 ```powershell
 # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
-scp "C:\...\cloud_platform2.sql" neu@202.199.6.249:/home/neu/
+scp "C:\...\cloud_platform2.sql" campus-user@192.0.2.10:/home/campus-user/
 ```
 
 **查看文件头**：
 
 ```bash
 # 在对应终端执行，先替换示例路径或参数，再核对当前目录和退出状态。
-head -30 /home/neu/cloud_platform2.sql
+head -30 /home/campus-user/cloud_platform2.sql
 ```
 
 发现没有 `CREATE DATABASE` 语句，因此需要手动建库。
@@ -432,7 +437,7 @@ GRANT ALL PRIVILEGES ON cloud_platform.* TO 'clouduser'@'%';
 
 ```bash
 # 在已运行容器内执行命令，命令使用容器里的路径和网络。
-docker exec -i mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform < /home/neu/cloud_platform2.sql
+docker exec -i mysql_8.0 mysql --login-path=project-app -u clouduser cloud_platform < /home/campus-user/cloud_platform2.sql
 ```
 
 检查导入命令退出码，并核对表数、关键行数和业务查询，不能仅凭无输出认定完整导入成功。
@@ -441,7 +446,7 @@ docker exec -i mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform < /hom
 
 ```bash
 # 在已运行容器内执行命令，命令使用容器里的路径和网络。
-docker exec -it mysql_8.0 mysql -u clouduser -pcloudpass123 cloud_platform -e "SHOW TABLES;"
+docker exec -it mysql_8.0 mysql -u clouduser -p cloud_platform -e "SHOW TABLES;"
 ```
 
 返回 27 张表，包括 `station`、`device`、`alarm`、`sensor_data` 等。
@@ -499,7 +504,7 @@ cat /etc/nginx/conf.d/default.conf
 ```nginx
 # 根据 location 选择代理路径，核对 proxy_pass 的 URI、上游地址和转发头。
 location /iot-api/ {
-    proxy_pass http://202.199.6.249:8080/;
+    proxy_pass http://192.0.2.10:8080/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -507,8 +512,8 @@ location /iot-api/ {
 }
 ```
 
-- `proxy_pass` 地址使用宿主机真实 IP `202.199.6.249`，而不是 `127.0.0.1` 或 `172.17.0.1`
-- **原因**：经测试，容器内访问 `172.17.0.1:8080` 返回 504 超时，而访问 `202.199.6.249:8080` 正常（200）。因为 Docker 默认桥接在某些网络配置下无法直接访问宿主机端口，但宿主机内网 IP 是可达的
+- `proxy_pass` 地址使用宿主机真实 IP `192.0.2.10`，而不是 `127.0.0.1` 或 `172.17.0.1`
+- **原因**：经测试，容器内访问 `172.17.0.1:8080` 返回 504 超时，而访问 `192.0.2.10:8080` 正常（200）。因为 Docker 默认桥接在某些网络配置下无法直接访问宿主机端口，但宿主机内网 IP 是可达的
 
 **测试并重载**：
 
@@ -526,7 +531,7 @@ curl http://localhost/iot-api/
 # 返回 {"code":200,"data":"CloudPlatform is running"}
 ```
 
-完美！从今往后，所有人只需记住一个地址：`http://202.199.6.249/iot-api/`
+完美！从今往后，所有人只需记住一个地址：`http://192.0.2.10/iot-api/`
 
 #### 对照直连、容器与外部入口
 
@@ -549,7 +554,7 @@ curl -sS --max-time 10 -w '\nHTTP %{http_code}\n' "$EDGE_URL"
 
 ```
 ┌───────────────────────────────────────────────┐
-│          实验室服务器 202.199.6.249            │
+│          实验室服务器 192.0.2.10            │
 │                                               │
 │  ┌──────────────────────────────────┐         │
 │  │  docker-nginx-1 (80)             │         │
@@ -572,7 +577,7 @@ curl -sS --max-time 10 -w '\nHTTP %{http_code}\n' "$EDGE_URL"
 └───────────────────────────────────────────────┘
          ▲
          │ 校园网 HTTP 请求
-         │ http://202.199.6.249/iot-api/xxx
+         │ http://192.0.2.10/iot-api/xxx
          │
 ┌────────┴────────┐
 │  宿舍/实验室电脑 │
@@ -605,7 +610,7 @@ curl -sS --max-time 10 -w '\nHTTP %{http_code}\n' "$EDGE_URL"
    
    ```powershell
    # 核对远端账号、主机与目标路径。区分本机文件和远端文件。
-   scp target\CloudPlatform-0.0.1-SNAPSHOT.jar neu@202.199.6.249:/home/neu/
+   scp target\CloudPlatform-0.0.1-SNAPSHOT.jar campus-user@192.0.2.10:/home/campus-user/
    ```
 
 3. **服务器替换 JAR 并重启**
@@ -613,7 +618,7 @@ curl -sS --max-time 10 -w '\nHTTP %{http_code}\n' "$EDGE_URL"
    ```bash
    # 通过服务管理器操作目标进程，再核对它的状态和错误日志。
    sudo systemctl stop iot-api
-   sudo mv /home/neu/CloudPlatform-0.0.1-SNAPSHOT.jar /opt/iot-backend/app.jar
+   sudo mv /home/campus-user/CloudPlatform-0.0.1-SNAPSHOT.jar /opt/iot-backend/app.jar
    sudo systemctl start iot-api
    ```
 
@@ -664,8 +669,8 @@ curl -sS --max-time 10 -w '\nHTTP %{http_code}\n' "$EDGE_URL"
 | 查看最近日志 | `sudo journalctl -u iot-api -n 50 --no-pager` |
 | 测试后端直接访问 | `curl http://localhost:8080/` |
 | 测试通过 Nginx 访问 | `curl http://localhost/iot-api/` |
-| 进入 MySQL 容器 | `docker exec -it mysql_8.0 mysql -u clouduser -pcloudpass123` |
-| 查看数据库列表 | `docker exec mysql_8.0 mysql -u clouduser -pcloudpass123 -e "SHOW DATABASES;"` |
+| 进入 MySQL 容器 | `docker exec -it mysql_8.0 mysql -u clouduser -p` |
+| 查看数据库列表 | `docker exec mysql_8.0 mysql --login-path=project-app -u clouduser -e "SHOW DATABASES;"` |
 
 ---
 
