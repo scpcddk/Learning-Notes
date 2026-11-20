@@ -1,6 +1,8 @@
 # Git 常用操作笔记
 
-## 工程流程导航
+---
+
+## 零、工程流程导航
 
 | 任务 | 章节 |
 |---|---|
@@ -19,9 +21,12 @@
 
 #### 1.1.1 确认位置并初始化
 
-`git --version` 检查 Git 是否可用。`git rev-parse --show-toplevel` 显示当前工作树的根目录。返回上级目录时，当前命令使用上级仓库，文件的跟踪状态需另查。
-
-若提示 `not a git repository`，可在确认目录后为需要独立版本管理的项目初始化仓库。[Git rev-parse 文档](https://git-scm.com/docs/git-rev-parse)
+- `git --version` 检查 Git 是否可用。
+- `git rev-parse --show-toplevel` **显示当前工作树的根目录**，属于只读查询。
+  - 返回上级目录时，当前命令使用上级仓库，文件的跟踪状态需另查。
+  - `rev-parse`：Git 的底层查询命令，可以**解析引用或查询仓库信息**。
+  - `--show-toplevel`：要求**显示当前工作区的顶层目录**。
+  - 若提示 `not a git repository`，可在确认目录后为需要独立版本管理的项目初始化仓库。[Git rev-parse 文档](https://git-scm.com/docs/git-rev-parse)
 
 父子目录都已初始化时，以当前目录实际找到的仓库为准，见[嵌套仓库与项目组织](#14-嵌套仓库与项目组织)。
 
@@ -38,7 +43,9 @@ git init -b main
 
 #### 1.1.3 配置提交身份
 
-`--local` 只设置当前仓库，`--global` 设置当前用户的默认值。公司和个人项目需要不同身份时，可在各仓库用本地配置覆盖。`--show-origin` 可确认实际值来自哪个配置文件。提交身份会写入历史，远程认证则使用 SSH 密钥、凭证助手或托管平台的令牌。[Git config](https://git-scm.com/docs/git-config) · [Git 凭证](https://git-scm.com/docs/gitcredentials)
+`--local` **只设置当前仓库**，`--global` **设置当前用户的默认值**。公司和个人项目需要不同身份时，可在各仓库用本地配置覆盖。`--show-origin` 可确认实际值来自哪个配置文件。
+
+**提交身份会写入历史**，远程认证则使用 SSH 密钥、凭证助手或托管平台的令牌。[Git config](https://git-scm.com/docs/git-config) · [Git 凭证](https://git-scm.com/docs/gitcredentials)
 
 ```bash
 git config --local user.name "你的提交名"
@@ -46,16 +53,57 @@ git config --local user.email "your-name@example.com"
 git config --show-origin --get user.email
 ```
 
+#### 1.1.4 选择 Git 命令行环境
+
+**Git Bash** 随 Git for Windows 提供，使用 Bash 作为命令行 Shell，可运行 Git 和常用 Unix 命令。PowerShell 是跨平台 Shell。WSL 可在 Windows 上运行 Ubuntu 等 Linux 发行版。[Git for Windows](https://gitforwindows.org/) · [PowerShell](https://learn.microsoft.com/powershell/scripting/overview) · [WSL](https://learn.microsoft.com/en-us/windows/wsl/faq)
+
+| 环境 | 同一个 D 盘目录的写法 | 列出目录内容 |
+|---|---|---|
+| PowerShell（Windows） | `D:\demo` | `Get-ChildItem` |
+| [Git Bash](https://gitforwindows.org/file-names-branch-names-path-quotation-executable-bit-and-file-modes-core-filemode.html) | `/d/demo` | `ls` |
+| [WSL Ubuntu（默认挂载）](https://learn.microsoft.com/en-us/windows/dev-environment/wsl-interop#access-windows-files-from-linux) | `/mnt/d/demo` | `ls` |
+
+Windows 上的 PowerShell 把 `ls` 和 `rm` 分别设为 `Get-ChildItem` 和 `Remove-Item` 的别名，参数按 PowerShell 语法解释。[PowerShell 别名](https://learn.microsoft.com/en-us/powershell/scripting/learn/shell/using-aliases)
+
+PowerShell 和 Git Bash 可以调用同一套 Git for Windows。在**同一个工作树**中运行 `git status` 和 `git log`，查看的是同一份暂存区和提交历史。
+
 ---
 
 ### 1.2 关联远程仓库
 
-已有本地历史想直接推送到新远程时，可在托管平台创建空仓库，接着关联地址。若已有同名远程，先用 `git remote -v` 或 `git remote get-url origin` 核对地址，确需迁移时使用 `git remote set-url`。多个远程可以分别命名。
+#### 1.2.1 Git 与托管平台
+
+Git 是**分布式版本控制系统**，可以在本地离线提交、比较差异和管理分支。GitHub、Gitee、GitLab 提供**远程 Git 仓库托管和团队协作**。[Pro Git](https://git-scm.com/book/en/v2/Getting-Started-What-is-Git%3F)
+
+| 平台 | 协作功能 |
+|---|---|
+| GitHub | 通过 Pull Request 审查改动，用 GitHub Actions 自动构建、测试和部署。[Pull Request](https://docs.github.com/en/pull-requests/reference/pull-requests) · [GitHub Actions](https://docs.github.com/en/actions/get-started/understand-github-actions) |
+| Gitee | 托管 Git 仓库，通过 Pull Request 组织代码审查与合并。[Gitee 代码审查](https://help.gitee.com/%E5%BC%80%E5%8F%91%E5%8D%8F%E4%BD%9C/%E4%BD%BF%E7%94%A8PullRequest%E5%8A%9F%E8%83%BD%E8%BF%9B%E8%A1%8C%E4%BB%A3%E7%A0%81%E5%AE%A1%E6%9F%A5) |
+| GitLab | 通过 Merge Request 协作，集成 CI/CD。可使用 GitLab.com 托管服务或自行部署。[GitLab CI/CD](https://docs.gitlab.com/ci/pipelines/) · [GitLab 部署方式](https://docs.gitlab.com/subscriptions/choosing_subscription/) |
+
+本地仓库与远程仓库**各自保存提交、分支等 Git 数据**。本地 Git 仓库可以独立使用，也可以连接一个或多个远程。远程还可以是自行搭建的 Git 服务器。[Pro Git 搭建服务器](https://git-scm.com/book/en/v2/Git-on-the-Server-Setting-Up-the-Server)
+
+#### 1.2.2 查看远程配置
+
+`git remote -v` **列出当前仓库配置的远程名称和 URL**。命令成功且无输出时，表示当前仓库还没有配置远程。[Git remote](https://git-scm.com/docs/git-remote)
+
+```text
+origin  https://gitee.com/example/demo.git (fetch)
+origin  https://gitee.com/example/demo.git (push)
+```
+
+`origin` 是惯用的远程名称，也可使用其他名称。示例中的 URL 指向 Gitee。`(fetch)` 表示获取地址，`(push)` 表示推送地址。[Pro Git 远程仓库](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes)
+
+#### 1.2.3 添加或修改远程
+
+已有本地历史想直接推送到新远程时，可在托管平台创建空仓库，接着关联地址。若已有同名远程，先用 `git remote -v` 或 `git remote get-url origin` 核对地址，确需迁移时使用 `git remote set-url`。
 
 ```bash
 # 核对仓库地址、目标分支或配置作用范围，区分本地与远端操作。
 git remote add origin https://github.com/你的用户名/你的仓库名.git
 ```
+
+上面的 `git remote add` 命令**只写入本地远程配置**。将本地提交发送到远程，需要另行执行 `git push`。
 
 HTTPS 可以用受支持的凭证助手管理凭证。SSH 方式需要在平台登记公钥，并验证服务端主机身份。令牌和私钥交给本地凭证系统管理，远程 URL 使用普通仓库地址。[Git remote](https://git-scm.com/docs/git-remote) · [Git 凭证](https://git-scm.com/docs/gitcredentials) · [GitHub SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
 
@@ -68,7 +116,7 @@ HTTPS 可以用受支持的凭证助手管理凭证。SSH 方式需要在平台�
 git push -u origin main
 ```
 
-`-u` 设置本地 `main` 的上游为 `origin/main`。常见的同名分支配置下，后续可以省略远程名和分支名。团队主分支通常通过 PR/MR 合入，见[分支协作与代码审查](#三分支协作与代码审查)。[Git push](https://git-scm.com/docs/git-push)
+`-u` **设置本地 `main` 的上游为 `origin/main`**。常见的同名分支配置下，后续可以省略远程名和分支名。团队主分支通常通过 PR/MR 合入，见[分支协作与代码审查](#三分支协作与代码审查)。[Git push](https://git-scm.com/docs/git-push)
 
 ---
 
@@ -87,7 +135,21 @@ git push -u origin main
 
 #### 1.4.2 Commit ID 指定一个版本
 
-Commit ID 是提交对象的十六进制标识。提交对象包含根目录树 ID、父提交 ID、作者、提交者、时间与说明。首次提交没有父提交，合并提交可以有多个父提交。`git show <commit-id>` 显示相应的提交说明和改动。若使用缩写，当前仓库必须能唯一解析它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) · [Git show](https://git-scm.com/docs/git-show)
+Git 对**对象头和完整的提交内容**计算哈希，得到十六进制的 Commit ID。对象头包含对象类型和内容长度。使用 SHA-1 对象格式时，完整 ID 有 40 个十六进制字符。[Git 对象哈希](https://git-scm.com/docs/hash-function-transition#_object_names)
+
+| 提交对象中的字段 | 含义 |
+|---|---|
+| `tree` | 根目录树的对象 ID，关联该次提交的文件快照。 |
+| `parent` | **直接父提交的 ID**。根提交没有父提交，普通后续提交通常有一个，合并提交可以有多个。 |
+| `author` | 原始改动的作者身份和作者时间。 |
+| `committer` | 创建当前提交对象的身份和提交时间。 |
+| 提交说明 | 记录该次提交的改动或原因。 |
+
+沿一个或多个父引用可达的提交称为**祖先提交**。在线性历史的父引用链 `C → B → A` 中，B 是 C 的直接父提交，B 和 A 都是 C 的祖先。`git log` 默认从 `HEAD` 沿父引用遍历历史。[Git log](https://git-scm.com/docs/git-log)
+
+两个提交引用同一棵根 Tree 时，父提交、提交说明或其他元数据的差异通常会产生不同的 Commit ID。哈希值理论上存在碰撞的可能。
+
+`git show` 可查看提交等 Git 对象。`git show <commit-id>` 显示相应的提交说明和改动。若使用缩写，当前仓库必须能唯一解析它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) · [Git show](https://git-scm.com/docs/git-show)
 
 #### 1.4.3 上级仓库如何暂存嵌套目录
 
@@ -101,7 +163,7 @@ Commit ID 是提交对象的十六进制标识。提交对象包含根目录树 
 
 首次提交前，子仓库即使已有文件和暂存内容，仍缺少 gitlink 所需的提交。遇到这个错误时，Git 会保留仓库边界，子目录中的文件不会被自动暂存。有效 gitlink 所指向的文件树和历史由子仓库提供。[Git add](https://git-scm.com/docs/git-add) · [Git 子模块](https://git-scm.com/docs/gitsubmodules)
 
-从上级用 `git ls-files --stage -- AI_API` 核对索引。单条 `160000` 记录表示提交引用。逐个列出的普通文件说明上级索引直接跟踪了这些文件。后来在子目录运行 `git init` 时，上级原有的跟踪记录仍会保留。[Git ls-files](https://git-scm.com/docs/git-ls-files)
+从上级用 `git ls-files --stage -- AI_API` 核对索引。**单条 `160000` 记录表示提交引用**。逐个列出的普通文件说明上级索引直接跟踪了这些文件。后来在子目录运行 `git init` 时，上级原有的跟踪记录仍会保留。[Git ls-files](https://git-scm.com/docs/git-ls-files)
 
 > [!important] 公开前核对上级仓库
 >
@@ -155,22 +217,62 @@ flowchart TB
     class O remote;
 ```
 
-`git add` 选入的是执行当时的文件内容。继续编辑同一个文件时，工作区和暂存区可以有不同版本。要让新修改进入下一次提交，需要再次暂存。[Git add 文档](https://git-scm.com/docs/git-add)
+`git add` **读取工作区文件当时的内容**，用它更新暂存区。继续编辑同一个文件时，工作区和暂存区可以有不同版本。要让新修改进入下一次提交，需要再次暂存。[Git add 文档](https://git-scm.com/docs/git-add)
 
 通常 `.git/index` 记录待提交路径及其内容对象。暂存时 Git 就会按需将新内容写入对象库。`git commit` 才将索引对应的快照写入提交历史，之后可用 `git log` 找到它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)
 
 #### 2.1.2 按文件或目录暂存
 
 ```bash
-# 只暂存列出的路径。-- 将路径与命令选项分开。
+# 只暂存列出的路径。
 git add -- .gitignore config.py main.py
 git status
 git diff --cached --stat
 ```
 
+`--` 要作为**独立参数**，后面用空格接路径。路径含空格时，用引号括住整个路径，例如 `git add -- "docs/API 接口设计.md"`。把 `--` 和路径连写时，Git 可能将其当成选项并报 `unknown option`。
+
 要批量暂存当前目录及子目录中的新增、修改和删除，可用 `git add .`。匹配忽略规则的未跟踪文件默认跳过。尚未检查的文件较多时，可先列出本次准备提交的路径，再按[状态、差异和历史](#22-查看状态差异和历史)核对全部暂存内容。
 
 指定目录可以缩小批量操作范围。`git add -- tests/` 更新该目录下的索引，包含未被忽略的新增文件、已跟踪文件的修改和删除。匹配忽略规则的未跟踪缓存会跳过。[Git add 路径规则](https://git-scm.com/docs/git-add)
+
+#### 2.1.3 文件的跟踪与改动状态
+
+**Tracked 和 Untracked 描述 Git 是否跟踪该路径**。Modified 和 Staged 分别描述工作区中的改动和暂存区中的待提交改动。[Pro Git 文件状态](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository)
+
+| 状态 | 含义 |
+|---|---|
+| Untracked（未跟踪） | 工作区中尚未纳入 Git 跟踪的文件。 |
+| Tracked（已跟踪） | 索引中已有该路径的记录，刚暂存的新文件也属于这一类。 |
+| Unmodified（未修改） | 已跟踪文件在工作区、索引和当前提交中的版本一致。`git status` 默认省略这类文件。 |
+| Modified（工作区已修改） | 工作区中的文件与索引中记录的版本存在差异。 |
+| Staged（已暂存） | 索引已记录准备提交的新增、修改或删除。 |
+
+已有提交时，是否为 **Staged** 取决于索引与 `HEAD` 的差异。若 `main.py` 在工作区、索引和 `HEAD` 中的版本一致，执行 `git add -- main.py` 后仍是 **Tracked + Unmodified**。
+
+```mermaid
+%%{init: {"theme":"base","htmlLabels":true,"themeVariables":{"fontFamily":"Microsoft YaHei, PingFang SC, Arial, sans-serif","fontSize":"16px","lineColor":"#755d50","edgeLabelBackground":"#fff8f2"},"flowchart":{"curve":"linear","rankSpacing":60,"nodeSpacing":24,"diagramPadding":12,"padding":14}}}%%
+flowchart TB
+    U("<div style='width:420px;text-align:center;line-height:1.6'><b>Untracked（未跟踪）</b><br/>新建未被忽略的 agent.py</div>")
+    A("<div style='width:420px;text-align:center;line-height:1.6'><b>Tracked + Staged</b><br/>新文件开始被跟踪，内容已暂存</div>")
+    C("<div style='width:420px;text-align:center;line-height:1.6'><b>Tracked + Unmodified</b><br/>工作区、索引和提交中的版本一致</div>")
+    M("<div style='width:420px;text-align:center;line-height:1.6'><b>Tracked + Modified</b><br/>工作区有未暂存修改</div>")
+    S("<div style='width:420px;text-align:center;line-height:1.6'><b>Tracked + Staged</b><br/>本次修改已暂存</div>")
+
+    U -->|"git add -- agent.py"| A
+    A -->|"git commit"| C
+    C -->|"再次编辑 agent.py"| M
+    M -->|"git add -- agent.py"| S
+
+    classDef workspace fill:#fff4e9,stroke:#d5a58b,color:#382820;
+    classDef staged fill:#ffe2cc,stroke:#bd7f5d,color:#382820;
+    classDef local fill:#e7eac6,stroke:#838b50,color:#382820;
+    class U,M workspace;
+    class A,S staged;
+    class C local;
+```
+
+暂存后又继续编辑时，同一文件可以同时是 **Tracked + Staged + Modified**。已跟踪文件从工作区删除且删除尚未暂存时，`git status` 会报告未暂存的 `deleted`。
 
 ---
 
@@ -178,34 +280,89 @@ git diff --cached --stat
 
 #### 2.2.1 常用查看命令
 
+##### 2.2.1.1 状态与差异
+
 ```bash
 git status                    # 详细状态
 git status -s                 # 简略模式
 git diff                      # 工作区相对暂存区的改动
-git diff --cached --stat      # 暂存文件及增删行数摘要
+git diff --stat               # 未暂存改动的文件及增删行数摘要
+git diff --cached --stat      # 已暂存改动的文件及增删行数摘要
 git diff --cached             # 暂存区相对当前提交的改动
 git diff --cached --check     # 检查暂存改动中的空白错误和冲突标记
-git log                       # 详细提交日志
+```
+
+`git diff` 加上 `--stat` 时只显示改动摘要。
+
+- 对文本文件，路径后的数字是新增与删除行数之和，`+` 和 `-` 表示两者的相对规模。
+- 末行汇总本次比较的改动文件数、新增行数和删除行数。
+
+要判断大量增删是否涉及换行符变化，需要查看具体差异。
+
+##### 2.2.1.2 中文路径显示
+
+中文路径显示为 `\346\216\245` 这类八进制转义时，可用以下命令直接显示中文路径。`-c` 指定的配置**只对本次命令生效**。
+
+```bash
+git -c core.quotePath=false status
+git -c core.quotePath=false diff --stat
+```
+
+##### 2.2.1.3 提交历史
+
+```bash
+git log                       # 只读查看详细提交历史
 git log --oneline             # 一行一条
+git log --oneline -5          # 从 HEAD 开始，最多显示 5 条提交
 git log --graph --all --oneline   # 图形化显示所有分支历史
 git show 提交哈希             # 查看某次提交的详细内容
+git show --stat HEAD          # 只读查看当前提交的信息和文件改动统计
 ```
 
 #### 2.2.2 先确认在比较哪两层
 
+##### 2.2.2.1 差异输出
+
+`git diff` 是**只读查询**。`--` 将选项或版本与文件路径分开，普通相对路径以当前目录为起点。
+
 | 想看什么 | 命令 | 比较范围 |
 |---|---|---|
-| 文件刚改了什么 | `git diff -- main.py` | 索引与工作区，只显示该文件的未暂存改动。 |
-| 下一次准备提交什么 | `git diff --cached` | 当前提交与索引。 |
-| 相对当前提交文件的总体变化 | `git diff HEAD -- main.py` | 当前提交与工作区。 |
+| 文件刚改了什么 | `git diff -- main.py` | **索引与工作区**，只显示该文件的未暂存改动。 |
+| 下一次准备提交什么 | `git diff --cached` | **当前提交与索引**。 |
+| 相对当前提交文件的总体变化 | `git diff HEAD -- main.py` | **当前提交与工作区**。 |
 
-未跟踪文件从 `git status` 查看。为文件增加一行注释但尚未暂存时，`git diff -- main.py` 中以 `+` 开头的行表示新增内容，提交与索引仍处于原来的状态。若差异段头是 `@@ -10,3 +10,4 @@`，旧侧从第 10 行起有 3 行，新侧有 4 行，行数包含上下文。[Git diff](https://git-scm.com/docs/git-diff)
+为文件增加一行注释但尚未暂存时，`git diff -- main.py` 中以 `+` 开头的行表示新增内容，提交与索引仍处于原来的状态。
 
-`git status` 中，`Changes to be committed` 表示已暂存，`Changes not staged for commit` 表示已跟踪文件还有未暂存修改，`Untracked files` 表示尚未跟踪的文件。同一文件暂存后又修改时，可以同时出现在前两个分组中。被忽略的未跟踪文件默认省略。[Git status 文档](https://git-scm.com/docs/git-status)
+若差异段头是 `@@ -10,3 +10,4 @@`，旧侧从第 10 行起有 3 行，新侧有 4 行，行数包含上下文。[Git diff](https://git-scm.com/docs/git-diff)
+
+##### 2.2.2.2 状态输出
+
+| `git status` 输出 | 含义 |
+|---|---|
+| `On branch main` | 当前位于 `main` 分支。 |
+| `Changes to be committed` | 已暂存的改动。 |
+| `Changes not staged for commit` | 已跟踪文件还有未暂存改动，包括修改（`modified`）和删除（`deleted`）。 |
+| `Untracked files` | 尚未跟踪的文件。被忽略的未跟踪文件默认省略。 |
+
+同一文件暂存后又修改时，可以**同时出现在已暂存和未暂存分组中**。末尾显示 `no changes added to commit` 时，表示当前没有已暂存的改动。[Git status 文档](https://git-scm.com/docs/git-status)
+
+> [!example] 暂存后继续编辑同一个文件
+>
+> 为 `main.py` 添加异常处理后执行 `git add -- main.py`，再添加日志。此时 `git status` 的两组记录分别对应两次改动。
+>
+> ```text
+> Changes to be committed:
+>     modified: main.py
+>
+> Changes not staged for commit:
+>     modified: main.py
+> ```
+>
+> `git diff --cached -- main.py` 显示已暂存的异常处理，`git diff -- main.py` 显示还在工作区的新增日志。普通 `git commit` 会记录索引中的 `main.py`。要一起提交两次改动，再用 `git add -- main.py` 更新索引。
 
 #### 2.2.3 读懂暂存差异
 
-`git diff --cached` 与 `git diff --staged` 等价。首次提交前没有当前提交，此时显示全部暂存内容。追加 `-- .gitignore` 可将比较限定到该文件。下面是新文件的暂存差异示意。[Git diff 文档](https://git-scm.com/docs/git-diff)
+**`git diff --cached` 与 `git diff --staged` 等价**。首次提交前没有当前提交，此时显示全部暂存内容。追加 `-- .gitignore` 可将比较限定到该文件。下面是新文件的暂存差异示意。[Git diff 文档](https://git-scm.com/docs/git-diff)
 
 ```diff
 diff --git a/.gitignore b/.gitignore
@@ -226,6 +383,9 @@ index 0000000..7a60b85
 | `--- /dev/null`、`+++ b/.gitignore` | 旧侧无文件，新侧为 `.gitignore`。`/dev/null` 在此是占位符。 |
 | `@@ -0,0 +1,2 @@` | 旧侧没有行，新侧从第 1 行开始，共 2 行。 |
 | 正文行首 `+`、`-` | 本次新增的行、本次删除的行。 |
+| 正文行首的空格 | 未改动的上下文行，用于定位改动。 |
+
+一行由 `A` 改成 `B` 时，差异通常显示为 `-A` 和 `+B`。
 
 > [!tip] 顺着三条命令审查
 >
@@ -237,7 +397,7 @@ index 0000000..7a60b85
 
 #### 2.2.5 审查配置与认证代码
 
-- `git diff --cached -- config.py` 用于检查配置改动，`git diff --cached -- main.py` 用于检查调用代码。公开接口、模型名和超时值通常属于普通配置。变量名引用和动态构造认证头可以进入代码，真实凭证应由运行环境提供。
+- `git diff --cached -- config.py` 用于检查配置改动，`git diff --cached -- main.py` 用于检查调用代码。公开接口、模型名和超时值通常属于普通配置。变量名引用和动态构造认证头可以进入代码，**真实凭证应由运行环境提供**。
 - `git diff --cached -- tests/` 将审查限定在测试目录。检查测试数据、调试打印和失败输出中的真实凭证与私人信息。模拟测试使用 `"mock-test-key"` 之类的虚构值。检查环境变量时，只显示是否读取到非空值。凭证能否通过认证由实际服务响应判断。
 - `.gitignore` 按路径匹配。已暂存代码中的真实 API Key、Token 和密码，需要在本地审查差异时发现并处理。分享差异前先遮盖敏感内容。
 - 差异展示相对旧版本的改动。输出截断时，判断范围以实际看到的内容为准。要读完整的暂存版本，可在本地用 `git show :config.py` 读取索引中的文件。[Git 差异格式](https://git-scm.com/docs/diff-format) · [Git 索引路径语法](https://git-scm.com/docs/gitrevisions)
@@ -257,7 +417,7 @@ git diff --cached
 git commit -m "fix: handle empty model response"
 ```
 
-`git add .` 的路径范围是当前目录及其子目录。在仓库根目录执行时，范围是整棵工作树。准备协作时，推送当前任务分支并开 PR/MR。[Git add](https://git-scm.com/docs/git-add)
+`git add .` 的路径范围是**当前目录及其子目录**。在仓库根目录执行时，范围是整棵工作树。准备协作时，推送当前任务分支并开 PR/MR。[Git add](https://git-scm.com/docs/git-add)
 
 ---
 
@@ -292,7 +452,7 @@ git commit -m "fix: handle empty model response"
 
 ### 2.5 提交到本地仓库
 
-审查暂存内容后，不带路径执行 `git commit -m`，Git 会根据索引创建本地提交快照，并生成对应的 commit ID。`-m` 指定提交说明。远程同步由后面的推送步骤完成。[Git commit 文档](https://git-scm.com/docs/git-commit)
+审查暂存内容后，不带路径执行 `git commit -m`，Git 会**根据索引创建本地提交快照**，并生成对应的 commit ID。`-m` 指定提交说明。远程同步由后面的推送步骤完成。[Git commit 文档](https://git-scm.com/docs/git-commit)
 
 ```bash
 git commit -m "Initial commit: CLI AI Chat"
@@ -302,12 +462,40 @@ git status
 
 #### 2.5.1 读懂首次提交的输出
 
+##### 2.5.1.1 提交记录与工作区状态
+
 - 提交摘要形如 `[main (root-commit) a1b2c3d] Initial commit: CLI AI Chat`。`main` 是分支，`root-commit` 表示没有父提交，`a1b2c3d` 是示意的提交 ID 缩写。
-- `files changed` 是本次涉及的文件数。`create mode 100644` 表示新增普通非可执行文件。
+- 分支是**指向提交的可移动引用**。`HEAD` 表示当前检出位置，通常指向当前分支。
 - `git log --oneline -1` 显示最近一条提交的 ID 缩写和说明。`HEAD -> main` 表示 `HEAD` 指向当前分支 `main`，该分支再指向其最新提交。可加 `--decorate` 明确显示引用名。
+- 在 `main` 上创建普通提交 D 时，D 将原分支顶端记为父提交，Git 把 `main` 更新到 D。此时的引用关系是 **`HEAD` → `main` → D**。
 - 默认的 `git status` 若显示 `working tree clean`，表示索引与当前提交一致，工作区也没有未暂存的已跟踪变更或未忽略的未跟踪文件。[Git log](https://git-scm.com/docs/git-log) · [Git status](https://git-scm.com/docs/git-status)
 
 遇到 `Author identity unknown` 时，先核对当前仓库生效的 `user.name` 和 `user.email`，确认要用于项目历史的身份后再配置。
+
+##### 2.5.1.2 文件统计与大小
+
+- `files changed` 是本次涉及的文件数。`create mode 100644` 表示新增普通非可执行文件。
+- `git show --stat HEAD` 对单父提交统计相对父提交的改动。首次提交没有父提交，统计的是相对空树的改动。
+
+```bash
+git ls-tree -r -l HEAD -- main.py
+```
+
+这条命令只读查询 `HEAD` 中的文件条目。`-r` 递归列出条目，`-l` 显示文件对象的字节数。
+
+```text
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391       0    main.py
+```
+
+| 字段示例 | 含义 |
+|---|---|
+| `100644` | 普通非可执行文件的模式。 |
+| `blob` | 保存文件内容的 Git 对象类型。 |
+| `e69de29…` | **文件内容对象的 ID**（Blob ID）。 |
+| `0` | 文件大小为 0 字节，表示该历史版本中的文件为空。 |
+| `main.py` | 文件在该提交中的路径。 |
+
+使用 SHA-1 对象格式时，空文件的 Blob ID 固定为示例中的值。
 
 #### 2.5.2 本地提交的用途
 
@@ -315,6 +503,42 @@ git status
 - 用 `git log --oneline` 查看项目历史，从已知正常的提交定位或恢复旧版本。
 
 这些操作可以离线完成。GitHub 等远程仓库用于多设备同步、协作和保存异机副本。磁盘损坏后，远程仓库可恢复的是已经同步的版本，本机独有的提交和未提交改动还需要独立备份。[Pro Git 的本地操作与快照](https://git-scm.com/book/en/v2/Getting-Started-What-is-Git%3F)
+
+#### 2.5.3 提交快照与对象复用
+
+普通 `git commit` 根据整个索引生成**完整的版本快照**。假设提交 A 已包含三个文件，提交 B 前只修改并暂存 `main.py`，为它加入 429 重试逻辑。
+
+| 文件 | 提交 A | 提交 B |
+|---|---|---|
+| `main.py` | 版本 1 | 版本 2 |
+| `config.py` | 版本 1 | 版本 1 |
+| `requirements.txt` | 版本 1 | 版本 1 |
+
+目录树中的普通文件条目引用对应的 Blob，子目录条目引用子 Tree。两次提交中的 `config.py` 和 `requirements.txt` **分别复用各自原有的 Blob**。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)
+
+```mermaid
+%%{init: {"theme":"base","htmlLabels":true,"themeVariables":{"fontFamily":"Microsoft YaHei, PingFang SC, Arial, sans-serif","fontSize":"16px","lineColor":"#755d50","edgeLabelBackground":"#fff8f2"},"flowchart":{"curve":"linear","rankSpacing":60,"nodeSpacing":24,"diagramPadding":12,"padding":14}}}%%
+flowchart LR
+    B("<div style='width:148px;text-align:center;line-height:1.6'><b>提交 B</b><br/>添加 429 重试</div>")
+    A("<div style='width:148px;text-align:center;line-height:1.6'><b>提交 A</b><br/>完成基础 API 调用</div>")
+    T("<div style='width:148px;text-align:center;line-height:1.6'><b>根 Tree</b><br/>提交 B 的文件快照</div>")
+    F("<div style='width:148px;text-align:center;line-height:1.6'><b>Blob</b><br/>main.py 的版本 2</div>")
+
+    B -->|"parent"| A
+    B -->|"tree"| T
+    T -->|"普通文件条目"| F
+
+    classDef local fill:#e7eac6,stroke:#838b50,color:#382820;
+    classDef tree fill:#ffe2cc,stroke:#bd7f5d,color:#382820;
+    classDef blob fill:#fff4e9,stroke:#d5a58b,color:#382820;
+    class A,B local;
+    class T tree;
+    class F blob;
+```
+
+> [!note] 创建与父提交快照相同的提交
+>
+> 普通的单父提交默认要求索引相对 `HEAD` 有改动。索引与 `HEAD` 一致时，可以用 `git commit --allow-empty -m "记录验证完成"` 显式创建新提交，复用父提交的根 Tree。[Git commit 文档](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---allow-empty)
 
 ---
 
@@ -329,7 +553,7 @@ git stash pop             # 恢复最近一次保存；成功后删除记录，�
 git stash list            # 查看暂存列表
 ```
 
-想先预览可用 `git stash show -p 'stash@{0}'`。用 `git stash apply 'stash@{0}'` 恢复并保留备份项，加 `--index` 会尝试一并恢复原有暂存状态。验收工作区和暂存区后再删除已用完的记录。[Git stash](https://git-scm.com/docs/git-stash)
+想先预览可用 `git stash show -p 'stash@{0}'`。用 `git stash apply 'stash@{0}'` **恢复并保留备份项**，加 `--index` 会尝试一并恢复原有暂存状态。验收工作区和暂存区后再删除已用完的记录。[Git stash](https://git-scm.com/docs/git-stash)
 
 ---
 
@@ -347,7 +571,9 @@ git stash list            # 查看暂存列表
 
 ### 3.2 获取远程状态并开始任务
 
-`origin/main` 是本地的远程跟踪引用，在 `fetch` 时更新。`git branch -r` 列出这类引用，`git branch -a` 同时列出本地分支。`git branch -vv` 可检查各本地分支和上游的关系。Fork 协作时，查看上游原仓库的最新状态应从 `upstream` 获取。[Git fetch](https://git-scm.com/docs/git-fetch) · [Git branch](https://git-scm.com/docs/git-branch)
+`origin/main` 是**本地的远程跟踪引用**，在 `fetch` 时更新。`git branch -r` 列出这类引用，`git branch -a` 同时列出本地分支。`git branch -vv` 可检查各本地分支和上游的关系。Fork 协作时，查看上游原仓库的最新状态应从 `upstream` 获取。[Git fetch](https://git-scm.com/docs/git-fetch) · [Git branch](https://git-scm.com/docs/git-branch)
+
+`git fetch` 把获取的提交及所需对象写入**本地 Git 对象库**，普通仓库中通常位于 `.git/objects`。例如，本地 `main` 在 C，远程 `main` 已到 D。按默认跟踪配置获取后，本地 `origin/main` 指向 D，本地 `main` 仍指向 C。[Git 仓库结构](https://git-scm.com/docs/gitrepository-layout)
 
 ```bash
 git fetch origin
@@ -362,14 +588,57 @@ git push -u origin feature/chat-retry
 
 ### 3.3 同步已有分支
 
+#### 3.3.1 选择获取或整合
+
+`git pull` **先用 `git fetch` 获取远程更新，再整合到当前分支**。整合方式由命令参数和 Git 配置决定。
+
+例如，在 `feature/chat-retry` 上执行 `git pull origin main`，会从远程 `origin` 获取 `main` 分支，并尝试整合到**当前的 `feature/chat-retry` 分支**。
+
 | 命令 | 适用情形与效果 |
 |---|---|
-| `git fetch origin` | 更新远程跟踪引用，保留当前分支和工作区。先看变化，再选整合方式。 |
-| `git pull --ff-only` | 只允许快进。适用于本地 `main` 只跟随上游、双方尚未分叉的情况。 |
-| `git pull --no-rebase` | 获取后以合并方式整合，可能快进，也可能创建合并提交。 |
-| `git pull --rebase` | 获取后将本地独有提交重放到上游。适合可重写的个人提交。 |
+| `git fetch origin` | 按远程配置更新对应的远程跟踪引用，**保留当前分支和工作区**。先看变化，再选整合方式。 |
+| `git pull --ff-only` | **只允许快进**。适用于本地 `main` 只跟随上游、双方尚未分叉的情况。 |
+| `git pull --no-rebase` | 获取后**以合并方式整合**，可能快进，也可能创建合并提交。 |
+| `git pull --rebase` | 获取后**将本地独有提交重放到上游**。适合可重写的个人提交。 |
 
 在团队中先同步，再根据分支约定整合。`git diff HEAD origin/main` 比较两个提交的快照，`git log --left-right --oneline HEAD...origin/main` 查看双方各自独有的提交。临时收起改动后，可在确认更新成功时用 `git stash apply` 恢复并检查。[Git pull](https://git-scm.com/docs/git-pull) · [Git diff](https://git-scm.com/docs/git-diff) · [Git log](https://git-scm.com/docs/git-log)
+
+#### 3.3.2 快进与三方合并
+
+本地 `main` 的顶端 C 是待整合提交 D 的祖先时，允许快进的合并会**直接将 `main` 移到已有提交 D**，并更新索引和工作区。[Git 快进合并](https://git-scm.com/docs/git-merge#_fast_forward_merge)
+
+获取 D 后，也可以继续在 C 上创建本地提交 E。此时 `main` 指向 E，`origin/main` 指向 D，两条历史从 C 分叉。直接推送 E 到远程 `main` 通常会收到 `non-fast-forward` 拒绝。**文件冲突在整合时才可能发生**。[Git push](https://git-scm.com/docs/git-push#_note_about_fast_forwards)
+
+在 `main` 上执行 `git merge origin/main`，Git 以**共同祖先 C、本地 E 和待合入的 D** 为依据进行三方合并。合并完成后，本地 `main` 指向新的合并提交 M，M 的两个父提交是 E 和 D。[Pro Git 分支与合并](https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging)
+
+```mermaid
+%%{init: {"theme":"base","htmlLabels":true,"themeVariables":{"fontFamily":"Microsoft YaHei, PingFang SC, Arial, sans-serif","fontSize":"16px","lineColor":"#755d50","edgeLabelBackground":"#fff8f2"},"flowchart":{"curve":"linear","rankSpacing":60,"nodeSpacing":24,"diagramPadding":12,"padding":14}}}%%
+flowchart LR
+    C("<div style='width:112px;text-align:center;line-height:1.6'><b>提交 C</b><br/>共同祖先</div>")
+    E("<div style='width:112px;text-align:center;line-height:1.6'><b>提交 E</b><br/>合并前的 main</div>")
+    D("<div style='width:112px;text-align:center;line-height:1.6'><b>提交 D</b><br/>origin/main</div>")
+    M("<div style='width:112px;text-align:center;line-height:1.6'><b>提交 M</b><br/>合并后的 main</div>")
+
+    C --> E --> M
+    C --> D --> M
+
+    classDef ancestor fill:#fff4e9,stroke:#d5a58b,color:#382820;
+    classDef local fill:#e7eac6,stroke:#838b50,color:#382820;
+    classDef remote fill:#f5ddea,stroke:#af7897,color:#382820;
+    class C ancestor;
+    class E,M local;
+    class D remote;
+```
+
+不同文件或同一文件不同位置的改动通常可以自动合并。同一处的不同改动无法自动协调时，按[解决冲突并验证](#35-解决冲突并验证)处理。[Git 合并冲突](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented)
+
+远程 `main` 仍指向 D 时，推送合并提交 M 满足快进条件。[Git push](https://git-scm.com/docs/git-push#_note_about_fast_forwards)
+
+> [!important] 拉取前检查未提交改动
+>
+> 采用合并方式拉取时，不重叠的未暂存改动通常可以保留。更新会覆盖本地未提交的内容时，Git 通常会中止整合。已暂存的改动也可能阻止合并。[Git 合并前检查](https://git-scm.com/docs/git-merge#_pre_merge_checks)
+>
+> 变基通常要求索引和工作区干净。拉取前先用 `git status` 检查，必要时[暂存工作现场](#26-暂存工作现场stash)。[Git rebase](https://git-scm.com/docs/git-rebase)
 
 ---
 
@@ -397,10 +666,30 @@ git push -u origin feature/chat-retry
 
 ### 3.5 解决冲突并验证
 
-1. 用 `git status` 确认当前在 merge、rebase 或 cherry-pick 的哪个阶段，找出冲突路径。
+> [!example] 选课人数上限冲突
+>
+> `数据库设计.md` 的选课人数上限在共同祖先 C 中为 50 人。本地提交 E 将它改为 40 人，`origin/main` 指向的提交 D 将它改为 60 人。
+>
+> `git merge origin/main` 无法自动协调双方对同一行的改动时，会**暂停合并**。默认冲突标记如下。
+>
+> ```text
+> <<<<<<< HEAD
+> 学生选课最大人数：40人
+> =======
+> 学生选课最大人数：60人
+> >>>>>>> origin/main
+> ```
+>
+> `<<<<<<< HEAD` 与 `=======` 之间是当前分支的内容，`=======` 与 `>>>>>>> origin/main` 之间是待合入分支的内容。
+>
+> **最终内容以业务需求为准**。如果核对后确认上限应为 50 人，就将包含冲突标记的整段替换为 `学生选课最大人数：50人`，再暂存解决后的文件。
+
+1. 用 `git status` 确认当前在 merge、rebase 或 cherry-pick 的哪个阶段。`Unmerged paths` 列出尚未解决的路径，`both modified` 表示双方都修改了该路径。
 2. 阅读双方改动，编辑成预期结果，处理新增、删除、重命名等路径冲突。文本冲突需要清理 `<<<<<<<`、`=======`、`>>>>>>>`。
-3. 用 `git add -- 路径` 标记解决，删除确认无误时用 `git rm -- 路径`。检查 `git diff --cached --check` 并运行受影响的测试。
-4. 根据进行中的操作运行 `git merge --continue`、`git rebase --continue` 或 `git cherry-pick --continue`。放弃整合时使用对应的 `--abort`。在干净工作区开始整合，便于回到起点。[Git merge](https://git-scm.com/docs/git-merge) · [Git rebase](https://git-scm.com/docs/git-rebase) · [Git cherry-pick](https://git-scm.com/docs/git-cherry-pick)
+3. 用 `git add -- 路径` 暂存编辑结果并**标记该路径已解决**，确认删除时用 `git rm -- 路径`。再次用 `git status` 核对剩余冲突，再用 `git diff --cached --check` 检查暂存内容并运行受影响的测试。
+4. 普通合并中，`All conflicts fixed but you are still merging.` 表示所有冲突路径已标记解决，合并正在等待提交。根据进行中的操作运行 `git merge --continue`、`git rebase --continue` 或 `git cherry-pick --continue`。普通合并也可用 `git commit` 创建合并提交。
+
+   `git merge --abort` 中止进行中的合并，并**尝试恢复到合并前的状态**。合并前已有未提交改动时，恢复可能不完整。在干净工作区开始整合，便于回到起点。变基或拣选使用各自的 `--abort`。[Git merge](https://git-scm.com/docs/git-merge) · [Git rebase](https://git-scm.com/docs/git-rebase) · [Git cherry-pick](https://git-scm.com/docs/git-cherry-pick)
 
 > [!note] 按改动内容解决冲突
 >
@@ -412,11 +701,17 @@ git push -u origin feature/chat-retry
 
 #### 3.6.1 重写个人分支历史
 
-`git rebase -i` 可在个人分支上调整提交顺序、合并细碎提交或修改说明。`rebase` 和 `commit --amend` 会产生新 ID。已被团队使用的历史通常通过新提交修复。若团队允许重写某个个人 PR 分支，核对远端预期的旧 ID 后使用 `--force-with-lease=<远端引用>:<预期旧ID>`，只更新明确的目标分支。远端与预期不符时，先重新检查差异和他人提交。[Git rebase](https://git-scm.com/docs/git-rebase) · [Git push](https://git-scm.com/docs/git-push)
+`git rebase -i` 可在个人分支上调整提交顺序、合并细碎提交或修改说明。`rebase` 和 `commit --amend` 会产生新 ID。已被团队使用的历史通常通过新提交修复。
+
+若团队允许重写某个个人 PR 分支，**核对远端预期的旧 ID** 后使用 `--force-with-lease=<远端引用>:<预期旧ID>`，只更新明确的目标分支。远端与预期不符时，先重新检查差异和他人提交。[Git rebase](https://git-scm.com/docs/git-rebase) · [Git push](https://git-scm.com/docs/git-push)
 
 #### 3.6.2 清理已完成的分支
 
-合入并确认无后续工作后，从其他分支执行 `git branch -d feature/chat-retry`。`-d` 按配置的上游判断是否已合并，未设上游才按当前 `HEAD` 判断。需要确认原提交在目标历史中时，可用 `git branch --merged origin/main`。Squash merge 后应以 PR/MR 合并记录与实际改动为依据。确认本地分支可以舍弃时才用 `-D`。远程分支是否删除按团队约定，可用 `git push origin --delete feature/chat-retry`。[Git branch](https://git-scm.com/docs/git-branch)
+合入并确认无后续工作后，从其他分支执行 `git branch -d feature/chat-retry`。`-d` 按配置的上游判断是否已合并，未设上游才按当前 `HEAD` 判断。
+
+需要确认原提交在目标历史中时，可用 `git branch --merged origin/main`。Squash merge 后应以 PR/MR 合并记录与实际改动为依据。确认本地分支可以舍弃时才用 `-D`。
+
+远程分支是否删除按团队约定，可用 `git push origin --delete feature/chat-retry`。[Git branch](https://git-scm.com/docs/git-branch)
 
 ---
 
@@ -431,7 +726,7 @@ git push -u origin feature/chat-retry
 | 构建、分发与部署 | 将 Git SHA 和版本记录到产物及部署信息。产生制品的构建、校验值或容器镜像 digest 能对应到同一版本。 |
 | 生产验收 | 记录部署到哪个环境、使用哪个制品及结果。用关键功能与运行指标判断是否需要恢复。 |
 
-产品采用语义化版本时，公共 API 有不兼容改动升主版本，向后兼容的新功能升次版本，向后兼容的修复升补丁版本。`1.4.0-rc.1` 表示预发布候选。已发布版本的内容应保持稳定，修复通过下一版本交付。[SemVer 2.0.0](https://semver.org/spec/v2.0.0.html)
+产品采用语义化版本时，公共 API 有不兼容改动**升主版本**，向后兼容的新功能**升次版本**，向后兼容的修复**升补丁版本**。`1.4.0-rc.1` 表示预发布候选。已发布版本的内容应保持稳定，修复通过下一版本交付。[SemVer 2.0.0](https://semver.org/spec/v2.0.0.html)
 
 ---
 
@@ -445,14 +740,16 @@ git show --no-patch v1.4.0
 git push origin refs/tags/v1.4.0
 ```
 
-平台的 Release 可以绑定标签，附发布说明和构建产物。团队可让 PR 跑检查，让已批准的主分支提交或发布标签触发交付。CI 记录源码 SHA，构建一次并在验证与生产阶段使用同一个已校验制品。部署所需凭证由对应环境提供，外部贡献的 PR 检查按最小权限配置。流水线和环境配置见 [CI/CD 笔记](CI-CD.md)。[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) · [GitHub Actions 安全使用](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions)
+平台的 Release 可以绑定标签，附发布说明和构建产物。团队可让 PR 跑检查，让已批准的主分支提交或发布标签触发交付。
+
+CI 记录源码 SHA，构建一次并在验证与生产阶段使用**同一个已校验制品**。部署所需凭证由对应环境提供，外部贡献的 PR 检查按最小权限配置。流水线和环境配置见 [CI/CD 笔记](CI-CD.md)。[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) · [GitHub Actions 安全使用](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions)
 
 ---
 
 ### 4.3 回滚发布与修复代码
 
 - **恢复服务**。识别事故对应的制品和配置版本，确认旧制品还能读取当前数据和配置，再部署上一个已验证版本并检查监控。数据库迁移涉及数据状态时，按迁移方案执行兼容修复、回迁或恢复。只回滚应用制品覆盖不了数据变化。
-- **修复代码历史**。在受保护分支上用 `git revert` 或修复提交，经审查和测试后走发布。回滚部署与生成撤销提交是两个独立动作。需要紧急补丁时，从实际生产标签创建修复分支，交付后把补丁合入仍受支持的开发与发布分支。[Git revert](https://git-scm.com/docs/git-revert)
+- **修复代码历史**。在受保护分支上用 `git revert` 或修复提交，经审查和测试后走发布。**回滚部署与生成撤销提交是两个独立动作**。需要紧急补丁时，从实际生产标签创建修复分支，交付后把补丁合入仍受支持的开发与发布分支。[Git revert](https://git-scm.com/docs/git-revert)
 
 ---
 
@@ -487,7 +784,7 @@ git diff --cached -- main.py
 
 #### 5.2.1 已有提交时取消暂存
 
-用 `HEAD` 恢复指定路径的索引内容。工作区文件仍保留编辑后的内容。[Git restore 文档](https://git-scm.com/docs/git-restore)
+用 `HEAD` 恢复指定路径的索引内容。**工作区文件仍保留编辑后的内容**。[Git restore 文档](https://git-scm.com/docs/git-restore)
 
 以 `main.py` 中的一行新注释为例。`HEAD` 始终保留旧版本。
 
@@ -522,7 +819,7 @@ Test-Path -LiteralPath .gitignore  # True 表示文件仍在磁盘上。
 
 > [!important] 已跟踪文件的处理
 >
-> 对旧提交已跟踪的文件执行 `git rm --cached` 会暂存一项删除。只想取消普通修改的暂存时，用 `git restore --staged`。停止跟踪含密钥的文件见[敏感文件误入 Git 的处理](#62-敏感文件误入-git-的处理)。
+> 对旧提交已跟踪的文件执行 `git rm --cached` 会**暂存一项删除**。只想取消普通修改的暂存时，用 `git restore --staged`。停止跟踪含密钥的文件见[敏感文件误入 Git 的处理](#62-敏感文件误入-git-的处理)。
 
 ---
 
@@ -533,7 +830,7 @@ Test-Path -LiteralPath .gitignore  # True 表示文件仍在磁盘上。
 git commit --amend -m "新的提交信息"
 ```
 
-只想改说明时，先确认索引没有额外改动。若要补漏掉的文件，先 `git add`，再执行 `git commit --amend`。省略 `-m` 会进入编辑器。修订会生成新的提交 ID。
+只想改说明时，**先确认索引没有额外改动**。若要补漏掉的文件，先 `git add`，再执行 `git commit --amend`。省略 `-m` 会进入编辑器。修订会生成新的提交 ID。
 
 ---
 
@@ -547,19 +844,19 @@ git commit --amend -m "新的提交信息"
 | `git reset --mixed HEAD~1` | 改成目标提交，等同省略模式 | 保留 |
 | `git reset --hard HEAD~1` | 改成目标提交 | 改成目标提交，覆盖不一致的已跟踪内容 |
 
-`--hard` 还可能覆盖阻挡目标路径的未跟踪文件。需要保留现有提交时，先为它建立一个临时分支。首个提交没有 `HEAD~1`，应按具体目标选择操作。[Git reset](https://git-scm.com/docs/git-reset)
+`--hard` 还可能**覆盖阻挡目标路径的未跟踪文件**。需要保留现有提交时，先为它建立一个临时分支。首个提交没有 `HEAD~1`，应按具体目标选择操作。[Git reset](https://git-scm.com/docs/git-reset)
 
 ---
 
 ### 5.5 撤销已推送到远程的提交
 
-使用 `git revert <commit-id>` 创建反向提交，再按团队流程审查和合入。若要撤销的恰是当前提交，可写 `git revert HEAD`。撤销合并提交要用 `-m` 指定应保留的主线父节点，先确认父节点顺序与合入方向。[Git revert](https://git-scm.com/docs/git-revert)
+使用 `git revert <commit-id>` **创建反向提交**，再按团队流程审查和合入。若要撤销的恰是当前提交，可写 `git revert HEAD`。撤销合并提交要用 `-m` 指定应保留的主线父节点，先确认父节点顺序与合入方向。[Git revert](https://git-scm.com/docs/git-revert)
 
 ---
 
 ### 5.6 找回提交与清理未跟踪文件
 
-误用 `reset`、`rebase` 或删除本地分支后，先查 `git reflog`。找到旧提交后用 `git branch recovery/old-work <commit-id>` 在该处建立分支，再比较差异。处于 detached HEAD 且刚提交时，可以立即用 `git switch -c recovery/old-work` 保存当前位置。Reflog 记录的是本地引用变化，会过期，能恢复的是仍可访问的对象。[Git reflog](https://git-scm.com/docs/git-reflog) · [Git switch](https://git-scm.com/docs/git-switch)
+误用 `reset`、`rebase` 或删除本地分支后，**先查 `git reflog`**。找到旧提交后用 `git branch recovery/old-work <commit-id>` 在该处建立分支，再比较差异。处于 detached HEAD 且刚提交时，可以立即用 `git switch -c recovery/old-work` 保存当前位置。Reflog 记录的是本地引用变化，会过期，能恢复的是仍可访问的对象。[Git reflog](https://git-scm.com/docs/git-reflog) · [Git switch](https://git-scm.com/docs/git-switch)
 
 > [!important] 清理未跟踪文件先预览
 >
@@ -627,13 +924,15 @@ Thumbs.db
 
 Python 在导入源码模块时通常把编译后的字节码缓存为 `__pycache__/` 中的 `.pyc`。解释器会按需生成或更新缓存，Git 通常跟踪的是源代码、非敏感配置和测试代码。[Python 3.11 字节码缓存](https://docs.python.org/3.11/tutorial/modules.html#compiled-python-files)
 
-`#` 开头的行是注释，`__pycache__/` 的尾部斜杠限定为目录。`.env.*` 匹配 `.env.local` 等本地配置，靠后的 `!.env.example` 为无真实密钥的模板保留例外。已有 `.gitignore` 时，先保留并核对原有规则，再合并新增项。忽略规则适用于匹配的未跟踪文件。已跟踪文件需先从索引移除，再提交变更，历史版本按下节处理。[Git `.gitignore` 文档](https://git-scm.com/docs/gitignore)
+`#` 开头的行是注释，`__pycache__/` 的尾部斜杠限定为目录。`.env.*` 匹配 `.env.local` 等本地配置，靠后的 `!.env.example` 为无真实密钥的模板保留例外。
+
+已有 `.gitignore` 时，先保留并核对原有规则，再合并新增项。**忽略规则适用于匹配的未跟踪文件**。已跟踪文件需先从索引移除，再提交变更，历史版本按下节处理。[Git `.gitignore` 文档](https://git-scm.com/docs/gitignore)
 
 ---
 
 ### 6.2 敏感文件误入 Git 的处理
 
-如果真实 API Key 已经泄露，或无法确认暴露范围，先在服务商处撤销旧 Key 或轮换凭证，再处理仓库记录。[GitHub 敏感数据清理指南](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
+如果真实 API Key 已经泄露，或无法确认暴露范围，先在服务商处**撤销旧 Key 或轮换凭证**，再处理仓库记录。[GitHub 敏感数据清理指南](https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
 
 #### 6.2.1 按泄露阶段判断影响
 
@@ -690,9 +989,11 @@ git status
 
 > [!Example]
 >
-> 在提交 A 中加入 `.env`，在提交 B 中记录删除。提交 B 的文件快照已经排除 `.env`，从提交 A 仍可读取旧文件。`git revert` 同样会创建一个新提交并保留原提交。
+> 在提交 A 中加入 `.env`，在提交 B 中记录删除。提交 B 的文件快照已经排除 `.env`，**从提交 A 仍可读取旧文件**。`git revert` 同样会创建一个新提交并保留原提交。
 
-如果发现时当前分支仍停在提交 A，而且 A 尚未推送、只有该次提交包含密钥，可以先暂存正确的内容，再用[修改最近一次提交信息](#53-修改最近一次提交信息未-push)中的 `git commit --amend` 替换分支顶端的提交。如果已创建提交 B，直接推送仍可能把包含密钥的提交 A 一并上传。[Git `commit` 文档](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---amend)
+如果发现时当前分支仍停在提交 A，而且 A 尚未推送、只有该次提交包含密钥，可以先暂存正确的内容，再用[修改最近一次提交信息](#53-修改最近一次提交信息未-push)中的 `git commit --amend` 替换分支顶端的提交。
+
+如果已创建提交 B，直接推送仍可能把包含密钥的提交 A 一并上传。[Git `commit` 文档](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---amend)
 
 #### 6.2.4 清理已发布的历史
 
@@ -702,7 +1003,11 @@ git status
 
 ### 6.3 查看 Git 对象占用
 
-Git 用哈希标识内容对象，提交通过树对象引用项目快照。相同的文件内容可以复用已有对象，打包还可压缩对象及相似版本之间的差异。普通文本项目的额外磁盘占用通常较小。视频、模型权重或数据集即使已从工作区删除，旧提交也可能继续引用它们。CPU 和内存主要在运行 Git 命令时使用，本地比较与提交无需联网。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) · [打包机制](https://git-scm.com/book/en/v2/Git-Internals-Packfiles)
+Git 用哈希标识内容对象，提交通过树对象引用项目快照。相同的文件内容可以复用已有对象，打包还可压缩对象及相似版本之间的差异。
+
+普通文本项目的额外磁盘占用通常较小。视频、模型权重或数据集即使已从工作区删除，旧提交也可能继续引用它们。
+
+CPU 和内存主要在运行 Git 命令时使用，本地比较与提交无需联网。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) · [打包机制](https://git-scm.com/book/en/v2/Git-Internals-Packfiles)
 
 #### 6.3.1 统计松散对象与包文件
 
@@ -738,6 +1043,8 @@ $bytes / 1KB
 
 #### 6.4.1 用 .gitattributes 描述文件
 
+LF（`\n`）常见于 Linux，CRLF（`\r\n`）常见于 Windows。`LF will be replaced by CRLF the next time Git touches it` 是**换行转换提示**，表示 Git 下次按当前规则写入该工作区文件时会使用 CRLF。
+
 在 Windows 和 Linux 共用工程时，用版本化的 `.gitattributes` 明确脚本换行和二进制类型。下面的规则让脚本检出时使用 LF：
 
 ```gitattributes
@@ -747,7 +1054,9 @@ $bytes / 1KB
 *.png binary
 ```
 
-为已有项目引入规则时，把换行归一化放在单独提交中。可用 `git add --renormalize .` 重新按规则处理已跟踪文件，再审查暂存差异。脚本需要在 Linux 直接执行时，可核对索引中的执行位，例如用 `git update-index --chmod=+x -- scripts/deploy.sh` 设置。[Git attributes](https://git-scm.com/docs/gitattributes) · [Git update-index](https://git-scm.com/docs/git-update-index)
+为已有项目引入规则时，把换行归一化放在单独提交中。可用 `git add --renormalize .` 重新按规则处理已跟踪文件，再审查暂存差异。
+
+脚本需要在 Linux 直接执行时，可核对索引中的执行位，例如用 `git update-index --chmod=+x -- scripts/deploy.sh` 设置。[Git attributes](https://git-scm.com/docs/gitattributes) · [Git update-index](https://git-scm.com/docs/git-update-index)
 
 #### 6.4.2 本地 Hook 与仓库门禁
 
@@ -759,7 +1068,7 @@ $bytes / 1KB
 
 #### 6.5.1 用 worktree 并行处理任务
 
-`git worktree` 可在同一个本地仓库下维护多个独立工作目录，各有自己的工作区、索引和 `HEAD`。例如当前任务未完成、又需要从已同步的 `origin/main` 开始修复，可单独建立目录：
+`git worktree` 可在同一个本地仓库下维护多个独立工作目录，**各有自己的工作区、索引和 `HEAD`**。例如当前任务未完成、又需要从已同步的 `origin/main` 开始修复，可单独建立目录：
 
 ```bash
 git worktree add -b hotfix/session ../hotfix-session origin/main
@@ -798,6 +1107,8 @@ git worktree list
 #### 6.6.1 迁移托管平台
 
 1. 盘点默认分支、受保护分支、标签与 LFS 对象，明确迁移起点，并保留旧仓库备份。
-2. 将所需分支和标签同步到新仓库。在两端用 `git ls-remote --heads --tags <仓库地址>` 核对引用，再从新地址独立克隆，验证检出和构建。`git push --mirror` 会按本地引用覆盖或删除远程引用，适用于明确接受镜像覆盖的目标仓库。
+2. 将所需分支和标签同步到新仓库。在两端用 `git ls-remote --heads --tags <仓库地址>` 核对引用，再从新地址独立克隆，验证检出和构建。`git push --mirror` 会按本地引用**覆盖或删除远程引用**，适用于明确接受镜像覆盖的目标仓库。
 3. 单独迁移或重建托管平台的 PR/MR、议题、发布附件、权限、分支规则、CI 凭证和 Webhook。若子模块地址改变，更新 `.gitmodules`，并在切换后核对子仓库访问。
 4. 验收后切换协作者和流水线的远程地址，按项目安排保留旧仓库用于回查。[Git push](https://git-scm.com/docs/git-push) · [Git ls-remote](https://git-scm.com/docs/git-ls-remote)
+
+---
