@@ -29,6 +29,7 @@ from PIL import Image
 
 PAGE_ROOT = Path(__file__).resolve().parent
 REPO = PAGE_ROOT.parents[1]
+ENGINEERING_BOARD = "软件工程与计算机基础"
 # Keep published bookmarks and Markdown links working after these source moves.
 READER_PATH_MOVES = {
     "java": {
@@ -1465,15 +1466,16 @@ def build_ai(output, github, branch):
 
 def build_subject_readers(output, github, branch):
     """Publish notes and course materials at their existing subject addresses."""
-    engineering_parent = ("软件工程与计算基础", "../software-engineering/")
+    engineering = REPO / ENGINEERING_BOARD
+    engineering_parent = (ENGINEERING_BOARD, "../software-engineering/")
     subjects = [
         dict(slug="computer-organization", title="计算机组成原理", label="COMPUTER ORGANIZATION",
-             folder=REPO / "软件工程/计算机组成原理", cover="computer-organization-hero-v3.webp",
+             folder=engineering / "计算机组成原理", cover="computer-organization-hero-v3.webp",
              description="从数字逻辑、组合与时序电路，到运算器和存储系统。",
              hero_lines=["从数字逻辑，", "到计算机系统。"], parent=engineering_parent,
              section_order=["笔记", "课件资源", "习题"], math=True),
         dict(slug="software-requirements", title="软件需求与分析", label="SOFTWARE REQUIREMENTS",
-             folder=REPO / "软件工程/软件需求与分析", cover="software-requirements-hero.webp",
+             folder=engineering / "软件需求与分析", cover="software-requirements-hero.webp",
              description="从需求确定与可视化建模，到软件分析、设计和质量管理。",
              hero_lines=["从确定需求，", "到分析与设计。"], parent=engineering_parent,
              section_order=["课件", "软需"], section_titles={"软需": "课程笔记与习题"}),
@@ -2074,7 +2076,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
         "数学": ("math", "高等数学、线性代数、离散数学与概率统计。", "∑"),
         "算法": ("algorithms", "数据结构课程、竞赛专题、源码与分类练习。", "⌘"),
         "编程语言": ("programming-languages", "C 与 C++、Java 等语言知识与实践记录。", "</>"),
-        "软件工程": ("software-engineering", "从数字逻辑与计算机组成，到软件需求、建模与设计。", "⌗"),
+        ENGINEERING_BOARD: ("software-engineering", "从数字逻辑与计算机组成，到软件需求、建模与设计。", "⌗"),
         "前端基础": ("front-end", "页面结构、样式、交互与前端基础知识。", "〈〉"),
         "Linux": ("linux", "操作系统使用、命令、配置与实践。", "$"),
         "云原生": ("cloud-native", "容器、服务部署与云原生实践。", "☁"),
@@ -2088,8 +2090,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
     candidates.sort(key=lambda p: (list(boards).index(p.name) if p.name in boards else len(boards), p.name))
     for index, path in enumerate(candidates, 1):
         slug, description, symbol = boards.get(path.name, ("section-"+hashlib.sha256(path.name.encode()).hexdigest()[:8], "按目录查阅这个板块的学习笔记。", "·"))
-        display_title = "软件工程与计算基础" if path.name == "软件工程" else path.name
-        index_links.append(f'<li><a href="{escape(slug, quote=True)}/"><span aria-hidden="true">{index:02d}</span>{escape(display_title)}</a></li>')
+        index_links.append(f'<li><a href="{escape(slug, quote=True)}/"><span aria-hidden="true">{index:02d}</span>{escape(path.name)}</a></li>')
         if path.name=="数学":
             root_cards.append(card(path.name, description, "math/", "选择数学科目", ("高等数学", "线性代数", "离散数学"), "math/阅读资源/"+catalog_covers["math"], number="01 / MATHEMATICS"))
             continue
@@ -2124,7 +2125,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
                                    ("基础知识", "实践与模板", "错题与易错点"), "ai/阅读资源/ai-hero-v2.webp",
                                    number=str(index).zfill(2)+" / ARTIFICIAL INTELLIGENCE"))
             continue
-        if path.name == "软件工程":
+        if path.name == ENGINEERING_BOARD:
             subjects = {
                 "计算机组成原理": ("computer-organization", "从数字逻辑、组合与时序电路，到运算器和存储系统。"),
                 "计算机网络": ("computer-networking", "从以太网交换、分层封装，到数据包的跨网转发与路由选择。"),
@@ -2166,12 +2167,12 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
                 page(subject_slug, child.name, subject_heading,
                      subject_description, entry_cards, child, "SOFTWARE & COMPUTING / SUBJECT",
                      (str(len(entries))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero=subject_hero,
-                     parent=(display_title, "../software-engineering/"))
+                     parent=(path.name, "../software-engineering/"))
             cover = "software-engineering/阅读资源/"+catalog_covers["software-engineering"]
-            root_cards.append(card(display_title, description, "software-engineering/", "选择工程科目",
+            root_cards.append(card(path.name, description, "software-engineering/", "选择工程科目",
                                    tuple(p.name for p in children if p.is_dir()), cover,
                                    number=str(index).zfill(2)+" / SOFTWARE & COMPUTING"))
-            page("software-engineering", display_title, '从计算基础，<br>走向<em>软件系统。</em>', description,
+            page("software-engineering", path.name, '从计算基础，<br>走向<em>软件系统。</em>', description,
                  subject_cards, path, "SOFTWARE ENGINEERING & COMPUTING", (str(len(subject_cards))+" 个科目与文件", "基础 · 需求 · 设计"),
                  "directory-catalog", "先选择科目，再按原目录查阅章节笔记、课堂课件与习题资料。",
                  hero="阅读资源/"+catalog_covers["software-engineering"])

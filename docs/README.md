@@ -11,7 +11,7 @@
   <a href="https://scpcddk.github.io/Learning-Notes/math/">数学</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/algorithms/">算法</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/programming-languages/">编程语言</a> ·
-  <a href="https://scpcddk.github.io/Learning-Notes/software-engineering/">软件工程与计算基础</a> ·
+  <a href="https://scpcddk.github.io/Learning-Notes/software-engineering/">软件工程与计算机基础</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/linux/">Linux</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/cloud-native/">云原生</a> ·
   <a href="https://scpcddk.github.io/Learning-Notes/learning-plans/">学习计划</a> ·
@@ -72,9 +72,10 @@
 │       │   ├── catalog-corner.webp                           # 目录页角落装饰
 │       │   └── catalog-corner.prompt.txt
 │       ├── math/                                             # 数学板块总封面与提示词
-│       ├── software-engineering/                            # 软件工程与计算基础总封面、提示词及说明
+│       ├── software-engineering/                            # 软件工程与计算机基础总封面、提示词及说明
 │       ├── computer-organization/                            # 计组科目目录封面与提示词
 │       ├── computer-networking/                              # 计算机网络科目封面与提示词
+│       ├── software-testing/                                 # 软件测试科目封面与提示词
 │       ├── software-requirements/                            # 软件需求与分析科目封面与提示词
 │       ├── general-studies/                                  # 通识总封面、英语等四个专题封面与提示词
 │       ├── probability-statistics/                           # 数学目录中的概率统计封面与提示词
@@ -265,7 +266,7 @@
 │       │   └── KMP/                                            # C 语言实现
 │       │       └── KMP.c
 │       └── 大一寒假集训/                                       # 集训讲义与题解
-├── 软件工程/                                                  # 网站显示为“软件工程与计算基础”
+├── 软件工程与计算机基础/
 │   ├── 计算机组成原理/
 │   │   ├── 笔记/
 │   │   │   ├── 章节笔记/
@@ -294,6 +295,12 @@
 │   │   └── 习题/
 │   ├── 计算机网络/
 │   │   └── README.md                                          # 科目入口，正文笔记待补充
+│   ├── 软件测试/
+│   │   ├── 知识笔记/
+│   │   │   └── 软件测试体系.md
+│   │   └── 软件测试实践记录/
+│   │       ├── Java与Spring Boot测试实践.md
+│   │       └── 软件测试错题与易错点.md
 │   └── 软件需求与分析/
 │       ├── 课件/
 │       └── 软需/                                              # 章节笔记与需求分析、设计资料

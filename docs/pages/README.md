@@ -4,7 +4,7 @@
 
 网站首页展示仓库根目录的知识板块。数学科目页可以直接进入高等数学、线性代数、离散数学和[概率论与数理统计](https://scpcddk.github.io/Learning-Notes/probability-statistics/)。编程语言按 C/C++、Java 和 Python 阅读。算法和 Linux 有各自的阅读页。[云原生](https://scpcddk.github.io/Learning-Notes/cloud-native/)、[前端基础](https://scpcddk.github.io/Learning-Notes/front-end/)和[通识与拓展](https://scpcddk.github.io/Learning-Notes/general-studies/)按学习板块组织笔记。[学习计划](https://scpcddk.github.io/Learning-Notes/learning-plans/)按当前状态分类。
 
-[软件工程与计算基础](https://scpcddk.github.io/Learning-Notes/software-engineering/) 提供[计算机组成原理](https://scpcddk.github.io/Learning-Notes/computer-organization/)和[软件需求与分析](https://scpcddk.github.io/Learning-Notes/software-requirements/)两门科目的站内阅读入口。章节笔记、课件和习题按原目录归类，科目页可通过面包屑返回板块目录。
+[软件工程与计算机基础](https://scpcddk.github.io/Learning-Notes/software-engineering/) 包含[计算机组成原理](https://scpcddk.github.io/Learning-Notes/computer-organization/)、[计算机网络](https://scpcddk.github.io/Learning-Notes/computer-networking/)、[软件测试](https://scpcddk.github.io/Learning-Notes/software-testing/)和[软件需求与分析](https://scpcddk.github.io/Learning-Notes/software-requirements/)。章节笔记、课件和习题按原目录归类，科目页可通过面包屑返回板块目录。
 
 AI 通过 `/ai/` 进入完整阅读页，收录基础知识、Agent、实践记录、提示词模板和错题与易错点，支持 Markdown 与 Python 源码阅读。首页 AI 卡片与阅读页共用总封面。[AI 阅读页说明](ai/README.md)
 
@@ -19,7 +19,7 @@ AI 通过 `/ai/` 进入完整阅读页，收录基础知识、Agent、实践记�
 | [build_site.py](build_site.py) | 各科目共用的生成、资源打包与链接检查入口，篇目配置也在此维护 |
 | [index.html](index.html) | 一级板块与科目目录共用的导航模板，包含专用样式 |
 | [shared/](shared/) | 全站设计规则与主题设置脚本；构建时内嵌到各页面，离线阅读无需额外文件 |
-| [software-engineering/](software-engineering/README.md) | 软件工程与计算基础的板块说明、总封面与提示词；首页与板块目录共用 |
+| [software-engineering/](software-engineering/README.md) | 软件工程与计算机基础的板块说明、总封面与提示词；首页与板块目录共用 |
 | [computer-organization/](computer-organization/README.md)、[general-studies/](general-studies/README.md) | 计组科目页与通识板块的封面、提示词 |
 | [probability-statistics/](probability-statistics/README.md)、[numerical-analysis/](numerical-analysis/README.md) | 数学目录中的概率统计与数值分析封面及提示词 |
 | [calculus/](calculus/) | 高等数学模板、精要内容、生成的离线页与图片、公式组件 |
