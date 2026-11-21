@@ -1987,6 +1987,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
     catalog_covers = {
         "math": "math-hero.webp",
         "software-engineering": "software-engineering-hero-v2.webp",
+        "software-testing": "software-testing-hero.webp",
         "computer-organization": "computer-organization-hero-v3.webp",
         "computer-networking": "computer-networking-hero.webp",
         "software-requirements": "software-requirements-hero.webp",
@@ -2128,6 +2129,7 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
                 "计算机组成原理": ("computer-organization", "从数字逻辑、组合与时序电路，到运算器和存储系统。"),
                 "计算机网络": ("computer-networking", "从以太网交换、分层封装，到数据包的跨网转发与路由选择。"),
                 "软件需求与分析": ("software-requirements", "从需求确定与可视化建模，到软件分析、设计和质量管理。"),
+                "软件测试": ("software-testing", "面向 Java 后端，学习用例设计、接口测试与集成测试。"),
             }
             children = sorted((p for p in path.iterdir() if not p.name.startswith('.') and p.name != "README.md"),
                               key=lambda p: (not p.is_dir(), p.name))
@@ -2147,12 +2149,21 @@ def build_catalogs(output, github, branch, programming, reading_subjects=frozens
                                           image=f"../{subject_slug}/{subject_hero}" if subject_hero else None, symbol=symbol))
                 if subject_slug in reading_subjects:
                     continue
+                subject_heading = escape(child.name)+'，<br>从概念<em>走向理解。</em>'
+                entry_descriptions = {}
+                if subject_slug == "software-testing":
+                    subject_heading = '从设计用例，<br>到<em>验证结果。</em>'
+                    entry_descriptions = {
+                        "知识笔记": "查阅 JUnit、Mockito、测试断言、覆盖率与 CI 的方法和示例。",
+                        "软件测试实践记录": "记录 Spring Boot 测试案例、执行证据和易错点。",
+                    }
                 entry_cards = [card(entry.stem if entry.is_file() else entry.name,
-                                    "打开仓库目录，查看原始笔记与学习资料。" if entry.is_dir() else "查阅仓库中的原始学习文件。",
+                                    entry_descriptions.get(entry.name, "打开仓库目录，查看原始笔记与学习资料。"
+                                                           if entry.is_dir() else "查阅仓库中的原始学习文件。"),
                                     repository_url(entry), "查看仓库目录" if entry.is_dir() else "查看原文件",
                                     ("目录" if entry.is_dir() else entry.suffix[1:].upper() or "文件",), symbol=symbol)
                                for entry in entries]
-                page(subject_slug, child.name, escape(child.name)+'，<br>从概念<em>走向理解。</em>',
+                page(subject_slug, child.name, subject_heading,
                      subject_description, entry_cards, child, "SOFTWARE & COMPUTING / SUBJECT",
                      (str(len(entries))+" 个目录与文件", "原始学习记录"), "directory-catalog", hero=subject_hero,
                      parent=(display_title, "../software-engineering/"))
