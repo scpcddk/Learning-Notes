@@ -45,12 +45,18 @@ READER_PATH_MOVES = {
             "Docker学习计划", "Python 学习与能力补齐计划")},
     },
 }
-# Lossless repacking changes the hash without changing the slides. Keep the
-# existing reading previews and the published algorithm bookmark for these files.
+# Lossless repacking changes file digests. Keep the existing reading previews
+# and published algorithm bookmarks for these files.
 READING_DIGEST_ALIASES = {
     "ccaad733923fd90fe50f3d2ddb1d37ce4fad30060fa93e6a09b2ec9bc14568bf": "f451a496c9d940a6f6f53a07d20a05804fc2e2eaa8e70ae1af1ec1429458cc5a",
     "c6cc6a3517cce08d6866c5a181a4a31ba01d55f429e5d9df9cef00acbb91125a": "7c5a87695bfa433fcf13842b52f3fd31d6d7bee0ab9a78fae00d4c064fd6fbfb",
     "4a9d69e196e62fa571d2d281bd2b2f75b4847faca485676d28e3c438fd21f2ba": "a99de439afc66b4a4e977f4b6085091a56dde7465c639c3cfb1ce1d9a58ab167",
+    "bd98a32b32478af04a611cef512c2b0662852ebb402a00b8999054ed79f86736": "c84da67326e35e2549d512d35e70ba2537b0276ff2bdb27db948e9b043249465",
+    "7a3fcc13e995ea9030b6336719c56e5ad69791444098eae5973ad53540dc71cc": "f451a496c9d940a6f6f53a07d20a05804fc2e2eaa8e70ae1af1ec1429458cc5a",
+    "8f35ef899f25d6d894d0f6c60716809faa6ead5d290138969b9b235ad0735b37": "7c5a87695bfa433fcf13842b52f3fd31d6d7bee0ab9a78fae00d4c064fd6fbfb",
+    "35e1e902dd5915193857e81b5fb1ea1135809cf9214eb0d50b7e309711c54886": "a99de439afc66b4a4e977f4b6085091a56dde7465c639c3cfb1ce1d9a58ab167",
+    "e1059321c909ad36b6d404e5ff43e9045096d1aa3a55573fd553f624f99f5217": "8e0a1fb02a0125cfce8e43ef7c773a5fe9d9b8e2153edc249eba3c687f129e61",
+    "4484e530a0cc0c82cc44bfe677efb260b286176d7fd4724bb1ef2d122df61405": "05a4c0f9ccf7806bdf9c2d8c2f497506f86bcf3dc96ff549cfec345f3e4f993f",
 }
 SUBJECTS = (
     ("calculus", PAGE_ROOT / "calculus"),
