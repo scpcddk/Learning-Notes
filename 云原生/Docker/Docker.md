@@ -134,9 +134,9 @@
 
 ## 1. Docker 基础概念与使用场景
 
-- **镜像（Image）**：只读模板，包含应用和运行时文件（如 `app.jar`、Java 21 和相关库），也可指定默认启动命令。
-- **容器（Container）**：从镜像创建的实例，可启动、停止、删除。容器启动后，应用进程在其中执行。
-- **镜像仓库（Repository）**：同名镜像及其标签的集合；Docker Hub 是托管仓库的注册服务（Registry）
+- **镜像（Image）**：**只读模板**，包含应用和运行时文件（如 `app.jar`、Java 21 和相关库），也可指定默认启动命令。
+- **容器（Container）**：**从镜像创建的实例**，可启动、停止、删除。容器启动后，应用进程在其中执行。
+- **镜像仓库（Repository）**：**同名镜像及其标签的集合**；**Docker Hub 是托管仓库的注册服务**（Registry）
 
 ### 1.1 容器化技术
 
@@ -323,8 +323,8 @@ flowchart TB
 
 | 组件 | 职责 |
 | :--- | :--- |
-| Docker CLI（`docker`） | 解析命令，通过 Docker API 向目标守护进程发出请求，再显示返回的结果。 |
-| Docker Daemon（`dockerd`） | 接收请求，管理镜像、容器、网络和数据卷。启动容器时，协调底层运行时。 |
+| **Docker CLI**（`docker`） | 解析命令，通过 Docker API 向目标守护进程发出请求，再显示返回的结果。 |
+| **Docker Daemon**（`dockerd`） | 接收请求，管理镜像、容器、网络和数据卷。启动容器时，协调底层运行时。 |
 
 守护进程在后台持续接收请求并管理容器。每次在终端调用 CLI，CLI 都可以向同一个守护进程查询或操作它管理的容器。CLI 和守护进程可以分别运行在不同的系统环境或机器上。 [Docker 官方架构说明](https://docs.docker.com/get-started/docker-overview/#docker-architecture)
 
@@ -389,13 +389,14 @@ docker run -d --name web nginx
 
 #### 2.3.1 Registry 与 Docker Hub
 
-**Registry（镜像仓库服务）** 负责存储和分发容器镜像。 [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
+**Registry（镜像仓库服务）** **负责存储和分发容器镜像**。 [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
 
-**Docker Hub** 是 Docker 运营的镜像托管平台。Docker 默认使用它提供的 Registry 服务。Hub 还提供账号和组织管理、公开与私有仓库、访问权限和网页管理功能。 [Docker Hub 功能](https://docs.docker.com/docker-hub/) · [Docker Hub 仓库管理](https://docs.docker.com/docker-hub/repos/)
+**Docker Hub** 是 **Docker 运营的镜像托管平台**。Docker 默认使用它提供的 Registry 服务。Hub 还提供账号和组织管理、公开与私有仓库、访问权限和网页管理功能。 [Docker Hub 功能](https://docs.docker.com/docker-hub/) · [Docker Hub 仓库管理](https://docs.docker.com/docker-hub/repos/)
 
 **自建 Registry** 也可以分发镜像。例如公司可以自己部署私有 Registry，开发人员和部署服务器用包含该仓库地址的镜像引用，按各自获得的权限推送或拉取。 [Docker Registry 官方说明](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
 
-例如，在 Windows 构建好 Spring Boot 镜像 `my-java-app:1.0` 后，用 `docker tag` 为它添加包含目标仓库地址的引用，再推送到该仓库。有权限的 Linux 服务器可用同一个完整引用拉取。 [§4.6 镜像怎么迁移](#46-镜像怎么迁移)
+> [!example]
+> 例如，在 Windows 构建好 Spring Boot 镜像 `my-java-app:1.0` 后，用 `docker tag` 为它添加包含目标仓库地址的引用，再推送到该仓库。有权限的 Linux 服务器可用同一个完整引用拉取。 [§4.6 镜像怎么迁移](#46-镜像怎么迁移)
 
 一个 Registry 可以托管多个 Repository，同一个 Repository 可以用不同的标签标记镜像版本。 [镜像仓库与版本管理](镜像仓库与版本管理.md)
 
@@ -505,7 +506,7 @@ flowchart TB
 - **Docker Engine** 负责构建镜像、运行和管理容器。 [§2.1 Docker Engine](#21-docker-engine)
 - **Docker Desktop** 是桌面应用，集成 Engine、Docker CLI、Compose 和图形界面，也负责管理本机后端，例如 Windows 上的 WSL 2 后端。 [Docker Desktop 官方说明](https://docs.docker.com/desktop/)
 
-Linux 容器里的进程由 Linux 内核调度。内核还提供 namespace 来隔离进程、网络等视图，并通过 cgroup 统计和限制资源用量。因此，在符合要求的 Ubuntu 服务器上直接安装 Docker Engine，就能用服务器现有的 Linux 内核运行容器。 [§3.1 容器与宿主机的关系](#31-容器与宿主机的关系) · [Ubuntu 上的 Docker Engine](https://docs.docker.com/engine/install/ubuntu/)
+**Linux 容器里的进程由 Linux 内核调度**。内核还提供 namespace 来隔离进程、网络等视图，并通过 cgroup 统计和限制资源用量。因此，在符合要求的 Ubuntu 服务器上直接安装 Docker Engine，就能用服务器现有的 Linux 内核运行容器。 [§3.1 容器与宿主机的关系](#31-容器与宿主机的关系) · [Ubuntu 上的 Docker Engine](https://docs.docker.com/engine/install/ubuntu/)
 
 | 场景 | 命令发到哪里 | Linux 容器使用的内核 |
 | :--- | :--- | :--- |
@@ -666,11 +667,11 @@ wsl -l -v
 
 | 操作对象 | 启动 | 停止 | 查看状态 |
 | --- | --- | --- | --- |
-| Windows 上的 Docker Desktop | `docker desktop start` | `docker desktop stop` | `docker desktop status` |
+| **Windows 上的 Docker Desktop** | `docker desktop start` | `docker desktop stop` | `docker desktop status` |
 | Linux 上由 `systemd` 管理的 `docker.service` | `sudo systemctl start docker` | `sudo systemctl stop docker` | `sudo systemctl status docker` |
 | 已存在的 `web` 容器（Engine 可用时） | `docker start web` | `docker stop web` | `docker ps -a` |
 
-**使用条件**
+**使用条件**：
 
 - **Windows**。使用桌面应用启停，或在支持 Desktop CLI 的版本中使用表中的 `docker desktop` 命令。 [Docker Desktop CLI](https://docs.docker.com/desktop/features/desktop-cli/)
 - **Linux**。在管理该 Engine 的 Linux 系统中运行 `systemctl`。如果当前发行版的 PID 1 不是 `systemd`，命令在访问 Docker 服务前就会失败。使用 WSL 集成时，Desktop 的 Engine 由 Windows 上的 Docker Desktop 管理。 [Linux 上启动 Docker Daemon](https://docs.docker.com/engine/daemon/start/) · [WSL 的 systemd 说明](https://learn.microsoft.com/en-us/windows/wsl/systemd) · [§2.5.3 WSL 运行方式](#253-docker-在-windows-与-wsl-2-中的运行方式)
@@ -684,8 +685,8 @@ wsl -l -v
 
 | 命令 | 读取的信息 | 对 Engine 连接的要求 |
 | --- | --- | --- |
-| `docker --version` | 本机 Docker CLI 的版本 | 无需连接 Engine |
-| `docker version` | 本机 `Client` 及目标 `Server` 的版本信息 | 获取 `Server` 信息时需要 |
+| `docker --version` | **本机 Docker CLI 的版本** | 无需连接 Engine |
+| `docker version` | **本机 `Client` 及目标 `Server` 的版本信息** | 获取 `Server` 信息时需要 |
 
 **怎么看输出**
 

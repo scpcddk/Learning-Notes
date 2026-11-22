@@ -21,7 +21,7 @@
 
 #### 1.1.1 确认位置并初始化
 
-- `git --version` 检查 Git 是否可用。
+- **`git --version` 检查 Git 是否可用**。
 - `git rev-parse --show-toplevel` **显示当前工作树的根目录**，属于只读查询。
   - 返回上级目录时，当前命令使用上级仓库，文件的跟踪状态需另查。
   - `rev-parse`：Git 的底层查询命令，可以**解析引用或查询仓库信息**。
@@ -35,7 +35,10 @@
 git init -b main
 ```
 
-`git init` 创建本地仓库，通常将 Git 的对象、引用及其他管理数据放在隐藏的 `.git/` 目录中。`-b main` 指定初始分支名。首次提交前，`git status` 会显示 `No commits yet`。文件要经过暂存和提交才进入提交历史，推送是独立的远程操作。[Git init 文档](https://git-scm.com/docs/git-init)
+- `git init` **创建本地仓库**
+  - 通常将 Git 的对象、引用及其他管理数据放在隐藏的 `.git/` 目录中
+  - `-b main` 指定初始分支名
+- 首次提交前，`git status` 会显示 `No commits yet`。文件要经过暂存和提交才进入提交历史，推送是独立的远程操作。[Git init 文档](https://git-scm.com/docs/git-init)
 
 #### 1.1.2 克隆已有工程
 
@@ -149,7 +152,8 @@ Git 对**对象头和完整的提交内容**计算哈希，得到十六进制的
 
 两个提交引用同一棵根 Tree 时，父提交、提交说明或其他元数据的差异通常会产生不同的 Commit ID。哈希值理论上存在碰撞的可能。
 
-`git show` 可查看提交等 Git 对象。`git show <commit-id>` 显示相应的提交说明和改动。若使用缩写，当前仓库必须能唯一解析它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) · [Git show](https://git-scm.com/docs/git-show)
+- `git show` 可**查看提交等 Git 对象**。
+- `git show <commit-id>` 显示相应的提交说明和改动。若使用缩写，当前仓库必须能唯一解析它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) · [Git show](https://git-scm.com/docs/git-show)
 
 #### 1.4.3 上级仓库如何暂存嵌套目录
 
@@ -217,9 +221,10 @@ flowchart TB
     class O remote;
 ```
 
-`git add` **读取工作区文件当时的内容**，用它更新暂存区。继续编辑同一个文件时，工作区和暂存区可以有不同版本。要让新修改进入下一次提交，需要再次暂存。[Git add 文档](https://git-scm.com/docs/git-add)
+- `git add` **读取工作区文件当时的内容**，用它**更新暂存区**
+  - 继续编辑同一个文件时，工作区和暂存区可以有不同版本。要让新修改进入下一次提交，需要再次暂存。[Git add 文档](https://git-scm.com/docs/git-add)
 
-通常 `.git/index` 记录待提交路径及其内容对象。暂存时 Git 就会按需将新内容写入对象库。`git commit` 才将索引对应的快照写入提交历史，之后可用 `git log` 找到它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)
+通常 `.git/index` **记录待提交路径及其内容对象**。暂存时 Git 就会按需将新内容写入对象库。`git commit` 才**将索引对应的快照写入提交历史**，之后可用 `git log` 找到它。[Pro Git 对象模型](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)
 
 #### 2.1.2 按文件或目录暂存
 
@@ -242,11 +247,11 @@ git diff --cached --stat
 
 | 状态 | 含义 |
 |---|---|
-| Untracked（未跟踪） | 工作区中尚未纳入 Git 跟踪的文件。 |
-| Tracked（已跟踪） | 索引中已有该路径的记录，刚暂存的新文件也属于这一类。 |
-| Unmodified（未修改） | 已跟踪文件在工作区、索引和当前提交中的版本一致。`git status` 默认省略这类文件。 |
-| Modified（工作区已修改） | 工作区中的文件与索引中记录的版本存在差异。 |
-| Staged（已暂存） | 索引已记录准备提交的新增、修改或删除。 |
+| **Untracked**（未跟踪） | 工作区中尚未纳入 Git 跟踪的文件。 |
+| **Tracked**（已跟踪） | 索引中已有该路径的记录，刚暂存的新文件也属于这一类。 |
+| **Unmodified**（未修改） | 已跟踪文件在工作区、索引和当前提交中的版本一致。`git status` 默认省略这类文件。 |
+| **Modified**（工作区已修改） | 工作区中的文件与索引中记录的版本存在差异。 |
+| **Staged**（已暂存） | 索引已记录准备提交的新增、修改或删除。 |
 
 已有提交时，是否为 **Staged** 取决于索引与 `HEAD` 的差异。若 `main.py` 在工作区、索引和 `HEAD` 中的版本一致，执行 `git add -- main.py` 后仍是 **Tracked + Unmodified**。
 
@@ -292,7 +297,7 @@ git diff --cached             # 暂存区相对当前提交的改动
 git diff --cached --check     # 检查暂存改动中的空白错误和冲突标记
 ```
 
-`git diff` 加上 `--stat` 时只显示改动摘要。
+`git diff` 加上 `--stat` 时**只显示改动摘要**。
 
 - 对文本文件，路径后的数字是新增与删除行数之和，`+` 和 `-` 表示两者的相对规模。
 - 末行汇总本次比较的改动文件数、新增行数和删除行数。
@@ -311,12 +316,12 @@ git -c core.quotePath=false diff --stat
 ##### 2.2.1.3 提交历史
 
 ```bash
-git log                       # 只读查看详细提交历史
-git log --oneline             # 一行一条
-git log --oneline -5          # 从 HEAD 开始，最多显示 5 条提交
+git log                           # 只读查看详细提交历史
+git log --oneline                 # 一行一条
+git log --oneline -5              # 从 HEAD 开始，最多显示 5 条提交
 git log --graph --all --oneline   # 图形化显示所有分支历史
-git show 提交哈希             # 查看某次提交的详细内容
-git show --stat HEAD          # 只读查看当前提交的信息和文件改动统计
+git show 提交哈希                  # 查看某次提交的详细内容
+git show --stat HEAD              # 只读查看当前提交的信息和文件改动统计
 ```
 
 #### 2.2.2 先确认在比较哪两层
@@ -362,7 +367,8 @@ git show --stat HEAD          # 只读查看当前提交的信息和文件改动
 
 #### 2.2.3 读懂暂存差异
 
-**`git diff --cached` 与 `git diff --staged` 等价**。首次提交前没有当前提交，此时显示全部暂存内容。追加 `-- .gitignore` 可将比较限定到该文件。下面是新文件的暂存差异示意。[Git diff 文档](https://git-scm.com/docs/git-diff)
+**`git diff --cached` 与 `git diff --staged` 等价**。
+首次提交前没有当前提交，此时显示全部暂存内容。追加 `-- .gitignore` 可将比较限定到该文件。下面是新文件的暂存差异示意。[Git diff 文档](https://git-scm.com/docs/git-diff)
 
 ```diff
 diff --git a/.gitignore b/.gitignore
@@ -393,7 +399,7 @@ index 0000000..7a60b85
 
 #### 2.2.4 检查暂存改动的格式
 
-`git diff --cached --check` 检查新增的合并冲突标记和空白错误，例如行尾空格与文件末尾新增空行。空白判定取决于 `core.whitespace`。检查通过时通常无输出，发现问题会提示位置并返回非零退出码。修正后重新暂存再检查。敏感内容仍要在具体差异中审查。[Git diff 文档](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---check)
+`git diff --cached --check` **检查新增的合并冲突标记和空白错误**，例如行尾空格与文件末尾新增空行。空白判定取决于 `core.whitespace`。检查通过时通常无输出，发现问题会提示位置并返回非零退出码。修正后重新暂存再检查。敏感内容仍要在具体差异中审查。[Git diff 文档](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---check)
 
 #### 2.2.5 审查配置与认证代码
 
@@ -680,7 +686,7 @@ flowchart LR
 > >>>>>>> origin/main
 > ```
 >
-> `<<<<<<< HEAD` 与 `=======` 之间是当前分支的内容，`=======` 与 `>>>>>>> origin/main` 之间是待合入分支的内容。
+> **`<<<<<<< HEAD` 与 `=======` 之间是当前分支的内容，`=======` 与 `>>>>>>> origin/main` 之间是待合入分支的内容。**
 >
 > **最终内容以业务需求为准**。如果核对后确认上限应为 50 人，就将包含冲突标记的整段替换为 `学生选课最大人数：50人`，再暂存解决后的文件。
 
