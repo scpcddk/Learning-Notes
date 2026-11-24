@@ -2,7 +2,7 @@
 
 > 回答“Agent 工具如何安装、配置、启动、日常操作、管理会话、控制权限、排查问题”。任务设计见 [Agent工作流指南](./Agent实践案例/Agent工作流指南.md)，真实案例见 [Agent实践记录](./Agent实践案例/Agent实践记录.md)，工作原理见 [Agent原理与开发](./Agent原理与开发.md)。
 >
-> **更新时间**：2026-11-13；主要环境为 Windows + Windows Terminal + PowerShell，WSL2 按需使用。
+> **更新时间**：2026-11-24；主要环境为 Windows + Windows Terminal + PowerShell，WSL2 按需使用。
 >
 > **内容范围**：工具用途、操作命令、参数说明、配置方法和故障排查。示例路径按实际项目替换，命令随版本变化，优先查看 `<工具> --help` 和交互菜单。
 
@@ -180,6 +180,9 @@ codex login status
 6. **审查实际产物**：Agent 声称“已完成”不代表测试通过、文件存在或修改符合要求。
 7. **第三方扩展更加谨慎**：插件、Skill、MCP 服务可能带来新的文件、网络和执行权限；读懂来源和权限后再启用。
 
+> [!warning] Python 依赖的安装也会改变执行环境
+> 2026-11-17，PyPI 上的 Microsoft Agent Framework 包 `agent-framework` 出现恶意版本 `1.26.1` 和 `1.26.2`。两个版本通过 `.pth` 钩子在 Python 启动时执行代码，可窃取环境变量、凭据文件和 CI 密钥。公告将 `1.26.0` 列为当时最后一个干净版本。若曾安装受影响版本，应隔离环境并轮换其可访问的凭据，包括 CI 密钥。重要项目使用锁定文件，并在升级前检查来源及依赖变更。[GitHub 安全公告 GHSA-764m-3ppc-5m73](https://github.com/advisories/GHSA-764m-3ppc-5m73)
+
 **常用 Git 检查：**
 
 ```powershell
@@ -298,6 +301,8 @@ Codex 会根据任务读取文件、选择工具、返回分析结果。**是否
 
 小技巧：在交互界面输入 `/` 查看当前可用命令；使用 `@` 查找并引用工作区文件；部分版本允许使用 `!` 前缀执行本地命令，命令仍受当前审批与沙箱限制。详细快捷键以 `?` 或官方界面帮助为准。
 
+**TUI Workspace（0.171.0）** 从该版本起默认启用。可搜索和预览文档、预览图片，并在侧栏打开子 Agent 的对话记录。非 Vim 输入模式支持自定义撤销和重做快捷键。该版也修复了切换工作目录时丢失权限配置、迟到的完成事件取消新一轮审批的问题，并加强了 Linux 下对 x32 系统调用的 seccomp 限制。[Codex CLI 0.171.0 发布说明](https://github.com/openai/codex/releases/tag/rust-v0.171.0)
+
 ### 4.5 三种常见任务怎么操作
 
 **A. 只读分析**
@@ -349,6 +354,8 @@ codex exec --sandbox read-only "概括当前项目目录和主要文件，不要
 ```
 
 非交互模式适合脚本化检查，但**不要在不了解权限、网络和费用影响时直接用于无人值守写入任务**。接入脚本或 CI 前，先用只读命令确认行为和输出。
+
+从 0.171.0 起，`codex exec --remote <ADDR>` 可在已运行的 App Server 上启动或恢复非交互会话。执行位置和权限以该服务器的环境及配置为准。[Codex CLI 0.171.0 发布说明](https://github.com/openai/codex/releases/tag/rust-v0.171.0)
 
 #### 会话分叉与子 Agent
 
@@ -449,6 +456,8 @@ pi
 
 在新环境中可先做一次纯文本对话验证模型连接，收到预期回复后再验证文件工具。Windows 与 WSL2 各自核对 Pi 的模型与认证状态。[Pi Quickstart](https://pi.dev/docs/latest/quickstart#3-choose-a-model)
 
+**Pi 1.6.0** 在 `openai`、`azure`、`openai-codex` 三个提供商中新增 GPT-6.2 Astra 和 Sol，并将 Sol 设为默认。该版本修复了提供商报 `Connection closed.` 时未触发自动重试的问题，也将 `undici` 更新到 8.12.4 以修复依赖安全问题。HTTP 429、5xx 和其他连接错误仍需按各自的重试规则判断。[Pi 1.6.0 发布说明](https://github.com/earendil-works/pi/releases/tag/v1.6.0)
+
 Pi 1.5.2 找不到可用的 `fd` 或 `rg`（ripgrep）时，会在支持的平台上尝试自动下载，默认放在 `~/.pi/agent/bin/`。遇到 `not found` 后先看是否接着显示安装路径，再用实际的文件搜索任务检查工具能否运行。[Pi 1.5.2 工具管理源码](https://raw.githubusercontent.com/earendil-works/pi/v1.5.2/packages/coding-agent/src/utils/tools-manager.ts) · [路径定义](https://raw.githubusercontent.com/earendil-works/pi/v1.5.2/packages/coding-agent/src/config.ts)
 
 **只读任务示例（自然语言要求不能代替系统权限）**：
@@ -489,6 +498,8 @@ Pi 1.5.2 找不到可用的 `fd` 或 `rg`（ripgrep）时，会在支持的平�
 - `!!`：用于执行命令但不把输出送回模型（详情以当前版本内置说明为准）。
 - 任务进行中可按 `Escape` 停止，具体按键与 Windows Terminal 的冲突以文档为准。
 - `/resume`：从已有会话中选择；退出后在相同目录用 `pi --continue` 继续最近会话。
+
+**`find` 路径匹配（1.6.0）** 含 `/` 的模式相对于搜索目录匹配。例如 `src/*.ts` 匹配 `src/a.ts`，搜索任意深度的 `src` 目录用 `**/src/*.ts`。不含 `/` 的模式仍在任意深度按文件名匹配。[Pi 1.6.0 发布说明](https://github.com/earendil-works/pi/releases/tag/v1.6.0)
 
 > [!warning] `!` 会执行真实命令
 > 从 Pi 内执行 `!` 会调用真实 Shell，运行权限取决于进程与隔离环境。
@@ -806,7 +817,12 @@ export default function (pi: ExtensionAPI) {
 
 #### 全局安装
 
-在运行 DSH 的 PowerShell 中检查 Node.js 版本。DSH 的 Node.js 运行要求为 **24.9.0 或更高版本**，npm 包 `@deepseek-ai/dsh` 提供 `dsh` 命令。[Node.js 迁移说明](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/docs/upgrade-guide/v0.2.1-rc.2/node-24/guide.md) · [DSH 包定义](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/apps/cli/package.json)
+在实际运行 DSH 的终端中检查 Node.js。npm 包 `@deepseek-ai/dsh` 提供 `dsh` 命令，Node.js 要求按目标版本核对。实践所用的 `0.2.2-rc.1` 要求 **24.9.0 或更高版本**。[0.2.2-rc.1 包定义](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.1/apps/cli/package.json#L177-L179)
+
+> [!warning] DSH 0.2.3 Alpha 的升级条件
+> `0.2.3-alpha.2` 的 Node.js 要求为 `^24.22.3 || >=26.13.1`。按历史环境记录，Windows 的 `24.22.2` 低于要求，WSL2 的 `24.22.3` 满足版本门槛。升级前在目标终端重新执行 `node -v`。
+>
+> `0.2.3-alpha.1` 已移除 Python PTC 支持，依赖该功能的工作流需要迁移到 Node PTC。Alpha 功能和插件迁移应在独立环境验证。[Alpha 1 发布说明](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.1) · [Alpha 2 包定义](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.3-alpha.2/apps/cli/package.json#L189-L191) · [历史环境记录](./Agent实践案例/Agent实践记录.md#一环境准备与历史快照)
 
 ```powershell
 node -v
@@ -881,6 +897,12 @@ dsh --version
 ```
 
 **注意**：Web UI 的权限审批取决于启用的策略与操作类型；在所有情况下都不能把自然语言请求当成系统级强制隔离。
+
+**DSH 预发布版本的工作流变化（2026-11-17 至 11-22）**
+
+- `0.2.2-rc.4` 改善了异常模型响应处理，并修复桌面端 LiveShare 创建分享失败的问题。`0.2.2-rc.5` 将 DeepSeek 模型的搜索切换到服务端，其他模型默认使用 DeepSeek Search API。[rc.4 发布说明](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.4) · [rc.5 发布说明](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.5)
+- `0.2.3-alpha.1` 新增实验性 Timeline，展示任务树、阻塞和进展。会话状态区显示工作目录、子 Agent 和插件等状态。代码审查页可查看与自己相关的 GitHub PR 及 diff，支持页内协作审查，也支持 GitLab MR 的审查和合并。[Alpha 1 发布说明](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.1)
+- 同版的 worktree 支持自定义分支名、选择远程基分支，并在发送首条消息后创建。核对会话实际工作目录，再结合 Timeline 跟进任务，最后以 diff 和测试结果验收。MCP 支持 OAuth 与凭据自动刷新，可选用按需加载工具以减少上下文占用。[Alpha 1 发布说明](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.1)
 
 ### 6.3 DSH CLI / 运行配置（Profile）基础
 

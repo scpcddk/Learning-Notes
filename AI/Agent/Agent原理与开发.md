@@ -323,6 +323,18 @@ Session Branch 可用于从同一任务背景探索不同方案，保留各自�
 
 项目文件、网页和命令输出也可能夹带误导 Agent 的指令，形成**提示注入**（Prompt Injection）风险。实际安全控制应放在工具权限、隔离环境、凭据范围与审批机制中。
 
+### 7.1 外部沙箱如何限制工具访问
+
+Prime Radiant 的 External Sandbox 原型将接入的工具操作交给独立的 Linux 环境执行。文件访问由挂载路径及读写模式控制。默认阻断外网，可通过代理放行指定主机和 HTTP 方法。代理也可在转发时替换占位凭据，使实际密钥留在宿主侧。[项目方说明](https://blog.primeradiant.com/external-sandboxes-for-coding-agents/)
+
+| 接入示例 | 沙箱覆盖范围 |
+| --- | --- |
+| Codex | 进程和文件系统操作，包括原生 `apply_patch` |
+| Pi | 由扩展接管 `bash`、读写编辑及文件搜索工具 |
+| Claude Code | Bash 在沙箱内执行，原生 Read 和 Edit 仍在宿主机运行 |
+
+项目提供三种使用同一协议的原型：v86（Node.js + WebAssembly）、Apple Containers 和 Quicksand（QEMU）。评估隔离能力时，应逐项核对哪些工具经过沙箱、哪些路径可写、代理允许哪些操作。可写挂载内的文件仍可能被修改或删除。原型尚未经过足以用于敏感工作的安全审计。Codex 接入依赖实验性的 exec-server 协议，项目方使用 CLI `0.164.0` 和模拟模型完成了自动化测试，其他版本及 Windows 兼容性需单独核对。[项目方说明](https://blog.primeradiant.com/external-sandboxes-for-coding-agents/) · [项目仓库](https://github.com/prime-radiant-inc/external-sandbox)
+
 统一的日常安全规范只在[Agent工具使用手册·第 3 节](./Agent工具使用手册.md#3-安全基线与-git-检查)维护，此处不重复。
 
 ---
@@ -361,6 +373,14 @@ Session Branch 可用于从同一任务背景探索不同方案，保留各自�
 2. 上下文压缩、持久状态与任务恢复；
 3. Extension / Skill / MCP 的职责区别；
 4. 权限隔离、评测、可观测性与工程部署。
+
+### 9.1 Agent 强化学习的训练评测
+
+MLPerf Training v6.1 引入了 **Qwen3.5-397B GRPO** 软件修复工作负载。模型通过 OpenHands 在 R2E-Gym 仓库环境中阅读问题、修改代码和运行工具。测试结果给出成功或失败的奖励，执行轨迹用于强化学习。用于判定成功的测试文件对 Agent 不可见、不可修改，以防通过更改测试取得奖励。[MLCommons 评测方法](https://mlcommons.org/2026/09/mlperf-training-llm-post-training/)
+
+评测使用 700 道训练题和 251 道独立验证题，上下文上限为 65,536 tokens，Agent 最多交互 30 轮，训练时每个提示生成 16 条轨迹。验证采用 `pass@4`，每题尝试 4 次，至少修复成功 1 次即计为解决。目标 `0.69` 表示至少解决 69% 的验证题。[MLCommons 评测方法](https://mlcommons.org/2026/09/mlperf-training-llm-post-training/)
+
+成绩衡量硬件与训练系统达到该质量目标所用的实际时间。首轮有 7 个提交方、29 份提交。在比较 Codex、Pi、DSH 等编码工具时，可借鉴独立评分测试和区分执行条件的做法，工具选型仍需在同一任务和明确权限下单独验证。[MLPerf Training v6.1 结果分析](https://mlcommons.org/2026/11/mlperf-training-v6-1-insights/) · [本地工具对比案例](./Agent实践案例/Agent实践记录.md#案例-012agent-benchmark-v2-复杂-llm-客户端修复对比)
 
 ---
 

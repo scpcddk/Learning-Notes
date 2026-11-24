@@ -942,60 +942,456 @@ print(result["choices"][0]["message"]["content"])
 
 ## 18. JSON、Python 对象与嵌套提取
 
-JSON 是数据交换格式；`dict` / `list` 是 Python 中的对象。
+JSON（JavaScript Object Notation）是轻量的**文本数据交换格式**。
 
-| JSON | Python | 例子 |
+### 18.1 JSON 语法与类型
+
+**对象和数组**是 JSON 的两种容器。[前端基础 · JSON 笔记](../../前端基础/JavaScript/JSON.md)
+
+| 对比 | JSON Object（对象） | JSON Array（数组） |
 |---|---|---|
-| object | dict | `{"name":"张三"}` |
-| array | list | `[1,2]` |
-| string | str | `"hello"` |
-| number | int / float | `18`、`0.5` |
-| boolean | bool | `true` → `True` |
-| null | None | `null` → `None` |
+| 示例 | `{"name":"Tom","age":20}` | `["Python","Java","MySQL"]` |
+| 结构 | 用 `{}` 包住键值对，键和值用 `:` 连接 | 用 `[]` 包住一组值 |
+| 解码后取值 | `dict` 按键读取，如 `student["name"]` | `list` 按下标读取，如 `skills[0]` |
+| 顺序 | 成员顺序不承载业务含义 | 元素有序，Python 从下标 `0` 开始访问 |
+| 空容器 | `{}` | `[]` |
 
-> [!Example]
+对象的成员与数组的元素都用逗号分隔，末尾不能加逗号。对象的值和数组的元素可以是任意 JSON 类型，例如 `["Python", 3.12, true, null]`。
+
+**四种基本值**
+
+| JSON 类型 | Python 默认解码结果 | 规则与示例 |
+|---|---|---|
+| string | `str` | 双引号包裹的 Unicode 字符串，如 `"Python"` |
+| number | `int` / `float` | 十进制，支持负数、小数和指数，如 `42`、`-15`、`3.14`、`1.5e-4` |
+| boolean | `bool` | `true` → `True`，`false` → `False` |
+| null | `None` | 表示显式空值，例如 `{"discount":null}` |
+
+**通用语法**：对象的键必须是用双引号包裹的字符串。`true`、`false` 和 `null` 使用小写。标准 JSON 禁止注释、`NaN` 和 `Infinity`。顶层可以是任意合法 JSON 值，接口可额外要求顶层必须为对象。[RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html)
+
+#### 18.1.1 字符串类型与转义
+
+JSON 字符串可包含中文，也可以为空（`""`）。给数字或布尔字面量加上双引号后，解码得到的就是字符串。
+
+| 带双引号的 JSON 值 → Python 类型 | 不带双引号的 JSON 值 → Python 类型 |
+|---|---|
+| `"20"` → `str` | `20` → `int` |
+| `"true"` → `str` | `true` → `bool` |
+
+转义写在 **JSON 文本**里。解码后得到的是转义所代表的字符。
+
+| JSON 转义 | 解码后的字符 |
+|---|---|
+| `\"` | 双引号 |
+| `\\` | 反斜杠 |
+| `\n` | 换行 |
+| `\t` | 制表符 |
+| `\uXXXX` | 用 4 位十六进制数表示的 Unicode 编码单元 |
+
+> [!example] 模型返回的文本含引号和换行
+> 从响应体解码得到的 `content` 会保留文本本身的引号和换行。
 >
-> ```python
-> # 独立示例：标准库。
-> import json
+> ```json
+> {"content":"他说：\"你好\"\n接着介绍 Python。"}
+> ```
 >
-> body = {"messages": [{"role": "user", "content": "你好"}], "stream": False}
-> text = json.dumps(body, ensure_ascii=False)  # Python 对象 → JSON 文本：序列化
-> obj = json.loads(text)                      # JSON 文本 → Python 对象：反序列化
-> print(obj["messages"][0]["content"])          # 你好
+> 解码后读取 `content`，得到两行文本。
+>
+> ```text
+> 他说："你好"
+> 接着介绍 Python。
 > ```
 
-HTTPX 的 `json=body` 自动编码请求；`response.json()` 尝试解码响应，但不会替你证明业务成功。
+#### 18.1.2 数字写法与类型检查
 
-```text
-response 对象
-  ↓ response.json()
-Python dict
-  ↓ ["choices"]
-list
-  ↓ [0]
-dict
-  ↓ ["message"]["content"]
-模型文本
+JSON 的 Number 使用十进制写法，不加引号。Python 的 `json.loads()` 默认把没有小数点和指数的数字解码为 `int`，把带小数点或指数的数字解码为 `float`。
+
+| JSON 写法 | 合法性与解码结果 |
+|---|---|
+| `20`、`-20`、`0` | 合法，解码为 `int` |
+| `0.5`、`95.5` | 合法，解码为 `float` |
+| `1.5e3`、`1e+3` | 合法，解码为 `1500.0`、`1000.0` |
+| `020` | 不合法，整数部分不能有多余的前导零 |
+| `+20` | 不合法，数字开头不能用 `+`。指数部分可以带 `+` |
+| `.5` | 不合法，小数点前需要数字，应写成 `0.5` |
+| `NaN`、`Infinity` | 不属于标准 JSON 数值。Python 默认的兼容行为见[第 18.2 节](#182-双向转换图) |
+
+> [!example] 用模型返回的分数做比较
+> 下例用固定的 JSON 文本模拟模型输出。`score` 已按约定写成数字。
+>
+> ```python
+> import json
+>
+> content = '{"topic":"Python","score":85,"confidence":0.92}'
+> result = json.loads(content)
+> if result["score"] >= 80:
+>     print("掌握良好")
+> ```
+
+> [!warning] 格式检查通过后还要检查字段类型
+> `{"score":"85"}` 符合 JSON 语法，但解码后的 `score` 是 `str`，直接与整数 `80` 作大小比较会触发 `TypeError`。先确认文本能解码，再校验字段类型，最后做比较。[第 32 节：JSON Schema](#32-json-schema描述数据结构)
+
+#### 18.1.3 布尔值与条件判断
+
+JSON 布尔值只有小写的 `true` 和 `false`。Python 解码后分别得到 `True` 和 `False`，类型都是 `bool`。带双引号的 `"false"` 则解码为 `str`。
+
+| JSON 值 | Python 解码类型 | 条件判断 |
+|---|---|---|
+| `true` / `false` | `bool` | 真 / 假 |
+| `0` / `0.0` | `int` / `float` | 假 |
+| `null` | `NoneType` | 假 |
+| `""` / `[]` / `{}` | `str` / `list` / `dict` | 假 |
+| `"false"` / `"0"` | `str` | 真，因为字符串非空 |
+
+> [!warning] 条件判断前先校验布尔类型
+> `0` 和 `False` 在条件判断中都为假，但布尔字段只应接受 `bool`。当字段用于决定是否重试或切换流程时，先用 `isinstance(value, bool)` 校验，再进入相应分支。
+
+Python 的 `bool` 是 `int` 的子类，因此 `0 == False` 会得到 `True`，而且 `isinstance(False, int)` 也会通过。处理 JSON 解码后的值时，如果业务只接受 Python 整数，可用 `type(value) is int` 排除布尔值。[Python 内置类型](https://docs.python.org/3.11/library/stdtypes.html#numeric-types-int-float-complex)
+
+> [!example] 用模型输出选择复习路径
+> ```python
+> import json
+>
+> content = '{"topic":"MySQL事务","mastered":true}'
+> result = json.loads(content)
+> if not isinstance(result, dict) or not isinstance(result.get("mastered"), bool):
+>     raise ValueError("mastered 必须是布尔值")
+>
+> if result["mastered"]:
+>     print("进入下一个知识点")
+> else:
+>     print("继续强化练习")
+> ```
+>
+> 这个检查会拒绝缺失字段、`null`、数字和字符串。需要同时校验多个字段时，可把这些约束写进[第 33 节介绍的 Pydantic 模型](#33-用-pydantic-校验不用猜字段)。
+
+#### 18.1.4 null、零值与缺失字段
+
+JSON 用小写 `null` 表示显式空值，Python 解码为 `None`。
+
+| JSON 文本 | Python 中的 `value` | 含义 |
+|---|---|---|
+| `{"value":null}` | `None` | 字段存在，值为空 |
+| `{"value":""}` | 空字符串 `""` | 有字符串值，内容为空 |
+| `{"value":0}` | 整数 `0` | 数值为零 |
+| `{"value":false}` | `False` | 布尔值为假 |
+| `{"value":"null"}` | 字符串 `"null"` | 普通文本 |
+| `{}` | 字典无 `value` 键 | 字段缺失 |
+
+> [!warning] 用 `is None` 判断显式空值
+> `None`、`""`、`0`、`False` 在条件判断中都为假。字段存在后，用 `value is None` 专门判断空值。若还要区分缺键，先用 `"value" in data` 检查键是否存在。`data.get("value")` 默认会把缺键和 `null` 都读成 `None`。
+
+> [!example] 原文未给出年龄
+> 信息提取任务可以约定年龄字段必填，未知时填 `null`。例如原文只有「小明是一名软件工程师」，就保留 `age` 字段，值写为 `null`。
+>
+> ```python
+> import json
+>
+> content = '{"name":"小明","age":null,"occupation":"软件工程师"}'
+> result = json.loads(content)
+> age = result["age"]
+> if age is None:
+>     print("原文未提供年龄")
+> else:
+>     print(f"年龄：{age}")
+> ```
+>
+> 字段是否必填和是否可空需要分别约定。[第 32 节：JSON Schema](#32-json-schema描述数据结构)
+
+### 18.2 双向转换图
+
+JSON 文本可以作为 API 请求体，也可以保存到文件。发送方将本地对象序列化，接收方再按自己的数据结构解码，例如 Python 的 `dict` 或 Java 的 `Map`。
+
+```mermaid
+flowchart LR
+    Text("<b>JSON 文本</b><br/>示例类型 · str")
+    Value("<b>Python 对象</b><br/>例如 dict 或 list")
+
+    Text -->|loads · 反序列化| Value
+    Value -->|dumps · 序列化| Text
+
+    classDef textNode fill:#ffc6df,stroke:#b54676,color:#401328;
+    classDef valueNode fill:#e8d1ff,stroke:#8958bc,color:#371b53;
+    class Text textNode;
+    class Value valueNode;
 ```
 
-如果模型文本本身又是 JSON，需要再次 `json.loads(content)` 或 Schema 验证。外层 API JSON 与内层模型输出 JSON 是两层。
+| 转换方向 | 标准库函数 |
+|---|---|
+| JSON 文本 → Python 对象 | `json.loads(text)` |
+| JSON 文件 → Python 对象 | `json.load(fp)` |
+| Python 对象 → JSON 文本 | `json.dumps(obj)` |
+| Python 对象 → JSON 文件 | `json.dump(obj, fp)` |
 
-**格式注意**：严格 JSON 不接受 `//` 注释、单引号属性名或末尾逗号；Python 代码也不接受用 `//` 写行注释。
+`fp` 是已经打开的文件对象，文本模式下可显式指定 `encoding="utf-8"`。Python 的 `json` 默认接受并可输出非标准数值 `NaN` 和 `Infinity`。严格输出可传 `allow_nan=False`，解码时可通过 `parse_constant` 拒绝这些字面量。[Python 3.11 `json` 文档](https://docs.python.org/3.11/library/json.html)
 
-### 18.1 双向转换图
+#### 18.2.1 从 JSON 文本到 Python 对象
 
-```text
-Python 对象
-    ↓ json.dumps / HTTPX 的 json=
-JSON 文本/编码后的请求体
+`text = '{"name":"Tom","age":20}'` 外层的单引号是 Python 字符串字面量的边界。实际文本从 `{` 开始，内部键名仍带 JSON 要求的双引号。字符串按字符下标读取，字典按键读取，因此 `text["name"]` 会触发 `TypeError`。
 
-JSON 响应体
-    ↓ json.loads / response.json()
-Python 对象
+> [!example] 对比字符下标与字典键
+> ```python
+> import json
+>
+> text = '{"name":"Tom","age":20}'
+> result = json.loads(text)
+>
+> print(type(text).__name__)    # str
+> print(text[0])               # {
+> print(type(result).__name__)  # dict
+> print(result["name"])        # Tom
+> ```
+
+返回类型由 JSON 的顶层值决定。对象解码为 `dict`，数组解码为 `list`，其他值见[第 18.1 节的类型对照](#181-json-语法与类型)。在流式聊天中，`json.loads(data)` 负责解码 SSE 事件数据，读取 `choices` 和 `delta` 属于后续取值步骤。[第 18.4 节：LLM 响应取值](#184-httpx-响应与模型输出的两层-json)
+
+#### 18.2.2 用 json.dumps() 序列化
+
+`json.dumps(data)` 返回 JSON 文本，变量类型是 `str`。当输入是字典时，文本内容采用 JSON Object 的结构。序列化时，`True` / `False` 写成 `true` / `false`，`None` 写成 `null`。
+
+> [!example] 观察字典、JSON 文本与解码结果的类型
+> ```python
+> import json
+>
+> data = {"name": "Python", "score": 90, "mastered": True, "remark": None}
+> text = json.dumps(data)
+> result = json.loads(text)
+>
+> print(type(data).__name__, type(text).__name__, type(result).__name__, sep=" → ")
+> print(text)
+> ```
+>
+> ```text
+> dict → str → dict
+> {"name": "Python", "score": 90, "mastered": true, "remark": null}
+> ```
+>
+> JSON Object 描述文本里的结构，`str` 描述这段文本在 Python 中的类型。解码后可通过 `result["mastered"]` 取到布尔值 `True`。
+
+输出时，`ensure_ascii=False` 可让中文等非 ASCII 字符直接显示，`indent=2` 可按两空格缩进。它们调整的是文本表现，解码后相应字段的类型和值保持一致。
+
+### 18.3 嵌套提取与解码错误
+
+#### 18.3.1 对象与数组的四种组合
+
+解码后逐层看当前容器。遇到 `dict` 用字符串键，遇到 `list` 用从 `0` 开始的下标。下面的 `result` 是对应 JSON 解码后的值。
+
+| 嵌套方式 | JSON 示例 | 读取路径与结果 |
+|---|---|---|
+| 对象 → 对象 | `{"address":{"city":"沈阳"}}` | `result["address"]["city"]` → `"沈阳"` |
+| 对象 → 数组 | `{"skills":["Java","Python","MySQL"]}` | `result["skills"][1]` → `"Python"` |
+| 数组 → 对象 | `[{"score":90},{"score":85}]` | `result[1]["score"]` → `85` |
+| 数组 → 数组 | `[[80,90],[70,85]]` | `result[1][0]` → `70` |
+
+#### 18.3.2 订单示例与取值错误
+
+下面的 `items` 是数组，`items[0]` 是首条商品对象，`items[0]["sku"]` 取这条商品的编号。
+
+```python
+import json
+
+raw_json = """
+{
+  "order_id": "ORD-20261124",
+  "paid": true,
+  "discount": null,
+  "customer": {"name": "顾客甲", "tags": ["vip", "jp"]},
+  "items": [
+    {"sku": "BOOK-01", "qty": 1, "price": 2400},
+    {"sku": "PEN-02", "qty": 2, "price": 600}
+  ]
+}
+"""
+
+try:
+    order = json.loads(raw_json)
+except json.JSONDecodeError as exc:
+    print(f"JSON 格式错误（第 {exc.lineno} 行，第 {exc.colno} 列）{exc.msg}")
+    print(f"字符下标：{exc.pos}")
+else:
+    # 示例已知数据结构。真实接口先检查类型、必填键和数组长度。
+    first_sku = order["items"][0]["sku"]
+    discount = order.get("discount")
+    print(first_sku, discount)  # BOOK-01 None
+    print(json.dumps(order, ensure_ascii=False, indent=2))
 ```
 
-序列化解决“如何把本地对象发送出去”，反序列化解决“如何把响应变成可以访问的对象”。嵌套 JSON 是对象/数组中继续包含对象/数组。
+将 `raw_json` 临时换成 `'{"success": true,}'`，尾随逗号会触发 `JSONDecodeError`。`msg` 是错误说明，`lineno`、`colno` 从 `1` 开始，`pos` 是原始文本中从 `0` 开始的字符下标。[Python 3.11 JSONDecodeError](https://docs.python.org/3.11/library/json.html#json.JSONDecodeError)
+
+> [!warning] 解码成功后仍需检查结构
+> - **解码失败**时，`JSONDecodeError` 提供语法错误的位置。
+> - **取值失败**时，缺键、下标越界、把 `None` 当容器访问，分别可能触发 `KeyError`、`IndexError`、`TypeError`。
+>
+> 订单里的 `discount` 若需要区分缺键和显式空值，可先检查 `"discount" in order`。详见[第 18.1.4 节](#1814-null零值与缺失字段)和[第 28.2 节](#282-dictget-不是类型校验)。
+
+#### 18.3.3 模型输出的语法与字段校验
+
+> [!example] 代码围栏中的 JSON
+> ````text
+> 以下是分析结果：
+>
+> ```json
+> {"success": true}
+> ```
+> ````
+>
+> 中间的对象本身符合 JSON 语法。直接解码整段回复时，前言和 Markdown 围栏会导致 `JSONDecodeError`。
+
+以业务要求 `score` 的 Python 类型为 `int` 为例：
+
+| 输入文本 | 第一步：`json.loads()` | 第二步：字段类型检查 |
+|---|---|---|
+| `{"score":90,}` | 尾随逗号触发 `JSONDecodeError` | 解析失败，结束处理 |
+| `{"score":"90"}` | 成功，得到字典 | `score` 是 `str`，校验失败 |
+| `{"score":90}` | 成功，得到字典 | `score` 是 `int`，通过类型检查 |
+
+先确认顶层是字典且存在 `score`，再用 `type(result["score"]) is int` 检查类型。必填项、类型和取值范围均符合约定后，再进入业务处理。[第 32 节：JSON Schema](#32-json-schema描述数据结构)
+
+#### 18.3.4 在取值前检查必填字段
+
+`result["score"]` 会先取值，再把值交给 `type()`。缺少 `score` 时，程序在取值阶段就会抛出 `KeyError`。依次完成 **JSON 解码 → 顶层类型 → 必填键 → 字段类型** 检查，成功后再使用数据。
+
+> [!example] 区分缺少字段和字段类型不符
+> 下例检查四个必填键，并以 `score` 演示类型校验。
+>
+> ```python
+> import json
+>
+> text = '{"topic":"Python","mastered":true,"weaknesses":[]}'
+> required_fields = ("topic", "score", "mastered", "weaknesses")
+>
+> try:
+>     result = json.loads(text)
+>     if not isinstance(result, dict):
+>         raise TypeError("顶层值必须是对象")
+>
+>     for field in required_fields:
+>         if field not in result:
+>             raise KeyError(field)
+>
+>     if type(result["score"]) is not int:
+>         raise TypeError("score 必须是整数")
+> except json.JSONDecodeError as exc:
+>     print(f"JSON 格式错误：{exc.msg}")
+> except KeyError as exc:
+>     print(f"缺少必填字段：{exc.args[0]}")
+> except TypeError as exc:
+>     print(f"类型错误：{exc}")
+> else:
+>     print(result["score"])
+> ```
+>
+> 当前输入会输出 `缺少必填字段：score`。若加上 `"score":null`，键存在，程序会进入类型检查并报告类型错误。Schema 中的 `required` 对应的是键是否存在，见[第 32 节](#32-json-schema描述数据结构)。
+
+### 18.4 HTTPX 响应与模型输出的两层 JSON
+
+HTTPX 的 `json=body` 接收 Python 对象并自动序列化，未手动设置 `Content-Type` 时会补上 `application/json`。`response.json()` 则负责解码响应，业务状态仍需按接口约定检查。[HTTPX QuickStart](https://www.python-httpx.org/quickstart/#sending-json-encoded-data)
+
+> [!warning] 向 json 参数传入原始 Python 对象
+> `json=json.dumps(body)` 会把已生成的 JSON 文本再次序列化，接收端解码后得到的是字符串。如果已经准备好 JSON 文本并要原样发送，可用 `content=text`，同时设置 `Content-Type: application/json`。
+
+Chat Completions 请求体中的 `messages` 是由消息对象组成的数组。普通文本消息用 `role` 和 `content` 表示角色和正文。在 Python 中，可通过 `body["messages"][0]["content"]` 读取首条文本消息的正文。
+
+| 响应形式 | 解码步骤 | 首个候选的文本路径 |
+|---|---|---|
+| 普通响应 | `response.json()` 解码整个响应体，得到 `obj` | `obj["choices"][0]["message"]["content"]` |
+| SSE 流式响应 | 组装单个 SSE 事件，再用 `json.loads()` 解码事件的 JSON 数据，得到 `chunk` | `chunk["choices"][0]["delta"]["content"]` |
+
+> [!example] SSE 事件中的文本片段
+> 下面是去掉 `data:` 前缀后，带有文本的事件数据。
+>
+> ```json
+> {"choices":[{"delta":{"content":"你好"}}]}
+> ```
+
+```mermaid
+%%{init: {
+  "theme": "base",
+  "htmlLabels": true,
+  "themeVariables": {
+    "darkMode": false,
+    "fontFamily": "Microsoft YaHei, PingFang SC, Arial, sans-serif",
+    "fontSize": "16px",
+    "background": "#ffffff",
+    "lineColor": "#755d50",
+    "edgeLabelBackground": "#fff8f2"
+  },
+  "flowchart": {
+    "curve": "linear",
+    "diagramPadding": 16,
+    "rankSpacing": 24,
+    "padding": 12,
+    "wrappingWidth": 680
+  },
+  "themeCSS": "background-color:#ffffff; .node rect { filter:drop-shadow(0 2px 2px #00000018); }"
+}}%%
+flowchart TB
+    Root("<div style='width:620px;text-align:center;line-height:1.55'><b style='font-size:18px'>chunk</b><br/>SSE 事件解码后的字典 · dict</div>")
+    Choices("<div style='width:620px;text-align:center;line-height:1.55'><b style='font-size:18px'>choices</b><br/>候选列表 · list</div>")
+    First("<div style='width:620px;text-align:center;line-height:1.55'><b style='font-size:18px'>第一个候选</b><br/>候选字典 · dict</div>")
+    Delta("<div style='width:620px;text-align:center;line-height:1.55'><b style='font-size:18px'>delta</b><br/>增量字典 · dict</div>")
+    Content("<div style='width:620px;text-align:center;line-height:1.55'><b style='font-size:18px'>content</b><br/>文本片段 · str · 你好</div>")
+
+    Root -->|"键 choices"| Choices
+    Choices -->|"下标 0"| First
+    First -->|"键 delta"| Delta
+    Delta -->|"键 content"| Content
+
+    classDef rootNode fill:#fff4e9,stroke:#d5a58b,color:#382820,stroke-width:1px;
+    classDef objectNode fill:#ffe2cc,stroke:#bd7f5d,color:#382820,stroke-width:1px;
+    classDef arrayNode fill:#e7eac6,stroke:#838b50,color:#382820,stroke-width:1px;
+    classDef textNode fill:#f5ddea,stroke:#af7897,color:#382820,stroke-width:1px;
+    class Root rootNode;
+    class First,Delta objectNode;
+    class Choices arrayNode;
+    class Content textNode;
+```
+
+流式事件中的 `content` 是本次增量。读取前先确认 `choices` 非空且 `delta` 含文本。事件组装、无文本事件及结束标记的处理见[第 26 节](#26-sse先组装事件再解析-json)。
+
+如果完整的模型文本本身是一段 JSON，还要再解码一次。下面两个示例都从这层文本开始。
+
+### 18.5 AI 应用中的对象与数组
+
+#### 18.5.1 文本分类用对象
+
+模型可以用一句话回答「这段文本属于技术学习类别，主要涉及 Python」。如果程序还要按类别统计或筛选，可以约定模型返回带 `category` 和 `topic` 两个字段的 JSON 对象。
+
+```python
+import json
+
+# 模拟模型返回的 content 文本，无需调用 API。
+content = """
+{
+  "category": "技术学习",
+  "topic": "Python"
+}
+"""
+
+result = json.loads(content)
+category = result["category"]
+topic = result["topic"]
+print(category, topic)  # 技术学习 Python
+```
+
+#### 18.5.2 提取多个名称用数组
+
+从「今天学习了 Redis、Docker 和 MySQL」中提取技术名时，可以约定模型按出现顺序返回字符串数组。Python 解码后可遍历其中每个名称。
+
+```python
+import json
+
+# 模拟模型返回的 content 文本，无需调用 API。
+content = '["Redis", "Docker", "MySQL"]'
+technologies = json.loads(content)
+
+for name in technologies:
+    print(name)
+```
+
+> [!note] 数组的输出约定
+> 这个任务要求元素都是字符串，并用 `[]` 表示没有提取结果。接口要求顶层为对象时，可把数组放进 `technologies` 字段，例如 `{"technologies":["Redis","Docker","MySQL"]}`。
+
+实际接入时，先校验解码结果，再用于统计或筛选。[第 31 节：从 JSON 解析到输出校验](#31-为什么自然语言回答还不够)
 
 ---
 
@@ -2267,7 +2663,9 @@ HTTP `401` 表示请求缺少目标资源认可的身份凭证。CLI 可记录�
 
 这里 `attempt` 从 0 开始，`2 ** attempt` 表示 2 的 attempt 次方；两种写法按需要选择一种，放在失败分支中、下一次请求之前。`time.sleep()` 只负责等待，重新发送请求仍由重试循环完成；次数耗尽时应退出，不再等待。
 
-**Retry-After**：服务器通过响应头提示客户端何时重试，读取到的值是字符串，可能表示等待秒数（如 `"5"`）或一个 HTTP 日期，因此需要先转换为数值，或解析日期并计算剩余等待时间，再用于重试等待。
+**Retry-After**：服务器通过响应头提示客户端何时重试，值可以是等待秒数或 HTTP 日期。客户端先把秒数字符串转换成数值，或根据日期计算剩余等待时间。[RFC 9110 §10.2.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3)
+
+例如，收到 `429` 和 `Retry-After: 5` 时，即使本地退避算出 2 秒，也应至少等 5 秒再发请求。重试次数已经用完时，直接退出。
 
 **等待上限与随机抖动**：可在等待时间上加入少量随机变化，避免大量客户端同时重试；还应设置最大次数、最大等待和总预算。如果 `Retry-After` 超出预算，应退出或排队，不能为了快速重试而缩短服务器要求的等待。
 
@@ -2797,7 +3195,7 @@ HTTP 状态码反映服务端响应的状态。应用还要检查返回值能否
 
 ## 31. 为什么自然语言回答还不够
 
-【应用开发】如果后续程序要排序、入库、发通知，就需要明确字段和类型，而不是靠正则从一大段回答里猜。
+【应用开发】程序按约定的字段和类型读取模型结果，才能继续排序、入库或发通知。以文本分类为例，解码后还要检查 `category` 和 `topic` 是否齐全、是否为字符串，以及 `category` 是否属于允许的类别。[第 18.5 节：AI 应用中的对象与数组](#185-ai-应用中的对象与数组)
 
 > [!Example]
 >
@@ -2850,7 +3248,7 @@ Schema 描述“允许什么数据”，它不是实例数据。
 | additionalProperties | 是否允许额外字段 | false 拒绝未知键 |
 | minimum / maximum | 数值边界 | age 0～150 |
 
-**Required 与 Nullable**：必填是“键必须出现”，可空是“值可以为 null”。一个字段可以必填且可空，也可以不必填但一旦提供就不能为 null。
+**Required 与 Nullable**：必填是“键必须出现”，可空是“值可以为 null”。一个字段可以必填且可空，也可以不必填但一旦提供就不能为 null。[第 18.3.4 节：用 Python 检查必填字段](#1834-在取值前检查必填字段)
 
 **Field 与 Type**：Field 是具体数据项（如 age），Type 是该项允许的数据类型（如 integer）。`number` 可以表示小数，`integer` 要求整数。空字符串、空数组、字段缺失、值为 null 是四种不同情况，应按业务分别约定。
 
@@ -3007,6 +3405,7 @@ Schema 有效吗？
 | 问题 | 做法 |
 |---|---|
 | JSON 被截断 | 调整任务规模/输出预算，重新生成完整对象 |
+| JSON 前有说明文字或包了代码围栏 | 按格式错误处理。要求输出完整 JSON，或使用接口支持的结构化输出模式。[第 18.3.3 节](#1833-模型输出的语法与字段校验) |
 | 枚举或类型不对 | 反馈有限的校验错误，最多修正少数次 |
 | 输出了无法确认的事实 | 要求证据、查询来源或让用户补信息 |
 | 模型拒绝处理 | 作为独立状态处理，不能强行解析为业务数据 |
@@ -6603,7 +7002,8 @@ Nginx 可负责 TLS、反向代理与路由。若实现了 SSE 路由，需核�
 
 | API | 用途 | 注意 |
 |---|---|---|
-| `json.dumps/loads` | 序列化/反序列化 | JSON 与 dict 分清 |
+| `json.dumps` / `json.loads` | Python 对象与 JSON 文本互转 | 见[第 18.2 节](#182-双向转换图) |
+| `json.dump` / `json.load` | Python 对象与 JSON 文件互转 | 传入已打开的文件对象 |
 | `dict.get` | 取键/缺失默认值 | 不验证类型，不处理空值 |
 | `list.copy` | 复制外层列表 | 内部对象共享 |
 | `httpx.Client.post` | 发送普通请求 | `json=` 自动编码 |
@@ -6705,7 +7105,7 @@ Nginx 可负责 TLS、反向代理与路由。若实现了 SSE 路由，需核�
 | 历史保存/裁剪、Context Window、Streaming | 7、20、23～27；24.3 Token 预算、57.2～57.3 持久化 |
 | HTTP/网络/Timeout/429/重试/友好提示/日志/项目结构 | 27～30；28.3～28.5 错误分类、29.3～29.4 超时与重试、30.3 配置分离与日志、30.3.8 文件职责与模块搜索路径 |
 | 参数实验、流式失败恢复 | 21.1 控制实验、27.3 消息快照与回滚、30.4 响应完整性 |
-| JSON 全部基本类型、Schema、字段/必填/枚举/嵌套、错误处理 | 18、31～36 |
+| JSON 语法与类型、字符串转义、空值与缺失字段、文本/文件转换、嵌套取值与应用示例；Schema、必填字段与枚举 | 18.1～18.5、31～36 |
 | 笔记整理器、分类器、提取器、学习计划分析器 | 34、36 |
 | Sentence/Document Embedding、Vector Space、相似度、API/保存/排序 | 37～41；37.1 Pooling、37.2 双编码与重排 |
 | TXT/Markdown/PDF、Chunk Size/Overlap、向量库操作 | 43～45、49；45.1～45.2 Chroma 完整 CRUD |

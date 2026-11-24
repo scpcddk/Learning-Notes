@@ -122,7 +122,7 @@
 ### 2. 同期 AI 重点
 
 - [x] 以现有 Python + LLM API 代码为基础完成阶段验收，不重复大量已掌握的基础练习。
-- [ ] 开始 Structured Output：JSON Schema、结构校验、非法输出处理。
+- [x] 开始 Structured Output：JSON Schema、结构校验、非法输出处理。
 - [ ] 视进度进入 Embedding 基础，不要求本阶段完成 RAG 全链路。
 
 ### 3. 同期工程基础
