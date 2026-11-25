@@ -110,6 +110,13 @@ flowchart LR
 | 类 | 继承、组合 | `self` 与类属性 |
 | 类型标注 | `Optional`、`list[str]` | 运行时不强制 |
 
+**带编号遍历 `enumerate(iterable, start=0)`** 返回一个迭代器，每次产出 `(编号, 元素)`，可用 `for index, item in enumerate(items)` 直接解包。默认从 `0` 开始，对应列表下标。展示序号时可传 `start=1`。
+
+```python
+list(enumerate(["a", "b"]))           # [(0, 'a'), (1, 'b')]
+list(enumerate(["a", "b"], start=1))  # [(1, 'a'), (2, 'b')]
+```
+
 > [!warning] 易错/危险操作
 > ```python
 > def add_bad(item, lst=[]):  # 反例：默认参数共享，传入 [] 也会被替换
@@ -304,6 +311,14 @@ raise HTTPException(
 
 > [!important] 必须记住的规则
 > 客户端错误用 4xx，服务器错误用 5xx；不要把业务失败都写成 500。
+
+**定位列表中的校验错误**。手动校验 `result["weaknesses"]` 列表时，用 `enumerate` 把出错元素的下标写进错误消息。例如，第二个元素类型错误时会提示 `weaknesses[1] 必须是 dict`。
+
+```python
+for index, item in enumerate(result["weaknesses"]):
+    if not isinstance(item, dict):
+        raise TypeError(f"weaknesses[{index}] 必须是 dict")
+```
 
 **阶段 3 最小交付物**：统一错误响应 + 分页，能区分 4xx/5xx。
 

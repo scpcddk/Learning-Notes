@@ -1054,6 +1054,7 @@ Python 的 `bool` 是 `int` 的子类，因此 `0 == False` 会得到 `True`，�
 >
 > content = '{"topic":"MySQL事务","mastered":true}'
 > result = json.loads(content)
+> # or 会短路，顶层类型不符时不会调用 result.get()。
 > if not isinstance(result, dict) or not isinstance(result.get("mastered"), bool):
 >     raise ValueError("mastered 必须是布尔值")
 >
@@ -1090,6 +1091,7 @@ JSON 用小写 `null` 表示显式空值，Python 解码为 `None`。
 > content = '{"name":"小明","age":null,"occupation":"软件工程师"}'
 > result = json.loads(content)
 > age = result["age"]
+> # 只匹配 None，年龄为 0 时仍会输出「年龄：0」。
 > if age is None:
 >     print("原文未提供年龄")
 > else:
@@ -1261,18 +1263,22 @@ else:
 >
 > try:
 >     result = json.loads(text)
+>     # JSON 也能解码为列表或标量，先确认顶层能按字段名取值。
 >     if not isinstance(result, dict):
 >         raise TypeError("顶层值必须是对象")
 >
+>     # 先确认必填键存在，再读取字段值。
 >     for field in required_fields:
 >         if field not in result:
 >             raise KeyError(field)
 >
+>     # 只接受类型恰好为 int 的值，排除布尔值。
 >     if type(result["score"]) is not int:
 >         raise TypeError("score 必须是整数")
 > except json.JSONDecodeError as exc:
 >     print(f"JSON 格式错误：{exc.msg}")
 > except KeyError as exc:
+>     # exc.args[0] 是抛出 KeyError 时传入的字段名。
 >     print(f"缺少必填字段：{exc.args[0]}")
 > except TypeError as exc:
 >     print(f"类型错误：{exc}")
@@ -1281,6 +1287,35 @@ else:
 > ```
 >
 > 当前输入会输出 `缺少必填字段：score`。若加上 `"score":null`，键存在，程序会进入类型检查并报告类型错误。Schema 中的 `required` 对应的是键是否存在，见[第 32 节](#32-json-schema描述数据结构)。
+
+> [!example] 逐项校验 `weaknesses`
+> 在上例的 `try` 块中通过顶层检查后，先检查列表的类型和长度，再逐项检查。用上例演练时，先给输入补上合法的顶层 `score`。
+>
+> ```python
+> weaknesses = result["weaknesses"]
+> # 先确认是列表，再检查长度，保证后续可以读取第二项。
+> if not isinstance(weaknesses, list):
+>     raise TypeError("weaknesses 必须是列表")
+> if len(weaknesses) < 2:
+>     raise ValueError("weaknesses 至少需要两项")
+>
+> for index, item in enumerate(weaknesses):
+>     # 用从 0 开始的下标定位出错项，例如 weaknesses[1]。
+>     path = f"weaknesses[{index}]"
+>     if not isinstance(item, dict):
+>         raise TypeError(f"{path} 必须是字典")
+>     # 先确认必填键存在，再读取字段并检查类型。
+>     for field in ("name", "score"):
+>         if field not in item:
+>             raise KeyError(f"{path}.{field}")
+>     if not isinstance(item["name"], str):
+>         raise TypeError(f"{path}.name 必须是字符串")
+>     # bool 是 int 的子类，严格检查类型可以排除 True 和 False。
+>     if type(item["score"]) is not int:
+>         raise TypeError(f"{path}.score 必须是整数")
+> ```
+>
+> 例如，第二项的 `score` 为 `true` 时会报告 `weaknesses[1].score 必须是整数`。若要单独报告长度错误，可在 `except json.JSONDecodeError` 之后捕获 `ValueError`。
 
 ### 18.4 HTTPX 响应与模型输出的两层 JSON
 
@@ -2207,6 +2242,7 @@ def fit_history(system, turns, question, counter, context_limit,
         raise ValueError("没有剩余输入预算")
     selected = list(turns)  # 不修改已确认历史。
 
+    # 裁剪只影响历史轮次，每次都保留系统指令和当前问题。
     def build(items):
         result = [{"role": "system", "content": system}]
         for user, assistant in items:
@@ -2331,6 +2367,7 @@ def iter_sse_data(lines):
             data_lines = []
             event_size = 0
             continue
+        # 冒号开头的是 SSE 注释，例如服务器发来的心跳。
         if line.startswith(":"):
             continue
         field, sep, value = line.partition(":")
@@ -2609,6 +2646,7 @@ def ask_ai(client, messages):
             print("服务端内部错误，本轮未完成，请稍后重试。")
         else:
             print(f"HTTP 请求未成功，状态码：{status}。")
+    # 具体的传输异常在通用 RequestError 之前捕获，才能给出对应提示。
     except httpx.TimeoutException:
         print("请求超时，本轮未完成，请稍后重试。")
     except httpx.ConnectError:
@@ -2698,6 +2736,7 @@ def retry_delay(response, attempt):
 
 
 def text_with_retry(client, messages):
+    # 三次循环包含首次请求，因此最多再重试两次。
     for attempt in range(3):
         try:
             return client.text(messages)
@@ -3721,6 +3760,7 @@ def embed(texts):
     if any(not isinstance(item, dict) for item in data):
         raise ValueError("Embedding 条目必须是对象")
     indices = [item.get("index") for item in data]
+    # 排序后必须刚好覆盖每个输入位置，以发现重复、缺失或越界索引。
     if any(type(i) is not int for i in indices) or sorted(indices) != list(range(len(texts))):
         raise ValueError("Embedding index 重复、缺失或类型错误")
     # 按响应 index 还原输入顺序，避免把某段文本配到另一段的向量。
@@ -3947,6 +3987,7 @@ def split_text(text, size=600, overlap=100):
         part = text[start:end]
         if part.strip():
             result.append(part)
+        # 已到文本末尾时结束，避免回退 overlap 后重复处理尾段。
         if end == len(text):
             break
         # 下一片从当前片段尾部向前回退 overlap 个字符，保留相邻片段的衔接。
@@ -4395,6 +4436,7 @@ for data in iter_sse_data(lines):
     if data == "[DONE]":
         saw_done = True
         break
+    # 当前事件可能只含参数片段，先交给组装器累计。
     assembler.feed(json.loads(data))
 return assembler.finish(saw_done)
 ```
@@ -4748,6 +4790,7 @@ class StateStore:
         if not isinstance(payload, dict):
             raise ValueError("状态顶层必须为对象")
         raw = json.dumps(payload, ensure_ascii=False, allow_nan=False)
+        # 存储上限按 UTF-8 字节计算，字符数和字节数可能不同。
         if len(raw.encode("utf-8")) > 1_000_000:
             raise ValueError("单条状态过大，应拆分历史与工具结果")
         return raw
@@ -5499,6 +5542,7 @@ for epoch in range(15):
             xb, yb = xb.to(device), yb.to(device)
             logits = model(xb)
             val_sum += loss_fn(logits, yb).item() * len(xb)
+            # 沿类别维取最高分的类别，再累计预测正确的样本数。
             correct += (logits.argmax(dim=1) == yb).sum().item()
     val_loss = val_sum / len(val_ids)
     if val_loss < best_loss:
@@ -5586,6 +5630,7 @@ if best_state is not None:
 > v = torch.randn(B, H, L, d)
 > # 转置最后两维后，让每个 Query 与所有 Key 配对，得到 [B,H,L,L] 分数。
 > scores = (q @ k.transpose(-2, -1)) / math.sqrt(d)
+> # 下三角包含当前位置，右上角的未来位置设为负无穷，Softmax 后权重为 0。
 > allowed = torch.tril(torch.ones(L, L, dtype=torch.bool))
 > scores = scores.masked_fill(~allowed, float("-inf"))
 > # 沿 Key 位置归一化，使每个 Query 对可访问位置的权重和为 1。
@@ -5820,6 +5865,7 @@ def main():
     model.train()
     for step in range(60):
         logits = model(ids, valid)
+        # 去掉末位置的预测，将剩余位置的预测与下一 Token 的标签对齐。
         loss = F.cross_entropy(logits[:, :-1, :].reshape(-1, len(vocab)),
                                labels.reshape(-1), ignore_index=-100)
         if not torch.isfinite(loss):
@@ -6043,6 +6089,7 @@ def main():
         [{"role": "user", "content": q}, {"role": "assistant", "content": a}],
         tokenize=False, add_generation_prompt=False
     ) for q, a in pairs]
+    # 模板已经写入所需特殊标记，分词时关闭自动添加以免重复。
     batch = tokenizer(rendered, add_special_tokens=False, padding=True,
                       truncation=False, return_tensors="pt")
     if batch["input_ids"].shape[1] > 128:
@@ -6588,6 +6635,7 @@ async def chat(req: ChatRequest):
     except TimeoutError:
         raise HTTPException(503, "当前请求较多，请稍后再试")
     request_id = uuid.uuid4().hex
+    # 使用单调时钟统计耗时，避免受系统时间调整影响。
     started = time.monotonic()
     try:
         settings = app.state.settings
@@ -6749,6 +6797,7 @@ RUN useradd --create-home appuser
 COPY --chown=appuser:appuser app.py 聊天客户端.py ./
 # 切换到普通用户后再启动服务。
 USER appuser
+# 声明容器预期使用的端口，发布到主机的端口由运行时的 -p 参数指定。
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
