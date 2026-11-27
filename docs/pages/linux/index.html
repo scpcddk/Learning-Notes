@@ -130,12 +130,14 @@
     theme(get('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
     $('theme').addEventListener('click',()=>theme(document.documentElement.dataset.theme==='dark'?'light':'dark',true));
 
-    function decorate() {
+    function decorate(commandOutline) {
       const article=$('note-body');
-      const headings=[...article.querySelectorAll('h2,h3')].filter(heading=>!heading.closest('.answers'));
+      const headingSelector=commandOutline?'h1:not(:first-child),h2':'h2,h3';
+      const subheadingTag=commandOutline?'H2':'H3';
+      const headings=[...article.querySelectorAll(headingSelector)].filter(heading=>!heading.closest('.answers'));
       if(headings.length>1) {
         const contents=document.createElement('details'); contents.className='article-contents';
-        contents.innerHTML='<summary>本篇目录 · '+headings.length+' 节</summary><nav class="toc-list" aria-label="本篇目录">'+headings.map(heading=>'<a class="'+(heading.tagName==='H3'?'sub':'')+'" href="#'+heading.id+'">'+escape(heading.textContent)+'</a>').join('')+'</nav>';
+        contents.innerHTML='<summary>本篇目录 · '+headings.length+' 节</summary><nav class="toc-list" aria-label="本篇目录">'+headings.map(heading=>'<a class="'+(heading.tagName===subheadingTag?'sub':'')+'" href="#'+heading.id+'">'+escape(heading.textContent)+'</a>').join('')+'</nav>';
         article.prepend(contents);
       }
     }
@@ -195,7 +197,7 @@
           $('diagram-panel').hidden=false;$('diagram').src=page.embed;
           $('open-diagram').hidden=false;$('open-diagram').href=page.embed;
         } else {
-          $('note-body').innerHTML=page[renderedMode];decorate();
+          $('note-body').innerHTML=page[renderedMode];decorate(page.id==='commands'&&renderedMode==='full');
           if(renderedMode==='summary'&&page.commands){$('quick-panel').hidden=false;$('quick-search').value='';commandCards(page);}
         }
         const index=pages.indexOf(page);

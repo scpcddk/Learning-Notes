@@ -1237,9 +1237,9 @@ def build_linux(output, github, branch):
         tokens = MarkdownIt("commonmark").enable("table").parse(text)
         starts, group = [], "常用命令"
         for index, token in enumerate(tokens):
-            if token.type == "heading_open" and token.tag == "h2":
+            if token.type == "heading_open" and token.tag == "h1":
                 group = tokens[index+1].content.replace("**", "")
-            if token.type == "heading_open" and token.tag == "h3":
+            if token.type == "heading_open" and token.tag == "h2":
                 starts.append((index, group))
 
         def plain(value):
@@ -1250,10 +1250,10 @@ def build_linux(output, github, branch):
         for position, (start, group) in enumerate(starts):
             end = starts[position+1][0] if position+1 < len(starts) else len(tokens)
             # Do not include the next category's introduction in this command.
-            end = next((i for i in range(start+1, end) if tokens[i].type == "heading_open" and tokens[i].tag == "h2"), end)
+            end = next((i for i in range(start+1, end) if tokens[i].type == "heading_open" and tokens[i].tag == "h1"), end)
             chunk = tokens[start:end]
             title = tokens[start+1].content
-            name = re.sub(r"^\d+[.、]\s*", "", plain(title))
+            name = re.sub(r"^\d+(?:\.\d+)*(?:[.、]\s*|\s+)", "", plain(title))
             description = next((plain(chunk[i+1].content) for i, token in enumerate(chunk[:-1])
                                 if token.type == "paragraph_open" and chunk[i+1].type == "inline"), "查看常用语法与完整用法。")
             usage, parameters = "", []
