@@ -410,6 +410,8 @@ docker pull nginx:latest
 
 `nginx:latest` 是镜像引用的简写，按 Docker 的默认命名规则展开为 `docker.io/library/nginx:latest`。CLI 通过 Docker Engine API 发出拉取请求，守护进程从 Registry 获取标签指向的镜像内容，下载缺少的层并复用已有的层。 [镜像引用规则](https://docs.docker.com/reference/cli/docker/image/tag/) · [`docker pull` 命令参考](https://docs.docker.com/reference/cli/docker/image/pull/)
 
+`docker pull` 省略标签时默认使用 `latest`，例如 `docker pull hello-world` 等同于 `docker pull hello-world:latest`。仓库维护者决定 `latest` 指向哪个版本，发布时间更晚的版本也可能使用其他标签。远端标签改变时，本地引用仍指向原来的镜像，可以重新拉取来更新。 [`docker pull` 命令参考](https://docs.docker.com/reference/cli/docker/image/pull/#pull-an-image-from-docker-hub) · [镜像仓库与版本管理](镜像仓库与版本管理.md)
+
 ```mermaid
 %%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","edgeLabelBackground":"#ffffff","darkMode":false,"background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":12,"nodeSpacing":32,"rankSpacing":28,"padding":16,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
 flowchart TB
@@ -437,7 +439,7 @@ flowchart TB
 | 命令 | 作用 |
 | :--- | :--- |
 | `docker pull nginx:latest` | 拉取镜像，使它在目标 Engine 上可用 |
-| `docker image ls` | 查看目标 Engine 已保存的镜像 |
+| `docker image ls` | 查看目标 Engine 已保存的镜像，见 [§4.1.1 查看与识别本地镜像](#411-查看与识别本地镜像) |
 | `docker run --name web nginx:latest` | 用镜像创建并启动名为 `web` 的容器 |
 | `docker ps` | 查看目标 Engine 上正在运行的容器 |
 
@@ -519,6 +521,8 @@ CLI 指向 Desktop 管理的本地 Engine 时，图形界面和命令行看到�
 
 #### 2.5.2 Windows 上的 WSL 2 与 Docker
 
+##### 2.5.2.1 系统调用与 WSL 版本
+
 **系统调用**是应用程序向操作系统内核请求服务的接口，例如打开文件、读取数据或创建进程。以 Python 读取文本文件为例，Python 运行时会通过系统调用向内核发出文件操作请求。 [Linux 系统调用手册](https://man7.org/linux/man-pages/man2/syscalls.2.html)
 
 ```python
@@ -536,12 +540,12 @@ with open("test.txt", "r", encoding="utf-8") as f:
 > [!NOTE]
 > **WSL 1 兼容的是系统调用。** `ls` 仍作为 Linux 程序执行。它请求读取目录时，兼容层将该请求转换为 Windows 内核能够处理的操作，再把结果返回给 `ls`。
 
+##### 2.5.2.2 内核与文件系统如何共享
+
 Docker Desktop 使用 WSL 2 后端时，Docker Engine 在专用的 `docker-desktop` WSL 发行版中运行。Docker 创建的 Linux 容器共享 WSL 2 虚拟机里的 Linux 内核。 [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/)
 
 > [!NOTE]
 > **WSL 2 虚拟机运行完整的 Linux 内核。** 同一个 Docker Engine 启动多个 Linux 容器时，这些容器里的应用进程都向该 Linux 内核发出系统调用。 [Microsoft WSL 版本对比](https://learn.microsoft.com/zh-cn/windows/wsl/compare-versions)
-
-**多个终端与发行版**
 
 在同一个 Windows 用户的常规 WSL 2 环境中，多个发行版可以同时运行在一台轻量级虚拟机里，共享该虚拟机的 Linux 内核。 [WSL 2 架构](https://learn.microsoft.com/en-us/windows/wsl/compare-versions#wsl-2-architecture) · [Docker Desktop 的 WSL 2 后端](https://docs.docker.com/desktop/features/wsl/#enable-docker-in-a-wsl-2-distribution)
 
@@ -554,6 +558,8 @@ Docker Desktop 使用 WSL 2 后端时，Docker Engine 在专用的 `docker-deskt
 同一个 Linux 内核可以同时运行使用不同文件系统视图的进程。WSL 为每个发行版挂载自己的虚拟磁盘作为根文件系统，并用进程命名空间限制进程的可见范围。 [WSL 发行版的启动过程](https://wsl.dev/technical-documentation/init/#wsl2-specific-distributions-startup) · [§3.5 容器的可写层](#35-同一个镜像如何运行多个容器)
 
 发行版之间也可以通过共享挂载点访问文件，例如 `/mnt/wsl`。
+
+##### 2.5.2.3 在终端检查文件与内核版本
 
 **在两个窗口查看同一个文件**
 
@@ -585,7 +591,7 @@ uname -r
 
 **新增容器不等于新增一台虚拟机。** 同一 Docker Desktop WSL 2 后端中的普通 Linux 容器共享已有的 Linux 内核，不需要为每个容器再启动一个独立内核。进程、网络和文件系统视图可以隔离，CPU、内存等资源仍由同一个内核管理，资源用量可通过 cgroups 约束。 [Docker 容器与虚拟机](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/#containers-versus-virtual-machines-vms)
 
-**WSL 2 与发行版**
+##### 2.5.3.1 WSL 2 后端与发行版
 
 - **WSL 2** 提供轻量级虚拟机和 Linux 内核。选择 WSL 2 后端前，Windows 上需要有可用的 WSL 2。 [Docker Desktop 安装要求](https://docs.docker.com/desktop/setup/install/windows-install/#system-requirements)
 - **`docker-desktop`** 是 Docker Desktop 管理的专用发行版，在其中运行 Docker Engine。
@@ -617,15 +623,13 @@ flowchart TB
 > [!NOTE]
 > **Docker Desktop 的 Hyper-V 后端。** 如果 Docker Desktop 使用独立的 Hyper-V 后端运行 Linux 容器，Desktop 的容器虚拟机和 Ubuntu 所在的 WSL 2 虚拟机分别使用自己的 Linux 内核。 [Windows 上的 Docker Desktop 后端选项](https://docs.docker.com/desktop/setup/install/windows-install/#system-requirements) · [Docker Desktop 的 WSL 2 隔离说明](https://docs.docker.com/desktop/features/wsl/#wsl-2-security-in-docker-desktop)
 
-**后来安装 Ubuntu 24.04**
+##### 2.5.3.2 安装 Ubuntu 并启用 WSL 集成
 
 在 WSL 2 已经可用的环境中，可以用下列命令添加 Ubuntu 24.04。发行版名称以 `wsl --list --online` 列出的结果为准。 [Microsoft WSL 基本命令](https://learn.microsoft.com/en-us/windows/wsl/basic-commands)
 
 ```powershell
 wsl --install -d Ubuntu-24.04
 ```
-
-**从 Ubuntu 访问 Docker Engine**
 
 Docker Desktop 使用 WSL 2 后端运行 Linux 容器时，可以为指定的 Ubuntu 发行版启用集成。 [Docker Desktop 的 WSL 集成](https://docs.docker.com/desktop/features/wsl/#enable-docker-in-a-wsl-2-distribution)
 
@@ -636,7 +640,7 @@ Docker Desktop 使用 WSL 2 后端运行 Linux 容器时，可以为指定的 Ub
 - **在 PowerShell 和 Ubuntu 中对照**。两个 CLI 指向同一个 Engine，且两次查询间容器运行状态相同时，`docker ps` 会列出同一组容器。切换 Docker Context 可以改变连接目标。 [Docker 连接上下文](https://docs.docker.com/engine/manage-resources/contexts/) · [`docker ps` 命令参考](https://docs.docker.com/reference/cli/docker/container/ls/)
 - **在 Ubuntu 中独立运行 Engine**。也可安装 Linux 版 Engine，让 CLI 连接 Ubuntu 自己的守护进程。在同一发行版里混用 Desktop 的 WSL 集成与直接安装的 Engine 或 CLI 可能发生冲突。 [Ubuntu 上的 Docker Engine](https://docs.docker.com/engine/install/ubuntu/) · [Docker Desktop 的 WSL 2 后端配置](https://docs.docker.com/desktop/features/wsl/#turn-on-docker-desktop-wsl-2)
 
-**查看已安装的发行版及运行状态**
+##### 2.5.3.3 查看发行版和运行状态
 
 ```powershell
 wsl -l -v
@@ -819,7 +823,7 @@ Linux 容器通常使用[命名空间（Namespace）](#33-linux-namespace-与资
 
 **宿主机中的进程同样处于 PID Namespace 中。** PID Namespace 可以形成父子层级，宿主机初始 PID Namespace 是这棵树的根。
 
-以下为教学示例，编号未实测。假设容器 A、B 的 PID Namespace 是初始命名空间的两个直接子级，MySQL、Nginx 分别作为各自容器内的 PID 1 运行。图中箭头表示命名空间的父子关系：
+假设容器 A、B 的 PID Namespace 是初始命名空间的两个直接子级，MySQL、Nginx 分别作为各自容器内的 PID 1 运行。图中箭头表示命名空间的父子关系。
 
 ```mermaid
 %%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","edgeLabelBackground":"#ffffff","darkMode":false,"background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":16,"nodeSpacing":36,"rankSpacing":36,"padding":18,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
@@ -905,7 +909,7 @@ flowchart TB
 
 **独立的挂载视图也可以共享数据**
 
-假设管理员把宿主机的 `/data/shared` 同时绑定挂载到两个容器的 `/app/data`。下图为教学示意，箭头表示路径映射，未在本机执行验证：
+假设管理员把宿主机的 `/data/shared` 同时绑定挂载到两个容器的 `/app/data`。箭头表示路径映射。
 
 ```mermaid
 %%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","edgeLabelBackground":"#ffffff","darkMode":false,"background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":16,"nodeSpacing":36,"rankSpacing":36,"padding":18,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
@@ -942,7 +946,7 @@ Nginx 的目录挂载示例见 [§7.1.3](#713-宿主机目录挂载开发调试�
 
 容器虽然有各自的资源视图，最终仍使用同一台宿主机的 CPU 和内存。Namespace 不会自动划分固定份额，一个容器消耗过多资源，仍可能影响其他服务。
 
-下面是资源限制的教学示意，并非本机实际配置：
+下图示例为两个容器设置不同的资源限制。
 
 ```mermaid
 %%{init: {"htmlLabels":true,"theme":"base","themeVariables":{"fontSize":"16px","lineColor":"#475569","edgeLabelBackground":"#ffffff","darkMode":false,"background":"#ffffff","primaryTextColor":"#172033"},"flowchart":{"curve":"linear","diagramPadding":16,"nodeSpacing":36,"rankSpacing":36,"padding":18,"wrappingWidth":660},"themeCSS":"background-color: #ffffff;"}}%%
@@ -967,7 +971,7 @@ cgroups 控制的是**可以使用多少宿主机资源**，不会为容器创�
 
 #### 3.4.2 使用示例与易错点
 
-以下为 Bash 命令示例，仅记录用法，未执行：
+在 Bash 中运行以下命令，为 Nginx 容器设置 CPU 和内存上限。
 
 ```bash
 docker run -d \
@@ -1029,7 +1033,7 @@ flowchart TB
 
 #### 3.5.2 修改已有文件：copy-up
 
-以下采用 **OverlayFS 的典型 copy-up 行为**作教学示例，未在本机验证。假设自定义镜像预置了 `/app/config.txt`，内容为 `hello`，两个容器都没有在 `/app` 配置挂载：
+以 **OverlayFS 的典型 copy-up 行为**为例。假设镜像中的 `/app/config.txt` 内容为 `hello`，两个容器都没有在 `/app` 配置挂载。
 
 1. **读取原文件**：文件未被修改时，可以从镜像只读层读取 `hello`。
 2. **首次修改数据**：`web1` 要把内容改为 `world`，文件系统先按需将文件复制到 `web1` 的可写层，这称为 **copy-up**。
@@ -1054,7 +1058,7 @@ copy-up 按需处理要修改的文件，**不是创建容器时就复制整份�
 | `docker start web1` | 启动同一个已停止的容器，继续使用原有可写层，之前写入的文件不会因这次启停自动清除。 [启动已有容器](https://docs.docker.com/reference/cli/docker/container/start/) |
 | `docker restart web1` | 重启同一个容器，继续使用原有可写层，不因重启自动清除其中的文件。 [重启容器](https://docs.docker.com/reference/cli/docker/container/restart/) |
 | `docker rm web1` | `web1` 停止后，可用此命令删除该容器及其可写层。默认保留挂载数据和原镜像，`web2` 可以继续运行。 [删除容器](https://docs.docker.com/reference/cli/docker/container/rm/) |
-| `docker rmi nginx:latest` | 操作的是本地镜像引用。镜像有多个标签时，可以只移除指定标签。镜像仍被 `web2` 等运行中的容器使用时，删除镜像本身会受限制。 [删除镜像](https://docs.docker.com/reference/cli/docker/image/rm/) |
+| `docker rmi nginx:latest` | 移除本地标签。移除最后一个标签时，Engine 会尝试删除镜像，容器仍引用该镜像时可能发生冲突。 [§4.5.3 移除标签与删除镜像](#453-移除标签与删除镜像) |
 
 `docker start` 使用已有容器；重新执行 `docker run` 创建的是新容器，不会自动继承旧容器的可写层。
 
@@ -1076,7 +1080,7 @@ Volume 和 Bind Mount 的数据不属于普通容器可写层，其保留与清�
 | `docker ps` | ==**列出**当前**正在运行**的容器== | `docker ps` |
 | `docker ps -a` | 列出**所有**容器（包括已停止的容器） | `docker ps -a` |
 | `docker build` | ==使用`Dockerfile`**构建镜像**== | `docker build -t my-image .` |
-| `docker images` | **列出**本地存储的所有**镜像** | `docker images` |
+| `docker image ls`（`docker images`） | 列出目标 Engine 的本地镜像，见 [§4.1.1 查看与识别本地镜像](#411-查看与识别本地镜像) | `docker image ls` |
 | `docker pull` | 从 Docker 仓库**拉取镜像** | `docker pull ubuntu` |
 | `docker push` | 将**镜像推送**到 Docker 仓库 | `docker push my-image` |
 | `docker exec` | ==在运行的容器中**执行命令**== | `docker exec -it container_name bash` |
@@ -1084,7 +1088,7 @@ Volume 和 Bind Mount 的数据不属于普通容器可写层，其保留与清�
 | `docker start` | **启动**已停止的容器 | `docker start container_name` |
 | `docker restart` | **重启**一个容器 | `docker restart container_name` |
 | `docker rm` | **删除**一个或多个**容器** | `docker rm container_name` |
-| `docker rmi` | **删除**一个或多个**镜像** | `docker rmi my-image` |
+| `docker rmi` | 移除本地镜像标签或镜像，见 [§4.5.3 移除标签与删除镜像](#453-移除标签与删除镜像) | `docker rmi hello-lab:v1` |
 | `docker logs` | ==**查看容器的日志**== | `docker logs container_name` |
 | `docker inspect` | 获取容器或镜像的详细信息 | `docker inspect container_name` |
 | `docker exec -it` | 进入容器的交互式终端 | `docker exec -it container_name /bin/bash` |
@@ -1148,6 +1152,29 @@ docker run -d --network app-net --network-alias db mysql:8
 
 `bridge`、`host`、`none`、`container:容器名` 和自定义网络的区别，见 [§6.2.1 `docker run --network` 用法补充](#621-docker-run---network-用法补充)。
 
+#### 4.1.1 查看与识别本地镜像
+
+用 `docker image ls`（也可用 `docker images`）查看当前 Engine 保存的镜像。用 `docker ps -a` 查看已创建的容器，包括已停止的容器。 [`docker image ls` 命令参考](https://docs.docker.com/reference/cli/docker/image/ls/) · [容器列表](https://docs.docker.com/reference/cli/docker/container/ls/)
+
+##### 4.1.1.1 镜像列表的字段
+
+| 字段 | 读法 |
+| :--- | :--- |
+| `IMAGE` 或 `REPOSITORY`、`TAG` | Docker CLI 29 的默认视图用 `IMAGE` 显示 `仓库名:标签`。旧视图分两列显示，例如 `hello-world` 和 `latest`。 |
+| `ID` 或 `IMAGE ID` | 通常显示缩写。多行 ID 相同时，这些引用指向同一个镜像。 |
+| `CREATED` | 旧视图中的镜像创建时间，来自镜像元数据。 |
+| `SIZE` | 传统镜像存储下的镜像层累计大小。 |
+| `CONTENT SIZE`、`DISK USAGE` | 使用 containerd 镜像存储时，前者统计已保存的镜像内容，层通常为压缩格式。后者还计入已解包层。 |
+| `EXTRA` 中的 `U` | 至少有一个现有容器引用该镜像，已退出的容器也计入。 |
+
+[Docker 29.0.0 发布说明](https://docs.docker.com/engine/release-notes/29/#2900) · [Docker CLI 新版列表](https://github.com/docker/cli/pull/6566/files) · [Engine 镜像空间与引用统计](https://raw.githubusercontent.com/moby/moby/docker-v29.5.2/daemon/containerd/image_list.go)
+
+##### 4.1.1.2 核对磁盘占用与容器引用
+
+不同 ID 的镜像也可以共享底层数据，逐行相加会重复计算。用 `docker system df -v` 查看共享与独占空间，用 `docker stats` 查看运行中容器的内存。 [§9.1.1 读懂 `docker system df`](#261-读懂-docker-system-df)
+
+排查镜像引用时，用 `docker ps -a` 查找容器。标签改过指向时，核对容器实际引用的镜像 ID。删除容器会移除它持有的引用。 [§4.2.1 一次性容器与退出状态](#421-hello-world一次性容器与退出状态)
+
 ---
 
 <a id="112-docker-run-如何启动应用"></a>
@@ -1166,9 +1193,18 @@ docker run my-java-app
 
 [`docker run` 命令参考](https://docs.docker.com/reference/cli/docker/container/run/) · [镜像层与容器层](https://docs.docker.com/engine/storage/drivers/#container-and-layers)
 
+| 命令 | 对启动命令的处理 |
+| :--- | :--- |
+| `docker build` | 将 Dockerfile 中的 `CMD` 写入镜像配置，作为容器启动时的默认命令或参数。 |
+| `docker create` | 创建容器并确定启动配置，包括从镜像继承的默认值和本次指定的覆盖项。容器处于 `Created` 状态，等待启动。 |
+| `docker start` | 启动已有容器。Docker Engine 协调运行时，按容器创建时确定的配置启动主进程。 |
+| `docker run` | 在一次调用中创建容器，然后启动它。 |
+
+[`docker create` 命令参考](https://docs.docker.com/reference/cli/docker/container/create/) · [`docker start` 命令参考](https://docs.docker.com/reference/cli/docker/container/start/) · [§5.1.1 CMD 与 ENTRYPOINT](#312-cmd-vs-entrypoint)
+
 #### 4.2.1 hello-world：一次性容器与退出状态
 
-Docker Engine 可用时，可以用 `hello-world` 观察“创建容器 → 执行程序 → 程序退出”的过程。以下为 PowerShell 用法示例，整理时未执行：
+用 `hello-world` 检查 Engine 能否启动一次性容器。
 
 ```powershell
 docker run hello-world
@@ -1180,16 +1216,7 @@ docker run hello-world
 Hello from Docker!
 ```
 
-`hello-world` 的程序打印信息后结束，容器随主进程退出。**正常退出不等于启动失败，也不等于容器被自动删除**；本例没有使用自动删除选项，容器记录默认保留。 [hello-world 官方镜像](https://hub.docker.com/_/hello-world)
-
-查看运行中与全部容器：
-
-```powershell
-docker ps
-docker ps -a
-```
-
-`docker ps` 默认只显示运行中的容器，`docker ps -a` 还包含已停止的容器。`hello-world` 正常执行完毕后，预期可在后者中找到退出记录。 [Docker 容器列表](https://docs.docker.com/reference/cli/docker/container/ls/)
+镜像的 `Config.Cmd` 为 `["/hello"]`。Docker 执行容器内的 `/hello` 并把标准输出传给终端。主进程正常结束后，用 `docker ps -a` 查看保留的容器，预期状态为 `Exited (0)`。未指定 `--name` 时，Docker 会自动生成容器名。 [hello-world 官方镜像配置](https://github.com/docker-library/repo-info/blob/master/repos/hello-world/remote/latest.md#hello-worldlatest---linux-amd64) · [§5.1.1 CMD 与 ENTRYPOINT](#312-cmd-vs-entrypoint)
 
 | 状态示例 | 如何理解 |
 | :--- | :--- |
@@ -1197,7 +1224,7 @@ docker ps -a
 | `Exited (0)` | 主进程已退出，退出码为 0，通常表示正常结束；容器对象仍在列表中。 |
 | `Exited (255)` | 主进程以非零退出码结束；仅凭 255 无法确定原因，仍需查看日志等证据。 |
 
-未指定 `--name` 时，Docker 会自动生成容器名；容器名不必与镜像名相同。提供资料中的实际拉取、重试与状态检查过程见 [§9.6](#96-案例hello-world-认证-eof-后重试成功)。
+拉取阶段遇到令牌请求中断时，见 [§9.6 拉取镜像时的认证 EOF](#96-拉取镜像时的认证-eof)。
 
 ---
 
@@ -1272,13 +1299,108 @@ docker exec backend printenv DB_HOST
 
 | 命令 | 功能 | 示例 |
 | :--- | :--- | :--- |
+| `docker image inspect` | 读取本地镜像的详细元数据，见 [§4.5.1 查看镜像元数据](#451-查看镜像元数据) | `docker image inspect hello-world:latest` |
 | `docker save` | ==将一个或多个镜像**导出**为归档文件（`.tar`）== | `docker save -o myapp.tar nginx:alpine` |
 | **`docker load`** | ==从 `save` 导出的归档文件中**导入镜像**（离线迁移核心）== | `docker load -i myapp.tar` |
-| `docker tag` | 给本地镜像打上新的**标签**（仓库名+版本） | `docker tag nginx:latest myrepo/nginx:v1.0`(`latest`本质上就是一个默认 tag，只是一个名字，不保证它真的就是最新版本) |
+| `docker tag` | 给已有镜像添加一个引用，见 [§4.5.2 为本地镜像打标签](#452-为本地镜像打标签) | `docker tag hello-world:latest hello-lab:v1` |
 | `docker history` | 查看镜像的**构建历史**（分层细节与大小） | `docker history ubuntu:22.04 --no-trunc` |
 | `docker import` | 从压缩包或 URL **导入**内容创建镜像（配合 `export`） | `docker import myapp.tar.gz myapp:imported` |
 | `docker export` | 将**容器**当前文件系统**导出**为快照（扁平化，丢失历史） | `docker export container_id > snapshot.tar` |
 | `docker commit` | 将容器的改动**提交**为新的镜像（生产环境不推荐，调试用） | `docker commit -m "fix bug" container_id newimg:v2` |
+
+#### 4.5.1 查看镜像元数据
+
+用 `docker info` 查看 Docker Engine 的运行环境。要查看某个镜像的完整 ID、目标平台或默认启动配置，先用 `docker image ls` 找到镜像引用，再用 `docker image inspect` 查询。该命令是只读操作，默认以 JSON 数组返回结果。 [§2.5.7 查看 Docker 系统信息](#1116-查看-docker-系统信息) · [`docker image inspect` 命令参考](https://docs.docker.com/reference/cli/docker/image/inspect/)
+
+##### 4.5.1.1 查看完整元数据
+
+```powershell
+docker image inspect hello-world:latest
+```
+
+至少指定一个本地镜像。若提示 `requires at least 1 argument`，检查命令末尾是否写了镜像引用，例如 `hello-world:latest`。 [`docker image inspect` 参数](https://docs.docker.com/reference/cli/docker/image/inspect/)
+
+| JSON 字段 | 怎么读 |
+| :--- | :--- |
+| `Id` | 完整镜像 ID，用来识别本地镜像对象。`docker image ls` 通常只显示它的缩写。 |
+| `RepoTags` | 当前指向该镜像的 `仓库名:标签` 列表。一个镜像 ID 可以对应多个标签。 |
+| `RepoDigests` | `仓库名@sha256:…` 形式的引用。这里的摘要标识清单或镜像索引，可用于拉取指定内容。 |
+| `Os` | 镜像面向的操作系统，例如 `linux`。Linux 容器使用运行环境提供的 Linux 内核。 |
+| `Architecture` | 镜像面向的 CPU 架构，例如 `amd64`（x86-64）或 `arm64`。 |
+| `Config.Cmd` | 默认命令。配置了 `ENTRYPOINT` 时，这组值提供默认参数。 |
+| `Config.WorkingDir` | 容器启动进程的默认工作目录。`/` 表示容器内的根目录。 |
+| `RootFS.Layers` | 组成镜像根文件系统的层标识，可用来查看镜像涉及哪些文件系统层。 |
+
+[Engine 镜像检查字段](https://raw.githubusercontent.com/moby/moby/docker-v29.5.2/api/types/image/image_inspect.go) · [镜像仓库与版本管理](镜像仓库与版本管理.md) · [§2.5.3 WSL 2 内核与 Docker](#1112-docker-在-windows-与-wsl-2-中的运行方式)
+
+##### 4.5.1.2 只查目标平台
+
+用 `--format` 指定 Go 模板。下面的写法将 `.Os` 和 `.Architecture` 用 `/` 拼接，输出形如 `linux/amd64`。 [Docker 输出格式](https://docs.docker.com/engine/cli/formatting/)
+
+```powershell
+docker image inspect --format '{{.Os}}/{{.Architecture}}' hello-world:latest
+```
+
+##### 4.5.1.3 从配置判断启动行为
+
+Linux 版 `hello-world` 的 `Config.Cmd` 为 `["/hello"]`。运行 `docker run hello-world` 时，Docker 采用这项默认配置，从容器文件系统启动 `/hello`。数组只有一个元素，所以没有额外参数。 [§4.2.1 一次性容器与退出状态](#421-hello-world一次性容器与退出状态) · [§5.1.1 CMD 与 ENTRYPOINT](#312-cmd-vs-entrypoint)
+
+#### 4.5.2 为本地镜像打标签
+
+`docker tag 原镜像引用 新镜像引用` 让第二个引用指向第一个引用对应的镜像。两个引用共用同一个镜像对象和文件层，原引用仍可使用。镜像 ID 由镜像配置计算，其中包含文件层摘要。打标签只更新名称引用，配置或文件层发生变化的构建结果才会得到新的 ID。 [`docker tag` 命令参考](https://docs.docker.com/reference/cli/docker/image/tag/) · [OCI 镜像 ID](https://github.com/opencontainers/image-spec/blob/v1.1.1/config.md#imageid)
+
+##### 4.5.2.1 添加并查看标签
+
+以本地已有的 `hello-world:latest` 为例，添加 `hello-lab:v1` 后，分别按完整引用查询。
+
+```powershell
+docker tag hello-world:latest hello-lab:v1
+docker image ls hello-world:latest
+docker image ls hello-lab:v1
+```
+
+两条查询应分别显示原引用和新引用，`ID` 或 `IMAGE ID` 应一致。 [`docker image ls` 按名称和标签查询](https://docs.docker.com/reference/cli/docker/image/ls/#list-images-by-name-and-tag)
+
+##### 4.5.2.2 用 PowerShell 比较完整镜像 ID
+
+用 `docker image inspect --format '{{.Id}}'` 提取完整 ID。两次查询都成功且返回 ID 时，才用 `-eq` 比较。
+
+```powershell
+$sourceId = docker image inspect --format '{{.Id}}' hello-world:latest
+$sourceExitCode = $LASTEXITCODE
+$targetId = docker image inspect --format '{{.Id}}' hello-lab:v1
+
+if ($sourceExitCode -eq 0 -and $LASTEXITCODE -eq 0 -and $sourceId -and $targetId) {
+    $sourceId -eq $targetId
+} else {
+    throw '无法读取两个镜像的完整 ID，请检查 Docker 输出。'
+}
+```
+
+`True` 表示两个引用当前指向同一个镜像对象，`False` 表示两边的 ID 不同。执行打标签的示例后，预期结果为 `True`。 [Engine 镜像 ID 字段](https://raw.githubusercontent.com/moby/moby/docker-v29.5.2/api/types/image/image_inspect.go) · [PowerShell `$LASTEXITCODE`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables#lastexitcode) · [PowerShell `-eq`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comparison_operators#equality-operators)
+
+#### 4.5.3 移除标签与删除镜像
+
+`docker rmi` 是 `docker image rm` 的简写，操作当前 Engine 的本地镜像存储。 [`docker image rm` 命令参考](https://docs.docker.com/reference/cli/docker/image/rm/)
+
+##### 4.5.3.1 判断移除范围
+
+- **镜像还有其他标签。** 按完整的 `仓库名:标签` 操作时，移除指定的标签。其他标签仍指向同一个镜像，照常使用原来的镜像 ID。
+- **目标是最后一个标签。** Docker 会尝试移除标签和镜像对象。已有容器仍引用镜像时，普通删除可能报冲突。镜像删除后，其他镜像仍在使用的文件层会保留。 [Engine 镜像删除规则](https://raw.githubusercontent.com/moby/moby/docker-v29.5.2/daemon/containerd/image_delete.go) · [§9.1.1 读懂 `docker system df`](#261-读懂-docker-system-df)
+
+只移除一个标签时，使用完整的 `仓库名:标签`。按镜像 ID 加 `-f` 可能移除该 ID 关联的多个标签。 [`docker image rm` 示例](https://docs.docker.com/reference/cli/docker/image/rm/#examples)
+
+##### 4.5.3.2 移除一个标签并验证
+
+先确认 `hello-world:latest` 和 `hello-lab:v1` 指向同一个镜像 ID，再移除 `hello-lab:v1`。 [§4.5.2.2 用 PowerShell 比较完整镜像 ID](#4522-用-powershell-比较完整镜像-id)
+
+```powershell
+docker rmi hello-lab:v1
+docker image ls hello-world:latest
+docker image ls hello-lab:v1
+```
+
+预期删除命令显示 `Untagged: hello-lab:v1`。第一条列表查询仍显示 `hello-world:latest`，镜像 ID 与移除前相同。第二条列表查询只显示表头。 [`docker image ls` 按名称和标签查询](https://docs.docker.com/reference/cli/docker/image/ls/#list-images-by-name-and-tag)
 
 ---
 
@@ -1339,9 +1461,9 @@ docker exec backend printenv DB_HOST
 
 #### 5.1.1 CMD vs ENTRYPOINT
 
-- **CMD**：适合可有可无的默认参数，运行`docker run image command`会直接替换`CMD`
-- **ENTRYPOINT**：固定启动命令，后面传参会追加到`ENTRYPOINT`之后
-- **组合**：`ENTRYPOINT ["java", "-jar", "app.jar"]` + `CMD ["--server.port=8080"]`，运行`docker run my-image --server.port=9090`可覆盖`CMD`
+`CMD` 保存的是容器启动时采用的默认值。创建容器时确定启动配置，启动容器时才按该配置运行程序。 [§4.2 `docker run` 如何启动应用](#42-docker-run-如何启动应用)
+
+未设置 `ENTRYPOINT` 时，`CMD` 的 JSON 数组第一项是程序，后续各项是参数。使用 exec 形式的 `ENTRYPOINT` 时，`CMD` 提供默认参数，追加到入口命令之后。`docker run` 在镜像名后提供的命令或参数会替换 `CMD`。 [Dockerfile `CMD` 参考](https://docs.docker.com/reference/dockerfile/#cmd) · [§4.5.1 查看镜像元数据](#451-查看镜像元数据)
 
 - Spring Boot 容器推荐：**只用 ENTRYPOINT**，避免误覆盖启动命令
 
@@ -1617,6 +1739,8 @@ services:
 
 #### 6.2.1 `docker run --network` 用法补充
 
+##### 6.2.1.1 创建容器并加入自定义网络
+
 `docker network create` 只是**创建网络**，容器要加入网络，需要在 `docker run` 时用 `--network` 指定。
 
 ```bash
@@ -1636,7 +1760,7 @@ docker run -d --name mysql --network app-net \
 > [!tip]
 > **同一个自定义 Docker 网络中的容器，通常不需要通过 `-p` 就能相互访问监听中的服务**
 
-**常见 `--network` 取值**：
+##### 6.2.1.2 常见网络模式
 
 | 写法 | 含义 | 注意 |
 | :--- | :--- | :--- |
@@ -1646,7 +1770,7 @@ docker run -d --name mysql --network app-net \
 | `--network container:xxx` | 与 `xxx` 容器共享网络栈 | Sidecar / 代理场景 |
 | `--network app-net` | 加入自定义网络 | 同网络内容器名可互访 |
 
-**补充命令**：
+##### 6.2.1.3 调整容器网络与 Compose 配置
 
 ```bash
 # 把已运行容器连接到另一个网络
@@ -1864,7 +1988,7 @@ Network Namespace + 协议 + 本地 IP 地址 + 端口
 
 #### 6.5.2 两个容器如何发布相同的内部端口
 
-假设两个 Nginx 容器都监听内部 TCP 80，宿主机的 8080、8081 端口可用。以下为命令示例，未执行：
+假设两个 Nginx 容器都监听内部 TCP 80，宿主机的 8080、8081 端口可用。
 
 ```bash
 # 宿主机 8080 → web1 的内部 80
@@ -1953,7 +2077,7 @@ volumes:
   - ./models:/app/model        # 模型热更新，无需重建镜像
 ```
 
-**Linux 宿主机的 Bash 示例（未执行）**：假设 `/home/user/site` 已准备好网页文件。
+在 Linux 宿主机上，先将网页文件放在 `/home/user/site`，再启动容器。
 
 ```bash
 docker run -d \
@@ -2329,42 +2453,18 @@ logging:
 
 ---
 
-### 9.6 案例：hello-world 认证 EOF 后重试成功
+### 9.6 拉取镜像时的认证 EOF
 
-**记录依据**：以下按提供的对话资料、日志摘录与容器状态摘要整理，本次未直接连接 Docker 检查环境。成功输出、状态摘要和根因判断分别记录。
-
-#### 9.6.1 首次尝试：认证请求 EOF
-
-资料记录在 PowerShell 执行 `docker run hello-world` 后出现：
+拉取 Docker Hub 镜像时，可能出现以下认证错误。
 
 ```text
-Unable to find image 'hello-world:latest' locally
-latest: Pulling from library/hello-world
-4f55086f7dd0: Pull complete
 docker: failed to authorize: failed to fetch oauth token:
 Post "https://auth.docker.io/token": EOF
 ```
 
-- **已进入拉取流程**：本地未找到该镜像，命令已与目标 Engine 通信，并尝试从 Docker Hub 获取镜像。
-- **单层完成不等于镜像整体就绪**：`Pull complete` 是该层的进度，不能单独证明本次镜像拉取、容器创建及运行全部成功。
-- **失败点位于认证令牌请求**：报错指向 `auth.docker.io/token`，请求过程中连接或响应未按预期完成。仅凭这段日志不能确定是网络波动、代理、VPN、防火墙还是远端服务导致。
-
-公开镜像也可能通过匿名令牌完成授权，所以 `failed to authorize` 并不直接等于“必须登录”或“密码错误”。 [Docker Registry 认证流程](https://docs.docker.com/reference/api/registry/auth/)
-
-#### 9.6.2 重试成功与状态确认
-
-后续提供的重试输出片段：
-
-```text
-Status: Downloaded newer image for hello-world:latest
-Hello from Docker!
-```
-
-据此及提供的成功说明，可确认该次重试已取得镜像，并创建、运行了输出上述信息的程序。
-
-后续提供的 `docker ps -a` 状态摘要中，镜像为 `hello-world`、名称为 `flamboyant_ritchie` 的容器显示 **`Exited (0)`**，说明这份检查记录中的主进程已正常结束，容器对象仍被保留。
-
-**本例结果是重试后恢复，具体根因仍未定位。** 恢复与临时连接异常相符，但不足以确定是哪一环节出错。若问题复现，再结合新日志检查认证服务可达性、网络路径和 Docker Desktop 的代理设置。 [Docker Desktop 代理设置](https://docs.docker.com/desktop/settings-and-maintenance/settings/#proxies)
+1. **定位失败环节。** `EOF` 表示令牌请求的连接或响应提前结束。公开镜像也可能走匿名令牌流程。同一次输出里的 `Pull complete` 只说明对应层已经下载完成。 [Docker Registry 认证流程](https://docs.docker.com/reference/api/registry/auth/)
+2. **重试并核对结果。** 用 `docker image ls` 确认镜像可用。若执行的是 `docker run hello-world`，再检查 `Hello from Docker!` 和 `docker ps -a` 中的 `Exited (0)`。 [§4.2.1 一次性容器与退出状态](#421-hello-world一次性容器与退出状态)
+3. **持续失败时检查连接。** 核对认证服务可达性、网络路径和 Docker Desktop 的代理设置。重试成功只说明故障已恢复，确定根因还需要日志或网络证据。 [Docker Desktop 代理设置](https://docs.docker.com/desktop/settings-and-maintenance/settings/#proxies)
 
 ---
 
